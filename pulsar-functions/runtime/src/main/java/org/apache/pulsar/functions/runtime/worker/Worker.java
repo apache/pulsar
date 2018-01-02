@@ -18,42 +18,84 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
+import com.google.common.util.concurrent.AbstractService;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.worker.rest.FunctionStateListener;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.rest.WorkerServer;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-public class Worker {
-
-    private static final Logger LOG = LoggerFactory.getLogger(Worker.class);
+@Slf4j
+public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
-    private final FunctionStateManager functionStateManager;
+    private PulsarClient client;
+    private FunctionStateManager functionStateManager;
+    private FunctionStateConsumer functionStateConsumer;
+    private Thread serverThread;
 
-    public Worker(WorkerConfig workerConfig) throws PulsarClientException {
+    public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
-        this.functionStateManager = new FunctionStateManager(workerConfig);
     }
 
-    public void start() throws InterruptedException, PulsarClientException {
-        LOG.info("Start worker {}...", workerConfig.getWorkerId());
+    @Override
+    protected void doStart() {
+        try {
+            this.client = PulsarClient.create(workerConfig.getPulsarServiceUrl());
+            ServiceRequestManager reqMgr = new ServiceRequestManager(
+                client.createProducer(workerConfig.getFunctionMetadataTopic()));
+            this.functionStateManager = new FunctionStateManager(
+                workerConfig, reqMgr);
 
-        final WorkerServer workerServer = new WorkerServer(this.workerConfig, this.functionStateManager);
+            ConsumerConfiguration consumerConf = new ConsumerConfiguration();
+            consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
+            this.functionStateConsumer = new FunctionStateConsumer(
+                functionStateManager,
+                client.subscribe(
+                    workerConfig.getFunctionMetadataTopic(),
+                    workerConfig.getFunctionMetadataTopicSubscription(),
+                    consumerConf));
 
-        FunctionStateListener functionStateListener = new FunctionStateListener(this.workerConfig, this.functionStateManager);
+            log.info("Start worker {}...", workerConfig.getWorkerId());
+        } catch (PulsarClientException e) {
+            log.error("Failed to create pulsar client to {}",
+                workerConfig.getPulsarServiceUrl(), e);
+            throw new RuntimeException(e);
+        }
 
-        Thread serverThread = new Thread(workerServer);
-        serverThread.setName(workerServer.getThreadName());
-        Thread listenerThread = new Thread(functionStateListener);
-        listenerThread.setName(functionStateListener.getThreadName());
+        WorkerServer server = new WorkerServer(workerConfig, functionStateManager);
+        this.serverThread = new Thread(server, server.getThreadName());
 
-        LOG.info("Start worker server on port {}...", workerConfig.getWorkerPort());
+        log.info("Start worker server on port {}...", workerConfig.getWorkerPort());
         serverThread.start();
-        LOG.info("Start worker metadata listener...");
-        listenerThread.start();
+        log.info("Start worker function state consumer ...");
+        functionStateConsumer.start();
+    }
 
-        serverThread.join();
-        listenerThread.join();
+    @Override
+    protected void doStop() {
+        if (null != serverThread) {
+            serverThread.interrupt();
+            try {
+                serverThread.join();
+            } catch (InterruptedException e) {
+                log.warn("Worker server thread is interrupted", e);
+            }
+        }
+        if (null != functionStateConsumer) {
+            functionStateConsumer.close();
+        }
+        if (null != functionStateManager) {
+            functionStateManager.close();
+        }
+        if (null != client) {
+            try {
+                client.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close pulsar client", e);
+            }
+        }
     }
 }

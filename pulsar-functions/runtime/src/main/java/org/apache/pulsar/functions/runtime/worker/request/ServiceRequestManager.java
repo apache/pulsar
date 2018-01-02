@@ -18,51 +18,45 @@
  */
 package org.apache.pulsar.functions.runtime.worker.request;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.functions.runtime.worker.Utils;
-import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
-public class ServiceRequestManager {
+@Slf4j
+public class ServiceRequestManager implements AutoCloseable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ServiceRequestManager.class);
+    private final Producer producer;
 
-    PulsarClient client;
-    Producer producer;
-
-    public ServiceRequestManager(WorkerConfig workerConfig) throws PulsarClientException {
-        String pulsarBrokerRootUrl = workerConfig.getPulsarServiceUrl();
-        client = PulsarClient.create(pulsarBrokerRootUrl);
-        String topic = workerConfig.getFunctionMetadataTopic();
-
-        producer = client.createProducer(topic);
+    public ServiceRequestManager(Producer producer) throws PulsarClientException {
+        this.producer = producer;
     }
 
     public CompletableFuture<MessageId> submitRequest(ServiceRequest serviceRequest) {
-        LOG.debug("Submitting Service Request: {}", serviceRequest);
+        if (log.isDebugEnabled()) {
+            log.debug("Submitting Service Request: {}", serviceRequest);
+        }
         byte[] bytes;
         try {
             bytes = Utils.toByteArray(serviceRequest);
         } catch (IOException e) {
-            LOG.error("error serializing request: " + serviceRequest);
-            throw new RuntimeException(e);
+            log.error("error serializing request {}", serviceRequest, e);
+            return FutureUtil.failedFuture(e);
         }
-
-        CompletableFuture<MessageId> messageIdCompletableFuture = send(bytes);
-
-        return messageIdCompletableFuture;
+        return producer.sendAsync(bytes);
     }
 
-    public CompletableFuture<MessageId> send(byte[] message) {
-        CompletableFuture<MessageId> messageIdCompletableFuture = producer.sendAsync(message);
-
-        return messageIdCompletableFuture;
+    @Override
+    public void close() {
+        try {
+            this.producer.close();
+        } catch (PulsarClientException e) {
+            log.warn("Failed to close producer for service request manager", e);
+        }
     }
 }

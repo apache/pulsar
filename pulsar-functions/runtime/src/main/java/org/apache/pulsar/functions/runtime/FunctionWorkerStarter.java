@@ -68,7 +68,7 @@ public class FunctionWorkerStarter {
         }
 
         final Worker worker = new Worker(workerConfig);
-        worker.start();
+        worker.startAsync();
     }
 
 }
