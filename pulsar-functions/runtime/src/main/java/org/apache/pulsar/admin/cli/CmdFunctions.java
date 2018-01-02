@@ -33,16 +33,57 @@ import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
-    private LocalRunner localRunner;
-    private CreateFunction creater;
-    private DeleteFunction deleter;
-    private UpdateFunction updater;
-    private GetFunction getter;
-    private ListFunctions lister;
+
+    private final PulsarFunctionsAdmin fnAdmin;
+    private final LocalRunner localRunner;
+    private final CreateFunction creater;
+    private final DeleteFunction deleter;
+    private final UpdateFunction updater;
+    private final GetFunction getter;
+    private final ListFunctions lister;
+
+    /**
+     * Base command
+     */
     @Getter
-    abstract class FunctionsCommand extends CliCommand {
-        @Parameter(names = "--name", description = "Function Name\n")
-        protected String name;
+    abstract class BaseCommand extends CliCommand {
+        @Parameter(names = "--tenant", description = "Tenant Name")
+        protected String tenant;
+
+        @Override
+        void run() throws Exception {
+            processArguments();
+            runCmd();
+        }
+
+        void processArguments() throws Exception {}
+
+        abstract void runCmd() throws Exception;
+    }
+
+    /**
+     * Namespace level command
+     */
+    @Getter
+    abstract class NamespaceCommand extends BaseCommand {
+        @Parameter(names = "--namespace", description = "Namespace Name")
+        protected String namespace;
+    }
+
+    /**
+     * Function level command
+     */
+    @Getter
+    abstract class FunctionCommand extends NamespaceCommand {
+        @Parameter(names = "--function-name", description = "Function Name")
+        protected String functionName;
+    }
+
+    /**
+     * Commands that require a function config
+     */
+    @Getter
+    abstract class FunctionConfigCommand extends FunctionCommand {
         @Parameter(names = "--function-classname", description = "Function Class Name\n")
         protected String className;
         @Parameter(
@@ -66,7 +107,7 @@ public class CmdFunctions extends CmdBase {
         protected FunctionConfig functionConfig;
 
         @Override
-        void run() throws Exception {
+        void processArguments() throws Exception {
             if (null != fnConfigFile) {
                 functionConfig = FunctionConfig.load(fnConfigFile);
             } else {
@@ -78,8 +119,14 @@ public class CmdFunctions extends CmdBase {
             if (null != sinkTopicName) {
                 functionConfig.setSinkTopic(sinkTopicName);
             }
-            if (null != name) {
-                functionConfig.setName(name);
+            if (null != tenant) {
+                functionConfig.setTenant(tenant);
+            }
+            if (null != namespace) {
+                functionConfig.setNamespace(namespace);
+            }
+            if (null != functionName) {
+                functionConfig.setName(functionName);
             }
             if (null != className) {
                 functionConfig.setClassName(className);
@@ -90,18 +137,14 @@ public class CmdFunctions extends CmdBase {
             if (null != outputSerdeClassName) {
                 functionConfig.setOutputSerdeClassName(outputSerdeClassName);
             }
-
-            run_functions_cmd();
         }
-
-        abstract void run_functions_cmd() throws Exception;
     }
 
     @Parameters(commandDescription = "Run function locally")
-    class LocalRunner extends FunctionsCommand {
+    class LocalRunner extends FunctionConfigCommand {
 
         @Override
-        void run_functions_cmd() throws Exception {
+        void runCmd() throws Exception {
             LimitsConfig limitsConfig = new LimitsConfig(
                 -1,   // No timelimit
                 1024,       // 1GB
@@ -134,55 +177,51 @@ public class CmdFunctions extends CmdBase {
     }
 
     @Parameters(commandDescription = "Create function")
-    class CreateFunction extends FunctionsCommand {
+    class CreateFunction extends FunctionConfigCommand {
         @Override
-        void run_functions_cmd() throws Exception {
-            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().createFunction(functionConfig, jarFile);
+        void runCmd() throws Exception {
+            fnAdmin.functions().createFunction(functionConfig, jarFile);
             print("Created successfully");
         }
     }
 
     @Parameters(commandDescription = "Get function")
-    class GetFunction extends FunctionsCommand {
+    class GetFunction extends FunctionCommand {
         @Override
-        void run_functions_cmd() throws Exception {
-            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            print(a.functions().getFunction(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName()));
+        void runCmd() throws Exception {
+            print(fnAdmin.functions().getFunction(tenant, namespace, functionName));
         }
     }
 
     @Parameters(commandDescription = "Delete function")
-    class DeleteFunction extends FunctionsCommand {
+    class DeleteFunction extends FunctionCommand {
         @Override
-        void run_functions_cmd() throws Exception {
-            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().deleteFunction(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+        void runCmd() throws Exception {
+            fnAdmin.functions().deleteFunction(tenant, namespace, functionName);
             print("Deleted successfully");
         }
     }
 
     @Parameters(commandDescription = "Update function")
-    class UpdateFunction extends FunctionsCommand {
+    class UpdateFunction extends FunctionConfigCommand {
         @Override
-        void run_functions_cmd() throws Exception {
-            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            a.functions().updateFunction(functionConfig, jarFile);
+        void runCmd() throws Exception {
+            fnAdmin.functions().updateFunction(functionConfig, jarFile);
             print("Updated successfully");
         }
     }
 
     @Parameters(commandDescription = "List function")
-    class ListFunctions extends FunctionsCommand {
+    class ListFunctions extends NamespaceCommand {
         @Override
-        void run_functions_cmd() throws Exception {
-            PulsarFunctionsAdmin a = (PulsarFunctionsAdmin)admin;
-            print(a.functions().getFunctions(functionConfig.getTenant(), functionConfig.getNamespace()));
+        void runCmd() throws Exception {
+            print(fnAdmin.functions().getFunctions(tenant, namespace));
         }
     }
 
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
+        this.fnAdmin = (PulsarFunctionsAdmin) admin;
         localRunner = new LocalRunner();
         creater = new CreateFunction();
         deleter = new DeleteFunction();
