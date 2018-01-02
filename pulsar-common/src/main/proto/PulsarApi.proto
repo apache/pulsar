@@ -230,6 +230,8 @@ message CommandProducer {
 	/// If a producer name is specified, the name will be used,
 	/// otherwise the broker will generate a unique name
 	optional string producer_name = 4;
+
+	optional bool encrypted       = 5 [default = false];
 }
 
 message CommandSend {

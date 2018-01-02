@@ -765,16 +765,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         subscriber2.close();
         
         // retry strategically until broker clean up closed subscribers and invalidate all cache entries
-        int retry = 5;
-        for (int i = 0; i < retry; i++) {
-            if (entryCache.getSize() != 0) {
-                if (i != retry - 1) {
-                    Thread.sleep(100);
-                }
-            } else {
-                break;
-            }
-        }
+        retryStrategically((test) -> entryCache.getSize() == 0, 5, 100);
+        
         // Verify: EntryCache should be cleared
         assertTrue(entryCache.getSize() == 0);
         subscriber1.close();

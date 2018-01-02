@@ -554,7 +554,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public synchronized void doLoadShedding() {
-        if (LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
+        if (!LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
             return;
         }
         if (getAvailableBrokers().size() <= 1) {
