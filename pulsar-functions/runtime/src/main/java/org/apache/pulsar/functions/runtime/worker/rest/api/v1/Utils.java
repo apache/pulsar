@@ -24,8 +24,6 @@ import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
-import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
-import org.apache.pulsar.functions.runtime.worker.rest.RestUtils;
 import org.apache.pulsar.functions.runtime.worker.rest.api.v1.dlog.DLOutputStream;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.slf4j.Logger;
@@ -44,9 +42,9 @@ public final class Utils {
     private Utils(){}
 
     static boolean namespaceExists(String namespace, WorkerConfig workerConfig) {
-
-        String zookeeperHost = workerConfig.getZookeeperUri().getHost();
-        int zookeeperPort = workerConfig.getZookeeperUri().getPort();
+        URI baseUri = URI.create(workerConfig.getDlogUri());
+        String zookeeperHost = baseUri.getHost();
+        int zookeeperPort = baseUri.getPort();
         String destTopologyNamespaceURI = String.format("distributedlog://%s:%d/%s", zookeeperHost, zookeeperPort, namespace);
 
         URI uri = URI.create(destTopologyNamespaceURI);
@@ -60,8 +58,9 @@ public final class Utils {
     }
 
     static String getDestPackageNamespaceURI(WorkerConfig workerConfig, String namespace) {
-        String zookeeperHost = workerConfig.getZookeeperUri().getHost();
-        int zookeeperPort = workerConfig.getZookeeperUri().getPort();
+        URI baseUri = URI.create(workerConfig.getDlogUri());
+        String zookeeperHost = baseUri.getHost();
+        int zookeeperPort = baseUri.getPort();
         return String.format("distributedlog://%s:%d/%s", zookeeperHost, zookeeperPort, namespace);
     }
 

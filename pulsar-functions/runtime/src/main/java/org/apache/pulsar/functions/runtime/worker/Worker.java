@@ -28,9 +28,8 @@ public class Worker {
 
     private static final Logger LOG = LoggerFactory.getLogger(Worker.class);
 
-
-    private WorkerConfig workerConfig;
-    private FunctionStateManager functionStateManager;
+    private final WorkerConfig workerConfig;
+    private final FunctionStateManager functionStateManager;
 
     public Worker(WorkerConfig workerConfig) throws PulsarClientException {
         this.workerConfig = workerConfig;

@@ -19,12 +19,8 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.worker.Worker;
-import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
-import org.apache.pulsar.functions.runtime.worker.rest.WorkerServer;
 import org.junit.Test;
 
-import java.net.URI;
 import java.net.URISyntaxException;
 
 public class WorkerTest {
@@ -32,10 +28,10 @@ public class WorkerTest {
     private static void runWorker(String workerId, int port) throws PulsarClientException, URISyntaxException, InterruptedException {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerPort(port);
-        workerConfig.setZookeeperUri(new URI("http://127.0.0.1:2181"));
+        workerConfig.setDlogUri("distributedlog://127.0.0.1:2181");
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setFunctionMetadataTopic("persistent://sample/standalone/ns1/fmt");
-        workerConfig.setPulsarBrokerRootUrl("pulsar://localhost:6650");
+        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setWorkerId(workerId);
         Worker worker = new Worker(workerConfig);
         worker.start();
