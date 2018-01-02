@@ -22,7 +22,7 @@ import com.google.gson.Gson;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.worker.FunctionStateManager;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 import org.apache.pulsar.functions.runtime.worker.rest.BaseApiResource;
@@ -78,9 +78,9 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(e.getMessage())).build();
         }
 
-        FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        if (functionStateManager.containsFunction(tenant, namespace, functionName)) {
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
@@ -148,9 +148,9 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(e.getMessage())).build();
         }
 
-        FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        if (!functionStateManager.containsFunction(tenant, namespace, functionName)) {
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
@@ -209,15 +209,15 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(e.getMessage())).build();
         }
 
-        FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
-        if (!functionStateManager.containsFunction(tenant, namespace, functionName)) {
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
 
         CompletableFuture<RequestResult> completableFuture
-                = functionStateManager.deregisterFunction(tenant, namespace, functionName);
+                = functionMetaDataManager.deregisterFunction(tenant, namespace, functionName);
 
         RequestResult requestResult = null;
         try {
@@ -254,14 +254,14 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(e.getMessage())).build();
         }
 
-        FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
-        if (!functionStateManager.containsFunction(tenant, namespace, functionName)) {
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-        FunctionMetaData functionMetaData = functionStateManager.getFunction(tenant, namespace, functionName);
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunction(tenant, namespace, functionName);
         return Response.status(Response.Status.OK).entity(functionMetaData.toJson()).build();
     }
 
@@ -279,9 +279,9 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(e.getMessage())).build();
         }
 
-        FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        Collection<String> functionStateList = functionStateManager.listFunction(tenant, namespace);
+        Collection<String> functionStateList = functionMetaDataManager.listFunction(tenant, namespace);
 
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
@@ -292,10 +292,10 @@ public class ApiV1Resource extends BaseApiResource {
         WorkerConfig workerConfig = getWorkerConfig();
 
         // Submit to FMT
-        FunctionStateManager functionStateManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
         CompletableFuture<RequestResult> completableFuture
-                = functionStateManager.updateFunction(functionMetaData);
+                = functionMetaDataManager.updateFunction(functionMetaData);
 
         RequestResult requestResult = null;
         try {

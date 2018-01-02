@@ -29,16 +29,16 @@ import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 
 @Slf4j
-public class FunctionStateConsumer
+public class FunctionMetaDataTopicTailer
         implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
 
-    private final FunctionStateManager functionStateManager;
+    private final FunctionMetaDataManager functionMetaDataManager;
     private final Consumer consumer;
 
-    public FunctionStateConsumer(FunctionStateManager functionStateManager,
-                                 Consumer consumer)
+    public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
+                                       Consumer consumer)
             throws PulsarClientException {
-        this.functionStateManager = functionStateManager;
+        this.functionMetaDataManager = functionMetaDataManager;
         this.consumer = consumer;
     }
 
@@ -79,10 +79,10 @@ public class FunctionStateConsumer
 
         switch(serviceRequest.getRequestType()) {
             case UPDATE:
-                this.functionStateManager.processUpdate((UpdateRequest) serviceRequest);
+                this.functionMetaDataManager.processUpdate((UpdateRequest) serviceRequest);
                 break;
             case DELETE:
-                this.functionStateManager.proccessDeregister((DeregisterRequest) serviceRequest);
+                this.functionMetaDataManager.proccessDeregister((DeregisterRequest) serviceRequest);
                 break;
             default:
                 log.warn("Received request with unrecognized type: {}", serviceRequest);

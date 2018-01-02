@@ -18,9 +18,8 @@
  */
 package org.apache.pulsar.functions.runtime.worker.rest;
 
-import org.apache.pulsar.functions.runtime.worker.FunctionStateManager;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
-import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -37,12 +36,12 @@ public class WorkerServer implements Runnable{
     private static final Logger LOG = LoggerFactory.getLogger(WorkerServer.class);
 
     private WorkerConfig workerConfig;
-    private FunctionStateManager functionStateManager;
+    private FunctionMetaDataManager functionMetaDataManager;
 
 
-    public WorkerServer(WorkerConfig workerConfig, FunctionStateManager functionStateManager) {
+    public WorkerServer(WorkerConfig workerConfig, FunctionMetaDataManager functionMetaDataManager) {
         this.workerConfig = workerConfig;
-        this.functionStateManager = functionStateManager;
+        this.functionMetaDataManager = functionMetaDataManager;
     }
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
@@ -64,7 +63,7 @@ public class WorkerServer implements Runnable{
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
         contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_CONFIG, this.workerConfig);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionStateManager);
+        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionMetaDataManager);
         contextHandler.setContextPath("/");
 
         server.setHandler(contextHandler);

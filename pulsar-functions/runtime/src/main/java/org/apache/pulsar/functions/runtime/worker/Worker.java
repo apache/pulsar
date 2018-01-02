@@ -32,8 +32,8 @@ public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
     private PulsarClient client;
-    private FunctionStateManager functionStateManager;
-    private FunctionStateConsumer functionStateConsumer;
+    private FunctionMetaDataManager functionMetaDataManager;
+    private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
     private Thread serverThread;
 
     public Worker(WorkerConfig workerConfig) {
@@ -46,13 +46,13 @@ public class Worker extends AbstractService {
             this.client = PulsarClient.create(workerConfig.getPulsarServiceUrl());
             ServiceRequestManager reqMgr = new ServiceRequestManager(
                 client.createProducer(workerConfig.getFunctionMetadataTopic()));
-            this.functionStateManager = new FunctionStateManager(
+            this.functionMetaDataManager = new FunctionMetaDataManager(
                 workerConfig, reqMgr);
 
             ConsumerConfiguration consumerConf = new ConsumerConfiguration();
             consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
-            this.functionStateConsumer = new FunctionStateConsumer(
-                functionStateManager,
+            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(
+                    functionMetaDataManager,
                 client.subscribe(
                     workerConfig.getFunctionMetadataTopic(),
                     workerConfig.getFunctionMetadataTopicSubscription(),
@@ -65,13 +65,13 @@ public class Worker extends AbstractService {
             throw new RuntimeException(e);
         }
 
-        WorkerServer server = new WorkerServer(workerConfig, functionStateManager);
+        WorkerServer server = new WorkerServer(workerConfig, functionMetaDataManager);
         this.serverThread = new Thread(server, server.getThreadName());
 
         log.info("Start worker server on port {}...", workerConfig.getWorkerPort());
         serverThread.start();
         log.info("Start worker function state consumer ...");
-        functionStateConsumer.start();
+        functionMetaDataTopicTailer.start();
     }
 
     @Override
@@ -84,11 +84,11 @@ public class Worker extends AbstractService {
                 log.warn("Worker server thread is interrupted", e);
             }
         }
-        if (null != functionStateConsumer) {
-            functionStateConsumer.close();
+        if (null != functionMetaDataTopicTailer) {
+            functionMetaDataTopicTailer.close();
         }
-        if (null != functionStateManager) {
-            functionStateManager.close();
+        if (null != functionMetaDataManager) {
+            functionMetaDataManager.close();
         }
         if (null != client) {
             try {

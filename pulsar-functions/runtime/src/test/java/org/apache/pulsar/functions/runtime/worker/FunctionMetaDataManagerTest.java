@@ -31,7 +31,7 @@ public class FunctionMetaDataManagerTest {
     public void testClose() {
         WorkerConfig config = new WorkerConfig();
         ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
-        FunctionStateManager fsm = new FunctionStateManager(config, reqMgr);
+        FunctionMetaDataManager fsm = new FunctionMetaDataManager(config, reqMgr);
         fsm.close();
         verify(reqMgr, times(1)).close();
     }
