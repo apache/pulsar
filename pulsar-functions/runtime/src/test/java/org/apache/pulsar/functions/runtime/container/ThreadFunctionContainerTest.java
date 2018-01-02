@@ -19,15 +19,16 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
-import com.google.common.collect.Lists;
+import io.netty.util.Timer;
 import java.net.URL;
-import java.util.Collections;
-import java.util.List;
-import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
@@ -46,29 +47,25 @@ public class ThreadFunctionContainerTest {
     @Rule
     public final TestName runtime = new TestName();
 
+    private final PulsarClientImpl client;
     private final ThreadFunctionContainerFactory factory;
     private final String jarFile;
-    private final List<URL> classpaths;
 
     public ThreadFunctionContainerTest() {
         URL jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
         this.jarFile = jarUrl.getPath();
-        this.classpaths = Collections.emptyList();
-        this.factory = new ThreadFunctionContainerFactory(1024);
+        this.client = mock(PulsarClientImpl.class);
+        when(client.getConfiguration()).thenReturn(new ClientConfiguration());
+        when(client.timer()).thenReturn(mock(Timer.class));
+
+        this.factory = new ThreadFunctionContainerFactory(
+            1024,
+            client);
     }
 
     @After
     public void tearDown() {
         this.factory.close();
-    }
-
-    private Function<Integer, Integer> loadAddFunction() throws Exception {
-        Class<? extends Function<Integer, Integer>> cls =
-            (Class<? extends Function<Integer, Integer>>)
-                Thread.currentThread()
-                    .getContextClassLoader()
-                    .loadClass("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        return cls.newInstance();
     }
 
     FunctionConfig createFunctionConfig() {
@@ -104,26 +101,5 @@ public class ThreadFunctionContainerTest {
         container.stop();
         assertFalse(container.getFnThread().isAlive());
     }
-
-    /*
-    @Test
-    public void testRunContainer() throws Exception {
-        JavaInstanceConfig config = createJavaInstanceConfig();
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        Runnable task = () -> {
-            try {
-                Function<Integer, Integer> func = loadAddFunction();
-                future.complete(func.apply(20));
-            } catch (Exception e) {
-                log.info("Failed to load add function", e);
-            }
-        };
-        ThreadFunctionContainer container = factory.createContainer(config, task);
-        container.start();
-        container.join();
-        assertEquals(40, future.get().intValue());
-        container.stop();
-    }
-    */
 
 }

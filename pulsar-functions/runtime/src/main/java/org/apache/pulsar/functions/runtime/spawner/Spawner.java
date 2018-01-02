@@ -25,18 +25,17 @@ package org.apache.pulsar.functions.runtime.spawner;
 
 import java.util.UUID;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
-import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.subscribermanager.SubscriberManager;
 
-public class Spawner {
+public class Spawner implements AutoCloseable {
 
     public static Spawner createSpawner(FunctionConfig fnConfig,
                                         LimitsConfig limitsConfig,
-                                        String pulsarBrokerRootUrl,
-                                        String codeFile) {
+                                        String codeFile,
+                                        FunctionContainerFactory containerFactory) {
         AssignmentInfo assignmentInfo = new AssignmentInfo(
             fnConfig,
             new FunctionID(),
@@ -45,41 +44,43 @@ public class Spawner {
         return new Spawner(
             limitsConfig,
             assignmentInfo,
-            pulsarBrokerRootUrl,
-            codeFile);
+            codeFile,
+            containerFactory);
     }
 
-    private LimitsConfig limitsConfig;
-    private AssignmentInfo assignmentInfo;
-    private String pulsarBrokerRootUrl;
-    private ThreadFunctionContainerFactory threadFunctionContainerFactory;
-    private FunctionContainer functionContainer;
-    private SubscriberManager subscriberManager;
-    private String codeFile;
+    private final LimitsConfig limitsConfig;
+    private final AssignmentInfo assignmentInfo;
+    private final FunctionContainerFactory threadFunctionContainerFactory;
+    private final String codeFile;
 
-    public Spawner(LimitsConfig limitsConfig, AssignmentInfo assignmentInfo, String pulsarBrokerRootUrl,
-                   String codeFile) {
+    private FunctionContainer functionContainer;
+
+    private Spawner(LimitsConfig limitsConfig,
+                    AssignmentInfo assignmentInfo,
+                    String codeFile,
+                    FunctionContainerFactory containerFactory) {
         this.limitsConfig = limitsConfig;
         this.assignmentInfo = assignmentInfo;
-        this.pulsarBrokerRootUrl = pulsarBrokerRootUrl;
-        this.threadFunctionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples());
+        this.threadFunctionContainerFactory = containerFactory;
         this.codeFile = codeFile;
     }
 
     public void start() throws Exception {
-        subscriberManager = new SubscriberManager(createSubscriptionName(), pulsarBrokerRootUrl);
         functionContainer = threadFunctionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
-        subscriberManager.addSubscriber(assignmentInfo.getFunctionConfig().getSourceTopic(), functionContainer);
         functionContainer.start();
     }
 
     public void join() throws Exception {
-        functionContainer.join();
+        if (null != functionContainer) {
+            functionContainer.join();
+        }
     }
 
-    private String createSubscriptionName() {
-        return "spawner-" + assignmentInfo.getFunctionConfig().getName() + "-" + assignmentInfo.getFunctionVersion()
-                + "-" + assignmentInfo.getFunctionId();
+    @Override
+    public void close() {
+        if (null != functionContainer) {
+            functionContainer.stop();
+        }
     }
 
     private JavaInstanceConfig createJavaInstanceConfig() {
