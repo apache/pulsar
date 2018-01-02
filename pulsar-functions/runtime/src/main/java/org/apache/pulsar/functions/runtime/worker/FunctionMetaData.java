@@ -34,7 +34,7 @@ import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 @Getter
 @EqualsAndHashCode
 @ToString
-public class FunctionState implements Serializable, Cloneable {
+public class FunctionMetaData implements Serializable, Cloneable {
 
     // function config
     private FunctionConfig functionConfig;
@@ -57,7 +57,7 @@ public class FunctionState implements Serializable, Cloneable {
         return new Gson().toJson(this);
     }
 
-    public FunctionState fromJson(String json) {
+    public FunctionMetaData fromJson(String json) {
         return new Gson().fromJson(json, this.getClass());
     }
 

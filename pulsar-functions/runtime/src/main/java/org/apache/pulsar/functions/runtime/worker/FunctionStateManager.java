@@ -42,8 +42,8 @@ public class FunctionStateManager implements AutoCloseable {
 
     private static final Logger LOG = LoggerFactory.getLogger(FunctionStateManager.class);
 
-    // tenant -> namespace -> (function name, FunctionState)
-    private final Map<String, Map<String, Map<String, FunctionState>>> functionStateMap = new ConcurrentHashMap<>();
+    // tenant -> namespace -> (function name, FunctionMetaData)
+    private final Map<String, Map<String, Map<String, FunctionMetaData>>> functionStateMap = new ConcurrentHashMap<>();
 
     // A map in which the key is the service request id and value is the service request
     private final Map<String, ServiceRequest> pendingServiceRequests = new ConcurrentHashMap<>();
@@ -63,7 +63,7 @@ public class FunctionStateManager implements AutoCloseable {
         serviceRequestManager.close();
     }
 
-    public FunctionState getFunction(String tenant, String namespace, String functionName) {
+    public FunctionMetaData getFunction(String tenant, String namespace, String functionName) {
         return this.functionStateMap.get(tenant).get(namespace).get(functionName);
     }
 
@@ -77,52 +77,52 @@ public class FunctionStateManager implements AutoCloseable {
         if (!this.functionStateMap.get(tenant).containsKey(namespace)) {
             return ret;
         }
-        for (FunctionState entry : this.functionStateMap.get(tenant).get(namespace).values()) {
+        for (FunctionMetaData entry : this.functionStateMap.get(tenant).get(namespace).values()) {
            ret.add(entry.getFunctionConfig().getName());
         }
         return ret;
     }
 
-    public CompletableFuture<RequestResult> updateFunction(FunctionState functionState) {
+    public CompletableFuture<RequestResult> updateFunction(FunctionMetaData functionMetaData) {
 
         long version = 0;
 
-        String tenant = functionState.getFunctionConfig().getTenant();
+        String tenant = functionMetaData.getFunctionConfig().getTenant();
         if (!this.functionStateMap.containsKey(tenant)) {
             this.functionStateMap.put(tenant, new ConcurrentHashMap<>());
         }
 
-        Map<String, Map<String, FunctionState>> namespaces = this.functionStateMap.get(tenant);
-        String namespace = functionState.getFunctionConfig().getNamespace();
+        Map<String, Map<String, FunctionMetaData>> namespaces = this.functionStateMap.get(tenant);
+        String namespace = functionMetaData.getFunctionConfig().getNamespace();
         if (!namespaces.containsKey(namespace)) {
             namespaces.put(namespace, new ConcurrentHashMap<>());
         }
 
-        Map<String, FunctionState> functionStates = namespaces.get(namespace);
-        String functionName = functionState.getFunctionConfig().getName();
+        Map<String, FunctionMetaData> functionStates = namespaces.get(namespace);
+        String functionName = functionMetaData.getFunctionConfig().getName();
         if (functionStates.containsKey(functionName)) {
             version = functionStates.get(functionName).getVersion() + 1;
         }
-        functionState.setVersion(version);
+        functionMetaData.setVersion(version);
 
-        UpdateRequest updateRequest = UpdateRequest.of(this.workerConfig.getWorkerId(), functionState);
+        UpdateRequest updateRequest = UpdateRequest.of(this.workerConfig.getWorkerId(), functionMetaData);
 
         return submit(updateRequest);
     }
 
     public CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
-        FunctionState functionState
-                = (FunctionState) this.functionStateMap.get(tenant).get(namespace).get(functionName).clone();
+        FunctionMetaData functionMetaData
+                = (FunctionMetaData) this.functionStateMap.get(tenant).get(namespace).get(functionName).clone();
 
-        functionState.incrementVersion();
+        functionMetaData.incrementVersion();
 
-        DeregisterRequest deregisterRequest = DeregisterRequest.of(this.workerConfig.getWorkerId(), functionState);
+        DeregisterRequest deregisterRequest = DeregisterRequest.of(this.workerConfig.getWorkerId(), functionMetaData);
 
         return submit(deregisterRequest);
     }
 
-    public boolean containsFunction(FunctionState functionState) {
-        return containsFunction(functionState.getFunctionConfig());
+    public boolean containsFunction(FunctionMetaData functionMetaData) {
+        return containsFunction(functionMetaData.getFunctionConfig());
     }
 
     private boolean containsFunction(FunctionConfig functionConfig) {
@@ -184,7 +184,7 @@ public class FunctionStateManager implements AutoCloseable {
             return;
         }
 
-        FunctionState deregisterRequestFs = deregisterRequest.getFunctionState();
+        FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
 
         LOG.debug("Process deregister request: {}", deregisterRequest);
@@ -221,7 +221,7 @@ public class FunctionStateManager implements AutoCloseable {
 
         LOG.debug("Process update request: {}", updateRequest);
 
-        FunctionState updateRequestFs = updateRequest.getFunctionState();
+        FunctionMetaData updateRequestFs = updateRequest.getFunctionMetaData();
         String functionName = updateRequestFs.getFunctionConfig().getName();
 
         // Worker doesn't know about the function so far
@@ -254,8 +254,8 @@ public class FunctionStateManager implements AutoCloseable {
         }
     }
 
-    private void addFunctionToFunctionStateMap(FunctionState functionState) {
-        FunctionConfig functionConfig = functionState.getFunctionConfig();
+    private void addFunctionToFunctionStateMap(FunctionMetaData functionMetaData) {
+        FunctionConfig functionConfig = functionMetaData.getFunctionConfig();
         if (!this.functionStateMap.containsKey(functionConfig.getTenant())) {
             this.functionStateMap.put(functionConfig.getTenant(), new ConcurrentHashMap<>());
         }
@@ -265,19 +265,19 @@ public class FunctionStateManager implements AutoCloseable {
                     .put(functionConfig.getNamespace(), new ConcurrentHashMap<>());
         }
         this.functionStateMap.get(functionConfig.getTenant())
-                .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionState);
+                .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionMetaData);
     }
 
     private boolean isRequestOutdated(ServiceRequest serviceRequest) {
-        FunctionState requestFunctionState = serviceRequest.getFunctionState();
-        FunctionConfig functionConfig = requestFunctionState.getFunctionConfig();
-        FunctionState currentFunctionState = this.functionStateMap.get(functionConfig.getTenant())
+        FunctionMetaData requestFunctionMetaData = serviceRequest.getFunctionMetaData();
+        FunctionConfig functionConfig = requestFunctionMetaData.getFunctionConfig();
+        FunctionMetaData currentFunctionMetaData = this.functionStateMap.get(functionConfig.getTenant())
                 .get(functionConfig.getNamespace()).get(functionConfig.getName());
-        return currentFunctionState.getVersion() >= requestFunctionState.getVersion();
+        return currentFunctionMetaData.getVersion() >= requestFunctionMetaData.getVersion();
     }
 
     private boolean isMyRequest(ServiceRequest serviceRequest) {
-        return this.workerConfig.getWorkerId().equals(serviceRequest.getFunctionState().getWorkerId());
+        return this.workerConfig.getWorkerId().equals(serviceRequest.getFunctionMetaData().getWorkerId());
     }
 
     public void startFunction(String functionName) {

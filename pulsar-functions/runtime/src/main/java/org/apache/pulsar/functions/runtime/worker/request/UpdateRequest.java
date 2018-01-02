@@ -18,16 +18,16 @@
  */
 package org.apache.pulsar.functions.runtime.worker.request;
 
-import org.apache.pulsar.functions.runtime.worker.FunctionState;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 
 public class UpdateRequest extends ServiceRequest {
 
-    private UpdateRequest(String workerId, FunctionState functionState) {
-        super(workerId, functionState, ServiceRequestType.UPDATE);
+    private UpdateRequest(String workerId, FunctionMetaData functionMetaData) {
+        super(workerId, functionMetaData, ServiceRequestType.UPDATE);
     }
 
-    public static UpdateRequest of(String workerId, FunctionState functionState) {
-        return new UpdateRequest(workerId, functionState);
+    public static UpdateRequest of(String workerId, FunctionMetaData functionMetaData) {
+        return new UpdateRequest(workerId, functionMetaData);
     }
 
     @Override

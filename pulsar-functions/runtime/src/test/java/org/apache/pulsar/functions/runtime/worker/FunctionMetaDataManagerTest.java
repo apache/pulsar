@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.junit.Test;
 
-public class FunctionStateManagerTest {
+public class FunctionMetaDataManagerTest {
 
     @Test
     public void testClose() {

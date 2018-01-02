@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.runtime.worker.request;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.functions.runtime.worker.FunctionState;
+import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 
 import java.io.Serializable;
 import java.util.UUID;
@@ -30,7 +30,7 @@ public abstract class ServiceRequest implements Serializable{
     private String requestId;
     private ServiceRequestType serviceRequestType;
     private String workerId;
-    private FunctionState functionState;
+    private FunctionMetaData functionMetaData;
     transient private CompletableFuture<MessageId> completableFutureRequestMessageId;
     transient private CompletableFuture<RequestResult> requestResultCompletableFuture;
 
@@ -40,7 +40,7 @@ public abstract class ServiceRequest implements Serializable{
                 "requestId='" + requestId + '\'' +
                 ", serviceRequestType=" + serviceRequestType +
                 ", workerId='" + workerId + '\'' +
-                ", functionState=" + functionState +
+                ", functionMetaData=" + functionMetaData +
                 '}';
     }
 
@@ -49,14 +49,14 @@ public abstract class ServiceRequest implements Serializable{
         DELETE
     }
 
-    public ServiceRequest(String workerId, FunctionState functionState, ServiceRequestType serviceRequestType) {
-        this(workerId, functionState, serviceRequestType, UUID.randomUUID().toString());
+    public ServiceRequest(String workerId, FunctionMetaData functionMetaData, ServiceRequestType serviceRequestType) {
+        this(workerId, functionMetaData, serviceRequestType, UUID.randomUUID().toString());
     }
 
-    public ServiceRequest(String workerId, FunctionState functionState,
+    public ServiceRequest(String workerId, FunctionMetaData functionMetaData,
                           ServiceRequestType serviceRequestType, String requestId) {
         this.workerId = workerId;
-        this.functionState = functionState;
+        this.functionMetaData = functionMetaData;
         this.serviceRequestType = serviceRequestType;
         this.requestId = requestId;
     }
@@ -69,8 +69,8 @@ public abstract class ServiceRequest implements Serializable{
         return this.workerId;
     }
 
-    public FunctionState getFunctionState() {
-        return functionState;
+    public FunctionMetaData getFunctionMetaData() {
+        return functionMetaData;
     }
 
     public String getRequestId() {
@@ -99,6 +99,6 @@ public abstract class ServiceRequest implements Serializable{
 
     public boolean isValidRequest() {
         return this.requestId != null && this.serviceRequestType != null
-                && this.workerId != null && this.functionState != null;
+                && this.workerId != null && this.functionMetaData != null;
     }
 }
