@@ -33,21 +33,21 @@ public class MetadataTests {
         Map<String, String> metadata = new HashMap<>();
 
         metadata.put(generateKey(1, 512), generateKey(1, 512));
-        Assert.assertTrue(Metadata.validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata));
 
         metadata.clear();
         metadata.put(generateKey(1, 512), generateKey(1, 511));
-        Assert.assertTrue(Metadata.validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata));
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 256));
-        Assert.assertTrue(Metadata.validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata));
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 255));
-        Assert.assertTrue(Metadata.validateMetadata(metadata));
+        Assert.assertTrue(validateMetadata(metadata));
     }
 
     @Test
@@ -55,19 +55,28 @@ public class MetadataTests {
         Map<String, String> metadata = new HashMap<>();
 
         metadata.put(generateKey(1, 512), generateKey(1, 513));
-        Assert.assertFalse(Metadata.validateMetadata(metadata));
+        Assert.assertFalse(validateMetadata(metadata));
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 257));
-        Assert.assertFalse(Metadata.validateMetadata(metadata));
+        Assert.assertFalse(validateMetadata(metadata));
 
 
         metadata.clear();
         metadata.put(generateKey(1, 256), generateKey(1, 256));
         metadata.put(generateKey(2, 256), generateKey(2, 256));
         metadata.put(generateKey(3, 1), generateKey(3, 1));
-        Assert.assertFalse(Metadata.validateMetadata(metadata));
+        Assert.assertFalse(validateMetadata(metadata));
+    }
+
+    private static boolean validateMetadata(Map<String, String> metadata) {
+        try {
+            Metadata.validateMetadata(metadata);
+            return true;
+        } catch (IllegalArgumentException ignore) {
+            return false;
+        }
     }
 
     private static String generateKey(int number, int length) {

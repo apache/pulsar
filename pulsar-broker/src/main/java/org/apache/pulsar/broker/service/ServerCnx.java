@@ -481,8 +481,10 @@ public class ServerCnx extends PulsarHandler {
                     log.debug("[{}] Client is authorized to Produce with role {}", remoteAddress, authRole);
                 }
 
-                if (!Metadata.validateMetadata(metadata)) {
-                    final String msg = Metadata.getErrorMessage();
+                try {
+                    Metadata.validateMetadata(metadata);
+                } catch (IllegalArgumentException iae) {
+                    final String msg = iae.getMessage();
                     ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
                     return null;
                 }

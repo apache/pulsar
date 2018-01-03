@@ -26,23 +26,21 @@ public class Metadata {
 
     private Metadata() {}
 
-    public static boolean validateMetadata(Map<String, String> metadata) {
+    public static void validateMetadata(Map<String, String> metadata) throws IllegalArgumentException {
         if (metadata == null) {
-            return true;
+            return;
         }
 
         int size = 0;
         for (Map.Entry<String, String> e : metadata.entrySet()) {
             size += (e.getKey().length() + e.getValue().length());
             if (size > MAX_METADATA_SIZE) {
-                return false;
+                throw new IllegalArgumentException(getErrorMessage());
             }
         }
-
-        return true;
     }
 
-    public static String getErrorMessage() {
+    private static String getErrorMessage() {
         return "metadata has a max size of 1 Kb";
     }
 }
