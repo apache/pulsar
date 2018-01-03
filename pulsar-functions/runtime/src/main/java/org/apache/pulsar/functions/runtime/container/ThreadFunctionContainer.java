@@ -58,6 +58,7 @@ class ThreadFunctionContainer implements FunctionContainer {
     // The class loader that used for loading functions
     private ClassLoader fnClassLoader;
     private final JavaInstanceConfig javaInstanceConfig;
+    private final FunctionConfig.ProcessingGuarantees processingGuarantees;
     private final FunctionCacheManager fnCache;
     private final LinkedBlockingQueue<Message> queue;
     private final String id;
@@ -81,6 +82,9 @@ class ThreadFunctionContainer implements FunctionContainer {
                             String jarFile,
                             PulsarClient pulsarClient) {
         this.javaInstanceConfig = instanceConfig;
+        this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees() == null
+                ? FunctionConfig.ProcessingGuarantees.ATMOST_ONCE
+                : instanceConfig.getFunctionConfig().getProcessingGuarantees();
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
@@ -179,7 +183,9 @@ class ThreadFunctionContainer implements FunctionContainer {
         conf.setMessageListener((consumer, msg) -> {
             try {
                 queue.put(msg);
-                sourceConsumer.acknowledgeAsync(msg);
+                if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
+                    sourceConsumer.acknowledgeAsync(msg);
+                }
             } catch (InterruptedException e) {
                 log.error("Function container {} is interrupted on enqueuing messages", id, e);
             }
@@ -206,16 +212,18 @@ class ThreadFunctionContainer implements FunctionContainer {
             }
             if (output != null) {
                 sinkProducer.sendAsync(output)
-                        // TODO: enable this for at-least-once processing
-                        // .thenAccept(messageId -> sourceConsumer.acknowledgeAsync(messageId))
+                        .thenAccept(messageId -> {
+                            if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                                sourceConsumer.acknowledgeAsync(messageId);
+                            }
+                        })
                         .exceptionally(cause -> {
                             log.error("Failed to send the process result {} of message {} to sink topic {}",
                                     result, msg, sinkTopic, cause);
                             return null;
                         });
-            } else {
-                // TODO: enable this for at-least-once processing
-                // sourceConsumer.acknowledgeAsync(msg);
+            } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                sourceConsumer.acknowledgeAsync(msg);
             }
         }
     }
