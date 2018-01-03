@@ -34,6 +34,7 @@ public class WorkerTest {
         workerConfig.setFunctionMetadataTopic("persistent://sample/standalone/ns1/fmt");
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setWorkerId(workerId);
+        workerConfig.setDownloadDirectory("/tmp");
         Worker worker = new Worker(workerConfig, new LimitsConfig(-1, -1, -1, 1024));
         worker.startAsync();
         worker.awaitRunning();

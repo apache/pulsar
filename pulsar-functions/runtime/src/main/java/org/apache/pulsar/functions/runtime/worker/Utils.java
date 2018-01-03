@@ -26,10 +26,10 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLOutputStream;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 
 import java.io.*;
 import java.net.URI;
+import java.util.UUID;
 
 @Slf4j
 public final class Utils {
@@ -100,23 +100,24 @@ public final class Utils {
     }
 
     public static URI getPackageURI(String destPackageNamespaceURI, String packageName) {
-        return URI.create(String.format("%s/%s", destPackageNamespaceURI, packageName));
+        return URI.create(String.format("%s/%s-%s", destPackageNamespaceURI, packageName, UUID.randomUUID()));
     }
 
-    public static URI uploadToBookeeper(InputStream uploadedInputStream,
-                                 FormDataContentDisposition fileDetail,
-                                 String namespace, WorkerConfig workerConfig)
+    public static String getUniquePackageName(String packageName) {
+        return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
+    }
+
+    public static void uploadToBookeeper(InputStream uploadedInputStream,
+                                 FunctionMetaData functionMetaData, WorkerConfig workerConfig)
             throws IOException {
-        String packageName = fileDetail.getFileName();
-        String destPackageNamespaceURI = getDestPackageNamespaceURI(workerConfig, namespace);
-        URI packageURI = getPackageURI(destPackageNamespaceURI, packageName);
 
+        String packageName = functionMetaData.getPackageLocation().getPackageName();
+        String packageURI = functionMetaData.getPackageLocation().getPackageURI();
         DistributedLogConfiguration conf = getDlogConf(workerConfig);
-
-        URI uri = URI.create(destPackageNamespaceURI);
+        URI packageNamespaceURI = functionMetaData.getPackageLocation().getPackageNamespaceURI();
 
         Namespace dlogNamespace = NamespaceBuilder.newBuilder()
-                .clientId("pulsar-functions-uploader").conf(conf).uri(uri).build();
+                .clientId("pulsar-functions-uploader").conf(conf).uri(packageNamespaceURI).build();
 
         // if the dest directory does not exist, create it.
         DistributedLogManager dlm = null;
@@ -125,15 +126,15 @@ public final class Utils {
         if (dlogNamespace.logExists(packageName)) {
             // if the destination file exists, write a log message
             log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    packageURI.toString()));
+                    packageURI));
             dlogNamespace.deleteLog(packageName);
         }
         // copy the topology package to target working directory
         log.info(String.format("Uploading function package '%s' to target DL at '%s'",
-                fileDetail.getName(), packageURI.toString()));
+                packageName, packageURI));
 
 
-        dlm = dlogNamespace.openLog(fileDetail.getFileName());
+        dlm = dlogNamespace.openLog(packageName);
         writer = dlm.getAppendOnlyStreamWriter();
 
         try (OutputStream out = new DLOutputStream(dlm, writer)) {
@@ -144,7 +145,6 @@ public final class Utils {
             }
             out.flush();
         }
-        return packageURI;
     }
 
     public static boolean downloadFromBookkeeper(URI uri, OutputStream outputStream, WorkerConfig workerConfig) {

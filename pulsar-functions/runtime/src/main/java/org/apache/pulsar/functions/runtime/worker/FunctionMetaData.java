@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.worker;
 import com.google.gson.Gson;
 
 import java.io.Serializable;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -42,7 +43,7 @@ public class FunctionMetaData implements Serializable, Cloneable {
     // resource / limits config
     private LimitsConfig limitsConfig;
     // function package location
-    private String packageLocation;
+    private PackageLocationMetaData packageLocation;
     private String runtime;
     // the version of this function state
     private long version;

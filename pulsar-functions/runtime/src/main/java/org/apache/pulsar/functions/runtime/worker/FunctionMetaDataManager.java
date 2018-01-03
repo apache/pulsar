@@ -263,9 +263,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 FunctionConfig functionConfig = updateRequestFs.getFunctionConfig();
                 FunctionMetaData existingMetaData = getFunction(functionConfig.getTenant(),
                         functionConfig.getNamespace(), functionConfig.getName());
-                if (existingMetaData.getSpawner() != null) {
-                    stopFunction(existingMetaData);
-                }
+
+                stopFunction(existingMetaData);
+
                 // update the function metadata
                 addFunctionToFunctionMap(updateRequestFs);
                 // check if this worker should run the update
@@ -314,7 +314,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 + functionMetaData.getFunctionConfig().getName();
         try {
             File fileLocation = File.createTempFile(prefix, ".jar", new File(workerConfig.getDownloadDirectory()));
-            if (!Utils.downloadFromBookkeeper(URI.create(functionMetaData.getPackageLocation()), new FileOutputStream(fileLocation), workerConfig)) {
+            if (!Utils.downloadFromBookkeeper(URI.create(functionMetaData.getPackageLocation().getPackageURI()), new FileOutputStream(fileLocation), workerConfig)) {
                 return false;
             };
             Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
