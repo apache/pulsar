@@ -18,12 +18,16 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
+import dlshade.org.apache.zookeeper.KeeperException.Code;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.distributedlog.exceptions.ZKException;
+import org.apache.distributedlog.impl.metadata.BKDLConfig;
+import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLOutputStream;
 
@@ -76,102 +80,54 @@ public final class Utils {
         return bytes;
     }
 
-    public static boolean namespaceExists(String namespace, WorkerConfig workerConfig) {
-        URI baseUri = URI.create(workerConfig.getDlogUri());
-        String zookeeperHost = baseUri.getHost();
-        int zookeeperPort = baseUri.getPort();
-        String destTopologyNamespaceURI = String.format("distributedlog://%s:%d/%s", zookeeperHost, zookeeperPort, namespace);
-
-        URI uri = URI.create(destTopologyNamespaceURI);
-
-        try {
-            NamespaceBuilder.newBuilder().clientId("pulsar-functions-uploader").conf(getDlogConf(workerConfig)).uri(uri).build();
-        } catch (IOException e) {
-            return false;
-        }
-        return true;
-    }
-
-    public static String getDestPackageNamespaceURI(WorkerConfig workerConfig, String namespace) {
-        URI baseUri = URI.create(workerConfig.getDlogUri());
-        String zookeeperHost = baseUri.getHost();
-        int zookeeperPort = baseUri.getPort();
-        return String.format("distributedlog://%s:%d/%s", zookeeperHost, zookeeperPort, namespace);
-    }
-
-    public static URI getPackageURI(String destPackageNamespaceURI, String packageName) {
-        return URI.create(String.format("%s/%s-%s", destPackageNamespaceURI, packageName, UUID.randomUUID()));
-    }
-
     public static String getUniquePackageName(String packageName) {
         return String.format("%s-%s", UUID.randomUUID().toString(), packageName);
     }
 
-    public static void uploadToBookeeper(InputStream uploadedInputStream,
-                                 FunctionMetaData functionMetaData, WorkerConfig workerConfig)
+    public static void uploadToBookeeper(Namespace dlogNamespace,
+                                         InputStream uploadedInputStream,
+                                         String destPkgPath)
             throws IOException {
 
-        String packageName = functionMetaData.getPackageLocation().getPackageName();
-        String packageURI = functionMetaData.getPackageLocation().getPackageURI();
-        DistributedLogConfiguration conf = getDlogConf(workerConfig);
-        URI packageNamespaceURI = functionMetaData.getPackageLocation().getPackageNamespaceURI();
-
-        Namespace dlogNamespace = NamespaceBuilder.newBuilder()
-                .clientId("pulsar-functions-uploader").conf(conf).uri(packageNamespaceURI).build();
-
         // if the dest directory does not exist, create it.
-        DistributedLogManager dlm = null;
-        AppendOnlyStreamWriter writer = null;
-
-        if (dlogNamespace.logExists(packageName)) {
+        if (dlogNamespace.logExists(destPkgPath)) {
             // if the destination file exists, write a log message
             log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
-                    packageURI));
-            dlogNamespace.deleteLog(packageName);
+                    destPkgPath));
+            dlogNamespace.deleteLog(destPkgPath);
         }
         // copy the topology package to target working directory
-        log.info(String.format("Uploading function package '%s' to target DL at '%s'",
-                packageName, packageURI));
+        log.info(String.format("Uploading function package to '%s'",
+                destPkgPath));
 
+        try (DistributedLogManager dlm = dlogNamespace.openLog(destPkgPath)) {
+            try (AppendOnlyStreamWriter writer = dlm.getAppendOnlyStreamWriter()){
 
-        dlm = dlogNamespace.openLog(packageName);
-        writer = dlm.getAppendOnlyStreamWriter();
-
-        try (OutputStream out = new DLOutputStream(dlm, writer)) {
-            int read = 0;
-            byte[] bytes = new byte[1024];
-            while ((read = uploadedInputStream.read(bytes)) != -1) {
-                out.write(bytes, 0, read);
+                try (OutputStream out = new DLOutputStream(dlm, writer)) {
+                    int read = 0;
+                    byte[] bytes = new byte[1024];
+                    while ((read = uploadedInputStream.read(bytes)) != -1) {
+                        out.write(bytes, 0, read);
+                    }
+                    out.flush();
+                }
             }
-            out.flush();
         }
     }
 
-    public static boolean downloadFromBookkeeper(URI uri, OutputStream outputStream, WorkerConfig workerConfig) {
-        String path = uri.getPath();
-        File pathFile = new File(path);
-        String logName = pathFile.getName();
-        String parentName = pathFile.getParent();
-        DistributedLogConfiguration conf = getDlogConf(workerConfig);
-        try {
-            URI parentUri = new URI(
-                    uri.getScheme(),
-                    uri.getAuthority(),
-                    parentName,
-                    uri.getQuery(),
-                    uri.getFragment());
-            Namespace dlogNamespace = NamespaceBuilder.newBuilder()
-                    .clientId("pulsar-functions-downloader").conf(conf).uri(parentUri).build();
-            DistributedLogManager dlm = dlogNamespace.openLog(logName);
-            InputStream in = new DLInputStream(dlm);
-            int read = 0;
-            byte[] bytes = new byte[1024];
-            while ((read = in.read(bytes)) != -1) {
-                outputStream.write(bytes, 0, read);
+    public static boolean downloadFromBookkeeper(Namespace namespace,
+                                                 OutputStream outputStream,
+                                                 String packagePath) {
+        try (DistributedLogManager dlm = namespace.openLog(packagePath)) {
+            try (InputStream in = new DLInputStream(dlm)) {
+                int read = 0;
+                byte[] bytes = new byte[1024];
+                while ((read = in.read(bytes)) != -1) {
+                    outputStream.write(bytes, 0, read);
+                }
+                outputStream.flush();
+                return true;
             }
-            outputStream.flush();
-            dlogNamespace.close();
-            return true;
         } catch (Exception ex) {
             return false;
         }
@@ -193,5 +149,23 @@ public final class Utils {
                 .setWriteQuorumSize(numReplicas)
                 .setAckQuorumSize(numReplicas)
                 .setUseDaemonThread(true);
+    }
+
+    public static URI initializeDlogNamespace(String zkServers) throws IOException {
+        ClientConfiguration conf = new ClientConfiguration();
+
+        BKDLConfig dlConfig = new BKDLConfig(zkServers, conf.getZkLedgersRootPath());
+        DLMetadata dlMetadata = DLMetadata.create(dlConfig);
+        URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zkServers));
+
+        try {
+            dlMetadata.create(dlogUri);
+        } catch (ZKException e) {
+            if (e.getKeeperExceptionCode() == Code.NODEEXISTS) {
+                return dlogUri;
+            }
+            throw e;
+        }
+        return dlogUri;
     }
 }

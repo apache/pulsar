@@ -44,7 +44,6 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -73,6 +72,8 @@ public class ApiV1Resource extends BaseApiResource {
                     uploadedInputStream, fileDetail, sinkTopic, sourceTopic,
                     inputSerdeClassName, outputSerdeClassName, className);
         } catch (IllegalArgumentException e) {
+            log.error("Invalid register function request @ /{}/{}/{}",
+                tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage())).build();
@@ -81,6 +82,7 @@ public class ApiV1Resource extends BaseApiResource {
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
         if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function /{}/{}/{} already exists", tenant, namespace, functionName);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
@@ -113,9 +115,12 @@ public class ApiV1Resource extends BaseApiResource {
 
         WorkerConfig workerConfig = getWorkerConfig();
         PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
-        packageLocationMetaData.setPackageName(Utils.getUniquePackageName(fileDetail.getFileName()));
-        packageLocationMetaData.setPackageNamespace(namespace);
-        packageLocationMetaData.setDlogUri(workerConfig.getDlogUri());
+        packageLocationMetaData.setPackagePath(String.format(
+            "%s/%s/%s/%s",
+            tenant,
+            namespace,
+            functionName,
+            Utils.getUniquePackageName(fileDetail.getFileName())));
         functionMetaData.setPackageLocation(packageLocationMetaData);
         functionMetaData.setWorkerId(workerConfig.getWorkerId());
         
@@ -182,9 +187,12 @@ public class ApiV1Resource extends BaseApiResource {
 
         WorkerConfig workerConfig = getWorkerConfig();
         PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
-        packageLocationMetaData.setPackageName(Utils.getUniquePackageName(fileDetail.getFileName()));
-        packageLocationMetaData.setPackageNamespace(namespace);
-        packageLocationMetaData.setDlogUri(workerConfig.getDlogUri());
+        packageLocationMetaData.setPackagePath(String.format(
+            "%s/%s/%s/%s",
+            tenant,
+            namespace,
+            functionName,
+            Utils.getUniquePackageName(fileDetail.getFileName())));
         functionMetaData.setPackageLocation(packageLocationMetaData);
         functionMetaData.setWorkerId(workerConfig.getWorkerId());
 
@@ -286,13 +294,16 @@ public class ApiV1Resource extends BaseApiResource {
 
     private Response updateRequest(FunctionMetaData functionMetaData,
                                    InputStream uploadedInputStream) {
-        WorkerConfig workerConfig = getWorkerConfig();
-
-        // Upload to bookeeper
+        // Upload to bookkeeper
         try {
-            Utils.uploadToBookeeper(uploadedInputStream, functionMetaData, workerConfig);
+            log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
+
+            Utils.uploadToBookeeper(
+                getDlogNamespace(),
+                uploadedInputStream,
+                functionMetaData.getPackageLocation().getPackagePath());
         } catch (IOException e) {
-            log.error("Error uploading file {}", functionMetaData.getPackageLocation().getPackageName(), e);
+            log.error("Error uploading file {}", functionMetaData.getPackageLocation(), e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
@@ -370,7 +381,7 @@ public class ApiV1Resource extends BaseApiResource {
                                                String functionName,
                                                InputStream uploadedInputStream,
                                                FormDataContentDisposition fileDetail,
-                                               String sinkTopic,
+                                               String sinkTpic,
                                                String inputTopic,
                                                String inputSerdeClassName,
                                                String outputSerdeClassName,
@@ -400,9 +411,6 @@ public class ApiV1Resource extends BaseApiResource {
         if (className == null) {
             throw new IllegalArgumentException("className is not provided");
         }
-        if (!Utils.namespaceExists(namespace, getWorkerConfig())) {
-            throw new IllegalArgumentException(String.format("Namespace %s doesn't exist", namespace));
-        }
     }
 
     private void validateUpdateRequestParams(String tenant,
@@ -428,10 +436,6 @@ public class ApiV1Resource extends BaseApiResource {
         if (uploadedInputStream == null && fileDetail == null && sinkTopic == null && inputTopic == null
                 && inputSerdeClassName == null && outputSerdeClassName == null && className == null) {
             throw new IllegalArgumentException("No updates found");
-        }
-
-        if (!Utils.namespaceExists(namespace, getWorkerConfig())) {
-            throw new IllegalArgumentException(String.format("Namespace %s doesn't exist", namespace));
         }
     }
 }

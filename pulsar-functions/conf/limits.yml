@@ -17,10 +17,7 @@
 # under the License.
 #
 
-workerId: test-worker
-workerPort: 7654
-zookeeperServers: localhost:1234
-pulsarServiceUrl: pulsar://localhost:6650
-functionMetadataTopic: test-function-metadata-topic
-numFunctionPackageReplicas: 3
-
+maxTimeMs: -1
+maxMemoryMb: -1
+maxCpuCores: -1
+maxBufferedTuples: 1024

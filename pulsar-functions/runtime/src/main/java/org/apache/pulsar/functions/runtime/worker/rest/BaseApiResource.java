@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.functions.runtime.worker.rest;
 
+import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 
 import javax.servlet.ServletContext;
@@ -29,11 +29,11 @@ public class BaseApiResource {
 
     public static final String ATTRIBUTE_WORKER_CONFIG = "config";
     public static final String ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER = "function-state-manager";
-    public static final String ATTRIBUTE_WORKER_SERVICE_REQUEST_MANAGER = "worker-service-request-manager";
+    public static final String ATTRIBUTE_WORKER_DLOG_NAMESPACE = "distributedlog-namespace";
 
     private WorkerConfig workerConfig;
     private FunctionMetaDataManager functionMetaDataManager;
-    private ServiceRequestManager serviceRequestManager;
+    private Namespace dlogNamespace;
 
     @Context
     protected ServletContext servletContext;
@@ -52,10 +52,11 @@ public class BaseApiResource {
         return this.functionMetaDataManager;
     }
 
-    public ServiceRequestManager getWorkerServiceRequestManager() {
-        if (this.serviceRequestManager == null) {
-            this.serviceRequestManager = (ServiceRequestManager) servletContext.getAttribute(ATTRIBUTE_WORKER_SERVICE_REQUEST_MANAGER);
+    public Namespace getDlogNamespace() {
+        if (this.dlogNamespace == null) {
+            this.dlogNamespace = (Namespace) servletContext.getAttribute(ATTRIBUTE_WORKER_DLOG_NAMESPACE);
         }
-        return this.serviceRequestManager;
+        return this.dlogNamespace;
     }
+
 }
