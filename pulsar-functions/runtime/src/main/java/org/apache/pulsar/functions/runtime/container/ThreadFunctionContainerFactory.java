@@ -44,7 +44,7 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
                                           String pulsarServiceUrl,
                                           ClientConfiguration conf)
             throws Exception {
-        this(maxBufferedTuples, PulsarClient.create(pulsarServiceUrl, conf));
+        this(maxBufferedTuples, pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, conf) : null);
     }
 
     @VisibleForTesting

@@ -23,6 +23,7 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.runtime.worker.Utils;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 import org.apache.pulsar.functions.runtime.worker.rest.BaseApiResource;
@@ -291,6 +292,21 @@ public class ApiV1Resource extends BaseApiResource {
                                    FormDataContentDisposition fileDetail) {
         WorkerConfig workerConfig = getWorkerConfig();
 
+        // Upload to bookeeper
+        URI packageURI = null;
+        try {
+            packageURI = Utils.uploadToBookeeper(uploadedInputStream, fileDetail,
+                    functionMetaData.getFunctionConfig().getNamespace(), workerConfig);
+        } catch (IOException e) {
+            LOG.error("Error uploading file {}", fileDetail.getFileName(), e);
+            return Response.serverError()
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(RestUtils.createMessage(e.getMessage()))
+                    .build();
+        }
+
+        functionMetaData.setPackageLocation(packageURI.toString());
+
         // Submit to FMT
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
@@ -308,19 +324,6 @@ public class ApiV1Resource extends BaseApiResource {
             }
         } catch (InterruptedException | ExecutionException e) {
             LOG.error("Error completeing request", e);
-            return Response.serverError()
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage()))
-                    .build();
-        }
-
-        // Upload to bookeeper
-        URI packageURI = null;
-        try {
-            packageURI = Utils.uploadToBookeeper(uploadedInputStream, fileDetail,
-                    functionMetaData.getFunctionConfig().getNamespace(), workerConfig);
-        } catch (IOException e) {
-            LOG.error("Error uploading file {}", fileDetail.getFileName(), e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))

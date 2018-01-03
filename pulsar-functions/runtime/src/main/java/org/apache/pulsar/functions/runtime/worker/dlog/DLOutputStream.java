@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.worker.rest.api.v1.dlog;
+package org.apache.pulsar.functions.runtime.worker.dlog;
 
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.api.DistributedLogManager;

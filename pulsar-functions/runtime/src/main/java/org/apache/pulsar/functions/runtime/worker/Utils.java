@@ -18,13 +18,23 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
+import org.apache.distributedlog.AppendOnlyStreamWriter;
+import org.apache.distributedlog.DistributedLogConfiguration;
+import org.apache.distributedlog.api.DistributedLogManager;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.functions.runtime.worker.dlog.DLInputStream;
+import org.apache.pulsar.functions.runtime.worker.dlog.DLOutputStream;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.*;
+import java.net.URI;
 
 public final class Utils {
+
+    private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
     private Utils(){}
 
@@ -66,5 +76,124 @@ public final class Utils {
             }
         }
         return bytes;
+    }
+
+    public static boolean namespaceExists(String namespace, WorkerConfig workerConfig) {
+        URI baseUri = URI.create(workerConfig.getDlogUri());
+        String zookeeperHost = baseUri.getHost();
+        int zookeeperPort = baseUri.getPort();
+        String destTopologyNamespaceURI = String.format("distributedlog://%s:%d/%s", zookeeperHost, zookeeperPort, namespace);
+
+        URI uri = URI.create(destTopologyNamespaceURI);
+
+        try {
+            NamespaceBuilder.newBuilder().clientId("pulsar-functions-uploader").conf(getDlogConf(workerConfig)).uri(uri).build();
+        } catch (IOException e) {
+            return false;
+        }
+        return true;
+    }
+
+    public static String getDestPackageNamespaceURI(WorkerConfig workerConfig, String namespace) {
+        URI baseUri = URI.create(workerConfig.getDlogUri());
+        String zookeeperHost = baseUri.getHost();
+        int zookeeperPort = baseUri.getPort();
+        return String.format("distributedlog://%s:%d/%s", zookeeperHost, zookeeperPort, namespace);
+    }
+
+    public static URI getPackageURI(String destPackageNamespaceURI, String packageName) {
+        return URI.create(String.format("%s/%s", destPackageNamespaceURI, packageName));
+    }
+
+    public static URI uploadToBookeeper(InputStream uploadedInputStream,
+                                 FormDataContentDisposition fileDetail,
+                                 String namespace, WorkerConfig workerConfig)
+            throws IOException {
+        String packageName = fileDetail.getFileName();
+        String destPackageNamespaceURI = getDestPackageNamespaceURI(workerConfig, namespace);
+        URI packageURI = getPackageURI(destPackageNamespaceURI, packageName);
+
+        DistributedLogConfiguration conf = getDlogConf(workerConfig);
+
+        URI uri = URI.create(destPackageNamespaceURI);
+
+        Namespace dlogNamespace = NamespaceBuilder.newBuilder()
+                .clientId("pulsar-functions-uploader").conf(conf).uri(uri).build();
+
+        // if the dest directory does not exist, create it.
+        DistributedLogManager dlm = null;
+        AppendOnlyStreamWriter writer = null;
+
+        if (dlogNamespace.logExists(packageName)) {
+            // if the destination file exists, write a log message
+            LOG.info(String.format("Target function file already exists at '%s'. Overwriting it now",
+                    packageURI.toString()));
+            dlogNamespace.deleteLog(packageName);
+        }
+        // copy the topology package to target working directory
+        LOG.info(String.format("Uploading function package '%s' to target DL at '%s'",
+                fileDetail.getName(), packageURI.toString()));
+
+
+        dlm = dlogNamespace.openLog(fileDetail.getFileName());
+        writer = dlm.getAppendOnlyStreamWriter();
+
+        try (OutputStream out = new DLOutputStream(dlm, writer)) {
+            int read = 0;
+            byte[] bytes = new byte[1024];
+            while ((read = uploadedInputStream.read(bytes)) != -1) {
+                out.write(bytes, 0, read);
+            }
+            out.flush();
+        }
+        return packageURI;
+    }
+
+    public static boolean downloadFromBookkeeper(URI uri, OutputStream outputStream, WorkerConfig workerConfig) {
+        String path = uri.getPath();
+        File pathFile = new File(path);
+        String logName = pathFile.getName();
+        String parentName = pathFile.getParent();
+        DistributedLogConfiguration conf = getDlogConf(workerConfig);
+        try {
+            URI parentUri = new URI(
+                    uri.getScheme(),
+                    uri.getAuthority(),
+                    parentName,
+                    uri.getQuery(),
+                    uri.getFragment());
+            Namespace dlogNamespace = NamespaceBuilder.newBuilder()
+                    .clientId("pulsar-functions-downloader").conf(conf).uri(parentUri).build();
+            DistributedLogManager dlm = dlogNamespace.openLog(logName);
+            InputStream in = new DLInputStream(dlm);
+            int read = 0;
+            byte[] bytes = new byte[1024];
+            while ((read = in.read(bytes)) != -1) {
+                outputStream.write(bytes, 0, read);
+            }
+            outputStream.flush();
+            dlogNamespace.close();
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {
+        int numReplicas = workerConfig.getNumFunctionPackageReplicas();
+
+        return new DistributedLogConfiguration()
+                .setWriteLockEnabled(false)
+                .setOutputBufferSize(256 * 1024)                  // 256k
+                .setPeriodicFlushFrequencyMilliSeconds(0)         // disable periodical flush
+                .setImmediateFlushEnabled(false)                  // disable immediate flush
+                .setLogSegmentRollingIntervalMinutes(0)           // disable time-based rolling
+                .setMaxLogSegmentBytes(Long.MAX_VALUE)            // disable size-based rolling
+                .setExplicitTruncationByApplication(true)         // no auto-truncation
+                .setRetentionPeriodHours(Integer.MAX_VALUE)       // long retention
+                .setEnsembleSize(numReplicas)                     // replica settings
+                .setWriteQuorumSize(numReplicas)
+                .setAckQuorumSize(numReplicas)
+                .setUseDaemonThread(true);
     }
 }

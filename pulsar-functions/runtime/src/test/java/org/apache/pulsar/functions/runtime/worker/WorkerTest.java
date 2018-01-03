@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.junit.Test;
 
 import java.net.URISyntaxException;
@@ -33,7 +34,7 @@ public class WorkerTest {
         workerConfig.setFunctionMetadataTopic("persistent://sample/standalone/ns1/fmt");
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setWorkerId(workerId);
-        Worker worker = new Worker(workerConfig);
+        Worker worker = new Worker(workerConfig, new LimitsConfig(-1, -1, -1, 1024));
         worker.startAsync();
         worker.awaitRunning();
     }

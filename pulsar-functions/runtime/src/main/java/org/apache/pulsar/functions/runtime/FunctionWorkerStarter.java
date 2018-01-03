@@ -23,6 +23,7 @@ import static org.apache.commons.lang.StringUtils.isBlank;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.Worker;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -38,6 +39,11 @@ public class FunctionWorkerStarter {
             names = { "-c", "--conf" },
             description = "Configuration File for Function Worker")
         private String configFile;
+
+        @Parameter(
+                names = { "-l", "--limits" },
+                description = "Limits Config File for Function Worker")
+        private String limitsConfigFile;
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
@@ -67,7 +73,14 @@ public class FunctionWorkerStarter {
             workerConfig = WorkerConfig.load(workerArguments.configFile);
         }
 
-        final Worker worker = new Worker(workerConfig);
+        LimitsConfig limitsConfig;
+        if (isBlank(workerArguments.limitsConfigFile)) {
+            limitsConfig = new LimitsConfig(-1, -1, -1, 1024);
+        } else {
+            limitsConfig = LimitsConfig.load(workerArguments.limitsConfigFile);
+        }
+
+        final Worker worker = new Worker(workerConfig, limitsConfig);
         worker.startAsync();
     }
 

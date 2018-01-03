@@ -28,6 +28,7 @@ import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 @Data
 @Setter
@@ -48,6 +49,7 @@ public class FunctionMetaData implements Serializable, Cloneable {
     // the timestamp when the function was created
     private long createTime;
     private String workerId;
+    private Spawner spawner;
 
     public void incrementVersion() {
         this.version = this.version + 1;
