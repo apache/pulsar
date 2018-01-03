@@ -176,7 +176,14 @@ class ThreadFunctionContainer implements FunctionContainer {
     private void startSourceConsumer() throws Exception {
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setMessageListener((consumer, msg) -> queue.add(msg));
+        conf.setMessageListener((consumer, msg) -> {
+            try {
+                queue.put(msg);
+                sourceConsumer.acknowledgeAsync(msg);
+            } catch (InterruptedException e) {
+                log.error("Function container {} is interrupted on enqueuing messages", id, e);
+            }
+        });
 
         this.sourceConsumer = client.subscribe(sourceTopic, id, conf);
     }
@@ -199,14 +206,16 @@ class ThreadFunctionContainer implements FunctionContainer {
             }
             if (output != null) {
                 sinkProducer.sendAsync(output)
-                        .thenAccept(messageId -> sourceConsumer.acknowledgeAsync(messageId))
+                        // TODO: enable this for at-least-once processing
+                        // .thenAccept(messageId -> sourceConsumer.acknowledgeAsync(messageId))
                         .exceptionally(cause -> {
                             log.error("Failed to send the process result {} of message {} to sink topic {}",
                                     result, msg, sinkTopic, cause);
                             return null;
                         });
             } else {
-                sourceConsumer.acknowledgeAsync(msg);
+                // TODO: enable this for at-least-once processing
+                // sourceConsumer.acknowledgeAsync(msg);
             }
         }
     }
