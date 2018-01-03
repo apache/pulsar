@@ -24,8 +24,6 @@ public class RequestResult {
     private boolean success;
     private String message;
 
-    private ServiceRequest requestDetails;
-
     public boolean isSuccess() {
         return success;
     }
@@ -40,14 +38,6 @@ public class RequestResult {
 
     public void setMessage(String message) {
         this.message = message;
-    }
-
-    public ServiceRequest getRequestDetails() {
-        return requestDetails;
-    }
-
-    public void setRequestDetails(ServiceRequest requestDetails) {
-        this.requestDetails = requestDetails;
     }
 
     public String toJson() {
