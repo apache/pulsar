@@ -270,13 +270,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements MessageIdDataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use MessageIdData.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private MessageIdData(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<MessageIdData> handle;
+    private MessageIdData(io.netty.util.Recycler.Handle<MessageIdData> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<MessageIdData> RECYCLER = new io.netty.util.Recycler<MessageIdData>() {
-            protected MessageIdData newObject(Handle handle) {
+            protected MessageIdData newObject(Handle<MessageIdData> handle) {
               return new MessageIdData(handle);
             }
           };
@@ -286,10 +286,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private MessageIdData(boolean noInit) {}
+    private MessageIdData(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final MessageIdData defaultInstance;
     public static MessageIdData getDefaultInstance() {
@@ -497,20 +499,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -769,13 +771,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements KeyValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use KeyValue.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private KeyValue(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<KeyValue> handle;
+    private KeyValue(io.netty.util.Recycler.Handle<KeyValue> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<KeyValue> RECYCLER = new io.netty.util.Recycler<KeyValue>() {
-            protected KeyValue newObject(Handle handle) {
+            protected KeyValue newObject(Handle<KeyValue> handle) {
               return new KeyValue(handle);
             }
           };
@@ -785,10 +787,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private KeyValue(boolean noInit) {}
+    private KeyValue(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final KeyValue defaultInstance;
     public static KeyValue getDefaultInstance() {
@@ -1004,20 +1008,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.KeyValue, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -1236,13 +1240,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements KeyLongValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use KeyLongValue.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private KeyLongValue(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<KeyLongValue> handle;
+    private KeyLongValue(io.netty.util.Recycler.Handle<KeyLongValue> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<KeyLongValue> RECYCLER = new io.netty.util.Recycler<KeyLongValue>() {
-            protected KeyLongValue newObject(Handle handle) {
+            protected KeyLongValue newObject(Handle<KeyLongValue> handle) {
               return new KeyLongValue(handle);
             }
           };
@@ -1252,10 +1256,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private KeyLongValue(boolean noInit) {}
+    private KeyLongValue(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final KeyLongValue defaultInstance;
     public static KeyLongValue getDefaultInstance() {
@@ -1449,20 +1455,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValueOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.KeyLongValue.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -1672,13 +1678,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements EncryptionKeysOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use EncryptionKeys.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private EncryptionKeys(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<EncryptionKeys> handle;
+    private EncryptionKeys(io.netty.util.Recycler.Handle<EncryptionKeys> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<EncryptionKeys> RECYCLER = new io.netty.util.Recycler<EncryptionKeys>() {
-            protected EncryptionKeys newObject(Handle handle) {
+            protected EncryptionKeys newObject(Handle<EncryptionKeys> handle) {
               return new EncryptionKeys(handle);
             }
           };
@@ -1688,10 +1694,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private EncryptionKeys(boolean noInit) {}
+    private EncryptionKeys(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final EncryptionKeys defaultInstance;
     public static EncryptionKeys getDefaultInstance() {
@@ -1920,20 +1928,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeysOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -2311,13 +2319,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements MessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use MessageMetadata.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private MessageMetadata(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<MessageMetadata> handle;
+    private MessageMetadata(io.netty.util.Recycler.Handle<MessageMetadata> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<MessageMetadata> RECYCLER = new io.netty.util.Recycler<MessageMetadata>() {
-            protected MessageMetadata newObject(Handle handle) {
+            protected MessageMetadata newObject(Handle<MessageMetadata> handle) {
               return new MessageMetadata(handle);
             }
           };
@@ -2327,10 +2335,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private MessageMetadata(boolean noInit) {}
+    private MessageMetadata(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final MessageMetadata defaultInstance;
     public static MessageMetadata getDefaultInstance() {
@@ -2853,20 +2863,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -3765,13 +3775,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements SingleMessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use SingleMessageMetadata.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private SingleMessageMetadata(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<SingleMessageMetadata> handle;
+    private SingleMessageMetadata(io.netty.util.Recycler.Handle<SingleMessageMetadata> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<SingleMessageMetadata> RECYCLER = new io.netty.util.Recycler<SingleMessageMetadata>() {
-            protected SingleMessageMetadata newObject(Handle handle) {
+            protected SingleMessageMetadata newObject(Handle<SingleMessageMetadata> handle) {
               return new SingleMessageMetadata(handle);
             }
           };
@@ -3781,10 +3791,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private SingleMessageMetadata(boolean noInit) {}
+    private SingleMessageMetadata(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final SingleMessageMetadata defaultInstance;
     public static SingleMessageMetadata getDefaultInstance() {
@@ -4009,20 +4021,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.SingleMessageMetadata.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -4360,13 +4372,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandConnectOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConnect.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandConnect(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandConnect> handle;
+    private CommandConnect(io.netty.util.Recycler.Handle<CommandConnect> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConnect> RECYCLER = new io.netty.util.Recycler<CommandConnect>() {
-            protected CommandConnect newObject(Handle handle) {
+            protected CommandConnect newObject(Handle<CommandConnect> handle) {
               return new CommandConnect(handle);
             }
           };
@@ -4376,10 +4388,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandConnect(boolean noInit) {}
+    private CommandConnect(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandConnect defaultInstance;
     public static CommandConnect getDefaultInstance() {
@@ -4725,20 +4739,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConnectOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -5168,13 +5182,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandConnectedOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConnected.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandConnected(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandConnected> handle;
+    private CommandConnected(io.netty.util.Recycler.Handle<CommandConnected> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConnected> RECYCLER = new io.netty.util.Recycler<CommandConnected>() {
-            protected CommandConnected newObject(Handle handle) {
+            protected CommandConnected newObject(Handle<CommandConnected> handle) {
               return new CommandConnected(handle);
             }
           };
@@ -5184,10 +5198,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandConnected(boolean noInit) {}
+    private CommandConnected(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandConnected defaultInstance;
     public static CommandConnected getDefaultInstance() {
@@ -5377,20 +5393,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConnectedOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -5618,13 +5634,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandSubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSubscribe.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandSubscribe(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandSubscribe> handle;
+    private CommandSubscribe(io.netty.util.Recycler.Handle<CommandSubscribe> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSubscribe> RECYCLER = new io.netty.util.Recycler<CommandSubscribe>() {
-            protected CommandSubscribe newObject(Handle handle) {
+            protected CommandSubscribe newObject(Handle<CommandSubscribe> handle) {
               return new CommandSubscribe(handle);
             }
           };
@@ -5634,10 +5650,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandSubscribe(boolean noInit) {}
+    private CommandSubscribe(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandSubscribe defaultInstance;
     public static CommandSubscribe getDefaultInstance() {
@@ -6063,20 +6081,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -6607,13 +6625,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandPartitionedTopicMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPartitionedTopicMetadata.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandPartitionedTopicMetadata(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadata> handle;
+    private CommandPartitionedTopicMetadata(io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadata> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPartitionedTopicMetadata> RECYCLER = new io.netty.util.Recycler<CommandPartitionedTopicMetadata>() {
-            protected CommandPartitionedTopicMetadata newObject(Handle handle) {
+            protected CommandPartitionedTopicMetadata newObject(Handle<CommandPartitionedTopicMetadata> handle) {
               return new CommandPartitionedTopicMetadata(handle);
             }
           };
@@ -6623,10 +6641,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandPartitionedTopicMetadata(boolean noInit) {}
+    private CommandPartitionedTopicMetadata(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandPartitionedTopicMetadata defaultInstance;
     public static CommandPartitionedTopicMetadata getDefaultInstance() {
@@ -6820,20 +6840,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -7049,13 +7069,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandPartitionedTopicMetadataResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPartitionedTopicMetadataResponse.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandPartitionedTopicMetadataResponse(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadataResponse> handle;
+    private CommandPartitionedTopicMetadataResponse(io.netty.util.Recycler.Handle<CommandPartitionedTopicMetadataResponse> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPartitionedTopicMetadataResponse> RECYCLER = new io.netty.util.Recycler<CommandPartitionedTopicMetadataResponse>() {
-            protected CommandPartitionedTopicMetadataResponse newObject(Handle handle) {
+            protected CommandPartitionedTopicMetadataResponse newObject(Handle<CommandPartitionedTopicMetadataResponse> handle) {
               return new CommandPartitionedTopicMetadataResponse(handle);
             }
           };
@@ -7065,10 +7085,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandPartitionedTopicMetadataResponse(boolean noInit) {}
+    private CommandPartitionedTopicMetadataResponse(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandPartitionedTopicMetadataResponse defaultInstance;
     public static CommandPartitionedTopicMetadataResponse getDefaultInstance() {
@@ -7353,20 +7375,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -7689,13 +7711,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandLookupTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandLookupTopic.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandLookupTopic(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandLookupTopic> handle;
+    private CommandLookupTopic(io.netty.util.Recycler.Handle<CommandLookupTopic> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandLookupTopic> RECYCLER = new io.netty.util.Recycler<CommandLookupTopic>() {
-            protected CommandLookupTopic newObject(Handle handle) {
+            protected CommandLookupTopic newObject(Handle<CommandLookupTopic> handle) {
               return new CommandLookupTopic(handle);
             }
           };
@@ -7705,10 +7727,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandLookupTopic(boolean noInit) {}
+    private CommandLookupTopic(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandLookupTopic defaultInstance;
     public static CommandLookupTopic getDefaultInstance() {
@@ -7920,20 +7944,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -8196,13 +8220,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandLookupTopicResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandLookupTopicResponse.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandLookupTopicResponse(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandLookupTopicResponse> handle;
+    private CommandLookupTopicResponse(io.netty.util.Recycler.Handle<CommandLookupTopicResponse> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandLookupTopicResponse> RECYCLER = new io.netty.util.Recycler<CommandLookupTopicResponse>() {
-            protected CommandLookupTopicResponse newObject(Handle handle) {
+            protected CommandLookupTopicResponse newObject(Handle<CommandLookupTopicResponse> handle) {
               return new CommandLookupTopicResponse(handle);
             }
           };
@@ -8212,10 +8236,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandLookupTopicResponse(boolean noInit) {}
+    private CommandLookupTopicResponse(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandLookupTopicResponse defaultInstance;
     public static CommandLookupTopicResponse getDefaultInstance() {
@@ -8601,20 +8627,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -9076,13 +9102,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandProducer.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandProducer(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandProducer> handle;
+    private CommandProducer(io.netty.util.Recycler.Handle<CommandProducer> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandProducer> RECYCLER = new io.netty.util.Recycler<CommandProducer>() {
-            protected CommandProducer newObject(Handle handle) {
+            protected CommandProducer newObject(Handle<CommandProducer> handle) {
               return new CommandProducer(handle);
             }
           };
@@ -9092,10 +9118,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandProducer(boolean noInit) {}
+    private CommandProducer(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandProducer defaultInstance;
     public static CommandProducer getDefaultInstance() {
@@ -9351,20 +9379,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -9661,13 +9689,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandSendOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSend.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandSend(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandSend> handle;
+    private CommandSend(io.netty.util.Recycler.Handle<CommandSend> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSend> RECYCLER = new io.netty.util.Recycler<CommandSend>() {
-            protected CommandSend newObject(Handle handle) {
+            protected CommandSend newObject(Handle<CommandSend> handle) {
               return new CommandSend(handle);
             }
           };
@@ -9677,10 +9705,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandSend(boolean noInit) {}
+    private CommandSend(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandSend defaultInstance;
     public static CommandSend getDefaultInstance() {
@@ -9870,20 +9900,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSend, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSendOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSend.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -10111,13 +10141,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandSendReceiptOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSendReceipt.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandSendReceipt(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandSendReceipt> handle;
+    private CommandSendReceipt(io.netty.util.Recycler.Handle<CommandSendReceipt> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSendReceipt> RECYCLER = new io.netty.util.Recycler<CommandSendReceipt>() {
-            protected CommandSendReceipt newObject(Handle handle) {
+            protected CommandSendReceipt newObject(Handle<CommandSendReceipt> handle) {
               return new CommandSendReceipt(handle);
             }
           };
@@ -10127,10 +10157,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandSendReceipt(boolean noInit) {}
+    private CommandSendReceipt(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandSendReceipt defaultInstance;
     public static CommandSendReceipt getDefaultInstance() {
@@ -10326,20 +10358,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceiptOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -10604,13 +10636,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandSendErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSendError.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandSendError(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandSendError> handle;
+    private CommandSendError(io.netty.util.Recycler.Handle<CommandSendError> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSendError> RECYCLER = new io.netty.util.Recycler<CommandSendError>() {
-            protected CommandSendError newObject(Handle handle) {
+            protected CommandSendError newObject(Handle<CommandSendError> handle) {
               return new CommandSendError(handle);
             }
           };
@@ -10620,10 +10652,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandSendError(boolean noInit) {}
+    private CommandSendError(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandSendError defaultInstance;
     public static CommandSendError getDefaultInstance() {
@@ -10861,20 +10895,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSendErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -11163,13 +11197,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandMessageOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandMessage.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandMessage(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandMessage> handle;
+    private CommandMessage(io.netty.util.Recycler.Handle<CommandMessage> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandMessage> RECYCLER = new io.netty.util.Recycler<CommandMessage>() {
-            protected CommandMessage newObject(Handle handle) {
+            protected CommandMessage newObject(Handle<CommandMessage> handle) {
               return new CommandMessage(handle);
             }
           };
@@ -11179,10 +11213,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandMessage(boolean noInit) {}
+    private CommandMessage(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandMessage defaultInstance;
     public static CommandMessage getDefaultInstance() {
@@ -11358,20 +11394,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandMessageOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -11605,13 +11641,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandAckOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandAck.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandAck(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandAck> handle;
+    private CommandAck(io.netty.util.Recycler.Handle<CommandAck> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandAck> RECYCLER = new io.netty.util.Recycler<CommandAck>() {
-            protected CommandAck newObject(Handle handle) {
+            protected CommandAck newObject(Handle<CommandAck> handle) {
               return new CommandAck(handle);
             }
           };
@@ -11621,10 +11657,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandAck(boolean noInit) {}
+    private CommandAck(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandAck defaultInstance;
     public static CommandAck getDefaultInstance() {
@@ -11966,20 +12004,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandAck, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandAckOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -12405,13 +12443,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandFlowOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandFlow.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandFlow(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandFlow> handle;
+    private CommandFlow(io.netty.util.Recycler.Handle<CommandFlow> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandFlow> RECYCLER = new io.netty.util.Recycler<CommandFlow>() {
-            protected CommandFlow newObject(Handle handle) {
+            protected CommandFlow newObject(Handle<CommandFlow> handle) {
               return new CommandFlow(handle);
             }
           };
@@ -12421,10 +12459,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandFlow(boolean noInit) {}
+    private CommandFlow(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandFlow defaultInstance;
     public static CommandFlow getDefaultInstance() {
@@ -12596,20 +12636,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandFlowOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -12798,13 +12838,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandUnsubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandUnsubscribe.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandUnsubscribe(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandUnsubscribe> handle;
+    private CommandUnsubscribe(io.netty.util.Recycler.Handle<CommandUnsubscribe> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandUnsubscribe> RECYCLER = new io.netty.util.Recycler<CommandUnsubscribe>() {
-            protected CommandUnsubscribe newObject(Handle handle) {
+            protected CommandUnsubscribe newObject(Handle<CommandUnsubscribe> handle) {
               return new CommandUnsubscribe(handle);
             }
           };
@@ -12814,10 +12854,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandUnsubscribe(boolean noInit) {}
+    private CommandUnsubscribe(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandUnsubscribe defaultInstance;
     public static CommandUnsubscribe getDefaultInstance() {
@@ -12989,20 +13031,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribeOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -13195,13 +13237,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandSeekOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSeek.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandSeek(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandSeek> handle;
+    private CommandSeek(io.netty.util.Recycler.Handle<CommandSeek> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSeek> RECYCLER = new io.netty.util.Recycler<CommandSeek>() {
-            protected CommandSeek newObject(Handle handle) {
+            protected CommandSeek newObject(Handle<CommandSeek> handle) {
               return new CommandSeek(handle);
             }
           };
@@ -13211,10 +13253,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandSeek(boolean noInit) {}
+    private CommandSeek(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandSeek defaultInstance;
     public static CommandSeek getDefaultInstance() {
@@ -13410,20 +13454,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSeekOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -13676,13 +13720,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandReachedEndOfTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandReachedEndOfTopic.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandReachedEndOfTopic(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandReachedEndOfTopic> handle;
+    private CommandReachedEndOfTopic(io.netty.util.Recycler.Handle<CommandReachedEndOfTopic> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandReachedEndOfTopic> RECYCLER = new io.netty.util.Recycler<CommandReachedEndOfTopic>() {
-            protected CommandReachedEndOfTopic newObject(Handle handle) {
+            protected CommandReachedEndOfTopic newObject(Handle<CommandReachedEndOfTopic> handle) {
               return new CommandReachedEndOfTopic(handle);
             }
           };
@@ -13692,10 +13736,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandReachedEndOfTopic(boolean noInit) {}
+    private CommandReachedEndOfTopic(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandReachedEndOfTopic defaultInstance;
     public static CommandReachedEndOfTopic getDefaultInstance() {
@@ -13845,20 +13891,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopicOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -14008,13 +14054,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandCloseProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandCloseProducer.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandCloseProducer(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandCloseProducer> handle;
+    private CommandCloseProducer(io.netty.util.Recycler.Handle<CommandCloseProducer> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandCloseProducer> RECYCLER = new io.netty.util.Recycler<CommandCloseProducer>() {
-            protected CommandCloseProducer newObject(Handle handle) {
+            protected CommandCloseProducer newObject(Handle<CommandCloseProducer> handle) {
               return new CommandCloseProducer(handle);
             }
           };
@@ -14024,10 +14070,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandCloseProducer(boolean noInit) {}
+    private CommandCloseProducer(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandCloseProducer defaultInstance;
     public static CommandCloseProducer getDefaultInstance() {
@@ -14199,20 +14247,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -14401,13 +14449,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandCloseConsumerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandCloseConsumer.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandCloseConsumer(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandCloseConsumer> handle;
+    private CommandCloseConsumer(io.netty.util.Recycler.Handle<CommandCloseConsumer> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandCloseConsumer> RECYCLER = new io.netty.util.Recycler<CommandCloseConsumer>() {
-            protected CommandCloseConsumer newObject(Handle handle) {
+            protected CommandCloseConsumer newObject(Handle<CommandCloseConsumer> handle) {
               return new CommandCloseConsumer(handle);
             }
           };
@@ -14417,10 +14465,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandCloseConsumer(boolean noInit) {}
+    private CommandCloseConsumer(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandCloseConsumer defaultInstance;
     public static CommandCloseConsumer getDefaultInstance() {
@@ -14592,20 +14642,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumerOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -14796,13 +14846,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandRedeliverUnacknowledgedMessagesOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandRedeliverUnacknowledgedMessages.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandRedeliverUnacknowledgedMessages(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandRedeliverUnacknowledgedMessages> handle;
+    private CommandRedeliverUnacknowledgedMessages(io.netty.util.Recycler.Handle<CommandRedeliverUnacknowledgedMessages> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandRedeliverUnacknowledgedMessages> RECYCLER = new io.netty.util.Recycler<CommandRedeliverUnacknowledgedMessages>() {
-            protected CommandRedeliverUnacknowledgedMessages newObject(Handle handle) {
+            protected CommandRedeliverUnacknowledgedMessages newObject(Handle<CommandRedeliverUnacknowledgedMessages> handle) {
               return new CommandRedeliverUnacknowledgedMessages(handle);
             }
           };
@@ -14812,10 +14862,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandRedeliverUnacknowledgedMessages(boolean noInit) {}
+    private CommandRedeliverUnacknowledgedMessages(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandRedeliverUnacknowledgedMessages defaultInstance;
     public static CommandRedeliverUnacknowledgedMessages getDefaultInstance() {
@@ -15000,20 +15052,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessagesOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandRedeliverUnacknowledgedMessages.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -15277,13 +15329,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandSuccess.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandSuccess(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandSuccess> handle;
+    private CommandSuccess(io.netty.util.Recycler.Handle<CommandSuccess> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandSuccess> RECYCLER = new io.netty.util.Recycler<CommandSuccess>() {
-            protected CommandSuccess newObject(Handle handle) {
+            protected CommandSuccess newObject(Handle<CommandSuccess> handle) {
               return new CommandSuccess(handle);
             }
           };
@@ -15293,10 +15345,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandSuccess(boolean noInit) {}
+    private CommandSuccess(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandSuccess defaultInstance;
     public static CommandSuccess getDefaultInstance() {
@@ -15446,20 +15500,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -15613,13 +15667,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandProducerSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandProducerSuccess.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandProducerSuccess(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandProducerSuccess> handle;
+    private CommandProducerSuccess(io.netty.util.Recycler.Handle<CommandProducerSuccess> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandProducerSuccess> RECYCLER = new io.netty.util.Recycler<CommandProducerSuccess>() {
-            protected CommandProducerSuccess newObject(Handle handle) {
+            protected CommandProducerSuccess newObject(Handle<CommandProducerSuccess> handle) {
               return new CommandProducerSuccess(handle);
             }
           };
@@ -15629,10 +15683,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandProducerSuccess(boolean noInit) {}
+    private CommandProducerSuccess(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandProducerSuccess defaultInstance;
     public static CommandProducerSuccess getDefaultInstance() {
@@ -15844,20 +15900,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccessOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -16100,13 +16156,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandError.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandError(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandError> handle;
+    private CommandError(io.netty.util.Recycler.Handle<CommandError> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandError> RECYCLER = new io.netty.util.Recycler<CommandError>() {
-            protected CommandError newObject(Handle handle) {
+            protected CommandError newObject(Handle<CommandError> handle) {
               return new CommandError(handle);
             }
           };
@@ -16116,10 +16172,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandError(boolean noInit) {}
+    private CommandError(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandError defaultInstance;
     public static CommandError getDefaultInstance() {
@@ -16335,20 +16393,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandError, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandErrorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandError.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -16590,13 +16648,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandPingOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPing.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandPing(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandPing> handle;
+    private CommandPing(io.netty.util.Recycler.Handle<CommandPing> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPing> RECYCLER = new io.netty.util.Recycler<CommandPing>() {
-            protected CommandPing newObject(Handle handle) {
+            protected CommandPing newObject(Handle<CommandPing> handle) {
               return new CommandPing(handle);
             }
           };
@@ -16605,10 +16663,12 @@ public final class PulsarApi {
             this.initFields();
             this.memoizedIsInitialized = -1;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandPing(boolean noInit) {}
+    private CommandPing(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandPing defaultInstance;
     public static CommandPing getDefaultInstance() {
@@ -16735,20 +16795,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPing, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPingOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPing.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -16847,13 +16907,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandPongOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandPong.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandPong(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandPong> handle;
+    private CommandPong(io.netty.util.Recycler.Handle<CommandPong> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandPong> RECYCLER = new io.netty.util.Recycler<CommandPong>() {
-            protected CommandPong newObject(Handle handle) {
+            protected CommandPong newObject(Handle<CommandPong> handle) {
               return new CommandPong(handle);
             }
           };
@@ -16862,10 +16922,12 @@ public final class PulsarApi {
             this.initFields();
             this.memoizedIsInitialized = -1;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandPong(boolean noInit) {}
+    private CommandPong(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandPong defaultInstance;
     public static CommandPong getDefaultInstance() {
@@ -16992,20 +17054,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandPong, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandPongOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandPong.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -17112,13 +17174,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandConsumerStatsOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConsumerStats.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandConsumerStats(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandConsumerStats> handle;
+    private CommandConsumerStats(io.netty.util.Recycler.Handle<CommandConsumerStats> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConsumerStats> RECYCLER = new io.netty.util.Recycler<CommandConsumerStats>() {
-            protected CommandConsumerStats newObject(Handle handle) {
+            protected CommandConsumerStats newObject(Handle<CommandConsumerStats> handle) {
               return new CommandConsumerStats(handle);
             }
           };
@@ -17128,10 +17190,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandConsumerStats(boolean noInit) {}
+    private CommandConsumerStats(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandConsumerStats defaultInstance;
     public static CommandConsumerStats getDefaultInstance() {
@@ -17303,20 +17367,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -17557,13 +17621,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements CommandConsumerStatsResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use CommandConsumerStatsResponse.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private CommandConsumerStatsResponse(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<CommandConsumerStatsResponse> handle;
+    private CommandConsumerStatsResponse(io.netty.util.Recycler.Handle<CommandConsumerStatsResponse> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<CommandConsumerStatsResponse> RECYCLER = new io.netty.util.Recycler<CommandConsumerStatsResponse>() {
-            protected CommandConsumerStatsResponse newObject(Handle handle) {
+            protected CommandConsumerStatsResponse newObject(Handle<CommandConsumerStatsResponse> handle) {
               return new CommandConsumerStatsResponse(handle);
             }
           };
@@ -17573,10 +17637,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private CommandConsumerStatsResponse(boolean noInit) {}
+    private CommandConsumerStatsResponse(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final CommandConsumerStatsResponse defaultInstance;
     public static CommandConsumerStatsResponse getDefaultInstance() {
@@ -18088,20 +18154,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
@@ -18927,13 +18993,13 @@ public final class PulsarApi {
       com.google.protobuf.GeneratedMessageLite
       implements BaseCommandOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
     // Use BaseCommand.newBuilder() to construct.
-    private io.netty.util.Recycler.Handle handle;
-    private BaseCommand(io.netty.util.Recycler.Handle handle) {
+    private final io.netty.util.Recycler.Handle<BaseCommand> handle;
+    private BaseCommand(io.netty.util.Recycler.Handle<BaseCommand> handle) {
       this.handle = handle;
     }
     
      private static final io.netty.util.Recycler<BaseCommand> RECYCLER = new io.netty.util.Recycler<BaseCommand>() {
-            protected BaseCommand newObject(Handle handle) {
+            protected BaseCommand newObject(Handle<BaseCommand> handle) {
               return new BaseCommand(handle);
             }
           };
@@ -18943,10 +19009,12 @@ public final class PulsarApi {
             this.memoizedIsInitialized = -1;
             this.bitField0_ = 0;
             this.memoizedSerializedSize = -1;
-            if (handle != null) { RECYCLER.recycle(this, handle); }
+            handle.recycle(this);
         }
          
-    private BaseCommand(boolean noInit) {}
+    private BaseCommand(boolean noInit) {
+        this.handle = null;
+    }
     
     private static final BaseCommand defaultInstance;
     public static BaseCommand getDefaultInstance() {
@@ -19848,20 +19916,20 @@ public final class PulsarApi {
           org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand, Builder>
         implements org.apache.pulsar.common.api.proto.PulsarApi.BaseCommandOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
       // Construct using org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.newBuilder()
-      private final io.netty.util.Recycler.Handle handle;
-      private Builder(io.netty.util.Recycler.Handle handle) {
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
         this.handle = handle;
         maybeForceBuilderInitialization();
       }
       private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle handle) {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
                return new Builder(handle);
              }
             };
       
        public void recycle() {
                 clear();
-                if (handle != null) {RECYCLER.recycle(this, handle);}
+                handle.recycle(this);
             }
       
       private void maybeForceBuilderInitialization() {
