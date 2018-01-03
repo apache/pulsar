@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.functions.runtime.spawner;
 
+import java.io.File;
+import java.io.IOException;
 import java.io.Serializable;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.*;
 
 @Data
@@ -38,4 +43,10 @@ public class LimitsConfig implements Serializable {
     private int maxMemoryMb;
     private int maxCpuCores;
     private int maxBufferedTuples;
+
+    public static LimitsConfig load(String yamlFile) throws IOException {
+        ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+        return mapper.readValue(new File(yamlFile), LimitsConfig.class);
+    }
+
 }

@@ -20,10 +20,10 @@ package org.apache.pulsar.functions.runtime.worker;
 
 import com.google.common.util.concurrent.AbstractService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.rest.WorkerServer;
 
@@ -31,13 +31,16 @@ import org.apache.pulsar.functions.runtime.worker.rest.WorkerServer;
 public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
+    private final LimitsConfig limitsConfig;
     private PulsarClient client;
     private FunctionMetaDataManager functionMetaDataManager;
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
+    private FunctionContainerFactory functionContainerFactory;
     private Thread serverThread;
 
-    public Worker(WorkerConfig workerConfig) {
+    public Worker(WorkerConfig workerConfig, LimitsConfig limitsConfig) {
         this.workerConfig = workerConfig;
+        this.limitsConfig = limitsConfig;
     }
 
     @Override
@@ -46,11 +49,16 @@ public class Worker extends AbstractService {
             this.client = PulsarClient.create(workerConfig.getPulsarServiceUrl());
             ServiceRequestManager reqMgr = new ServiceRequestManager(
                 client.createProducer(workerConfig.getFunctionMetadataTopic()));
+
+            this.functionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples(),
+                    workerConfig.getPulsarServiceUrl(), new ClientConfiguration());
+
             this.functionMetaDataManager = new FunctionMetaDataManager(
-                workerConfig, reqMgr);
+                workerConfig, limitsConfig, reqMgr, this.functionContainerFactory);
 
             ConsumerConfiguration consumerConf = new ConsumerConfiguration();
             consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
+
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(
                     functionMetaDataManager,
                 client.subscribe(
@@ -59,7 +67,7 @@ public class Worker extends AbstractService {
                     consumerConf));
 
             log.info("Start worker {}...", workerConfig.getWorkerId());
-        } catch (PulsarClientException e) {
+        } catch (Exception e) {
             log.error("Failed to create pulsar client to {}",
                 workerConfig.getPulsarServiceUrl(), e);
             throw new RuntimeException(e);

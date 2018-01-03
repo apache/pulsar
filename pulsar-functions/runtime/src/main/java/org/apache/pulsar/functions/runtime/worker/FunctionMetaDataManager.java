@@ -20,6 +20,9 @@ package org.apache.pulsar.functions.runtime.worker;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
@@ -28,6 +31,10 @@ import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -52,10 +59,18 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
 
+    private final LimitsConfig limitsConfig;
+
+    private final FunctionContainerFactory functionContainerFactory;
+
     public FunctionMetaDataManager(WorkerConfig workerConfig,
-                                   ServiceRequestManager serviceRequestManager) {
+                                   LimitsConfig limitsConfig,
+                                   ServiceRequestManager serviceRequestManager,
+                                   FunctionContainerFactory functionContainerFactory) {
         this.workerConfig = workerConfig;
+        this.limitsConfig = limitsConfig;
         this.serviceRequestManager = serviceRequestManager;
+        this.functionContainerFactory = functionContainerFactory;
     }
 
     @Override
@@ -65,6 +80,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     public FunctionMetaData getFunction(String tenant, String namespace, String functionName) {
         return this.functionMap.get(tenant).get(namespace).get(functionName);
+    }
+
+    public FunctionMetaData getFunction(FunctionConfig functionConfig) {
+        return getFunction(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+    }
+
+    public FunctionMetaData getFunction(FunctionMetaData functionMetaData) {
+        return getFunction(functionMetaData.getFunctionConfig());
     }
 
     public Collection<String> listFunction(String tenant, String namespace) {
@@ -196,7 +219,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 // Check if this worker is suppose to run the function
                 if (isMyRequest(deregisterRequest)) {
                     // stop running the function
-                    stopFunction(functionName);
+                    stopFunction(getFunction(deregisterRequestFs));
                 }
                 // remove function from in memory function metadata store
                 this.functionMap.remove(functionName);
@@ -229,9 +252,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
             // Since this is the first time worker has seen function, just put it into internal function metadata store
             addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
-            if (this.workerConfig.getWorkerId().equals(updateRequestFs.getWorkerId())) {
+            if (isMyRequest(updateRequest)) {
                 // start the function
-                startFunction(functionName);
+                startFunction(updateRequestFs);
             }
             completeRequest(updateRequest, true);
         } else {
@@ -239,12 +262,18 @@ public class FunctionMetaDataManager implements AutoCloseable {
             // in its function metadata store
             // Check if request is outdated
             if (!isRequestOutdated(updateRequest)) {
+                FunctionConfig functionConfig = updateRequestFs.getFunctionConfig();
+                FunctionMetaData existingMetaData = getFunction(functionConfig.getTenant(),
+                        functionConfig.getNamespace(), functionConfig.getName());
+                if (existingMetaData.getSpawner() != null) {
+                    stopFunction(existingMetaData);
+                }
                 // update the function metadata
                 addFunctionToFunctionMap(updateRequestFs);
                 // check if this worker should run the update
                 if (isMyRequest(updateRequest)) {
                     // Update the function
-                    updateFunction(functionName);
+                    startFunction(updateRequestFs);
                 }
                 completeRequest(updateRequest, true);
             } else {
@@ -280,15 +309,33 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return this.workerConfig.getWorkerId().equals(serviceRequest.getFunctionMetaData().getWorkerId());
     }
 
-    public void startFunction(String functionName) {
-        LOG.info("Starting function {}....", functionName);
+    private boolean startFunction(FunctionMetaData functionMetaData) {
+        LOG.info("Starting function {}....", functionMetaData.getFunctionConfig().getName());
+        String prefix = functionMetaData.getFunctionConfig().getTenant() + "-"
+                + functionMetaData.getFunctionConfig().getNamespace() + "-"
+                + functionMetaData.getFunctionConfig().getName();
+        try {
+            File fileLocation = File.createTempFile(prefix, ".jar", new File(workerConfig.getDownloadDirectory()));
+            if (!Utils.downloadFromBookkeeper(URI.create(functionMetaData.getPackageLocation()), new FileOutputStream(fileLocation), workerConfig)) {
+                return false;
+            };
+            Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
+                    fileLocation.getAbsolutePath(), functionContainerFactory);
+            functionMetaData.setSpawner(spawner);
+            spawner.start();
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 
-    public void updateFunction(String functionName) {
-        LOG.info("Updating function {}...", functionName);
-    }
-
-    public void stopFunction(String functionName) {
-        LOG.info("Stopping function {}...", functionName);
+    private boolean stopFunction(FunctionMetaData functionMetaData) {
+        LOG.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
+        if (functionMetaData.getSpawner() != null) {
+            functionMetaData.getSpawner().close();
+            functionMetaData.setSpawner(null);
+            return true;
+        }
+        return false;
     }
 }

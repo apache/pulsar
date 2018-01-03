@@ -22,6 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
+import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.junit.Test;
 
@@ -29,11 +32,17 @@ public class FunctionMetaDataManagerTest {
 
     @Test
     public void testClose() {
-        WorkerConfig config = new WorkerConfig();
-        ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
-        FunctionMetaDataManager fsm = new FunctionMetaDataManager(config, reqMgr);
-        fsm.close();
-        verify(reqMgr, times(1)).close();
+        try {
+            WorkerConfig config = new WorkerConfig();
+            ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
+            FunctionMetaDataManager fsm = new FunctionMetaDataManager(config,
+                    new LimitsConfig(-1, -1, -1, -1), reqMgr,
+                    new ThreadFunctionContainerFactory(-1, null, null));
+            fsm.close();
+            verify(reqMgr, times(1)).close();
+        } catch (Exception ex) {
+            throw new RuntimeException(ex);
+        }
     }
 
 }

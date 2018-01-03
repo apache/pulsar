@@ -44,6 +44,7 @@ public class WorkerConfig implements Serializable {
     private String functionMetadataTopic;
     private String pulsarServiceUrl;
     private int numFunctionPackageReplicas;
+    private String downloadDirectory;
 
     public String getFunctionMetadataTopicSubscription() {
         if (this.workerId == null) {
