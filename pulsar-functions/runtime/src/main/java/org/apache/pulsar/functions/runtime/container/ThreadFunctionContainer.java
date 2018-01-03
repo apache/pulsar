@@ -67,8 +67,6 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     // source topic consumer & sink topic produder
     private final PulsarClientImpl client;
-    private final String sourceTopic;
-    private final String sinkTopic;
     private Producer sinkProducer;
     private Consumer sourceConsumer;
 
@@ -90,8 +88,6 @@ class ThreadFunctionContainer implements FunctionContainer {
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
-        this.sourceTopic = instanceConfig.getFunctionConfig().getSourceTopic();
-        this.sinkTopic = instanceConfig.getFunctionConfig().getSinkTopic();
         this.stats = new FunctionStatsImpl(
             id,
             client.getConfiguration().getStatsIntervalSeconds(),
@@ -116,7 +112,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                     stats.incrementProcess();
                     result = javaInstance.handleMessage(
                         convertMessageIdToString(msg.getMessageId()),
-                        sourceTopic,
+                        javaInstanceConfig.getFunctionConfig().getSourceTopic(),
                         msg.getData());
                     processResult(msg, result, processAt, javaInstance.getOutputSerDe());
                 }
@@ -168,13 +164,15 @@ class ThreadFunctionContainer implements FunctionContainer {
     }
 
     private void startSinkProducer() throws Exception {
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setBlockIfQueueFull(true);
-        conf.setBatchingEnabled(true);
-        conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
-        conf.setMaxPendingMessages(1000000);
+        if (javaInstanceConfig.getFunctionConfig().getSinkTopic() != null) {
+            ProducerConfiguration conf = new ProducerConfiguration();
+            conf.setBlockIfQueueFull(true);
+            conf.setBatchingEnabled(true);
+            conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+            conf.setMaxPendingMessages(1000000);
 
-        this.sinkProducer = client.createProducer(sinkTopic, conf);
+            this.sinkProducer = client.createProducer(javaInstanceConfig.getFunctionConfig().getSinkTopic(), conf);
+        }
     }
 
     private void startSourceConsumer() throws Exception {
@@ -191,7 +189,7 @@ class ThreadFunctionContainer implements FunctionContainer {
             }
         });
 
-        this.sourceConsumer = client.subscribe(sourceTopic, id, conf);
+        this.sourceConsumer = client.subscribe(javaInstanceConfig.getFunctionConfig().getSourceTopic(), id, conf);
     }
 
     private void processResult(Message msg, JavaExecutionResult result, long processAt, SerDe serDe) {
@@ -206,26 +204,32 @@ class ThreadFunctionContainer implements FunctionContainer {
             stats.incrementProcessFailure();
         } else if (result.getResult() != null) {
             stats.incrementProcessSuccess(System.nanoTime() - processAt);
-            byte[] output = null;
-            if (result.getResult() != null) {
-                output = serDe.serialize(result.getResult());
-            }
-            if (output != null) {
-                sinkProducer.sendAsync(output)
-                        .thenAccept(messageId -> {
-                            if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                                sourceConsumer.acknowledgeAsync(messageId);
-                            }
-                        })
-                        .exceptionally(cause -> {
-                            log.error("Failed to send the process result {} of message {} to sink topic {}",
-                                    result, msg, sinkTopic, cause);
-                            return null;
-                        });
+            if (sinkProducer != null) {
+                byte[] output = null;
+                if (result.getResult() != null) {
+                    output = serDe.serialize(result.getResult());
+                }
+                if (output != null) {
+                    sinkProducer.sendAsync(output)
+                            .thenAccept(messageId -> {
+                                if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                                    sourceConsumer.acknowledgeAsync(messageId);
+                                }
+                            })
+                            .exceptionally(cause -> {
+                                log.error("Failed to send the process result {} of message {} to sink topic {}",
+                                        result, msg, javaInstanceConfig.getFunctionConfig().getSinkTopic(), cause);
+                                return null;
+                            });
+                } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                    sourceConsumer.acknowledgeAsync(msg);
+                }
             } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
                 sourceConsumer.acknowledgeAsync(msg);
             }
-        }
+        } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+             sourceConsumer.acknowledgeAsync(msg);
+         }
     }
 
     @Override
@@ -245,8 +249,9 @@ class ThreadFunctionContainer implements FunctionContainer {
             try {
                 sourceConsumer.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close consumer to source topic {}", sourceTopic, e);
+                log.warn("Failed to close consumer to source topic {}", javaInstanceConfig.getFunctionConfig().getSourceTopic(), e);
             }
+            sourceConsumer = null;
         }
 
         // interrupt the function thread, so no more results are produced.
@@ -262,8 +267,9 @@ class ThreadFunctionContainer implements FunctionContainer {
             try {
                 sinkProducer.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close producer to sink topic {}", sinkTopic, e);
+                log.warn("Failed to close producer to sink topic {}", javaInstanceConfig.getFunctionConfig().getSinkTopic(), e);
             }
+            sinkProducer = null;
         }
 
         // once the thread quits, clean up the instance
