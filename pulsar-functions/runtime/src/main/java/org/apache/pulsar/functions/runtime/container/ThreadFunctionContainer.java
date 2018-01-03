@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.runtime.container;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import java.util.concurrent.TimeUnit;
