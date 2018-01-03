@@ -42,6 +42,7 @@ import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
 import org.apache.pulsar.functions.runtime.instance.JavaInstance;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.stats.FunctionStatsImpl;
 
 /**
@@ -113,9 +114,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                         convertMessageIdToString(msg.getMessageId()),
                         sourceTopic,
                         msg.getData());
-                    ExecutionResult actualResult = ExecutionResult.fromJavaResult(result,
-                            javaInstance.getOutputSerDe());
-                    processResult(msg, actualResult, processAt);
+                    processResult(msg, result, processAt, javaInstance.getOutputSerDe());
                 }
 
                 javaInstance.close();
@@ -182,25 +181,33 @@ class ThreadFunctionContainer implements FunctionContainer {
         this.sourceConsumer = client.subscribe(sourceTopic, id, conf);
     }
 
-    private void processResult(Message msg, ExecutionResult result, long processAt) {
+    private void processResult(Message msg, JavaExecutionResult result, long processAt, SerDe serDe) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementProcessFailure();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
             stats.incrementProcessFailure();
-        } else if (result.isTimedOut()) {
-            log.info("Timedout when processing message {}", msg);
+        } else if (result.getTimeoutException() != null) {
+            log.info("Timedout when processing message {}", msg, result.getTimeoutException());
             stats.incrementProcessFailure();
         } else if (result.getResult() != null) {
             stats.incrementProcessSuccess(System.nanoTime() - processAt);
-            sinkProducer.sendAsync(result.getResult())
-                .thenAccept(messageId -> sourceConsumer.acknowledgeAsync(messageId))
-                .exceptionally(cause -> {
-                    log.error("Failed to send the process result {} of message {} to sink topic {}",
-                        result, msg, sinkTopic, cause);
-                    return null;
-                });
+            byte[] output = null;
+            if (result.getResult() != null) {
+                output = serDe.serialize(result.getResult());
+            }
+            if (output != null) {
+                sinkProducer.sendAsync(output)
+                        .thenAccept(messageId -> sourceConsumer.acknowledgeAsync(messageId))
+                        .exceptionally(cause -> {
+                            log.error("Failed to send the process result {} of message {} to sink topic {}",
+                                    result, msg, sinkTopic, cause);
+                            return null;
+                        });
+            } else {
+                sourceConsumer.acknowledgeAsync(msg);
+            }
         }
     }
 
