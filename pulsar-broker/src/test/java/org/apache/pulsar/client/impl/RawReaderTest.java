@@ -110,7 +110,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         Set<String> keys = publishMessages(topic, numKeys);
 
-        RawReader reader = RawReader.create(pulsarClient, subscription, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try {
             while (true) { // should break out with TimeoutException
                 try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
@@ -132,7 +132,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         publishMessages(topic, numKeys);
 
         Set<String> readKeys = new HashSet<>();
-        RawReader reader = RawReader.create(pulsarClient, subscription, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try {
             while (true) { // should break out with TimeoutException
                 try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
@@ -167,7 +167,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         publishMessages(topic, numKeys);
 
         Set<String> readKeys = new HashSet<>();
-        RawReader reader = RawReader.create(pulsarClient, subscription, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int i = 0;
         MessageId seekTo = null;
         try {
@@ -212,7 +212,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         publishMessages(topic, numMessages);
 
-        RawReader reader = RawReader.create(pulsarClient, subscription, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         List<Future<RawMessage>> futures = new ArrayList<>();
         Set<String> keys = new HashSet<>();
 
@@ -242,7 +242,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Set<String> keys = publishMessages(topic, numKeys);
 
         MessageId lastMessageId = null;
-        RawReader reader = RawReader.create(pulsarClient, subscription, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try {
             while (true) { // should break out with TimeoutException
                 try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
@@ -258,7 +258,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         Map<String,Long> properties = new HashMap<>();
         properties.put("foobar", 0xdeadbeefdecaL);
-        reader.acknowledgeAsync(lastMessageId, properties).get(5, TimeUnit. SECONDS);
+        reader.acknowledgeCumulativeAsync(lastMessageId, properties).get(5, TimeUnit.SECONDS);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
         ManagedLedger ledger = topicRef.getManagedLedger();

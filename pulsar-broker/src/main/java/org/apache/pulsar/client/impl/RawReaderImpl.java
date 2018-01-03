@@ -54,8 +54,8 @@ public class RawReaderImpl implements RawReader {
     private final ConsumerConfiguration consumerConfiguration;
     private RawConsumerImpl consumer;
 
-    public RawReaderImpl(PulsarClientImpl client, String subscription,
-                         String topic, CompletableFuture<Consumer> consumerFuture) {
+    public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
+                         CompletableFuture<Consumer> consumerFuture) {
         this.client = client;
         this.subscription = subscription;
         this.topic = topic;
@@ -79,7 +79,7 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeAsync(MessageId messageId, Map<String,Long> properties) {
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties) {
         return consumer.doAcknowledge(messageId, AckType.Cumulative, properties);
     }
 
