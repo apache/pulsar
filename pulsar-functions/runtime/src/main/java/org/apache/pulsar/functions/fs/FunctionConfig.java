@@ -57,6 +57,12 @@ public class FunctionConfig implements Serializable {
     private String sourceTopic;
     // sink topic
     private String sinkTopic;
+    // semantics
+    public enum ProcessingGuarantees {
+        ATMOST_ONCE,
+        ATLEAST_ONCE
+    }
+    private ProcessingGuarantees processingGuarantees;
 
     public static FunctionConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

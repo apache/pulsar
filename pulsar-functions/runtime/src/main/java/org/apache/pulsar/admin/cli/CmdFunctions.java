@@ -104,6 +104,9 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--function-config", description = "Function Config\n")
         protected String fnConfigFile;
+
+        @Parameter(names = "--processing-guarantees", description = "Processing Guarantees\n")
+        protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         protected FunctionConfig functionConfig;
 
         @Override
@@ -136,6 +139,9 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != outputSerdeClassName) {
                 functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+            }
+            if (null != processingGuarantees) {
+                functionConfig.setProcessingGuarantees(processingGuarantees);
             }
         }
     }
