@@ -24,6 +24,7 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.runtime.worker.PackageLocationMetaData;
 import org.apache.pulsar.functions.runtime.worker.Utils;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
@@ -88,7 +89,7 @@ public class ApiV1Resource extends BaseApiResource {
         // function configuration
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
-        functionConfig.setName(namespace);
+        functionConfig.setNamespace(namespace);
         functionConfig.setName(functionName);
         functionConfig.setSourceTopic(sourceTopic);
         functionConfig.setSinkTopic(sinkTopic);
@@ -111,15 +112,14 @@ public class ApiV1Resource extends BaseApiResource {
         functionMetaData.setVersion(0);
 
         WorkerConfig workerConfig = getWorkerConfig();
-        functionMetaData.setPackageLocation(
-                Utils.getPackageURI(
-                        Utils.getDestPackageNamespaceURI(workerConfig, namespace),
-                        fileDetail.getFileName()
-                ).toString()
-        );
+        PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
+        packageLocationMetaData.setPackageName(Utils.getUniquePackageName(fileDetail.getFileName()));
+        packageLocationMetaData.setPackageNamespace(namespace);
+        packageLocationMetaData.setDlogUri(workerConfig.getDlogUri());
+        functionMetaData.setPackageLocation(packageLocationMetaData);
         functionMetaData.setWorkerId(workerConfig.getWorkerId());
-
-        return updateRequest(functionMetaData, uploadedInputStream, fileDetail);
+        
+        return updateRequest(functionMetaData, uploadedInputStream);
     }
 
     @PUT
@@ -158,7 +158,7 @@ public class ApiV1Resource extends BaseApiResource {
         // function configuration
         FunctionConfig functionConfig = new FunctionConfig();
         functionConfig.setTenant(tenant);
-        functionConfig.setName(namespace);
+        functionConfig.setNamespace(namespace);
         functionConfig.setName(functionName);
         functionConfig.setSourceTopic(sourceTopic);
         functionConfig.setSinkTopic(sinkTopic);
@@ -181,15 +181,14 @@ public class ApiV1Resource extends BaseApiResource {
         functionMetaData.setVersion(0);
 
         WorkerConfig workerConfig = getWorkerConfig();
-        functionMetaData.setPackageLocation(
-                Utils.getPackageURI(
-                        Utils.getDestPackageNamespaceURI(workerConfig, namespace),
-                        fileDetail.getFileName()
-                ).toString()
-        );
+        PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
+        packageLocationMetaData.setPackageName(Utils.getUniquePackageName(fileDetail.getFileName()));
+        packageLocationMetaData.setPackageNamespace(namespace);
+        packageLocationMetaData.setDlogUri(workerConfig.getDlogUri());
+        functionMetaData.setPackageLocation(packageLocationMetaData);
         functionMetaData.setWorkerId(workerConfig.getWorkerId());
 
-        return updateRequest(functionMetaData, uploadedInputStream, fileDetail);
+        return updateRequest(functionMetaData, uploadedInputStream);
     }
 
 
@@ -286,24 +285,19 @@ public class ApiV1Resource extends BaseApiResource {
     }
 
     private Response updateRequest(FunctionMetaData functionMetaData,
-                                   InputStream uploadedInputStream,
-                                   FormDataContentDisposition fileDetail) {
+                                   InputStream uploadedInputStream) {
         WorkerConfig workerConfig = getWorkerConfig();
 
         // Upload to bookeeper
-        URI packageURI = null;
         try {
-            packageURI = Utils.uploadToBookeeper(uploadedInputStream, fileDetail,
-                    functionMetaData.getFunctionConfig().getNamespace(), workerConfig);
+            Utils.uploadToBookeeper(uploadedInputStream, functionMetaData, workerConfig);
         } catch (IOException e) {
-            log.error("Error uploading file {}", fileDetail.getFileName(), e);
+            log.error("Error uploading file {}", functionMetaData.getPackageLocation().getPackageName(), e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
                     .build();
         }
-
-        functionMetaData.setPackageLocation(packageURI.toString());
 
         // Submit to FMT
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();

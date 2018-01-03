@@ -67,6 +67,8 @@ public class Worker extends AbstractService {
                     consumerConf));
 
             log.info("Start worker {}...", workerConfig.getWorkerId());
+            log.info("Worker Configs: {}", workerConfig);
+            log.info("Limits Configs: {}", limitsConfig);
         } catch (Exception e) {
             log.error("Failed to create pulsar client to {}",
                 workerConfig.getPulsarServiceUrl(), e);
