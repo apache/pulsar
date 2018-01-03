@@ -22,7 +22,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
@@ -37,7 +37,8 @@ public class FunctionMetaDataManagerTest {
             ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
             FunctionMetaDataManager fsm = new FunctionMetaDataManager(config,
                     new LimitsConfig(-1, -1, -1, -1), reqMgr,
-                    new ThreadFunctionContainerFactory(-1, null, null));
+                    new ThreadFunctionContainerFactory(-1, null, null),
+                    mock(Namespace.class));
             fsm.close();
             verify(reqMgr, times(1)).close();
         } catch (Exception ex) {

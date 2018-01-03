@@ -40,11 +40,6 @@ public class FunctionWorkerStarter {
             description = "Configuration File for Function Worker")
         private String configFile;
 
-        @Parameter(
-                names = { "-l", "--limits" },
-                description = "Limits Config File for Function Worker")
-        private String limitsConfigFile;
-
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
     }
@@ -74,10 +69,10 @@ public class FunctionWorkerStarter {
         }
 
         LimitsConfig limitsConfig;
-        if (isBlank(workerArguments.limitsConfigFile)) {
+        if (null == workerConfig.getDefaultLimits()) {
             limitsConfig = new LimitsConfig(-1, -1, -1, 1024);
         } else {
-            limitsConfig = LimitsConfig.load(workerArguments.limitsConfigFile);
+            limitsConfig = workerConfig.getDefaultLimits();
         }
 
         final Worker worker = new Worker(workerConfig, limitsConfig);

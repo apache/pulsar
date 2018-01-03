@@ -29,7 +29,7 @@ public class WorkerTest {
     private static void runWorker(String workerId, int port) throws PulsarClientException, URISyntaxException, InterruptedException {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerPort(port);
-        workerConfig.setDlogUri("distributedlog://127.0.0.1:2181");
+        workerConfig.setZookeeperServers("127.0.0.1:2181");
         workerConfig.setNumFunctionPackageReplicas(1);
         workerConfig.setFunctionMetadataTopic("persistent://sample/standalone/ns1/fmt");
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");

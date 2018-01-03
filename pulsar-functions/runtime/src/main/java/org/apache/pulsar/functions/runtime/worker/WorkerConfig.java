@@ -28,6 +28,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 
 @Data
 @Setter
@@ -40,11 +41,12 @@ public class WorkerConfig implements Serializable {
 
     private String workerId;
     private int workerPort;
-    private String dlogUri;
+    private String zookeeperServers;
     private String functionMetadataTopic;
     private String pulsarServiceUrl;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
+    private LimitsConfig defaultLimits;
 
     public String getFunctionMetadataTopicSubscription() {
         if (this.workerId == null) {

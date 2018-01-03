@@ -37,14 +37,14 @@ public class WorkerConfigTest {
     public void testGetterSetter() {
         WorkerConfig wc = new WorkerConfig();
         wc.setPulsarServiceUrl("pulsar://localhost:1234");
-        wc.setDlogUri("distributedlog://localhost:1234");
+        wc.setZookeeperServers("localhost:1234");
         wc.setFunctionMetadataTopic(runtime.getMethodName() + "-meta-topic");
         wc.setNumFunctionPackageReplicas(3);
         wc.setWorkerId(runtime.getMethodName() + "-worker");
         wc.setWorkerPort(1234);
 
         assertEquals("pulsar://localhost:1234", wc.getPulsarServiceUrl());
-        assertEquals("distributedlog://localhost:1234", wc.getDlogUri());
+        assertEquals("localhost:1234", wc.getZookeeperServers());
         assertEquals(runtime.getMethodName() + "-meta-topic", wc.getFunctionMetadataTopic());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals(runtime.getMethodName() + "-worker", wc.getWorkerId());
@@ -57,7 +57,7 @@ public class WorkerConfigTest {
         WorkerConfig wc = WorkerConfig.load(yamlUrl.toURI().getPath());
 
         assertEquals("pulsar://localhost:6650", wc.getPulsarServiceUrl());
-        assertEquals("distributedlog://localhost:1234", wc.getDlogUri());
+        assertEquals("localhost:1234", wc.getZookeeperServers());
         assertEquals("test-function-metadata-topic", wc.getFunctionMetadataTopic());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals("test-worker", wc.getWorkerId());

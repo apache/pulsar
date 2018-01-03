@@ -19,6 +19,8 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
@@ -32,7 +34,6 @@ import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
@@ -61,14 +62,18 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private final FunctionContainerFactory functionContainerFactory;
 
+    private final Namespace dlogNamespace;
+
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    LimitsConfig limitsConfig,
                                    ServiceRequestManager serviceRequestManager,
-                                   FunctionContainerFactory functionContainerFactory) {
+                                   FunctionContainerFactory functionContainerFactory,
+                                   Namespace dlogNamespace) {
         this.workerConfig = workerConfig;
         this.limitsConfig = limitsConfig;
         this.serviceRequestManager = serviceRequestManager;
         this.functionContainerFactory = functionContainerFactory;
+        this.dlogNamespace = dlogNamespace;
     }
 
     @Override
@@ -251,8 +256,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
             addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
             if (isMyRequest(updateRequest)) {
-                // start the function
-                startFunction(updateRequestFs);
+                // TODO: start the function should be out of the scope of rest request processing
+                // startFunction(updateRequestFs);
             }
             completeRequest(updateRequest, true);
         } else {
@@ -271,7 +276,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 // check if this worker should run the update
                 if (isMyRequest(updateRequest)) {
                     // Update the function
-                    startFunction(updateRequestFs);
+                    // TODO: start the function should be out of the scope of rest request processing
+                    // startFunction(updateRequestFs);
                 }
                 completeRequest(updateRequest, true);
             } else {
@@ -308,17 +314,32 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private boolean startFunction(FunctionMetaData functionMetaData) {
-        log.info("Starting function {}....", functionMetaData.getFunctionConfig().getName());
-        String prefix = functionMetaData.getFunctionConfig().getTenant() + "-"
-                + functionMetaData.getFunctionConfig().getNamespace() + "-"
-                + functionMetaData.getFunctionConfig().getName();
+        log.info("Starting function {} ...", functionMetaData.getFunctionConfig().getName());
         try {
-            File fileLocation = File.createTempFile(prefix, ".jar", new File(workerConfig.getDownloadDirectory()));
-            if (!Utils.downloadFromBookkeeper(URI.create(functionMetaData.getPackageLocation().getPackageURI()), new FileOutputStream(fileLocation), workerConfig)) {
-                return false;
-            };
+            File pkgDir = new File(
+                workerConfig.getDownloadDirectory(),
+                StringUtils.join(
+                    new String[]{
+                        functionMetaData.getFunctionConfig().getTenant(),
+                        functionMetaData.getFunctionConfig().getNamespace(),
+                        functionMetaData.getFunctionConfig().getName(),
+                    },
+                    File.separatorChar));
+            pkgDir.mkdirs();
+
+            File pkgFile = new File(pkgDir, new File(functionMetaData.getPackageLocation().getPackagePath()).getName());
+            if (!pkgFile.exists()) {
+                log.info("Function package file {} doesn't exist, downloading from {}",
+                    pkgFile, functionMetaData.getPackageLocation());
+                if (!Utils.downloadFromBookkeeper(
+                    dlogNamespace,
+                    new FileOutputStream(pkgFile),
+                    functionMetaData.getPackageLocation().getPackagePath())) {
+                    return false;
+                }
+            }
             Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
-                    fileLocation.getAbsolutePath(), functionContainerFactory);
+                    pkgFile.getAbsolutePath(), functionContainerFactory);
             functionMetaData.setSpawner(spawner);
             spawner.start();
             return true;

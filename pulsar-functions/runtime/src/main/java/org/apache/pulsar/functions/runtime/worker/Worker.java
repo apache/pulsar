@@ -19,8 +19,17 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import com.google.common.util.concurrent.AbstractService;
+import java.io.IOException;
+import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.*;
+import org.apache.distributedlog.DistributedLogConfiguration;
+import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.distributedlog.api.namespace.NamespaceBuilder;
+import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
@@ -37,6 +46,7 @@ public class Worker extends AbstractService {
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
     private FunctionContainerFactory functionContainerFactory;
     private Thread serverThread;
+    private Namespace dlogNamespace;
 
     public Worker(WorkerConfig workerConfig, LimitsConfig limitsConfig) {
         this.workerConfig = workerConfig;
@@ -45,7 +55,35 @@ public class Worker extends AbstractService {
 
     @Override
     protected void doStart() {
+        // initialize the dlog namespace
+        // TODO: move this as part of pulsar cluster initialization later
+        URI dlogUri;
         try {
+            dlogUri = Utils.initializeDlogNamespace(workerConfig.getZookeeperServers());
+        } catch (IOException ioe) {
+            log.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
+                workerConfig.getZookeeperServers(), ioe);
+            throw new RuntimeException(ioe);
+        }
+
+        // create the dlog namespace for storing function packages
+        DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
+        try {
+            this.dlogNamespace = NamespaceBuilder.newBuilder()
+                .conf(dlogConf)
+                .clientId("function-worker-" + workerConfig.getWorkerId())
+                .uri(dlogUri)
+                .build();
+        } catch (Exception e) {
+            log.error("Failed to initialize dlog namespace {} for storing function packages",
+                dlogUri, e);
+            throw new RuntimeException(e);
+        }
+
+        // initialize the function metadata manager
+        try {
+            log.info("Initialize function metadata manager ...");
+
             this.client = PulsarClient.create(workerConfig.getPulsarServiceUrl());
             ServiceRequestManager reqMgr = new ServiceRequestManager(
                 client.createProducer(workerConfig.getFunctionMetadataTopic()));
@@ -54,7 +92,7 @@ public class Worker extends AbstractService {
                     workerConfig.getPulsarServiceUrl(), new ClientConfiguration());
 
             this.functionMetaDataManager = new FunctionMetaDataManager(
-                workerConfig, limitsConfig, reqMgr, this.functionContainerFactory);
+                workerConfig, limitsConfig, reqMgr, this.functionContainerFactory, this.dlogNamespace);
 
             ConsumerConfiguration consumerConf = new ConsumerConfiguration();
             consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
@@ -75,7 +113,7 @@ public class Worker extends AbstractService {
             throw new RuntimeException(e);
         }
 
-        WorkerServer server = new WorkerServer(workerConfig, functionMetaDataManager);
+        WorkerServer server = new WorkerServer(workerConfig, functionMetaDataManager, dlogNamespace);
         this.serverThread = new Thread(server, server.getThreadName());
 
         log.info("Start worker server on port {}...", workerConfig.getWorkerPort());
