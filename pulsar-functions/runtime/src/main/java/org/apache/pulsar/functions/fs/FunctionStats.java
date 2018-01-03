@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api;
+package org.apache.pulsar.functions.fs;
 
 import java.io.Serializable;
 
