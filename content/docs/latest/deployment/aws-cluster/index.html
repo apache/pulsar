@@ -50,7 +50,7 @@
   function load() { if (window.location.hash) shiftWindow(); }
 </script>
 
-<title>Pulsar Encryption</title>
+<title>Deploying a Pulsar cluster on AWS using Terraform and Ansible</title>
 
 <meta charset="utf-8">
 
@@ -733,12 +733,12 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Pulsar Encryption</h1>
-        <span class="docs-lead">Encrypt messages published to pulsar</span><br />
+        <h1 class="docs-title">Deploying a Pulsar cluster on AWS using Terraform and Ansible</h1>
+        
         <section class="tags">
           
-          <!-- <span class="badge badge-pill badge-primary">crypto</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-crypto">crypto</button>
+          <!-- <span class="badge badge-pill badge-primary">admin</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-admin">admin</button>
           <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -759,11 +759,11 @@
     under the License.
 
 -->
-<div class="modal fade" id="modal-crypto">
+<div class="modal fade" id="modal-admin">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>crypto</strong> tag</h5>
+        <h5 class="modal-title">Pages with the <strong>admin</strong> tag</h5>
       </div>
       <div class="modal-body">
         <ul>
@@ -771,6 +771,7 @@
           
           
           
+          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
           
@@ -780,6 +781,7 @@
           
           
           
+          <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
           
@@ -809,391 +811,7 @@
           
           
           
-          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
           
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">encryption</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-encryption">encryption</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-encryption">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>encryption</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">clients</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-clients">clients</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-clients">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>clients</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/advanced/Encryption/">Pulsar Encryption</a></li>
           
           
           
@@ -1249,6 +867,7 @@
           
           
           
+          <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
           
           
           
@@ -1268,6 +887,789 @@
           
           
           
+          
+          
+          <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">deployment</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-deployment">deployment</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-deployment">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>deployment</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/instance/">Deploying a Pulsar instance on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">cluster</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-cluster">cluster</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-cluster">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>cluster</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/cluster/">Deploying a Pulsar cluster on bare metal</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">ansible</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-ansible">ansible</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-ansible">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>ansible</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+          
+          <!-- <span class="badge badge-pill badge-primary">terraform</span> -->
+          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-terraform">terraform</button>
+          <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="modal fade" id="modal-terraform">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Pages with the <strong>terraform</strong> tag</h5>
+      </div>
+      <div class="modal-body">
+        <ul>
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          
+          <li><a href="/docs/latest/deployment/aws-cluster/">Deploying a Pulsar cluster on AWS using Terraform and Ansible</a></li>
           
           
           
@@ -1341,186 +1743,236 @@
     under the License.
 
 -->
+<div class="admonition">
+  <div class="info">
+    
+    <p>For instructions on deploying a single Pulsar cluster manually rather than using Terraform and Ansible, see <a href="../cluster">Deploying a Pulsar cluster on bare metal</a>. For instructions on manually deploying a multi-cluster Pulsar instance, see <a href="../instance">Deploying a Pulsar instance on bare metal</a>.</p>
 
-<p>Pulsar encryption allows applications to encrypt messages at the producer and decrypt at the consumer. Encryption is performed using the public/private key pair configured by the application. Encrypted messages can only be decrypted by consumers with a valid key.</p>
-
-<h2 id="asymmetric-and-symmetric-encryption">Asymmetric and symmetric encryption</h2>
-
-<p>Pulsar uses dynamically generated symmetric AES key to encrypt messages(data). The AES key(data key) is encrypted using application provided ECDSA/RSA key pair, as a result there is no need to share the secret with everyone.</p>
-
-<p>Key is a public/private key pair used for encryption/decryption. The producer key is the public key, and the consumer key is the private key of the key pair.</p>
-
-<p>The application configures the producer with the public  key. This key is used to encrypt the AES data key. The encrypted data key is sent as part of message header. Only entities with the private key(in this case the consumer) will be able to decrypt the data key which is used to decrypt the message.</p>
-
-<p>A message can be encrypted with more than one key.  Any one of the keys used for encrypting the message is sufficient to decrypt the message</p>
-
-<p>Pulsar does not store the encryption key anywhere in the pulsar service. If you lose/delete the private key, your message is irretrievably lost, and is unrecoverable</p>
-
-<h2 id="producer">Producer</h2>
-<p><img src="/img/PulsarEncryptionProducer.jpg" alt="alt text" title="Pulsar Encryption Producer" /></p>
-
-<h2 id="consumer">Consumer</h2>
-<p><img src="/img/PulsarEncryptionConsumer.jpg" alt="alt text" title="Pulsar Encryption Consumer" /></p>
-
-<h2 id="here-are-the-steps-to-get-started">Here are the steps to get started:</h2>
-
-<ol>
-  <li>Create your ECDSA or RSA public/private key pair.</li>
-</ol>
-
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>    openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-    openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
-</code></pre>
+  </div>
 </div>
-<ol>
-  <li>Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.</li>
-  <li>Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.</li>
-  <li>Add encryption key to producer configuration: conf.addEncryptionKey(“myapp.key”)</li>
-  <li>Add CryptoKeyReader implementation to producer/consumer config: conf.setCryptoKeyReader(keyReader)</li>
-  <li>Sample producer application:
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
 
-         <span class="n">String</span> <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
-         <span class="n">String</span> <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
+<p>One of the easiest ways to get a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> running on <a href="https://aws.amazon.com/">Amazon Web Services</a> (AWS) is to use the the <a href="https://terraform.io">Terraform</a> infrastructure provisioning tool and the <a href="https://www.ansible.com">Ansible</a> server automation tool. Terraform can create the resources necessary to run the Pulsar cluster—<a href="https://aws.amazon.com/ec2/">EC2</a> instances, networking and security infrastructure, etc.—while Ansible can install and run Pulsar on the provisioned resources.</p>
 
-         <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="n">String</span> <span class="n">pubKeyFile</span><span class="o">,</span> <span class="n">String</span> <span class="n">privKeyFile</span><span class="o">)</span> <span class="o">{</span>
-             <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="n">pubKeyFile</span><span class="o">;</span>
-             <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="n">privKeyFile</span><span class="o">;</span>
-         <span class="o">}</span>
+<h2 id="requirements-and-setup">Requirements and setup</h2>
 
-         <span class="nd">@Override</span>
-         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPublicKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
-             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
-             <span class="k">try</span> <span class="o">{</span>
-                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">publicKeyFile</span><span class="o">)));</span>
-             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read public key from file "</span> <span class="o">+</span> <span class="n">publicKeyFile</span><span class="o">);</span>
-                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
-             <span class="o">}</span>
-             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
-         <span class="o">}</span>
+<p>In order install a Pulsar cluster on AWS using Terraform and Ansible, you’ll need:</p>
 
-         <span class="nd">@Override</span>
-         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPrivateKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
-             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
-             <span class="k">try</span> <span class="o">{</span>
-                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">privateKeyFile</span><span class="o">)));</span>
-             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read private key from file "</span> <span class="o">+</span> <span class="n">privateKeyFile</span><span class="o">);</span>
-                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
-             <span class="o">}</span>
-             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
-         <span class="o">}</span>
-     <span class="o">}</span>
-     <span class="n">PulsarClient</span> <span class="n">pulsarClient</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
-
-     <span class="n">ProducerConfiguration</span> <span class="n">prodConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
-     <span class="n">prodConf</span><span class="o">.</span><span class="na">setCryptoKeyReader</span><span class="o">(</span><span class="k">new</span> <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="s">"test_ecdsa_pubkey.pem"</span><span class="o">,</span> <span class="s">"test_ecdsa_privkey.pem"</span><span class="o">));</span>
-     <span class="n">prodConf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myappkey"</span><span class="o">);</span>
-
-     <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="s">"persistent://my-property/use/my-ns/my-topic"</span><span class="o">,</span> <span class="n">prodConf</span><span class="o">);</span>
-
-     <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
-         <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"my-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
-     <span class="o">}</span>
-
-     <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
-</code></pre>
-    </div>
-  </li>
-  <li>Sample Consumer Application:
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
-
-         <span class="n">String</span> <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
-         <span class="n">String</span> <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
-
-         <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="n">String</span> <span class="n">pubKeyFile</span><span class="o">,</span> <span class="n">String</span> <span class="n">privKeyFile</span><span class="o">)</span> <span class="o">{</span>
-             <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="n">pubKeyFile</span><span class="o">;</span>
-             <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="n">privKeyFile</span><span class="o">;</span>
-         <span class="o">}</span>
-
-         <span class="nd">@Override</span>
-         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPublicKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
-             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
-             <span class="k">try</span> <span class="o">{</span>
-                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">publicKeyFile</span><span class="o">)));</span>
-             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read public key from file "</span> <span class="o">+</span> <span class="n">publicKeyFile</span><span class="o">);</span>
-                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
-             <span class="o">}</span>
-             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
-         <span class="o">}</span>
-
-         <span class="nd">@Override</span>
-         <span class="kd">public</span> <span class="n">EncryptionKeyInfo</span> <span class="nf">getPrivateKey</span><span class="o">(</span><span class="n">String</span> <span class="n">keyName</span><span class="o">,</span> <span class="n">Map</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="n">keyMeta</span><span class="o">)</span> <span class="o">{</span>
-             <span class="n">EncryptionKeyInfo</span> <span class="n">keyInfo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">EncryptionKeyInfo</span><span class="o">();</span>
-             <span class="k">try</span> <span class="o">{</span>
-                 <span class="n">keyInfo</span><span class="o">.</span><span class="na">setKey</span><span class="o">(</span><span class="n">Files</span><span class="o">.</span><span class="na">readAllBytes</span><span class="o">(</span><span class="n">Paths</span><span class="o">.</span><span class="na">get</span><span class="o">(</span><span class="n">privateKeyFile</span><span class="o">)));</span>
-             <span class="o">}</span> <span class="k">catch</span> <span class="o">(</span><span class="n">IOException</span> <span class="n">e</span><span class="o">)</span> <span class="o">{</span>
-                 <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"ERROR: Failed to read private key from file "</span> <span class="o">+</span> <span class="n">privateKeyFile</span><span class="o">);</span>
-                 <span class="n">e</span><span class="o">.</span><span class="na">printStackTrace</span><span class="o">();</span>
-             <span class="o">}</span>
-             <span class="k">return</span> <span class="n">keyInfo</span><span class="o">;</span>
-         <span class="o">}</span>
-     <span class="o">}</span>
-
-     <span class="n">ConsumerConfiguration</span> <span class="n">consConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
-     <span class="n">consConf</span><span class="o">.</span><span class="na">setCryptoKeyReader</span><span class="o">(</span><span class="k">new</span> <span class="n">RawFileKeyReader</span><span class="o">(</span><span class="s">"test_ecdsa_pubkey.pem"</span><span class="o">,</span> <span class="s">"test_ecdsa_privkey.pem"</span><span class="o">));</span>
-     <span class="n">PulsarClient</span> <span class="n">pulsarClient</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
-     <span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">pulsarClient</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span><span class="s">"persistent://my-property/use/my-ns/my-topic"</span><span class="o">,</span> <span class="s">"my-subscriber-name"</span><span class="o">,</span> <span class="n">consConf</span><span class="o">);</span>
-     <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="kc">null</span><span class="o">;</span>
-
-     <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
-         <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
-         <span class="c1">// do something</span>
-         <span class="n">System</span><span class="o">.</span><span class="na">out</span><span class="o">.</span><span class="na">println</span><span class="o">(</span><span class="s">"Received: "</span> <span class="o">+</span> <span class="k">new</span> <span class="n">String</span><span class="o">(</span><span class="n">msg</span><span class="o">.</span><span class="na">getData</span><span class="o">()));</span>
-     <span class="o">}</span>
-
-     <span class="c1">// Acknowledge the consumption of all messages at once</span>
-     <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledgeCumulative</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
-     <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
-</code></pre>
-    </div>
-  </li>
-</ol>
-
-<h2 id="key-rotation">Key rotation</h2>
-<p>Pulsar generates new AES data key every 4 hours or after a certain number of messages are published. The asymmetric public key is automatically fetched by producer every 4 hours by calling CryptoKeyReader::getPublicKey() to retrieve the latest version.</p>
-
-<h2 id="enabling-encryption-at-the-producer-application">Enabling encryption at the producer application:</h2>
-<p>If you produce messages that are consumed across application boundaries, you need to ensure that consumers in other applications have access to one of the private keys that can decrypt the messages.  This can be done in two ways:</p>
-<ol>
-  <li>The consumer application provides you access to their public key, which you add to your producer keys</li>
-  <li>You grant access to one of the private keys from the pairs used by producer</li>
-</ol>
-
-<p>In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumer will be able to decrypt the message, as long as it has access to at least one of the keys.</p>
-
-<p>E.g: If messages needs to be encrypted using 2 keys myapp.messagekey1 and myapp.messagekey2,</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey1"</span><span class="o">);</span>
-<span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey2"</span><span class="o">);</span>
-</code></pre>
-</div>
-<h2 id="decrypting-encrypted-messages-at-the-consumer-application">Decrypting encrypted messages at the consumer application:</h2>
-<p>Consumers require access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.</p>
-
-<h2 id="handling-failures">Handling Failures:</h2>
 <ul>
-  <li>Producer/ Consumer loses access to the key
-    <ul>
-      <li>Producer action will fail indicating the cause of the failure. Application has the option to proceed with sending unencrypted message in such cases. Call conf.setCryptoFailureAction(ProducerCryptoFailureAction) to control the producer behavior. The default behavior is to fail the request.</li>
-      <li>If consumption failed due to decryption failure or missing keys in consumer, application has the option to consume the encrypted message or discard it. Call conf.setCryptoFailureAction(ConsumerCryptoFailureAction) to control the consumer behavior. The default behavior is to fail the request.
-Application will never be able to decrypt the messages if the private key is permanently lost.</li>
-    </ul>
-  </li>
-  <li>Batch messaging
-    <ul>
-      <li>If decryption fails and the message contain batch messages, client will not be able to retrieve individual messages in the batch, hence message consumption fails even if conf.setCryptoFailureAction() is set to CONSUME.</li>
-    </ul>
-  </li>
-  <li>If decryption fails, the message consumption stops and application will notice backlog growth in addition to decryption failure messages in the client log. If application does not have access to the private key to decrypt the message, the only option is to skip/discard backlogged messages.</li>
+  <li>An <a href="https://aws.amazon.com/account/">AWS account</a> and the <a href="https://aws.amazon.com/cli/"><code class="highlighter-rouge">aws</code></a> command-line tool</li>
+  <li>Python and <a href="https://pip.pypa.io/en/stable/">pip</a></li>
+  <li>The <a href="https://github.com/adammck/terraform-inventory"><code class="highlighter-rouge">terraform-inventory</code></a> tool, which enables Ansible to use Terraform artifacts</li>
 </ul>
 
+<p>You’ll also need to make sure that you’re currently logged into your AWS account via the <code class="highlighter-rouge">aws</code> tool:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>aws configure
+</code></pre>
+</div>
+
+<h2 id="installation">Installation</h2>
+
+<p>You can install Ansible on Linux or macOS using pip.</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install ansible
+</code></pre>
+</div>
+
+<p>You can install Terraform using the instructions <a href="https://www.terraform.io/intro/getting-started/install.html">here</a>.</p>
+
+<p>You’ll also need to have the Terraform and Ansible configurations for Pulsar locally on your machine. They’re contained in Pulsar’s <a href="https://github.com/apache/incubator-pulsar">GitHub repository</a>, which you can fetch using Git:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/apache/incubator-pulsar
+<span class="gp">$ </span><span class="nb">cd </span>incubator-pulsar/deployment/terraform-ansible/aws
+</code></pre>
+</div>
+
+<h2 id="ssh-setup">SSH setup</h2>
+
+<p>In order to create the necessary AWS resources using Terraform, you’ll need to create an SSH key. To create a private SSH key in <code class="highlighter-rouge">~/.ssh/id_rsa</code> and a public key in <code class="highlighter-rouge">~/.ssh/id_rsa.pub</code>:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ssh-keygen -t rsa
+</code></pre>
+</div>
+
+<p>Do <em>not</em> enter a passphrase (hit <strong>Enter</strong> when prompted instead). To verify that a key has been created:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ls ~/.ssh
+id_rsa               id_rsa.pub
+</code></pre>
+</div>
+
+<h2 id="creating-aws-resources-using-terraform">Creating AWS resources using Terraform</h2>
+
+<p>To get started building AWS resources with Terraform, you’ll need to install all Terraform dependencies:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>terraform init
+<span class="c"># This will create a .terraform folder</span>
+</code></pre>
+</div>
+
+<p>Once you’ve done that, you can apply the default Terraform configuration:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>terraform apply
+</code></pre>
+</div>
+
+<p>You should then see this prompt:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code>Do you want to perform these actions?
+  Terraform will perform the actions described above.
+  Only <span class="s1">'yes'</span> will be accepted to approve.
+
+  Enter a value:
+</code></pre>
+</div>
+
+<p>Type <code class="highlighter-rouge">yes</code> and hit <strong>Enter</strong>. Applying the configuration could take several minutes. When it’s finished, you should see <code class="highlighter-rouge">Apply complete!</code> along with some other information, including the number of resources created.</p>
+
+<h3 id="applying-a-non-default-configuration">Applying a non-default configuration</h3>
+
+<p>You can apply a non-default Terraform configuration by changing the values in the <code class="highlighter-rouge">terraform.tfvars</code> file. The following variables are available:</p>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Variable name</th>
+      <th style="text-align: left">Description</th>
+      <th style="text-align: left">Default</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">public_key_path</code></td>
+      <td style="text-align: left">The path of the public key that you’ve generated.</td>
+      <td style="text-align: left"><code class="highlighter-rouge">~/.ssh/id_rsa.pub</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">region</code></td>
+      <td style="text-align: left">The AWS region in which the Pulsar cluster will run</td>
+      <td style="text-align: left"><code class="highlighter-rouge">us-west-2</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">availability_zone</code></td>
+      <td style="text-align: left">The AWS availability zone in which the Pulsar cluster will run</td>
+      <td style="text-align: left"><code class="highlighter-rouge">us-west-2a</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">ami</code></td>
+      <td style="text-align: left">The <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html">Amazon Machine Image</a> (AMI) that will be used by the cluster</td>
+      <td style="text-align: left"><code class="highlighter-rouge">ami-9fa343e7</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">num_zookeeper_nodes</code></td>
+      <td style="text-align: left">The number of <a href="https://zookeeper.apache.org">ZooKeeper</a> nodes in the ZooKeeper cluster</td>
+      <td style="text-align: left">3</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">num_pulsar_brokers</code></td>
+      <td style="text-align: left">The number of Pulsar brokers and BookKeeper bookies that will run in the cluster</td>
+      <td style="text-align: left">3</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">base_cidr_block</code></td>
+      <td style="text-align: left">The root <a href="http://searchnetworking.techtarget.com/definition/CIDR">CIDR</a> that will be used by network assets for the cluster</td>
+      <td style="text-align: left"><code class="highlighter-rouge">10.0.0.0/16</code></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">instance_types</code></td>
+      <td style="text-align: left">The EC2 instance types to be used. This variable is a map with two keys: <code class="highlighter-rouge">zookeeper</code> for the ZooKeeper instances and <code class="highlighter-rouge">pulsar</code> for the Pulsar brokers and BookKeeper bookies</td>
+      <td style="text-align: left"><code class="highlighter-rouge">t2.small</code> (ZooKeeper) and <code class="highlighter-rouge">i3.3xlarge</code> (Pulsar/BookKeeper)</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="what-is-installed">What is installed</h3>
+
+<p>When you run the Ansible playbook, the following AWS resources will be used:</p>
+
+<ul>
+  <li>6 total <a href="https://aws.amazon.com/ec2">Elastic Compute Cloud</a> (EC2) instances running the <a href="https://access.redhat.com/articles/3135091">ami-9fa343e7</a> Amazon Machine Image (AMI), which runs <a href="https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html-single/7.4_release_notes/index">Red Hat Enterprise Linux (RHEL) 7.4</a>. By default, that includes:
+    <ul>
+      <li>3 small VMs for ZooKeeper (<a href="https://www.ec2instances.info/?selected=t2.small">t2.small</a> instances)</li>
+      <li>3 larger VMs for Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> and BookKeeper <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span> (<a href="https://www.ec2instances.info/?selected=i3.4xlarge">i3.4xlarge</a> instances)</li>
+    </ul>
+  </li>
+  <li>An EC2 <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-network-security.html">security group</a></li>
+  <li>A <a href="https://aws.amazon.com/vpc/">virtual private cloud</a> (VPC) for security</li>
+  <li>An <a href="https://aws.amazon.com/api-gateway/">API Gateway</a> for connections from the outside world</li>
+  <li>A <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Route_Tables.html">route table</a> for the Pulsar cluster’s VPC</li>
+  <li>A <a href="http://docs.aws.amazon.com/AmazonVPC/latest/UserGuide/VPC_Subnets.html">subnet</a> for the VPC</li>
+</ul>
+
+<p>All EC2 instances for the cluster will run in the <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html">us-west-2</a> region.</p>
+
+<h3 id="fetching-your-pulsar-connection-url">Fetching your Pulsar connection URL</h3>
+
+<p>When you apply the Terraform configuration by running <code class="highlighter-rouge">terraform apply</code>, Terraform will output a value for the <code class="highlighter-rouge">pulsar_service_url</code>. It should look something like this:</p>
+
+<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650
+</code></pre>
+</div>
+
+<p>You can fetch that value at any time by running <code class="highlighter-rouge">terraform output pulsar_service_url</code> or parsing the <code class="highlighter-rouge">terraform.tstate</code> file (which is JSON, even though the filename doesn’t reflect that):</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>cat terraform.tfstate | jq <span class="s1">'.modules | .[0].outputs.pulsar_connection_url.value'</span>
+</code></pre>
+</div>
+
+<h3 id="destroying-your-cluster">Destroying your cluster</h3>
+
+<p>At any point, you can destroy all AWS resources associated with your cluster using Terraform’s <code class="highlighter-rouge">destroy</code> command:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>terraform destroy
+</code></pre>
+</div>
+
+<h2 id="running-the-pulsar-playbook">Running the Pulsar playbook</h2>
+
+<p>Once you’ve created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. To do so, use this command:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ansible-playbook <span class="se">\</span>
+  --inventory<span class="o">=</span><span class="sb">`</span>which terraform-inventory<span class="sb">`</span> <span class="se">\</span>
+  ../deploy-pulsar.yaml
+</code></pre>
+</div>
+
+<p>If you’ve created a private SSH key at a location different from <code class="highlighter-rouge">~/.ssh/id_rsa</code>, you can specify the different location using the <code class="highlighter-rouge">--private-key</code> flag:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>ansible-playbook <span class="se">\</span>
+  --inventory<span class="o">=</span><span class="sb">`</span>which terraform-inventory<span class="sb">`</span> <span class="se">\</span>
+  --private-key<span class="o">=</span><span class="s2">"~/.ssh/some-non-default-key"</span> <span class="se">\</span>
+  ../deploy-pulsar.yaml
+</code></pre>
+</div>
+
+<h2 id="accessing-the-cluster">Accessing the cluster</h2>
+
+<p>You can now access your running Pulsar using the unique Pulsar connection URL for your cluster, which you can obtain using the instructions <a href="#fetching-your-pulsar-connection-url">above</a>.</p>
+
+<p>For a quick demonstration of accessing the cluster, we can use the Python client for Pulsar and the Python shell. First, install the Pulsar Python module using pip:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install pulsar-client
+</code></pre>
+</div>
+
+<p>Now, open up the Python shell using the <code class="highlighter-rouge">python</code> command:</p>
+
+<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>python
+</code></pre>
+</div>
+
+<p>Once in the shell, run the following:</p>
+
+<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="o">&gt;&gt;&gt;</span> <span class="kn">import</span> <span class="nn">pulsar</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650'</span><span class="p">)</span>
+<span class="c"># Make sure to use your connection URL</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="s">'persistent://sample/local/ns1/test-topic'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'Hello world'</span><span class="p">)</span>
+<span class="o">&gt;&gt;&gt;</span> <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
+</code></pre>
+</div>
+
+<p>If all of these commands are successful, your cluster can now be used by Pulsar clients!</p>
 
       </section>
     </article>
@@ -1528,7 +1980,7 @@ Application will never be able to decrypt the messages if the private key is per
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Pulsar Encryption</h4>
+        <h4>Deploying a Pulsar cluster on AWS using Terraform and Ansible</h4>
       </div>
       
     </nav>
