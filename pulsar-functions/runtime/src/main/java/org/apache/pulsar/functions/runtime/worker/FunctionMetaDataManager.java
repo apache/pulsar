@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
@@ -28,12 +29,9 @@ import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -45,9 +43,9 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * A manager manages function metadata.
  */
-public class FunctionMetaDataManager implements AutoCloseable {
 
-    private static final Logger LOG = LoggerFactory.getLogger(FunctionMetaDataManager.class);
+@Slf4j
+public class FunctionMetaDataManager implements AutoCloseable {
 
     // tenant -> namespace -> (function name, FunctionMetaData)
     private final Map<String, Map<String, Map<String, FunctionMetaData>>> functionMap = new ConcurrentHashMap<>();
@@ -210,7 +208,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
 
-        LOG.debug("Process deregister request: {}", deregisterRequest);
+        log.debug("Process deregister request: {}", deregisterRequest);
 
         // Check if we still have this function. Maybe already deleted by someone else
         if(this.containsFunction(deregisterRequestFs)) {
@@ -242,7 +240,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             return;
         }
 
-        LOG.debug("Process update request: {}", updateRequest);
+        log.debug("Process update request: {}", updateRequest);
 
         FunctionMetaData updateRequestFs = updateRequest.getFunctionMetaData();
         String functionName = updateRequestFs.getFunctionConfig().getName();
@@ -310,7 +308,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
     }
 
     private boolean startFunction(FunctionMetaData functionMetaData) {
-        LOG.info("Starting function {}....", functionMetaData.getFunctionConfig().getName());
+        log.info("Starting function {}....", functionMetaData.getFunctionConfig().getName());
         String prefix = functionMetaData.getFunctionConfig().getTenant() + "-"
                 + functionMetaData.getFunctionConfig().getNamespace() + "-"
                 + functionMetaData.getFunctionConfig().getName();
@@ -325,12 +323,13 @@ public class FunctionMetaDataManager implements AutoCloseable {
             spawner.start();
             return true;
         } catch (Exception ex) {
+            log.error("Function {} failed to start", functionMetaData.getFunctionConfig().getName(), ex);
             return false;
         }
     }
 
     private boolean stopFunction(FunctionMetaData functionMetaData) {
-        LOG.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
+        log.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
         if (functionMetaData.getSpawner() != null) {
             functionMetaData.getSpawner().close();
             functionMetaData.setSpawner(null);

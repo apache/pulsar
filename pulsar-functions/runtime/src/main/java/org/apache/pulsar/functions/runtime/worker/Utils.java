@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.runtime.worker;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -26,15 +27,12 @@ import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLOutputStream;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.io.*;
 import java.net.URI;
 
+@Slf4j
 public final class Utils {
-
-    private static final Logger LOG = LoggerFactory.getLogger(Utils.class);
 
     private Utils(){}
 
@@ -126,12 +124,12 @@ public final class Utils {
 
         if (dlogNamespace.logExists(packageName)) {
             // if the destination file exists, write a log message
-            LOG.info(String.format("Target function file already exists at '%s'. Overwriting it now",
+            log.info(String.format("Target function file already exists at '%s'. Overwriting it now",
                     packageURI.toString()));
             dlogNamespace.deleteLog(packageName);
         }
         // copy the topology package to target working directory
-        LOG.info(String.format("Uploading function package '%s' to target DL at '%s'",
+        log.info(String.format("Uploading function package '%s' to target DL at '%s'",
                 fileDetail.getName(), packageURI.toString()));
 
 

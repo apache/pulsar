@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime.worker.rest.api.v1;
 
 import com.google.gson.Gson;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
@@ -30,8 +31,6 @@ import org.apache.pulsar.functions.runtime.worker.rest.BaseApiResource;
 import org.apache.pulsar.functions.runtime.worker.rest.RestUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -49,10 +48,9 @@ import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+@Slf4j
 @Path("/admin/functions")
 public class ApiV1Resource extends BaseApiResource {
-
-    private static final Logger LOG = LoggerFactory.getLogger(ApiV1Resource.class);
 
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
@@ -230,7 +228,7 @@ public class ApiV1Resource extends BaseApiResource {
                         .build();
             }
         } catch (InterruptedException | ExecutionException e) {
-            LOG.error("Error completeing request", e);
+            log.error("Error completeing request", e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
@@ -298,7 +296,7 @@ public class ApiV1Resource extends BaseApiResource {
             packageURI = Utils.uploadToBookeeper(uploadedInputStream, fileDetail,
                     functionMetaData.getFunctionConfig().getNamespace(), workerConfig);
         } catch (IOException e) {
-            LOG.error("Error uploading file {}", fileDetail.getFileName(), e);
+            log.error("Error uploading file {}", fileDetail.getFileName(), e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
@@ -323,7 +321,7 @@ public class ApiV1Resource extends BaseApiResource {
                         .build();
             }
         } catch (InterruptedException | ExecutionException e) {
-            LOG.error("Error completeing request", e);
+            log.error("Error completeing request", e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
