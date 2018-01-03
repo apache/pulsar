@@ -193,7 +193,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
             RequestResult requestResult = new RequestResult();
             requestResult.setSuccess(isSuccess);
             requestResult.setMessage(message);
-            requestResult.setRequestDetails(serviceRequest);
             pendingServiceRequest.getRequestResultCompletableFuture().complete(requestResult);
         }
     }
