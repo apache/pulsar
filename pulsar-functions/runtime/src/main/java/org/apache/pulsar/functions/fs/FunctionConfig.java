@@ -29,6 +29,7 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.functions.annotation.RequiredField;
 
 /**
  * Function Configuration.
@@ -44,18 +45,24 @@ public class FunctionConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     // tenant that the function resides in
+    @RequiredField
     private String tenant;
     // namespace that the function belongs to
+    @RequiredField
     private String namespace;
     // function name
+    @RequiredField
     private String name;
     // function class name
+    @RequiredField
     private String className;
     // input serde class name
+    @RequiredField
     private String inputSerdeClassName;
     // output serde class name
     private String outputSerdeClassName;
     // source topic
+    @RequiredField
     private String sourceTopic;
     // sink topic
     private String sinkTopic;
