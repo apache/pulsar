@@ -144,6 +144,8 @@ public class ApiV1Resource extends BaseApiResource {
                     uploadedInputStream, fileDetail, sinkTopic, sourceTopic,
                     inputSerdeClassName, outputSerdeClassName, className);
         } catch (IllegalArgumentException e) {
+            log.error("Invalid update function request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage())).build();
@@ -203,6 +205,8 @@ public class ApiV1Resource extends BaseApiResource {
         try {
             validateDeregisterRequestParams(tenant, namespace, functionName);
         } catch (IllegalArgumentException e) {
+            log.error("Invalid deregister function request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage())).build();
@@ -210,6 +214,8 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function to deregister does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
@@ -228,11 +234,15 @@ public class ApiV1Resource extends BaseApiResource {
                     .build();
             }
         } catch (ExecutionException e) {
+            log.error("Execution Exception while deregistering function @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getCause().getMessage()))
                     .build();
         } catch (InterruptedException e) {
+            log.error("Interrupted Exception while deregistering function @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
             return Response.status(Status.REQUEST_TIMEOUT)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
@@ -252,6 +262,8 @@ public class ApiV1Resource extends BaseApiResource {
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
         } catch (IllegalArgumentException e) {
+            log.error("Invalid getFunction request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage())).build();
@@ -259,7 +271,9 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            return Response.status(Response.Status.BAD_REQUEST)
+            log.error("Function in getFunction does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
@@ -277,6 +291,8 @@ public class ApiV1Resource extends BaseApiResource {
         try {
             validateListFunctionRequestParams(tenant, namespace);
         } catch (IllegalArgumentException e) {
+            log.error("Invalid listFunctions request @ /{}/{}",
+                    tenant, namespace, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage())).build();
