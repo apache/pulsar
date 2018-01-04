@@ -24,12 +24,15 @@
 package org.apache.pulsar.functions.runtime.spawner;
 
 import java.util.UUID;
+
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 
+@Slf4j
 public class Spawner implements AutoCloseable {
 
     public static Spawner createSpawner(FunctionConfig fnConfig,
@@ -66,6 +69,7 @@ public class Spawner implements AutoCloseable {
     }
 
     public void start() throws Exception {
+        log.info("Spawner starting function {}", this.assignmentInfo.getFunctionConfig().getName());
         functionContainer = threadFunctionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         functionContainer.start();
     }

@@ -93,6 +93,7 @@ class ThreadFunctionContainer implements FunctionContainer {
             client.timer());
         this.fnThread = new Thread(threadGroup,
             () -> {
+                log.info("Thread Function Container Starting Java Instance {}", javaInstanceConfig.getFunctionConfig().getName());
                 JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
 
                 while (!closed) {
@@ -100,6 +101,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                     Message msg;
                     try {
                         msg = queue.take();
+                        log.debug("Received message: {}", msg.getMessageId());
                     } catch (InterruptedException ie) {
                         log.info("Function thread {} is interrupted", id, ie);
                         break;
@@ -113,6 +115,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                         convertMessageIdToString(msg.getMessageId()),
                         javaInstanceConfig.getFunctionConfig().getSourceTopic(),
                         msg.getData());
+                    log.debug("Got result: {}", result.getResult());
                     processResult(msg, result, processAt, javaInstance.getOutputSerDe());
                 }
 

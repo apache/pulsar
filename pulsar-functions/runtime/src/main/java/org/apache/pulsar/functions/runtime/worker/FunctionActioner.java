@@ -57,6 +57,7 @@ public class FunctionActioner implements AutoCloseable {
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
         actioner = new Thread(() -> {
+            log.info("Starting Actioner Thread...");
             while(running) {
                 try {
                     FunctionAction action = actionQueue.poll(1, TimeUnit.SECONDS);
@@ -73,6 +74,7 @@ public class FunctionActioner implements AutoCloseable {
     }
 
     public void start() {
+        this.running = true;
         actioner.start();
     }
 
@@ -107,9 +109,11 @@ public class FunctionActioner implements AutoCloseable {
                         dlogNamespace,
                         new FileOutputStream(pkgFile),
                         functionMetaData.getPackageLocation().getPackagePath())) {
+                    log.error("Not able to download {} to {}", functionMetaData.getPackageLocation().getPackagePath(), pkgFile.getPath());
                     return false;
                 }
             }
+            log.info("Done downloading");
             Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
                     pkgFile.getAbsolutePath(), functionContainerFactory);
             functionMetaData.setSpawner(spawner);

@@ -135,6 +135,7 @@ public final class Utils {
                 return true;
             }
         } catch (Exception ex) {
+            log.error("failed to download from bookeeper with exception", ex);
             return false;
         }
     }
