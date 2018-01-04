@@ -23,6 +23,7 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -517,7 +518,7 @@ public class Commands {
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
-            ValidationError validationError) {
+                                 ValidationError validationError, Map<String,Long> properties) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(ackType);
@@ -528,6 +529,10 @@ public class Commands {
         ackBuilder.setMessageId(messageIdData);
         if (validationError != null) {
             ackBuilder.setValidationError(validationError);
+        }
+        for (Map.Entry<String,Long> e : properties.entrySet()) {
+            ackBuilder.addProperties(
+                    PulsarApi.KeyLongValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build());
         }
         CommandAck ack = ackBuilder.build();
 

@@ -26,13 +26,19 @@ import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.mledger.ManagedLedger;
+
+import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
@@ -41,7 +47,6 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 
@@ -54,6 +59,7 @@ import org.testng.annotations.Test;
 
 public class RawReaderTest extends MockedPulsarServiceBaseTest {
     private static final Logger log = LoggerFactory.getLogger(RawReaderTest.class);
+    private static final String subscription = "foobar-sub";
 
     @BeforeMethod
     @Override
@@ -104,7 +110,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         Set<String> keys = publishMessages(topic, numKeys);
 
-        RawReader reader = RawReader.create(pulsarClient, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try {
             while (true) { // should break out with TimeoutException
                 try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
@@ -126,7 +132,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         publishMessages(topic, numKeys);
 
         Set<String> readKeys = new HashSet<>();
-        RawReader reader = RawReader.create(pulsarClient, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         try {
             while (true) { // should break out with TimeoutException
                 try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
@@ -161,7 +167,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         publishMessages(topic, numKeys);
 
         Set<String> readKeys = new HashSet<>();
-        RawReader reader = RawReader.create(pulsarClient, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         int i = 0;
         MessageId seekTo = null;
         try {
@@ -206,7 +212,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
 
         publishMessages(topic, numMessages);
 
-        RawReader reader = RawReader.create(pulsarClient, topic).get();
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
         List<Future<RawMessage>> futures = new ArrayList<>();
         Set<String> keys = new HashSet<>();
 
@@ -226,4 +232,44 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         Assert.assertEquals(timeouts, 1);
         Assert.assertEquals(keys.size(), numMessages);
     }
+
+    @Test
+    public void testAcknowledgeWithProperties() throws Exception {
+        int numKeys = 10;
+
+        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+
+        Set<String> keys = publishMessages(topic, numKeys);
+
+        MessageId lastMessageId = null;
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        try {
+            while (true) { // should break out with TimeoutException
+                try (RawMessage m = reader.readNextAsync().get(1, TimeUnit.SECONDS)) {
+                    lastMessageId = m.getMessageId();
+                    Assert.assertTrue(keys.remove(extractKey(m)));
+                }
+            }
+        } catch (TimeoutException te) {
+            // ok
+        }
+
+        Assert.assertTrue(keys.isEmpty());
+
+        Map<String,Long> properties = new HashMap<>();
+        properties.put("foobar", 0xdeadbeefdecaL);
+        reader.acknowledgeCumulativeAsync(lastMessageId, properties).get(5, TimeUnit.SECONDS);
+
+        PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
+        ManagedLedger ledger = topicRef.getManagedLedger();
+        for (int i = 0; i < 30; i++) {
+            if (ledger.openCursor(subscription).getProperties().get("foobar") == Long.valueOf(0xdeadbeefdecaL)) {
+                break;
+            }
+            Thread.sleep(100);
+        }
+        Assert.assertEquals(ledger.openCursor(subscription).getProperties().get("foobar"),
+                Long.valueOf(0xdeadbeefdecaL));
+    }
+
 }
