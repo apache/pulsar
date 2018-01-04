@@ -237,6 +237,9 @@ message CommandProducer {
 	optional string producer_name = 4;
 
 	optional bool encrypted       = 5 [default = false];
+
+    /// Add optional metadata key=value to this producer
+    repeated KeyValue metadata    = 6;
 }
 
 message CommandSend {
