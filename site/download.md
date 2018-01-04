@@ -24,7 +24,7 @@ layout: content
 
 -->
 
-{% capture root_url %}http://www.apache.org/dist/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}{% endcapture %}
+{% capture root_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}{% endcapture %}
 
 You can download Pulsar from the [releases page](https://github.com/apache/incubator-pulsar/releases) on GitHub or here:
 
