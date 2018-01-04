@@ -27,10 +27,15 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.functions.annotation.Annotations;
+import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.utils.Reflections;
+
+import java.io.File;
 
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
@@ -88,8 +93,8 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--function-classname", description = "Function Class Name\n")
         protected String className;
         @Parameter(
-                names = "--function-classpath",
-                description = "Function Classpath\n",
+                names = "--jar",
+                description = "Path to Jar\n",
                 listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(names = "--source-topic", description = "Input Topic Name\n")
@@ -143,6 +148,53 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != processingGuarantees) {
                 functionConfig.setProcessingGuarantees(processingGuarantees);
+            }
+
+            // check if the function class exists in Jar and it implements RequestHandler class
+            if (!Reflections.classExistsInJar(new File(jarFile), functionConfig.getClassName())) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
+                        functionConfig.getClassName(), jarFile));
+            } else if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getClassName(), RequestHandler.class)) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s does not implemement RequestHandler.class",
+                        functionConfig.getClassName(), jarFile));
+            }
+
+            // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
+            // implements SerDe class
+            if(!Reflections.classExists(functionConfig.getInputSerdeClassName())
+                    && !Reflections.classExistsInJar(new File(jarFile), functionConfig.getInputSerdeClassName())) {
+                throw new IllegalArgumentException(
+                        String.format("Input serialization/deserialization class %s does not exist",
+                                functionConfig.getInputSerdeClassName()));
+            } else if (Reflections.classExists(functionConfig.getInputSerdeClassName())) {
+                if (!Reflections.classImplementsIface(functionConfig.getInputSerdeClassName(), SerDe.class)) {
+                    throw new IllegalArgumentException(String.format("Input serialization/deserialization class %s does not not implement %s",
+                            functionConfig.getInputSerdeClassName(), SerDe.class.getCanonicalName()));
+                }
+            } else if (Reflections.classExistsInJar(new File(jarFile), functionConfig.getInputSerdeClassName())) {
+                if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getInputSerdeClassName(), SerDe.class)) {
+                    throw new IllegalArgumentException(String.format("Input serialization/deserialization class %s does not not implement %s",
+                            functionConfig.getInputSerdeClassName(), SerDe.class.getCanonicalName()));
+                }
+            }
+
+            // Check if the Output serialization/deserialization class exists in jar or already loaded and that it
+            // implements SerDe class
+            if(!Reflections.classExists(functionConfig.getOutputSerdeClassName())
+                    && !Reflections.classExistsInJar(new File(jarFile), functionConfig.getOutputSerdeClassName())) {
+                throw new IllegalArgumentException(
+                        String.format("Input serialization/deserialization class %s does not exist",
+                                functionConfig.getOutputSerdeClassName()));
+            } else if (Reflections.classExists(functionConfig.getOutputSerdeClassName())) {
+                if (!Reflections.classImplementsIface(functionConfig.getOutputSerdeClassName(), SerDe.class)) {
+                    throw new IllegalArgumentException(String.format("Output serialization/deserialization class %s does not not implement %s",
+                            functionConfig.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
+                }
+            } else if (Reflections.classExistsInJar(new File(jarFile), functionConfig.getOutputSerdeClassName())) {
+                if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getOutputSerdeClassName(), SerDe.class)) {
+                    throw new IllegalArgumentException(String.format("Output serialization/deserialization class %s does not not implement %s",
+                            functionConfig.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
+                }
             }
         }
     }

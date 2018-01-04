@@ -31,7 +31,13 @@ import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.runtime.worker.dlog.DLOutputStream;
 
-import java.io.*;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 import java.net.URI;
 import java.util.UUID;
 

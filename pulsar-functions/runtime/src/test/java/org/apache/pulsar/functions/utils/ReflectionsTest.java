@@ -153,4 +153,15 @@ public class ReflectionsTest {
         }
     }
 
+    @Test
+    public void testclassInJarImplementsIface() {
+        assertTrue(Reflections.classImplementsIface(aImplementation.class.getName(), aInterface.class));
+        assertTrue(!Reflections.classImplementsIface(aImplementation.class.getName(), bInterface.class));
+    }
+
+    @Test
+    public void testClassExists() {
+        assertTrue(Reflections.classExists(String.class.getName()));
+        assertTrue(!Reflections.classExists("com.fake.class"));
+    }
 }

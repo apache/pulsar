@@ -24,4 +24,4 @@ bin/pulsar-functions functions localrun \
     --input-serde-classname org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
     --output-serde-classname org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
     --function-classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
-    --function-classpath `pwd`/api-examples/target/pulsar-functions-api-examples.jar
+    --jar `pwd`/api-examples/target/pulsar-functions-api-examples.jar
