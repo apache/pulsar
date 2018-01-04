@@ -19,27 +19,22 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
-import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
-import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 
-import java.io.File;
-import java.io.FileOutputStream;
+
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.LinkedBlockingQueue;
 
 /**
  * A manager manages function metadata.
@@ -58,22 +53,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
 
-    private final LimitsConfig limitsConfig;
-
-    private final FunctionContainerFactory functionContainerFactory;
-
-    private final Namespace dlogNamespace;
+    private LinkedBlockingQueue<FunctionAction> actionQueue;
 
     public FunctionMetaDataManager(WorkerConfig workerConfig,
-                                   LimitsConfig limitsConfig,
                                    ServiceRequestManager serviceRequestManager,
-                                   FunctionContainerFactory functionContainerFactory,
-                                   Namespace dlogNamespace) {
+                                   LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
-        this.limitsConfig = limitsConfig;
         this.serviceRequestManager = serviceRequestManager;
-        this.functionContainerFactory = functionContainerFactory;
-        this.dlogNamespace = dlogNamespace;
+        this.actionQueue = actionQueue;
     }
 
     @Override
@@ -221,7 +208,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 // Check if this worker is suppose to run the function
                 if (isMyRequest(deregisterRequest)) {
                     // stop running the function
-                    stopFunction(getFunction(deregisterRequestFs));
+                    insertStopAction(deregisterRequestFs);
                 }
                 // remove function from in memory function metadata store
                 this.functionMap.remove(functionName);
@@ -255,8 +242,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
             if (isMyRequest(updateRequest)) {
-                // TODO: start the function should be out of the scope of rest request processing
-                // startFunction(updateRequestFs);
+                insertStartAction(updateRequestFs);
             }
             completeRequest(updateRequest, true);
         } else {
@@ -268,15 +254,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 FunctionMetaData existingMetaData = getFunction(functionConfig.getTenant(),
                         functionConfig.getNamespace(), functionConfig.getName());
 
-                stopFunction(existingMetaData);
+                insertStopAction(existingMetaData);
 
                 // update the function metadata
                 addFunctionToFunctionMap(updateRequestFs);
                 // check if this worker should run the update
                 if (isMyRequest(updateRequest)) {
                     // Update the function
-                    // TODO: start the function should be out of the scope of rest request processing
-                    // startFunction(updateRequestFs);
+                    insertStartAction(updateRequestFs);
                 }
                 completeRequest(updateRequest, true);
             } else {
@@ -312,49 +297,25 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return this.workerConfig.getWorkerId().equals(serviceRequest.getFunctionMetaData().getWorkerId());
     }
 
-    private boolean startFunction(FunctionMetaData functionMetaData) {
-        log.info("Starting function {} ...", functionMetaData.getFunctionConfig().getName());
+    private void insertStopAction(FunctionMetaData functionMetaData) {
+        FunctionAction functionAction = new FunctionAction();
+        functionAction.setAction(FunctionAction.Action.STOP);
+        functionAction.setFunctionMetaData(functionMetaData);
         try {
-            File pkgDir = new File(
-                workerConfig.getDownloadDirectory(),
-                StringUtils.join(
-                    new String[]{
-                        functionMetaData.getFunctionConfig().getTenant(),
-                        functionMetaData.getFunctionConfig().getNamespace(),
-                        functionMetaData.getFunctionConfig().getName(),
-                    },
-                    File.separatorChar));
-            pkgDir.mkdirs();
-
-            File pkgFile = new File(pkgDir, new File(functionMetaData.getPackageLocation().getPackagePath()).getName());
-            if (!pkgFile.exists()) {
-                log.info("Function package file {} doesn't exist, downloading from {}",
-                    pkgFile, functionMetaData.getPackageLocation());
-                if (!Utils.downloadFromBookkeeper(
-                    dlogNamespace,
-                    new FileOutputStream(pkgFile),
-                    functionMetaData.getPackageLocation().getPackagePath())) {
-                    return false;
-                }
-            }
-            Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
-                    pkgFile.getAbsolutePath(), functionContainerFactory);
-            functionMetaData.setSpawner(spawner);
-            spawner.start();
-            return true;
-        } catch (Exception ex) {
-            log.error("Function {} failed to start", functionMetaData.getFunctionConfig().getName(), ex);
-            return false;
+            actionQueue.put(functionAction);
+        } catch (InterruptedException ex) {
+            throw new RuntimeException("Interrupted while putting action");
         }
     }
 
-    private boolean stopFunction(FunctionMetaData functionMetaData) {
-        log.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
-        if (functionMetaData.getSpawner() != null) {
-            functionMetaData.getSpawner().close();
-            functionMetaData.setSpawner(null);
-            return true;
+    private void insertStartAction(FunctionMetaData functionMetaData) {
+        FunctionAction functionAction = new FunctionAction();
+        functionAction.setAction(FunctionAction.Action.START);
+        functionAction.setFunctionMetaData(functionMetaData);
+        try {
+            actionQueue.put(functionAction);
+        } catch (InterruptedException ex) {
+            throw new RuntimeException("Interrupted while putting action");
         }
-        return false;
     }
 }

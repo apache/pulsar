@@ -28,6 +28,8 @@ import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.junit.Test;
 
+import java.util.concurrent.LinkedBlockingQueue;
+
 public class FunctionMetaDataManagerTest {
 
     @Test
@@ -36,9 +38,8 @@ public class FunctionMetaDataManagerTest {
             WorkerConfig config = new WorkerConfig();
             ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
             FunctionMetaDataManager fsm = new FunctionMetaDataManager(config,
-                    new LimitsConfig(-1, -1, -1, -1), reqMgr,
-                    new ThreadFunctionContainerFactory(-1, null, null),
-                    mock(Namespace.class));
+                    reqMgr,
+                    new LinkedBlockingQueue<>());
             fsm.close();
             verify(reqMgr, times(1)).close();
         } catch (Exception ex) {
