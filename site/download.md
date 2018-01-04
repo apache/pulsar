@@ -54,18 +54,16 @@ Client guide | API docs
 [The Pulsar C++ client](../docs/latest/clients/Cpp) | [Doxygen docs](../api/cpp)
 
 
-<!--
 {% if site.archived_releases %}
-
+{% capture archive_root_url %}http://archive.apache.org/dist/incubator/pulsar{% endcapture %}
+{% capture release_notes_root_url %}https://github.com/apache/incubator-pulsar/releases/tag{% endcapture %}
 
 ### Older releases
 
 Release | Download | Crypto files | Release notes
 :-------|:---------|:-------------|:-------------
 {% for version in site.archived_releases
-%} {{version}} binary | [pulsar-{{version}}-bin.tar.gz](http://www.apache.org/dist/incubator/pulsar/{{version}}/pulsar-{{version}}-bin.tar.gz) | [asc](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-bin.tar.gz.asc), [md5](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-bin.tar.gz.md5), [sha512](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-bin.tar.gz.sha512) | [Release notes v{{version}}](https://github.com/apache/incubator-pulsar/releases/tag/v{{ version }})
-{{version}} source | [pulsar-{{version}}-src.tar.gz](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-src.tar.gz) | [asc](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-src.tar.gz.asc), [md5](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-src.tar.gz.md5), [sha512](http://www.apache.org/dist/pulsar/{{version}}/pulsar-{{version}}-src.tar.gz.sha512)
+%} {{ version }} binary | [pulsar-{{version}}-bin.tar.gz]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz) | [asc]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.asc), [md5]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.md5), [sha]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-bin.tar.gz.sha) | [Release notes v{{ version }}]({{ release_notes_root_url }}/v{{ version }})
+{{ version }} source | [pulsar-{{ version }}-src.tar.gz]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz) | [asc]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.asc), [md5]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.md5), [sha]({{ archive_root_url }}/pulsar-{{ version }}/apache-pulsar-{{ version }}-src.tar.gz.sha)
 {% endfor %}
-
 {% endif %}
--->
