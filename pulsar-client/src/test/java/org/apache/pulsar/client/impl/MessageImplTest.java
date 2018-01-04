@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNull;
 
 import java.nio.ByteBuffer;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -47,6 +48,26 @@ public class MessageImplTest {
         MessageImpl msg = MessageImpl.create(builder, payload);
 
         assertEquals(1234, msg.getSequenceId());
+    }
+
+    @Test
+    public void testGetProducerNameNotAssigned() {
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder();
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        MessageImpl msg = MessageImpl.create(builder, payload);
+
+        assertNull(msg.getProducerName());
+    }
+
+    @Test
+    public void testGetProducerNameAssigned() {
+        MessageMetadata.Builder builder = MessageMetadata.newBuilder()
+            .setProducerName("test-producer");
+
+        ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
+        MessageImpl msg = MessageImpl.create(builder, payload);
+
+        assertEquals("test-producer", msg.getProducerName());
     }
 
 }

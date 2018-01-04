@@ -105,6 +105,14 @@ public interface Message {
     long getSequenceId();
 
     /**
+     * Get the producer name who produced this message.
+     *
+     * @return producer name who produced this message, null if producer name is not set.
+     * @since 1.22.0
+     */
+    String getProducerName();
+
+    /**
      * Check whether the message has a key
      *
      * @return true if the key was set while creating the message
