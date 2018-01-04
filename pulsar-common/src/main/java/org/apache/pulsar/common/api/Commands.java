@@ -22,6 +22,7 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
@@ -401,11 +402,13 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName) {
-        return newProducer(topic, producerId, requestId, producerName, false);
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                Map<String, String> metadata) {
+        return newProducer(topic, producerId, requestId, producerName, false, metadata);
     }
 
-    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName, boolean encrypted) {
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                boolean encrypted, Map<String, String> metadata) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -414,6 +417,8 @@ public class Commands {
             producerBuilder.setProducerName(producerName);
         }
         producerBuilder.setEncrypted(encrypted);
+
+        producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
