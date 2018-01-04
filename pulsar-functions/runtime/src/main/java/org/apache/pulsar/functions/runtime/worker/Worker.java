@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.runtime.worker;
 import com.google.common.util.concurrent.AbstractService;
 import java.io.IOException;
 import java.net.URI;
+import java.util.concurrent.LinkedBlockingQueue;
+
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
@@ -47,6 +49,8 @@ public class Worker extends AbstractService {
     private FunctionContainerFactory functionContainerFactory;
     private Thread serverThread;
     private Namespace dlogNamespace;
+    private LinkedBlockingQueue<FunctionAction> actionQueue;
+    private FunctionActioner functionActioner;
 
     public Worker(WorkerConfig workerConfig, LimitsConfig limitsConfig) {
         this.workerConfig = workerConfig;
@@ -91,8 +95,13 @@ public class Worker extends AbstractService {
             this.functionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples(),
                     workerConfig.getPulsarServiceUrl(), new ClientConfiguration());
 
-            this.functionMetaDataManager = new FunctionMetaDataManager(
-                workerConfig, limitsConfig, reqMgr, this.functionContainerFactory, this.dlogNamespace);
+            this.actionQueue = new LinkedBlockingQueue<>();
+
+            this.functionMetaDataManager = new FunctionMetaDataManager(workerConfig, reqMgr, actionQueue);
+
+            this.functionActioner = new FunctionActioner(workerConfig, limitsConfig, functionContainerFactory,
+                    dlogNamespace, actionQueue);
+            this.functionActioner.start();
 
             ConsumerConfiguration consumerConf = new ConsumerConfiguration();
             consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
@@ -144,6 +153,9 @@ public class Worker extends AbstractService {
             } catch (PulsarClientException e) {
                 log.warn("Failed to close pulsar client", e);
             }
+        }
+        if (null != functionActioner) {
+            functionActioner.close();
         }
     }
 }
