@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -112,4 +116,83 @@ public class Reflections {
 
     }
 
+    /**
+     * Load a jar
+     * @param jar file of jar
+     * @return classloader
+     * @throws MalformedURLException
+     */
+    public static ClassLoader loadJar(java.io.File jar) throws MalformedURLException {
+        java.net.URL url = jar.toURI().toURL();
+        return new URLClassLoader(new URL[]{url});
+    }
+
+    /**
+     * Check if a class is in a jar
+     * @param jar location of the jar
+     * @param fqcn fully qualified class name to search for in jar
+     * @return true if class can be loaded from jar and false if otherwise
+     */
+    public static boolean classExistsInJar(java.io.File jar, String fqcn) {
+        try {
+            java.net.URLClassLoader loader = (URLClassLoader) loadJar(jar);
+            Class.forName(fqcn, false, loader);
+            loader.close();
+            return true;
+        } catch (ClassNotFoundException | IOException e) {
+            return false;
+        }
+    }
+
+    /**
+     * Check if class exists
+     * @param fqcn fully qualified class name to search for
+     * @return true if class can be loaded from jar and false if otherwise
+     */
+    public static boolean classExists(String fqcn) {
+        try {
+            Class.forName(fqcn);
+            return true;
+        } catch( ClassNotFoundException e ) {
+           return false;
+        }
+    }
+
+    /**
+     * check if a class implements an interface
+     * @param fqcn fully qualified class name to search for in jar
+     * @param xface interface to check if implement
+     * @return true if class from jar implements interface xface and false if otherwise
+     */
+    public static boolean classInJarImplementsIface(java.io.File jar, String fqcn, Class xface) {
+        boolean ret = false;
+        try {
+            java.net.URLClassLoader loader = (URLClassLoader) loadJar(jar);
+            if (xface.isAssignableFrom(Class.forName(fqcn, false, loader))){
+                ret = true;
+            }
+            loader.close();
+        } catch (ClassNotFoundException | IOException e) {
+            throw new RuntimeException(e);
+        }
+        return ret;
+    }
+
+    /**
+     * check if class implements interface
+     * @param fqcn fully qualified class name
+     * @param xface the interface the fqcn should implement
+     * @return true if class implements interface xface and false if otherwise
+     */
+    public static boolean classImplementsIface(String fqcn, Class xface) {
+        boolean ret = false;
+        try {
+            if (xface.isAssignableFrom(Class.forName(fqcn))){
+                ret = true;
+            }
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+        return ret;
+    }
 }
