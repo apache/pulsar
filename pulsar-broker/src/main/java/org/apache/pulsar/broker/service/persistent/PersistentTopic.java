@@ -25,10 +25,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -385,7 +382,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId) {
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+            Map<String, String> metadata) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -436,7 +434,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                        maxUnackedMessages, cnx, cnx.getRole());
+                        maxUnackedMessages, cnx, cnx.getRole(), metadata);
                 subscription.addConsumer(consumer);
                 if (!cnx.isActive()) {
                     consumer.close();

@@ -33,6 +33,10 @@ public final class CommandUtils {
         return toMap(commandProducer.getMetadataList());
     }
 
+    public static Map<String, String> metadataFromCommand(PulsarApi.CommandSubscribe commandSubscribe) {
+        return toMap(commandSubscribe.getMetadataList());
+    }
+
     static List<PulsarApi.KeyValue> toKeyValueList(Map<String, String> metadata) {
         if (metadata == null || metadata.isEmpty()) {
             return Collections.emptyList();
