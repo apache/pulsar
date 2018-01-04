@@ -24,11 +24,13 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.io.Serializable;
+import lombok.experimental.Accessors;
 
 @Data
 @Setter
 @Getter
 @EqualsAndHashCode
+@Accessors(chain = true)
 /**
  * Package location metadata defines the location where a function package is stored.
  *

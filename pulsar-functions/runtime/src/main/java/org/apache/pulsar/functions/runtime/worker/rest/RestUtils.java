@@ -19,15 +19,13 @@
 package org.apache.pulsar.functions.runtime.worker.rest;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
-import java.util.List;
+import lombok.AccessLevel;
+import lombok.NoArgsConstructor;
 
-public class RestUtils {
-    private RestUtils() {
-
-    }
+@NoArgsConstructor(access = AccessLevel.PRIVATE)
+public final class RestUtils {
 
     public static ObjectNode createBaseMessage(String message) {
         final ObjectMapper mapper = new ObjectMapper();
@@ -38,33 +36,4 @@ public class RestUtils {
         return createBaseMessage(message).toString();
     }
 
-    public static String createValidationError(String message, List<String> missing) {
-        ObjectNode node = createBaseMessage(message);
-        ObjectNode errors = node.putObject("errors");
-        ArrayNode missingParameters = errors.putArray("missing_parameters");
-        for (String param : missing) {
-            missingParameters.add(param);
-        }
-
-        return node.toString();
-    }
-
-    public static class Message {
-
-        public static class MessageBuilder {
-            ObjectNode objectNode = new ObjectMapper().createObjectNode();
-            public MessageBuilder add(String key, String value) {
-                objectNode.put(key, value);
-                return this;
-            }
-
-            public String build() {
-                return this.objectNode.toString();
-            }
-        }
-
-        public static MessageBuilder newBuilder() {
-            return new MessageBuilder();
-        }
-    }
 }

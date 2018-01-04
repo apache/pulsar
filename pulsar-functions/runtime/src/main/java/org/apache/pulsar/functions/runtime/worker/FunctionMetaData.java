@@ -27,6 +27,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
@@ -36,6 +37,7 @@ import org.apache.pulsar.functions.runtime.spawner.Spawner;
 @Getter
 @EqualsAndHashCode
 @ToString
+@Accessors(chain = true)
 public class FunctionMetaData implements Serializable, Cloneable {
 
     // function config

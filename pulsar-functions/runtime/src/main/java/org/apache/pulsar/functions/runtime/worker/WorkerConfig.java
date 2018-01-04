@@ -28,6 +28,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 
 @Data
@@ -35,6 +36,7 @@ import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 @Getter
 @EqualsAndHashCode
 @ToString
+@Accessors(chain = true)
 public class WorkerConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;

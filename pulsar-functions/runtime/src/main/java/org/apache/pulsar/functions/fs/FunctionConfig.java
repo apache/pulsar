@@ -28,6 +28,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 
 /**
  * Function Configuration.
@@ -37,6 +38,7 @@ import lombok.ToString;
 @Getter
 @EqualsAndHashCode
 @ToString
+@Accessors(chain = true)
 public class FunctionConfig implements Serializable {
 
     private static final long serialVersionUID = 1L;
