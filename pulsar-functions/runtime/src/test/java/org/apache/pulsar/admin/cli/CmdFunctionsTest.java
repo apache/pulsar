@@ -121,7 +121,13 @@ public class CmdFunctionsTest {
             "create",
             "--function-name", fnName,
             "--source-topic", sourceTopicName,
-            "--sink-topic", sinkTopicName
+            "--sink-topic", sinkTopicName,
+            "--input-serde-classname", "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe",
+            "--output-serde-classname", "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe",
+            "--function-classpath", "SomeJar.jar",
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--function-classname", "MyClass",
         });
 
         CreateFunction creater = cmd.getCreater();

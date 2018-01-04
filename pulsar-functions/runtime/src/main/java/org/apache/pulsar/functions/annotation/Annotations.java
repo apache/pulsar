@@ -42,6 +42,8 @@ public final class Annotations {
                     continue;
                 }
 
+                f.setAccessible(true);
+
                 if (f.get(object) == null) {
                     return false;
                 }

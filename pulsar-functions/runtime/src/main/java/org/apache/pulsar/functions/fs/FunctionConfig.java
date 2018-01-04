@@ -23,6 +23,8 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
+import java.lang.reflect.Field;
+
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;

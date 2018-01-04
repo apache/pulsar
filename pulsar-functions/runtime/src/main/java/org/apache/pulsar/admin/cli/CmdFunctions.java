@@ -26,6 +26,7 @@ import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.functions.annotation.Annotations;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
@@ -47,7 +48,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class BaseCommand extends CliCommand {
-        @Parameter(names = "--tenant", description = "Tenant Name")
+        @Parameter(names = "--tenant", description = "Tenant Name\n")
         protected String tenant;
 
         @Override
@@ -66,7 +67,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--namespace", description = "Namespace Name")
+        @Parameter(names = "--namespace", description = "Namespace Name\n")
         protected String namespace;
     }
 
@@ -75,7 +76,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionCommand extends NamespaceCommand {
-        @Parameter(names = "--function-name", description = "Function Name")
+        @Parameter(names = "--function-name", description = "Function Name\n")
         protected String functionName;
     }
 
@@ -151,6 +152,9 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
+            if (!Annotations.verifyAllRequiredFieldsSet(functionConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
             LimitsConfig limitsConfig = new LimitsConfig(
                 -1,   // No timelimit
                 1024,       // 1GB
@@ -186,6 +190,9 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionConfigCommand {
         @Override
         void runCmd() throws Exception {
+            if (!Annotations.verifyAllRequiredFieldsSet(functionConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
             fnAdmin.functions().createFunction(functionConfig, jarFile);
             print("Created successfully");
         }
@@ -195,6 +202,9 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
+            if (tenant == null || namespace == null || functionName == null) {
+                throw new RuntimeException("Missing arguments");
+            }
             print(fnAdmin.functions().getFunction(tenant, namespace, functionName));
         }
     }
@@ -203,6 +213,9 @@ public class CmdFunctions extends CmdBase {
     class DeleteFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
+            if (tenant == null || namespace == null || functionName == null) {
+                throw new RuntimeException("Missing arguments");
+            }
             fnAdmin.functions().deleteFunction(tenant, namespace, functionName);
             print("Deleted successfully");
         }
@@ -221,6 +234,9 @@ public class CmdFunctions extends CmdBase {
     class ListFunctions extends NamespaceCommand {
         @Override
         void runCmd() throws Exception {
+            if (tenant == null || namespace == null) {
+                throw new RuntimeException("Missing arguments");
+            }
             print(fnAdmin.functions().getFunctions(tenant, namespace));
         }
     }
