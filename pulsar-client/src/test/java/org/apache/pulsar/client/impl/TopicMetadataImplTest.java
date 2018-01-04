@@ -18,26 +18,19 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.TopicMetadata;
+import static org.testng.Assert.assertEquals;
 
-public class SinglePartitionMessageRouterImpl implements MessageRouter {
+import org.testng.annotations.Test;
 
-    private final int partitionIndex;
+/**
+ * Unit test of {@link TopicMetadataImpl}.
+ */
+public class TopicMetadataImplTest {
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex) {
-        this.partitionIndex = partitionIndex;
-    }
-
-    @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
-        // If the message has a key, it supersedes the single partition routing policy
-        if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % metadata.numPartitions());
-        }
-
-        return partitionIndex;
+    @Test
+    public void testNumPartitions() {
+        TopicMetadataImpl metadata = new TopicMetadataImpl(1234);
+        assertEquals(1234, metadata.numPartitions());
     }
 
 }
