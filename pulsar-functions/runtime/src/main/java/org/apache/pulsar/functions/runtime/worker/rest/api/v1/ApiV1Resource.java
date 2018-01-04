@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime.worker.rest.api.v1;
 
 import com.google.gson.Gson;
+import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
@@ -68,7 +69,7 @@ public class ApiV1Resource extends BaseApiResource {
 
         // validate parameters
         try {
-            validateRegisterRequestParams(tenant, namespace, functionName,
+            validateUpdateRequestParams(tenant, namespace, functionName,
                     uploadedInputStream, fileDetail, sinkTopic, sourceTopic,
                     inputSerdeClassName, outputSerdeClassName, className);
         } catch (IllegalArgumentException e) {
@@ -82,7 +83,7 @@ public class ApiV1Resource extends BaseApiResource {
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
         if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function /{}/{}/{} already exists", tenant, namespace, functionName);
+            log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
@@ -100,11 +101,7 @@ public class ApiV1Resource extends BaseApiResource {
         functionConfig.setClassName(className);
 
         // function resource limits
-        LimitsConfig limitsConfig = new LimitsConfig(
-            -1,
-            1024,
-            1,
-            1024);
+        LimitsConfig limitsConfig = getWorkerConfig().getDefaultLimits();
 
         // function state
         FunctionMetaData functionMetaData = new FunctionMetaData();
@@ -172,11 +169,7 @@ public class ApiV1Resource extends BaseApiResource {
         functionConfig.setClassName(className);
 
         // function resource limits
-        LimitsConfig limitsConfig = new LimitsConfig(
-            -1,
-            1024,
-            1,
-            1024);
+        LimitsConfig limitsConfig = getWorkerConfig().getDefaultLimits();
 
         // function state
         FunctionMetaData functionMetaData = new FunctionMetaData();
@@ -230,13 +223,17 @@ public class ApiV1Resource extends BaseApiResource {
             requestResult = completableFuture.get();
             if (!requestResult.isSuccess()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .type(MediaType.APPLICATION_JSON)
-                        .entity(requestResult.toJson())
-                        .build();
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(requestResult.toJson())
+                    .build();
             }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Error completeing request", e);
+        } catch (ExecutionException e) {
             return Response.serverError()
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(RestUtils.createMessage(e.getCause().getMessage()))
+                    .build();
+        } catch (InterruptedException e) {
+            return Response.status(Status.REQUEST_TIMEOUT)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(e.getMessage()))
                     .build();
@@ -321,16 +318,20 @@ public class ApiV1Resource extends BaseApiResource {
             requestResult = completableFuture.get();
             if (!requestResult.isSuccess()) {
                 return Response.status(Response.Status.BAD_REQUEST)
-                        .type(MediaType.APPLICATION_JSON)
-                        .entity(requestResult.toJson())
-                        .build();
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(requestResult.toJson())
+                    .build();
             }
-        } catch (InterruptedException | ExecutionException e) {
-            log.error("Error completeing request", e);
+        } catch (ExecutionException e) {
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage()))
+                    .entity(RestUtils.createMessage(e.getCause().getMessage()))
                     .build();
+        } catch (InterruptedException e) {
+            return Response.status(Status.REQUEST_TIMEOUT)
+                .type(MediaType.APPLICATION_JSON)
+                .entity(RestUtils.createMessage(e.getCause().getMessage()))
+                .build();
         }
 
         return Response.status(Response.Status.OK).entity(requestResult.toJson()).build();
@@ -376,17 +377,16 @@ public class ApiV1Resource extends BaseApiResource {
         }
     }
 
-    private void validateRegisterRequestParams(String tenant,
-                                               String namespace,
-                                               String functionName,
-                                               InputStream uploadedInputStream,
-                                               FormDataContentDisposition fileDetail,
-                                               String sinkTpic,
-                                               String inputTopic,
-                                               String inputSerdeClassName,
-                                               String outputSerdeClassName,
-                                               String className) throws IllegalArgumentException {
-
+    private void validateUpdateRequestParams(String tenant,
+                                             String namespace,
+                                             String functionName,
+                                             InputStream uploadedInputStream,
+                                             FormDataContentDisposition fileDetail,
+                                             String sinkTpic,
+                                             String sourceTopic,
+                                             String inputSerdeClassName,
+                                             String outputSerdeClassName,
+                                             String className) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -397,45 +397,20 @@ public class ApiV1Resource extends BaseApiResource {
             throw new IllegalArgumentException("Function Name is not provided");
         }
         if (uploadedInputStream == null || fileDetail == null) {
-            throw new IllegalArgumentException("Function package not provided");
+            throw new IllegalArgumentException("Function Package is not provided");
         }
-        if (inputTopic == null) {
-            throw new IllegalArgumentException("Input Topic is not provided");
+        if (sourceTopic == null) {
+            throw new IllegalArgumentException("Source Topic is not provided");
         }
         if (inputSerdeClassName == null) {
-            throw new IllegalArgumentException("inputSerdeClassName is not provided");
+            throw new IllegalArgumentException("InputSerdeClassName is not provided");
         }
         if (outputSerdeClassName == null) {
-            throw new IllegalArgumentException("outputSerdeClassName is not provided");
+            throw new IllegalArgumentException("OutputSerdeClassName is not provided");
         }
         if (className == null) {
-            throw new IllegalArgumentException("className is not provided");
+            throw new IllegalArgumentException("ClassName is not provided");
         }
     }
 
-    private void validateUpdateRequestParams(String tenant,
-                                               String namespace,
-                                               String functionName,
-                                               InputStream uploadedInputStream,
-                                               FormDataContentDisposition fileDetail,
-                                               String sinkTopic,
-                                               String inputTopic,
-                                               String inputSerdeClassName,
-                                               String outputSerdeClassName,
-                                               String className) throws IllegalArgumentException {
-
-        if (tenant == null) {
-            throw new IllegalArgumentException("Tenant is not provided");
-        }
-        if (namespace == null) {
-            throw new IllegalArgumentException("Namespace is not provided");
-        }
-        if (functionName == null) {
-            throw new IllegalArgumentException("Function Name is not provided");
-        }
-        if (uploadedInputStream == null && fileDetail == null && sinkTopic == null && inputTopic == null
-                && inputSerdeClassName == null && outputSerdeClassName == null && className == null) {
-            throw new IllegalArgumentException("No updates found");
-        }
-    }
 }

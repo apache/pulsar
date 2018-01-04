@@ -25,6 +25,7 @@ import java.io.Serializable;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import lombok.*;
+import lombok.experimental.Accessors;
 
 @Data
 @Setter
@@ -32,6 +33,8 @@ import lombok.*;
 @EqualsAndHashCode
 @ToString
 @AllArgsConstructor
+@NoArgsConstructor
+@Accessors(chain = true)
 /**
  * This represents the config related to the resource limits of function calls
  */

@@ -19,25 +19,19 @@
 package org.apache.pulsar.functions.runtime.worker.request;
 
 import com.google.gson.Gson;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.experimental.Accessors;
 
+@Accessors(chain = true)
+@Getter
+@Setter
 public class RequestResult {
     private boolean success;
     private String message;
 
     public boolean isSuccess() {
         return success;
-    }
-
-    public void setSuccess(boolean success) {
-        this.success = success;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
     }
 
     public String toJson() {
