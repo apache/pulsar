@@ -1,0 +1,152 @@
+#!/usr/bin/env bash
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+BINDIR=$(dirname "$0")
+PULSAR_HOME=`cd $BINDIR/..;pwd`
+
+DEFAULT_WORKER_CONF=$PULSAR_HOME/conf/function_worker.yml
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
+
+if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
+then
+    . "$PULSAR_HOME/conf/pulsar_env.sh"
+fi
+
+# Check for the java to use
+if [[ -z $JAVA_HOME ]]; then
+    JAVA=$(which java)
+    if [ $? != 0 ]; then
+        echo "Error: JAVA_HOME not set, and no java executable found in $PATH." 1>&2
+        exit 1
+    fi
+else
+    JAVA=$JAVA_HOME/bin/java
+fi
+
+# exclude tests jar
+RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+if [ $? == 0 ]; then
+    PULSAR_JAR=$RELEASE_JAR
+fi
+
+# exclude tests jar
+BUILT_JAR=`ls $PULSAR_HOME/runtime/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
+    echo "\nCouldn't find pulsar jar.";
+    echo "Make sure you've run 'mvn package'\n";
+    exit 1;
+elif [ -e "$BUILT_JAR" ]; then
+    PULSAR_JAR=$BUILT_JAR
+fi
+
+pulsar_help() {
+    cat <<EOF
+Usage: pulsar <command>
+where command is one of:
+    worker              Run a function worker server
+
+    help                This help message
+
+or command is the full name of a class with a defined main() method.
+
+Environment variables:
+   PULSAR_LOG_CONF               Log4j configuration file (default $DEFAULT_LOG_CONF)
+   PULSAR_WORKER_CONF            Configuration file for function worker (default: $DEFAULT_WORKER_CONF)
+   PULSAR_EXTRA_OPTS             Extra options to be passed to the jvm
+   PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
+   PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
+   PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
+
+These variable can also be set in conf/pulsar_env.sh
+EOF
+}
+
+add_maven_deps_to_classpath() {
+    MVN="mvn"
+    if [ "$MAVEN_HOME" != "" ]; then
+	    MVN=${MAVEN_HOME}/bin/mvn
+    fi
+
+    # Need to generate classpath from maven pom. This is costly so generate it
+    # and cache it. Save the file into our target dir so a mvn clean will get
+    # clean it up and force us create a new one.
+    f="${PULSAR_HOME}/runtime/target/classpath.txt"
+    if [ ! -f "${f}" ]
+    then
+	    ${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+    fi
+    PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
+}
+
+if [ -d "$PULSAR_HOME/lib" ]; then
+	PULSAR_CLASSPATH=$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*
+else
+    add_maven_deps_to_classpath
+fi
+
+# if no args specified, show usage
+if [ $# = 0 ]; then
+    pulsar_help;
+    exit 1;
+fi
+
+# get arguments
+COMMAND=$1
+shift
+
+if [ -z "$PULSAR_WORKER_CONF" ]; then
+    PULSAR_WORKER_CONF=$DEFAULT_WORKER_CONF
+fi
+
+if [ -z "$PULSAR_LOG_CONF" ]; then
+    PULSAR_LOG_CONF=$DEFAULT_LOG_CONF
+fi
+
+PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
+PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
+OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
+
+# Ensure we can read bigger content from ZK. (It might be
+# rarely needed when trying to list many z-nodes under a
+# directory)
+OPTS="$OPTS -Djute.maxbuffer=10485760 -Djava.net.preferIPv4Stack=true"
+
+OPTS="-cp $PULSAR_CLASSPATH $OPTS"
+
+OPTS="$OPTS $PULSAR_EXTRA_OPTS"
+
+# log directory & file
+PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
+PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+
+#Configure log configuration system properties
+OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
+OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
+
+#Change to PULSAR_HOME to support relative paths
+cd "$PULSAR_HOME"
+if [ $COMMAND == "worker" ]; then
+    PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-function-worker.log"}
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.runtime.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
+elif [ $COMMAND == "help" ]; then
+    pulsar_help;
+else
+    exec $JAVA $OPTS $COMMAND $@
+fi
