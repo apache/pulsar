@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -251,7 +254,7 @@ public class Consumer {
                 iter.remove();
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
-                subscription.acknowledgeMessage(pos, AckType.Individual);
+                subscription.acknowledgeMessage(pos, AckType.Individual, Collections.emptyMap());
                 continue;
             }
             if (pendingAcks != null) {
@@ -334,15 +337,21 @@ public class Consumer {
                     position, ack.getValidationError());
         }
 
+        Map<String,Long> properties = Collections.emptyMap();
+        if (ack.getPropertiesCount() > 0) {
+            properties = ack.getPropertiesList().stream()
+                .collect(Collectors.toMap((e) -> e.getKey(),
+                                          (e) -> e.getValue()));
+        }
         if (subType == SubType.Shared) {
             // On shared subscriptions, cumulative ack is not supported
             checkArgument(ack.getAckType() == AckType.Individual);
 
             // Only ack a single message
             removePendingAcks(position);
-            subscription.acknowledgeMessage(position, AckType.Individual);
+            subscription.acknowledgeMessage(position, AckType.Individual, properties);
         } else {
-            subscription.acknowledgeMessage(position, ack.getAckType());
+            subscription.acknowledgeMessage(position, ack.getAckType(), properties);
         }
 
     }

@@ -203,25 +203,13 @@ public class LoadManagerShared {
     }
 
     /**
-     * If load balancing is enabled, load shedding is enabled by default unless forced off by setting a flag in global
-     * zk /admin/flags/load-shedding-unload-disabled
+     * If load balancing is enabled, load shedding is enabled by default unless forced off by dynamic configuration
      *
-     * @return false by default, unload is allowed in load shedding true if zk flag is set, unload is disabled
+     * @return true by default
      */
-    public static boolean isUnloadDisabledInLoadShedding(final PulsarService pulsar) {
-        if (!pulsar.getConfiguration().isLoadBalancerEnabled()) {
-            return true;
-        }
-
-        boolean unloadDisabledInLoadShedding = false;
-        try {
-            unloadDisabledInLoadShedding = pulsar.getGlobalZkCache()
-                    .exists(AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH);
-        } catch (Exception e) {
-            log.warn("Unable to fetch contents of [{}] from global zookeeper",
-                    AdminResource.LOAD_SHEDDING_UNLOAD_DISABLED_FLAG_PATH, e);
-        }
-        return unloadDisabledInLoadShedding;
+    public static boolean isLoadSheddingEnabled(final PulsarService pulsar) {
+        return pulsar.getConfiguration().isLoadBalancerEnabled()
+                && pulsar.getConfiguration().isLoadBalancerSheddingEnabled();
     }
 
     /**

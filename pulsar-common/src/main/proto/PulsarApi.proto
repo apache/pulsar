@@ -34,6 +34,11 @@ message KeyValue {
 	required string value = 2;
 }
 
+message KeyLongValue {
+        required string key = 1;
+        required uint64 value = 2;
+}
+
 message EncryptionKeys {
 	required string key = 1;
 	required bytes value = 2;
@@ -230,6 +235,8 @@ message CommandProducer {
 	/// If a producer name is specified, the name will be used,
 	/// otherwise the broker will generate a unique name
 	optional string producer_name = 4;
+
+	optional bool encrypted       = 5 [default = false];
 }
 
 message CommandSend {
@@ -278,6 +285,7 @@ message CommandAck {
 	}
 
 	optional ValidationError validation_error = 4;
+        repeated KeyLongValue properties = 5;
 }
 
 message CommandFlow {

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -138,7 +139,7 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType) {
+    public void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties) {
         // No-op
     }
 

@@ -35,8 +35,8 @@ groups:
     endpoint: InstanceSetup
   - title: Kubernetes
     endpoint: Kubernetes
-  - title: Google Container Engine
-    endpoint: Kubernetes/#google-container-engine
+  - title: Google Kubernetes Engine
+    endpoint: Kubernetes/#google-kubernetes-engine
   - title: AWS
     endpoint: Kubernetes/#amazon-web-services
   - title: 監視

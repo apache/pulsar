@@ -48,6 +48,8 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 /**
  */
@@ -232,13 +234,7 @@ public class BrokerServiceThrottlingTest extends BrokerTestBase {
         startBroker();
 
         // wait strategically for all consumers to reconnect
-        for (int i = 0; i < 5; i++) {
-            if (!areAllConsumersConnected(consumers)) {
-                Thread.sleep(1000 + (i * 500));
-            } else {
-                break;
-            }
-        }
+        retryStrategically((test) -> areAllConsumersConnected(consumers), 5, 500);
 
         int totalConnectedConsumers = 0;
         for (int i = 0; i < consumers.size(); i++) {
