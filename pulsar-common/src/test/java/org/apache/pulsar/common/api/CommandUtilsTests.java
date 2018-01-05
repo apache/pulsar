@@ -19,12 +19,12 @@
 package org.apache.pulsar.common.api;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.junit.Test;
 import org.testng.Assert;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.testng.annotations.Test;
 
 public class CommandUtilsTests {
 

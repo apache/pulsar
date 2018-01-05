@@ -18,24 +18,25 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.junit.Assert.assertEquals;
+
+import static org.testng.Assert.assertEquals;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link MessageBuilderImpl}.
  */
 public class MessageBuilderTest {
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSetEventTimeNegative() {
         MessageBuilder builder = MessageBuilder.create();
         builder.setEventTime(-1L);
     }
 
-    @Test(expected = IllegalArgumentException.class)
+    @Test(expectedExceptions = IllegalArgumentException.class)
     public void testSetEventTimeZero() {
         MessageBuilder builder = MessageBuilder.create();
         builder.setEventTime(0L);
