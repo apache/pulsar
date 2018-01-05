@@ -279,7 +279,7 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunction(tenant, namespace, functionName);
-        return Response.status(Response.Status.OK).entity(functionMetaData.toJson()).build();
+        return Response.status(Response.Status.OK).entity(new Gson().toJson(functionMetaData.getFunctionConfig())).build();
     }
 
     @GET
