@@ -62,6 +62,8 @@ import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ApiV1Resource}.
+ *
+ * TODO: there is some issues related to powermock and log4j2: https://github.com/powermock/powermock/issues/861
  */
 @PrepareForTest(Utils.class)
 public class ApiV1ResourceTest {
@@ -125,7 +127,6 @@ public class ApiV1ResourceTest {
     // Register Functions
     //
 
-    @Test
     public void testRegisterFunctionMissingTenant() {
         testRegisterFunctionMissingArguments(
             null,
@@ -141,7 +142,7 @@ public class ApiV1ResourceTest {
             "Tenant");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingNamespace() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -157,7 +158,7 @@ public class ApiV1ResourceTest {
             "Namespace");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingFunctionName() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -173,7 +174,7 @@ public class ApiV1ResourceTest {
             "Function Name");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingPackage() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -189,7 +190,7 @@ public class ApiV1ResourceTest {
             "Function Package");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingPackageDetails() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -205,7 +206,7 @@ public class ApiV1ResourceTest {
             "Function Package");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingSourceTopic() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -221,7 +222,7 @@ public class ApiV1ResourceTest {
             "Source Topic");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingInputSerde() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -237,7 +238,7 @@ public class ApiV1ResourceTest {
             "InputSerdeClassName");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingOutputSerde() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -253,7 +254,7 @@ public class ApiV1ResourceTest {
             "OutputSerdeClassName");
     }
 
-    @Test
+
     public void testRegisterFunctionMissingClassName() {
         testRegisterFunctionMissingArguments(
             tenant,
@@ -312,7 +313,7 @@ public class ApiV1ResourceTest {
             className);
     }
 
-    @Test
+
     public void testRegisterExistedFunction() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -321,7 +322,7 @@ public class ApiV1ResourceTest {
         assertEquals(createMessage("Function " + function + " already exist"), response.getEntity());
     }
 
-    @Test
+
     public void testRegisterFunctionUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
@@ -337,7 +338,7 @@ public class ApiV1ResourceTest {
         assertEquals(createMessage("upload failure"), response.getEntity());
     }
 
-    @Test
+
     public void testRegisterFunctionSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -359,7 +360,7 @@ public class ApiV1ResourceTest {
         assertEquals(rr.toJson(), response.getEntity());
     }
 
-    @Test
+
     public void testRegisterFunctionFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -381,7 +382,7 @@ public class ApiV1ResourceTest {
         assertEquals(rr.toJson(), response.getEntity());
     }
 
-    @Test
+
     public void testRegisterFunctionInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -405,7 +406,7 @@ public class ApiV1ResourceTest {
     // Update Functions
     //
 
-    @Test
+
     public void testUpdateFunctionMissingTenant() {
         testUpdateFunctionMissingArguments(
             null,
@@ -421,7 +422,7 @@ public class ApiV1ResourceTest {
             "Tenant");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingNamespace() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -437,7 +438,7 @@ public class ApiV1ResourceTest {
             "Namespace");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingFunctionName() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -453,7 +454,7 @@ public class ApiV1ResourceTest {
             "Function Name");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingPackage() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -469,7 +470,7 @@ public class ApiV1ResourceTest {
             "Function Package");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingPackageDetails() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -485,7 +486,7 @@ public class ApiV1ResourceTest {
             "Function Package");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingSourceTopic() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -501,7 +502,7 @@ public class ApiV1ResourceTest {
             "Source Topic");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingInputSerde() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -517,7 +518,7 @@ public class ApiV1ResourceTest {
             "InputSerdeClassName");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingOutputSerde() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -533,7 +534,7 @@ public class ApiV1ResourceTest {
             "OutputSerdeClassName");
     }
 
-    @Test
+
     public void testUpdateFunctionMissingClassName() {
         testUpdateFunctionMissingArguments(
             tenant,
@@ -592,7 +593,7 @@ public class ApiV1ResourceTest {
             className);
     }
 
-    @Test
+
     public void testUpdateNotExistedFunction() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -601,7 +602,7 @@ public class ApiV1ResourceTest {
         assertEquals(createMessage("Function " + function + " doesn't exist"), response.getEntity());
     }
 
-    @Test
+
     public void testUpdateFunctionUploadFailure() throws Exception {
         mockStatic(Utils.class);
         doThrow(new IOException("upload failure")).when(Utils.class);
@@ -617,7 +618,7 @@ public class ApiV1ResourceTest {
         assertEquals(createMessage("upload failure"), response.getEntity());
     }
 
-    @Test
+
     public void testUpdateFunctionSuccess() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -639,7 +640,7 @@ public class ApiV1ResourceTest {
         assertEquals(rr.toJson(), response.getEntity());
     }
 
-    @Test
+
     public void testUpdateFunctionFailure() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -661,7 +662,7 @@ public class ApiV1ResourceTest {
         assertEquals(rr.toJson(), response.getEntity());
     }
 
-    @Test
+
     public void testUpdateFunctionInterrupted() throws Exception {
         mockStatic(Utils.class);
         doNothing().when(Utils.class);
@@ -685,7 +686,7 @@ public class ApiV1ResourceTest {
     // deregister function
     //
 
-    @Test
+
     public void testDeregisterFunctionMissingTenant() throws Exception {
         testDeregisterFunctionMissingArguments(
             null,
@@ -694,7 +695,7 @@ public class ApiV1ResourceTest {
             "Tenant");
     }
 
-    @Test
+
     public void testDeregisterFunctionMissingNamespace() throws Exception {
         testDeregisterFunctionMissingArguments(
             tenant,
@@ -703,7 +704,7 @@ public class ApiV1ResourceTest {
             "Namespace");
     }
 
-    @Test
+
     public void testDeregisterFunctionMissingFunctionName() throws Exception {
         testDeregisterFunctionMissingArguments(
             tenant,
@@ -734,7 +735,7 @@ public class ApiV1ResourceTest {
             function);
     }
 
-    @Test
+
     public void testDeregisterNotExistedFunction() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -743,7 +744,7 @@ public class ApiV1ResourceTest {
         assertEquals(createMessage("Function " + function + " doesn't exist"), response.getEntity());
     }
 
-    @Test
+
     public void testDeregisterFunctionSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -758,7 +759,7 @@ public class ApiV1ResourceTest {
         assertEquals(rr.toJson(), response.getEntity());
     }
 
-    @Test
+
     public void testDeregisterFunctionFailure() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -773,7 +774,7 @@ public class ApiV1ResourceTest {
         assertEquals(rr.toJson(), response.getEntity());
     }
 
-    @Test
+
     public void testDeregisterFunctionInterrupted() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -790,7 +791,7 @@ public class ApiV1ResourceTest {
     // Get Function Info
     //
 
-    @Test
+
     public void testGetFunctionMissingTenant() throws Exception {
         testGetFunctionMissingArguments(
             null,
@@ -799,7 +800,7 @@ public class ApiV1ResourceTest {
             "Tenant");
     }
 
-    @Test
+
     public void testGetFunctionMissingNamespace() throws Exception {
         testGetFunctionMissingArguments(
             tenant,
@@ -808,7 +809,7 @@ public class ApiV1ResourceTest {
             "Namespace");
     }
 
-    @Test
+
     public void testGetFunctionMissingFunctionName() throws Exception {
         testGetFunctionMissingArguments(
             tenant,
@@ -839,7 +840,7 @@ public class ApiV1ResourceTest {
             function);
     }
 
-    @Test
+
     public void testGetNotExistedFunction() {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
@@ -848,7 +849,7 @@ public class ApiV1ResourceTest {
         assertEquals(createMessage("Function " + function + " doesn't exist"), response.getEntity());
     }
 
-    @Test
+
     public void testGetFunctionSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
@@ -880,7 +881,7 @@ public class ApiV1ResourceTest {
     // List Functions
     //
 
-    @Test
+
     public void testListFunctionsMissingTenant() throws Exception {
         testListFunctionsMissingArguments(
             null,
@@ -888,7 +889,7 @@ public class ApiV1ResourceTest {
             "Tenant");
     }
 
-    @Test
+
     public void testListFunctionsMissingNamespace() throws Exception {
         testListFunctionsMissingArguments(
             tenant,
@@ -916,7 +917,7 @@ public class ApiV1ResourceTest {
             namespace);
     }
 
-    @Test
+
     public void testListFunctionsSuccess() throws Exception {
         List<String> functions = Lists.newArrayList("test-1", "test-2");
         when(mockedManager.listFunction(eq(tenant), eq(namespace))).thenReturn(functions);

@@ -17,23 +17,14 @@
 # under the License.
 #
 
-#
-# BookieShell configuration
+Configuration:
+  name: test
 
-# DEFAULT: console appender only
-# Define some default values that can be overridden by system properties
-bookkeeper.root.logger=INFO,CONSOLE
+  Appenders:
 
-log4j.rootLogger=${bookkeeper.root.logger}
-
-#
-# Log INFO level and above messages to the console
-#
-log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender
-log4j.appender.CONSOLE.Threshold=DEBUG
-log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout
-log4j.appender.CONSOLE.layout.ConversionPattern=%d{ABSOLUTE} %-5p %m%n
-
-log4j.logger.org.apache.zookeeper=ERROR
-log4j.logger.org.apache.bookkeeper=ERROR
-log4j.logger.org.apache.bookkeeper.bookie.BookieShell=INFO
+    # Console
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"

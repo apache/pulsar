@@ -75,6 +75,10 @@ public class FunctionConfig implements Serializable {
     }
     private ProcessingGuarantees processingGuarantees;
 
+    public String getFullyQulifiedName() {
+        return String.format("%s/%s/%s", tenant, namespace, name);
+    }
+
     public static FunctionConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), FunctionConfig.class);
