@@ -96,8 +96,6 @@ public interface Message {
      * Get the sequence id associated with this message. It is typically set by the applications via
      * {@link MessageBuilder#setSequenceId(long)}.
      *
-     * <p>If there isn't any sequence id associated with this event, it will return -1.
-     *
      * @return sequence id associated with this message.
      * @see MessageBuilder#setEventTime(long)
      * @since 1.22.0
