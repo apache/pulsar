@@ -741,7 +741,7 @@ public class ApiV1ResourceTest {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = deregisterDefaultFunction();
-        assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
+        assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
         assertEquals(createMessage("Function " + function + " doesn't exist"), response.getEntity());
     }
 

@@ -218,7 +218,7 @@ public class ApiV1Resource extends BaseApiResource {
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function to deregister does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
-            return Response.status(Response.Status.BAD_REQUEST)
+            return Response.status(Status.NOT_FOUND)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
