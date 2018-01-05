@@ -75,7 +75,7 @@ public class FunctionConfig implements Serializable {
     }
     private ProcessingGuarantees processingGuarantees;
 
-    public String getFullyQulifiedName() {
+    public String getFullyQualifiedName() {
         return String.format("%s/%s/%s", tenant, namespace, name);
     }
 
