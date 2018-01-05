@@ -113,7 +113,8 @@ public class ApiV1Resource extends BaseApiResource {
         WorkerConfig workerConfig = getWorkerConfig();
         PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
         packageLocationMetaData.setPackagePath(String.format(
-            "%s/%s/%s/%s",
+            // TODO: dlog 0.5.0 doesn't support filesystem path
+            "%s_%s_%s_%s",
             tenant,
             namespace,
             functionName,
@@ -183,7 +184,8 @@ public class ApiV1Resource extends BaseApiResource {
         WorkerConfig workerConfig = getWorkerConfig();
         PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
         packageLocationMetaData.setPackagePath(String.format(
-            "%s/%s/%s/%s",
+            // TODO: dlog 0.5.0 doesn't support filesystem path
+            "%s_%s_%s_%s",
             tenant,
             namespace,
             functionName,
