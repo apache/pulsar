@@ -1895,6 +1895,12 @@
           </li>
           
           <li>
+            <a href="#pulsar.proto.KeyLongValue">
+              KeyLongValue
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar.proto.KeyValue">
               KeyValue
             </a>
@@ -2361,6 +2367,16 @@
               <td class="wrap"><a href="#pulsar.proto.CommandAck.ValidationError">ValidationError</a></td>
               
               <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">properties</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.KeyLongValue">KeyLongValue</a></td>
+              
+              <td>repeated</td>
               <td></td>
               <td></td>
             </tr>
@@ -3407,6 +3423,16 @@ otherwise the broker will generate a unique name</td>
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">metadata</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.KeyValue">KeyValue</a></td>
+              
+              <td>repeated</td>
+              <td></td>
+              <td>Add optional metadata key=value to this producer</td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -4069,6 +4095,55 @@ will send messages from that point</td>
               <td class="wrap"><a href="#pulsar.proto.KeyValue">KeyValue</a></td>
               
               <td>repeated</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.KeyLongValue">
+          KeyLongValue
+        </h5>
+        <p class="message-name">pulsar.proto.KeyLongValue</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">key</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">value</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
               <td></td>
               <td></td>
             </tr>
