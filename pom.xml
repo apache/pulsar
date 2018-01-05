@@ -631,6 +631,7 @@ flexible messaging model and an intuitive client API.</description>
 
   <dependencies>
     <!-- These dependencies are common to all the submodules -->
+    <!-- use log4j2 binding for testing -->
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>buildtools</artifactId>

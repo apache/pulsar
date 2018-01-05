@@ -39,6 +39,8 @@ import org.apache.pulsar.functions.utils.Reflections;
 import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
@@ -94,7 +96,10 @@ public class JavaInstance implements AutoCloseable {
     }
 
     JavaInstance(JavaInstanceConfig config, Object object, ClassLoader clsLoader) {
-        this.context = new ContextImpl(config, log);
+        // TODO: cache logger instances by functions?
+        Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
+
+        this.context = new ContextImpl(config, instanceLog);
 
         // create the serde
         this.inputSerDe = initializeSerDe(config.getFunctionConfig().getInputSerdeClassName(), clsLoader);

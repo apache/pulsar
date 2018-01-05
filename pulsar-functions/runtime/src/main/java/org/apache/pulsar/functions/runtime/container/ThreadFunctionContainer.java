@@ -26,6 +26,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -94,6 +95,9 @@ class ThreadFunctionContainer implements FunctionContainer {
         this.fnThread = new Thread(threadGroup,
             () -> {
                 log.info("Thread Function Container Starting Java Instance {}", javaInstanceConfig.getFunctionConfig().getName());
+
+                // initialize the thread context
+                ThreadContext.put("function", getFunctionConfig().getFullyQulifiedName());
                 JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
 
                 while (!closed) {
