@@ -732,6 +732,56 @@ public class Commands {
         return command;
     }
 
+    public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
+                                                      MessageMetadata msgMetadata, ByteBuf payload) {
+        // / Wire format
+        // [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
+        int msgMetadataSize = msgMetadata.getSerializedSize();
+        int payloadSize = payload.readableBytes();
+        int magicAndChecksumLength = ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength*/) : 0;
+        boolean includeChecksum = magicAndChecksumLength > 0;
+        int headerContentSize = magicAndChecksumLength + 4 + msgMetadataSize; // magicLength +
+                                                                              // checksumSize + msgMetadataLength +
+                                                                              // msgMetadataSize
+        int checksumReaderIndex = -1;
+        int totalSize = headerContentSize + payloadSize;
+
+        ByteBuf metadataAndPayload = PooledByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+        try {
+            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metadataAndPayload);
+
+            //Create checksum placeholder
+            if (includeChecksum) {
+                metadataAndPayload.writeShort(magicCrc32c);
+                checksumReaderIndex = metadataAndPayload.writerIndex();
+                metadataAndPayload.writerIndex(metadataAndPayload.writerIndex()
+                                               + checksumSize); //skip 4 bytes of checksum
+            }
+
+            // Write metadata
+            metadataAndPayload.writeInt(msgMetadataSize);
+            msgMetadata.writeTo(outStream);
+            outStream.recycle();
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+
+        // write checksum at created checksum-placeholder
+        if (includeChecksum) {
+            metadataAndPayload.markReaderIndex();
+            metadataAndPayload.readerIndex(checksumReaderIndex + checksumSize);
+            int metadataChecksum = computeChecksum(metadataAndPayload);
+            int computedChecksum = resumeChecksum(metadataChecksum, payload);
+            // set computed checksum
+            metadataAndPayload.setInt(checksumReaderIndex, computedChecksum);
+            metadataAndPayload.resetReaderIndex();
+        }
+        metadataAndPayload.writeBytes(payload);
+
+        return metadataAndPayload;
+    }
+
     public static long initBatchMessageMetadata(PulsarApi.MessageMetadata.Builder messageMetadata,
             MessageMetadata.Builder builder) {
         messageMetadata.setPublishTime(builder.getPublishTime());
