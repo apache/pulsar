@@ -198,6 +198,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
+        String tenant = deregisterRequestFs.getFunctionConfig().getTenant();
+        String namespace = deregisterRequestFs.getFunctionConfig().getNamespace();
 
         log.debug("Process deregister request: {}", deregisterRequest);
 
@@ -211,7 +213,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
                     insertStopAction(deregisterRequestFs);
                 }
                 // remove function from in memory function metadata store
-                this.functionMap.remove(functionName);
+                if (this.functionMap.containsKey(tenant)
+                        && this.functionMap.get(tenant).containsKey(namespace)
+                        && this.functionMap.get(tenant).get(namespace).containsKey(functionName)) {
+                    this.functionMap.get(tenant).get(namespace).remove(functionName);
+                }
                 completeRequest(deregisterRequest, true);
             } else {
                 completeRequest(deregisterRequest, false,

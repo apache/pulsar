@@ -28,6 +28,8 @@ import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -39,6 +41,17 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class FunctionActioner implements AutoCloseable {
 
+    @Data
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    @Slf4j
+    public static class AssignmentInfo {
+        private FunctionMetaData functionMetaData;
+        private Spawner spawner;
+    }
+
     private final WorkerConfig workerConfig;
     private final LimitsConfig limitsConfig;
     private final FunctionContainerFactory functionContainerFactory;
@@ -46,6 +59,7 @@ public class FunctionActioner implements AutoCloseable {
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
     private Thread actioner;
+    private final Map<String, AssignmentInfo> assignments = new HashMap<>();
 
     public FunctionActioner(WorkerConfig workerConfig, LimitsConfig limitsConfig,
                             FunctionContainerFactory functionContainerFactory,
@@ -114,10 +128,13 @@ public class FunctionActioner implements AutoCloseable {
                     return false;
                 }
             }
-            log.info("Done downloading");
             Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
                     pkgFile.getAbsolutePath(), functionContainerFactory);
-            functionMetaData.setSpawner(spawner);
+
+            AssignmentInfo assignmentInfo = new AssignmentInfo();
+            assignmentInfo.setFunctionMetaData(functionMetaData);
+            assignmentInfo.setSpawner(spawner);
+            assignments.put(functionMetaData.getFunctionConfig().getFullyQulifiedName(), assignmentInfo);
             spawner.start();
             return true;
         } catch (Exception ex) {
@@ -128,9 +145,10 @@ public class FunctionActioner implements AutoCloseable {
 
     private boolean stopFunction(FunctionMetaData functionMetaData) {
         log.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
-        if (functionMetaData.getSpawner() != null) {
-            functionMetaData.getSpawner().close();
-            functionMetaData.setSpawner(null);
+        AssignmentInfo assignmentInfo = assignments.get(functionMetaData.getFunctionConfig().getFullyQulifiedName());
+        if (assignmentInfo != null && assignmentInfo.getSpawner() != null) {
+            assignmentInfo.getSpawner().close();
+            assignmentInfo.setSpawner(null);
             return true;
         }
         return false;
