@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
@@ -225,7 +227,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
     @Override
     public CompletableFuture<Void> acknowledgeAsync(MessageId messageId) {
-        return doAcknowledge(messageId, AckType.Individual);
+        return doAcknowledge(messageId, AckType.Individual, Collections.emptyMap());
     }
 
     @Override
@@ -235,10 +237,11 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                     "Cannot use cumulative acks on a non-exclusive subscription"));
         }
 
-        return doAcknowledge(messageId, AckType.Cumulative);
+        return doAcknowledge(messageId, AckType.Cumulative, Collections.emptyMap());
     }
 
-    abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType);
+    abstract protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
+                                                             Map<String,Long> properties);
 
     @Override
     public void unsubscribe() throws PulsarClientException {

@@ -92,16 +92,31 @@ MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
 
 if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
     MESSAGE(STATUS "DETECTED Python 3")
+    string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
+    list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
+    list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
+    set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
     # For python3 the lib name is boost_python3
-    set(BOOST_PYTHON_NAME python3)
+    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX})
 else ()
     # Regular boost_python
-    set(BOOST_PYTHON_NAME python)
+    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27)
+endif ()
+
+foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
+    find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
+    if (${Boost_FOUND})
+        set(BOOST_PYTHON_NAME_FOUND ${BOOST_PYTHON_NAME})
+        break()
+    endif()
+endforeach()
+
+if (NOT ${Boost_FOUND})
+    MESSAGE(FATAL_ERROR "Could not find Boost Python library")
 endif ()
 
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
-                    thread system ${BOOST_PYTHON_NAME})
-
+                                       thread system ${BOOST_PYTHON_NAME_FOUND})
 
 
 find_package(OpenSSL REQUIRED)

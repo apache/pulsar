@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Map;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -46,6 +48,9 @@ public class PublisherStats {
     
     /** Client library version */
     public String clientVersion;
+
+    /** Metadata (key/value strings) associated with this publisher */
+    public Map<String, String> metadata;
 
     public PublisherStats add(PublisherStats stats) {
         checkNotNull(stats);

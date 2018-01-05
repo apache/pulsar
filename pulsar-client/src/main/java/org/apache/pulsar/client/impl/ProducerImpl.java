@@ -26,7 +26,10 @@ import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -98,6 +101,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     
     private ScheduledFuture<?> keyGeneratorTask = null;
 
+    private final Map<String, String> metadata;
+
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
@@ -158,6 +163,13 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         } else {
             stats = ProducerStats.PRODUCER_STATS_DISABLED;
         }
+
+        if (conf.getProperties().isEmpty()) {
+            metadata = Collections.emptyMap();
+        } else {
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
+        }
+
         grabCnx();
     }
 
@@ -800,7 +812,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
         long requestId = client.newRequestId();
 
-        cnx.sendRequestWithId(Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled()), requestId)
+        cnx.sendRequestWithId(Commands.newProducer(topic, producerId, requestId, producerName,
+                conf.isEncryptionEnabled(), metadata), requestId)
                 .thenAccept(pair -> {
                     String producerName = pair.getLeft();
                     long lastSequenceId = pair.getRight();
