@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,8 +27,8 @@ import static org.mockito.Mockito.when;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 import org.junit.After;
@@ -41,25 +40,25 @@ import org.junit.rules.TestName;
  * Unit test of {@link FunctionMetaDataTopicTailer}.
  */
 @Slf4j
-public class FunctionMetaDataConsumerTest {
+public class FunctionMetaDataTopicTailerTest {
 
     @Rule
     public final TestName runtime = new TestName();
 
-    private final Consumer consumer;
+    private final Reader reader;
     private final FunctionMetaDataManager fsm;
     private final FunctionMetaDataTopicTailer fsc;
 
-    public FunctionMetaDataConsumerTest() throws Exception {
-        this.consumer = mock(Consumer.class);
+    public FunctionMetaDataTopicTailerTest() throws Exception {
+        this.reader = mock(Reader.class);
         this.fsm = mock(FunctionMetaDataManager.class);
-        this.fsc = new FunctionMetaDataTopicTailer(fsm, consumer);
+        this.fsc = new FunctionMetaDataTopicTailer(fsm, reader);
     }
 
     @After
     public void tearDown() throws Exception {
         fsc.close();
-        verify(consumer, times(1)).close();
+        verify(reader, times(1)).close();
     }
 
     @Test
@@ -72,7 +71,7 @@ public class FunctionMetaDataConsumerTest {
         when(msg.getData()).thenReturn(Utils.toByteArray(request));
 
         CompletableFuture<Message> receiveFuture = CompletableFuture.completedFuture(msg);
-        when(consumer.receiveAsync())
+        when(reader.readNextAsync())
             .thenReturn(receiveFuture)
             .thenReturn(new CompletableFuture<>());
 
@@ -81,8 +80,7 @@ public class FunctionMetaDataConsumerTest {
         // wait for receive future to complete
         receiveFuture.thenApply(Function.identity()).get();
 
-        verify(consumer, times(2)).receiveAsync();
-        verify(consumer, times(1)).acknowledgeAsync(eq(msg));
+        verify(reader, times(2)).readNextAsync();
         verify(fsm, times(1)).processUpdate(any(UpdateRequest.class));
         verify(fsm, times(0)).proccessDeregister(any(DeregisterRequest.class));
     }

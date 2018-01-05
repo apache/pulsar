@@ -21,9 +21,9 @@ package org.apache.pulsar.functions.runtime.worker;
 import java.io.IOException;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
@@ -33,13 +33,13 @@ public class FunctionMetaDataTopicTailer
         implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
 
     private final FunctionMetaDataManager functionMetaDataManager;
-    private final Consumer consumer;
+    private final Reader reader;
 
     public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       Consumer consumer)
+                                       Reader reader)
             throws PulsarClientException {
         this.functionMetaDataManager = functionMetaDataManager;
-        this.consumer = consumer;
+        this.reader = reader;
     }
 
     public void start() {
@@ -47,7 +47,7 @@ public class FunctionMetaDataTopicTailer
     }
 
     private void receiveOne() {
-        consumer.receiveAsync()
+        reader.readNextAsync()
             .thenAccept(this)
             .exceptionally(this);
     }
@@ -56,8 +56,8 @@ public class FunctionMetaDataTopicTailer
     public void close() {
         log.info("Stopping function state consumer");
         try {
-            consumer.close();
-        } catch (PulsarClientException e) {
+            reader.close();
+        } catch (IOException e) {
             log.error("Failed to stop function state consumer", e);
         }
         log.info("Stopped function state consumer");
@@ -88,8 +88,6 @@ public class FunctionMetaDataTopicTailer
                 log.warn("Received request with unrecognized type: {}", serviceRequest);
         }
 
-        // ack msg
-        consumer.acknowledgeAsync(msg);
         // receive next request
         receiveOne();
     }

@@ -134,7 +134,7 @@ public class FunctionActioner implements AutoCloseable {
             AssignmentInfo assignmentInfo = new AssignmentInfo();
             assignmentInfo.setFunctionMetaData(functionMetaData);
             assignmentInfo.setSpawner(spawner);
-            assignments.put(functionMetaData.getFunctionConfig().getFullyQulifiedName(), assignmentInfo);
+            assignments.put(functionMetaData.getFunctionConfig().getFullyQualifiedName(), assignmentInfo);
             spawner.start();
             return true;
         } catch (Exception ex) {
@@ -145,7 +145,7 @@ public class FunctionActioner implements AutoCloseable {
 
     private boolean stopFunction(FunctionMetaData functionMetaData) {
         log.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
-        AssignmentInfo assignmentInfo = assignments.get(functionMetaData.getFunctionConfig().getFullyQulifiedName());
+        AssignmentInfo assignmentInfo = assignments.get(functionMetaData.getFunctionConfig().getFullyQualifiedName());
         if (assignmentInfo != null && assignmentInfo.getSpawner() != null) {
             assignmentInfo.getSpawner().close();
             assignmentInfo.setSpawner(null);
