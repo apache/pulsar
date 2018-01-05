@@ -22,8 +22,8 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
-import java.util.Random;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -43,8 +43,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.collect.Lists;
 
 public class PartitionedProducerImpl extends ProducerBase {
-
-    private static final Random RANDOM = new Random(System.currentTimeMillis());
 
     private List<ProducerImpl> producers;
     private MessageRouter routerPolicy;
@@ -77,7 +75,8 @@ public class PartitionedProducerImpl extends ProducerBase {
             break;
         case SinglePartition:
         default:
-            messageRouter = new SinglePartitionMessageRouterImpl(RANDOM.nextInt(topicMetadata.numPartitions()));
+            messageRouter = new SinglePartitionMessageRouterImpl(
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()));
         }
 
         return messageRouter;
