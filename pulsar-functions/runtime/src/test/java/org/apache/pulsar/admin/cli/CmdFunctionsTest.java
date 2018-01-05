@@ -26,9 +26,11 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
+import java.io.File;
 import java.net.URI;
 import java.net.URL;
 import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
@@ -40,30 +42,51 @@ import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
+import org.apache.pulsar.functions.utils.Reflections;
+import org.powermock.core.classloader.annotations.PowerMockIgnore;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.IObjectFactory;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.ObjectFactory;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link CmdFunctions}.
  */
+@PrepareForTest({ CmdFunctions.class, Reflections.class })
+@PowerMockIgnore("javax.management.*")
 public class CmdFunctionsTest {
 
-    @Rule
-    public final TestName runtime = new TestName();
+    @ObjectFactory
+    public IObjectFactory getObjectFactory() {
+        return new org.powermock.modules.testng.PowerMockObjectFactory();
+    }
 
-    private final PulsarFunctionsAdmin admin;
-    private final Functions functions;
-    private final CmdFunctions cmd;
+    private static final String TEST_NAME = "test_name";
 
-    public CmdFunctionsTest() throws Exception {
+    private PulsarFunctionsAdmin admin;
+    private Functions functions;
+    private CmdFunctions cmd;
+
+    @BeforeMethod
+    public void setup() throws Exception {
         this.admin = mock(PulsarFunctionsAdmin.class);
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn(URI.create("http://localhost:1234").toURL());
         when(admin.getClientConf()).thenReturn(new ClientConfiguration());
         this.cmd = new CmdFunctions(admin);
+
+        // mock reflections
+        mockStatic(Reflections.class);
+        when(Reflections.classExistsInJar(any(File.class), anyString())).thenReturn(true);
+        when(Reflections.classExists(anyString())).thenReturn(true);
+        when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(RequestHandler.class)))
+            .thenReturn(true);
+        when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
     }
 
     @Test
@@ -79,9 +102,9 @@ public class CmdFunctionsTest {
 
     @Test
     public void testLocalRunnerCmdSettings() throws Exception {
-        String fnName = runtime.getMethodName() + "-function";
-        String sourceTopicName = runtime.getMethodName() + "-source-topic";
-        String sinkTopicName = runtime.getMethodName() + "-sink-topic";
+        String fnName = TEST_NAME + "-function";
+        String sourceTopicName = TEST_NAME + "-source-topic";
+        String sinkTopicName = TEST_NAME + "-sink-topic";
         cmd.run(new String[] {
             "localrun",
             "--function-name", fnName,
@@ -114,17 +137,17 @@ public class CmdFunctionsTest {
 
     @Test
     public void testCreateFunction() throws Exception {
-        String fnName = runtime.getMethodName() + "-function";
-        String sourceTopicName = runtime.getMethodName() + "-source-topic";
-        String sinkTopicName = runtime.getMethodName() + "-sink-topic";
+        String fnName = TEST_NAME + "-function";
+        String sourceTopicName = TEST_NAME + "-source-topic";
+        String sinkTopicName = TEST_NAME + "-sink-topic";
         cmd.run(new String[] {
             "create",
             "--function-name", fnName,
             "--source-topic", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--input-serde-classname", "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe",
-            "--output-serde-classname", "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe",
-            "--function-classpath", "SomeJar.jar",
+            "--input-serde-classname", Utf8StringSerDe.class.getName(),
+            "--output-serde-classname", Utf8StringSerDe.class.getName(),
+            "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",
             "--function-classname", "MyClass",
@@ -141,9 +164,9 @@ public class CmdFunctionsTest {
 
     @Test
     public void testGetFunction() throws Exception {
-        String tenant = runtime.getMethodName() + "-tenant";
-        String namespace = runtime.getMethodName() + "-namespace";
-        String fnName = runtime.getMethodName() + "-function";
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
 
         cmd.run(new String[] {
             "get",
@@ -162,9 +185,9 @@ public class CmdFunctionsTest {
 
     @Test
     public void testDeleteFunction() throws Exception {
-        String tenant = runtime.getMethodName() + "-tenant";
-        String namespace = runtime.getMethodName() + "-namespace";
-        String fnName = runtime.getMethodName() + "-function";
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String fnName = TEST_NAME + "-function";
 
         cmd.run(new String[] {
             "delete",
@@ -183,14 +206,23 @@ public class CmdFunctionsTest {
 
     @Test
     public void testUpdateFunction() throws Exception {
-        String fnName = runtime.getMethodName() + "-function";
-        String sourceTopicName = runtime.getMethodName() + "-source-topic";
-        String sinkTopicName = runtime.getMethodName() + "-sink-topic";
+        String fnName = TEST_NAME + "-function";
+        String sourceTopicName = TEST_NAME + "-source-topic";
+        String sinkTopicName = TEST_NAME + "-sink-topic";
+
+
+
         cmd.run(new String[] {
             "update",
             "--function-name", fnName,
             "--source-topic", sourceTopicName,
-            "--sink-topic", sinkTopicName
+            "--sink-topic", sinkTopicName,
+            "--input-serde-classname", Utf8StringSerDe.class.getName(),
+            "--output-serde-classname", Utf8StringSerDe.class.getName(),
+            "--jar", "SomeJar.jar",
+            "--tenant", "sample",
+            "--namespace", "ns1",
+            "--function-classname", "MyClass",
         });
 
         UpdateFunction updater = cmd.getUpdater();
@@ -203,8 +235,8 @@ public class CmdFunctionsTest {
 
     @Test
     public void testListFunctions() throws Exception {
-        String tenant = runtime.getMethodName() + "-tenant";
-        String namespace = runtime.getMethodName() + "-namespace";
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
 
         cmd.run(new String[] {
             "list",

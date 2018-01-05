@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.runtime;
 
 import static org.testng.Assert.assertEquals;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionID}.

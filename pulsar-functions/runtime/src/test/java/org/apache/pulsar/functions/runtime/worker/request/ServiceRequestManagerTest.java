@@ -29,9 +29,9 @@ import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.functions.runtime.worker.Utils;
-import org.junit.After;
-import org.junit.Test;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ServiceRequestManager}.
@@ -47,7 +47,7 @@ public class ServiceRequestManagerTest {
         this.reqMgr = new ServiceRequestManager(producer);
     }
 
-    @After
+    @AfterMethod
     public void tearDown() throws Exception {
         reqMgr.close();
         verify(producer, times(1)).close();

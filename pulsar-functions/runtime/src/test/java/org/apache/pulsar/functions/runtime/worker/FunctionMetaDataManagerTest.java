@@ -22,13 +22,9 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
-import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
-import org.junit.Test;
-
 import java.util.concurrent.LinkedBlockingQueue;
+import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
+import org.testng.annotations.Test;
 
 public class FunctionMetaDataManagerTest {
 

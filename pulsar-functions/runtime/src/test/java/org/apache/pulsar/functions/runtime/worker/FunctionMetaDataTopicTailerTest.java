@@ -31,10 +31,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionMetaDataTopicTailer}.
@@ -42,8 +40,7 @@ import org.junit.rules.TestName;
 @Slf4j
 public class FunctionMetaDataTopicTailerTest {
 
-    @Rule
-    public final TestName runtime = new TestName();
+    private static final String TEST_NAME = "test-fmt";
 
     private final Reader reader;
     private final FunctionMetaDataManager fsm;
@@ -55,7 +52,7 @@ public class FunctionMetaDataTopicTailerTest {
         this.fsc = new FunctionMetaDataTopicTailer(fsm, reader);
     }
 
-    @After
+    @AfterMethod
     public void tearDown() throws Exception {
         fsc.close();
         verify(reader, times(1)).close();
@@ -64,7 +61,7 @@ public class FunctionMetaDataTopicTailerTest {
     @Test
     public void testUpdate() throws Exception {
         UpdateRequest request = UpdateRequest.of(
-            runtime.getMethodName(),
+            TEST_NAME,
             mock(FunctionMetaData.class));
 
         Message msg = mock(Message.class);

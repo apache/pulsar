@@ -26,34 +26,36 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
+import com.google.common.collect.Lists;
 import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.InstanceID;
-import org.junit.After;
-import org.junit.Test;
-import org.testng.collections.Lists;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionCacheManagerImpl}.
  */
 public class FunctionCacheManagerImplTest {
 
-    private final URL jarUrl;
-    private final List<String> jarFiles;
-    private final List<URL> classpaths;
-    private final FunctionCacheManagerImpl cacheManager;
+    private URL jarUrl;
+    private List<String> jarFiles;
+    private List<URL> classpaths;
+    private FunctionCacheManagerImpl cacheManager;
 
-    public FunctionCacheManagerImplTest() {
+    @BeforeMethod
+    public void setUp() {
         this.jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
         this.jarFiles = Lists.newArrayList(jarUrl.getPath());
         this.classpaths = Collections.emptyList();
         this.cacheManager = new FunctionCacheManagerImpl();
     }
 
-    @After
+    @AfterMethod
     public void tearDown() {
         this.cacheManager.close();
     }
@@ -67,18 +69,18 @@ public class FunctionCacheManagerImplTest {
         assertEquals(4, func.apply(2).intValue());
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void testGetClassLoaderNullFunctionID() {
         this.cacheManager.getClassLoader(null);
     }
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expectedExceptions = IllegalStateException.class)
     public void testGetClassLoaderNotFound() {
         FunctionID fid = new FunctionID();
         this.cacheManager.getClassLoader(fid);
     }
 
-    @Test(expected = NullPointerException.class)
+    @Test(expectedExceptions = NullPointerException.class)
     public void testRegisterNullFunctionID() throws Exception {
         this.cacheManager.registerFunctionInstance(
             null,

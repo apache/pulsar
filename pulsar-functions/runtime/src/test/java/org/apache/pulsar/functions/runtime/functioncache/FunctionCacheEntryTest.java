@@ -24,14 +24,14 @@ import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Set;
 import org.apache.pulsar.functions.runtime.InstanceID;
-import org.junit.Test;
-import org.testng.collections.Sets;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionCacheEntry}.
