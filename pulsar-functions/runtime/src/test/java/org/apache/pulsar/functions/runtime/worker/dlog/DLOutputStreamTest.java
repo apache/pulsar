@@ -25,7 +25,7 @@ import static org.mockito.Mockito.verify;
 
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.api.DistributedLogManager;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link DLOutputStream}.

@@ -19,11 +19,9 @@
 
 package org.apache.pulsar.functions.fs;
 
-import static org.junit.Assert.assertEquals;
+import static org.testng.Assert.assertEquals;
 
 import java.net.URL;
-import org.junit.Rule;
-import org.junit.rules.TestName;
 import org.testng.annotations.Test;
 
 /**
@@ -31,19 +29,18 @@ import org.testng.annotations.Test;
  */
 public class FunctionConfigTest {
 
-    @Rule
-    public final TestName runtime = new TestName();
+    public static final String TEST_NAME = "test-function-config";
 
     @Test
     public void testGetterSetter() {
         FunctionConfig fc = new FunctionConfig();
-        fc.setSinkTopic(runtime.getMethodName() + "-sink");
-        fc.setSourceTopic(runtime.getMethodName() + "-source");
-        fc.setName(runtime.getMethodName());
+        fc.setSinkTopic(TEST_NAME + "-sink");
+        fc.setSourceTopic(TEST_NAME + "-source");
+        fc.setName(TEST_NAME);
 
-        assertEquals(runtime.getMethodName(), fc.getName());
-        assertEquals(runtime.getMethodName() + "-sink", fc.getSinkTopic());
-        assertEquals(runtime.getMethodName() + "-source", fc.getSourceTopic());
+        assertEquals(TEST_NAME, fc.getName());
+        assertEquals(TEST_NAME + "-sink", fc.getSinkTopic());
+        assertEquals(TEST_NAME + "-source", fc.getSourceTopic());
     }
 
     @Test

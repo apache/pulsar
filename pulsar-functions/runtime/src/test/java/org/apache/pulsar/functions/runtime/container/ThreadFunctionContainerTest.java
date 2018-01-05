@@ -33,10 +33,8 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.InstanceID;
-import org.junit.After;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link ThreadFunctionContainer}.
@@ -44,8 +42,7 @@ import org.junit.rules.TestName;
 @Slf4j
 public class ThreadFunctionContainerTest {
 
-    @Rule
-    public final TestName runtime = new TestName();
+    private static final String TEST_NAME = "test-function-container";
 
     private final PulsarClientImpl client;
     private final ThreadFunctionContainerFactory factory;
@@ -63,17 +60,17 @@ public class ThreadFunctionContainerTest {
             client);
     }
 
-    @After
+    @AfterMethod
     public void tearDown() {
         this.factory.close();
     }
 
     FunctionConfig createFunctionConfig() {
         FunctionConfig config = new FunctionConfig();
-        config.setName(runtime.getMethodName());
+        config.setName(TEST_NAME);
         config.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        config.setSourceTopic(runtime.getMethodName() + "-source");
-        config.setSinkTopic(runtime.getMethodName() + "-sink");
+        config.setSourceTopic(TEST_NAME + "-source");
+        config.setSinkTopic(TEST_NAME + "-sink");
         return config;
     }
 

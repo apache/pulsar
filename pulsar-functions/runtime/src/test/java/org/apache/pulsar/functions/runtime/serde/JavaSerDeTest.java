@@ -25,7 +25,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.ToString;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link JavaSerDeTest}.

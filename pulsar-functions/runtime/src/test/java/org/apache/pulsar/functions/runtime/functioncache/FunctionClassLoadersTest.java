@@ -25,7 +25,7 @@ import static org.testng.Assert.assertSame;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.function.Function;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link FunctionClassLoaders}.
@@ -47,7 +47,7 @@ public class FunctionClassLoadersTest {
         assertEquals(4, func.apply(2).intValue());
     }
 
-    @Test(expected = ClassNotFoundException.class)
+    @Test(expectedExceptions = ClassNotFoundException.class)
     public void testClassNotFound() throws Exception {
         ClassLoader clsLoader = getClass().getClassLoader();
         clsLoader.loadClass("org.apache.pulsar.functions.runtime.functioncache.AddFunction");

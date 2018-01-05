@@ -24,7 +24,7 @@ import static org.testng.Assert.assertTrue;
 
 import lombok.Setter;
 import lombok.experimental.Accessors;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test {@link Annotations}.

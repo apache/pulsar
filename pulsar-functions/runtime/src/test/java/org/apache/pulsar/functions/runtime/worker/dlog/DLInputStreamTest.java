@@ -19,14 +19,14 @@
 package org.apache.pulsar.functions.runtime.worker.dlog;
 
 import static com.google.common.base.Charsets.UTF_8;
-import static org.junit.Assert.assertEquals;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyBoolean;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
+import static org.testng.AssertJUnit.assertEquals;
 
 import java.io.ByteArrayInputStream;
 import org.apache.distributedlog.DLSN;
@@ -34,7 +34,7 @@ import org.apache.distributedlog.LogRecordWithDLSN;
 import org.apache.distributedlog.api.DistributedLogManager;
 import org.apache.distributedlog.api.LogReader;
 import org.apache.distributedlog.exceptions.EndOfStreamException;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link DLInputStream}.

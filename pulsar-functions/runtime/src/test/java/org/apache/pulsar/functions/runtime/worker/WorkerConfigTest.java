@@ -21,33 +21,30 @@ package org.apache.pulsar.functions.runtime.worker;
 import static org.testng.Assert.assertEquals;
 
 import java.net.URL;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link WorkerConfig}.
  */
 public class WorkerConfigTest {
 
-    @Rule
-    public final TestName runtime = new TestName();
+    private static final String TEST_NAME = "test-worker-config";
 
     @Test
     public void testGetterSetter() {
         WorkerConfig wc = new WorkerConfig();
         wc.setPulsarServiceUrl("pulsar://localhost:1234");
         wc.setZookeeperServers("localhost:1234");
-        wc.setFunctionMetadataTopic(runtime.getMethodName() + "-meta-topic");
+        wc.setFunctionMetadataTopic(TEST_NAME + "-meta-topic");
         wc.setNumFunctionPackageReplicas(3);
-        wc.setWorkerId(runtime.getMethodName() + "-worker");
+        wc.setWorkerId(TEST_NAME + "-worker");
         wc.setWorkerPort(1234);
 
         assertEquals("pulsar://localhost:1234", wc.getPulsarServiceUrl());
         assertEquals("localhost:1234", wc.getZookeeperServers());
-        assertEquals(runtime.getMethodName() + "-meta-topic", wc.getFunctionMetadataTopic());
+        assertEquals(TEST_NAME + "-meta-topic", wc.getFunctionMetadataTopic());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
-        assertEquals(runtime.getMethodName() + "-worker", wc.getWorkerId());
+        assertEquals(TEST_NAME + "-worker", wc.getWorkerId());
         assertEquals(1234, wc.getWorkerPort());
     }
 

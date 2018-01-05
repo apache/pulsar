@@ -20,7 +20,7 @@ package org.apache.pulsar.functions.runtime.serde;
 
 import static org.testng.Assert.assertEquals;
 
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link Utf8StringSerDe}.

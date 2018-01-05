@@ -25,7 +25,7 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.fail;
 
 import java.io.IOException;
-import org.junit.Test;
+import org.testng.annotations.Test;
 
 /**
  * Unit test of {@link Exceptions}.
