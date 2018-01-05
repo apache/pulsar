@@ -18,32 +18,33 @@
  */
 package org.apache.pulsar.functions.fs;
 
+import lombok.*;
+import lombok.experimental.Accessors;
+
 import java.io.Serializable;
 
 /**
  * Stats of a running function.
  */
-public interface FunctionStats extends Serializable {
+@Data
+@Setter
+@Getter
+@EqualsAndHashCode
+@ToString
+@Accessors(chain = true)
+public class FunctionStatus implements Serializable {
 
-    /**
-     * Return total number of messages begin to process.
-     *
-     * @return total number of messages begin to process.
-     */
-    long getTotalMsgsProcess();
+    private boolean running;
 
-    /**
-     * Return total number of messages succeed on processing.
-     *
-     * @return total number of messages succeed on processing.
-     */
-    long getTotalMsgsProcessSucceed();
+    private Exception startupException;
 
-    /**
-     * Return total number of messages failed on processing.
-     *
-     * @return total number of messages failed on processing.
-     */
-    long getTotalMsgsProcessFailed();
+    private long numProcessed;
 
+    private long numSuccessfullyProcessed;
+
+    private long numTimeouts;
+
+    private long numUserExceptions;
+
+    private long numSystemExceptions;
 }
