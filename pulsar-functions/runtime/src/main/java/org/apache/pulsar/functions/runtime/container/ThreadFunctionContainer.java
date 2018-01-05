@@ -97,7 +97,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                 log.info("Thread Function Container Starting Java Instance {}", javaInstanceConfig.getFunctionConfig().getName());
 
                 // initialize the thread context
-                ThreadContext.put("function", getFunctionConfig().getFullyQulifiedName());
+                ThreadContext.put("function", getFunctionConfig().getFullyQualifiedName());
                 JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
 
                 while (!closed) {
