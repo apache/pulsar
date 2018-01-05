@@ -28,10 +28,11 @@ import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
@@ -103,15 +104,16 @@ public class Worker extends AbstractService {
                     dlogNamespace, actionQueue);
             this.functionActioner.start();
 
-            ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-            consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
+            ReaderConfiguration readerConf = new ReaderConfiguration();
+
+            Reader reader = client.createReader(
+                workerConfig.getFunctionMetadataTopic(),
+                MessageId.earliest,
+                readerConf);
 
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(
                     functionMetaDataManager,
-                client.subscribe(
-                    workerConfig.getFunctionMetadataTopic(),
-                    workerConfig.getFunctionMetadataTopicSubscription(),
-                    consumerConf));
+                    reader);
 
             log.info("Start worker {}...", workerConfig.getWorkerId());
             log.info("Worker Configs: {}", workerConfig);
