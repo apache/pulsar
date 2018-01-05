@@ -71,6 +71,7 @@ public class FunctionActioner implements AutoCloseable {
                 }
             }
         });
+        actioner.setName("FunctionActionerThread");
     }
 
     public void start() {
