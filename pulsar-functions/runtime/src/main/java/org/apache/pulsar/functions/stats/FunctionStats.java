@@ -26,13 +26,12 @@ import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.FunctionStats;
 
 /**
  * Function stats.
  */
 @Slf4j
-public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
+public class FunctionStats implements AutoCloseable {
 
     private static final long serialVersionUID = 1L;
 
@@ -43,12 +42,16 @@ public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
     private final String functionName;
     private final long statsIntervalSeconds;
 
-    private final LongAdder numMsgsProcess;
-    private final LongAdder numMsgsProcessSucceed;
-    private final LongAdder numMsgsProcessFailed;
-    private final LongAdder totalMsgsProcess;
-    private final LongAdder totalMsgsProcessSucceed;
-    private final LongAdder totalMsgsProcessFailed;
+    private final LongAdder numProcessed;
+    private final LongAdder numSuccessfullyProcessed;
+    private final LongAdder numUserExceptions;
+    private final LongAdder numSystemExceptions;
+    private final LongAdder numTimeoutExceptions;
+    private final LongAdder totalProcessed;
+    private final LongAdder totalSuccessfullyProcessed;
+    private final LongAdder totalUserExceptions;
+    private final LongAdder totalSystemExceptions;
+    private final LongAdder totalTimeoutExceptions;
 
     private final DoublesSketch ds;
 
@@ -57,19 +60,23 @@ public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
     private final TimerTask statsTask;
     private Timeout statsTimeout;
 
-    public FunctionStatsImpl(String functionName,
-                             long statsIntervalSeconds,
-                             Timer timer) {
+    public FunctionStats(String functionName,
+                         long statsIntervalSeconds,
+                         Timer timer) {
         this.functionName = functionName;
         this.statsIntervalSeconds = statsIntervalSeconds;
         this.timer = timer;
 
-        this.totalMsgsProcess = new LongAdder();
-        this.totalMsgsProcessFailed = new LongAdder();
-        this.totalMsgsProcessSucceed = new LongAdder();
-        this.numMsgsProcess = new LongAdder();
-        this.numMsgsProcessFailed = new LongAdder();
-        this.numMsgsProcessSucceed = new LongAdder();
+        this.totalProcessed = new LongAdder();
+        this.totalSuccessfullyProcessed = new LongAdder();
+        this.totalUserExceptions = new LongAdder();
+        this.totalSystemExceptions = new LongAdder();
+        this.totalTimeoutExceptions = new LongAdder();
+        this.numProcessed = new LongAdder();
+        this.numSuccessfullyProcessed = new LongAdder();
+        this.numUserExceptions = new LongAdder();
+        this.numSystemExceptions = new LongAdder();
+        this.numTimeoutExceptions = new LongAdder();
         this.ds = DoublesSketch.builder().build(256);
 
         this.statsTask = initializeTimerTask();
@@ -92,13 +99,17 @@ public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
                 double elapsed = (now - oldTime) / 1e9;
                 oldTime = now;
 
-                long currentNumMsgsProcessed = numMsgsProcess.sumThenReset();
-                long currentNumMsgsProcessFailed = numMsgsProcessFailed.sumThenReset();
-                long currentNumMsgsProcessSucceed = numMsgsProcessSucceed.sumThenReset();
+                long currentNumMsgsProcessed = numProcessed.sumThenReset();
+                long currentNumMsgsProcessSucceed = numSuccessfullyProcessed.sumThenReset();
+                long currentNumMsgsUserExceptions = numUserExceptions.sumThenReset();
+                long currentNumMsgsSystemExceptions = numSystemExceptions.sumThenReset();
+                long currentNumMsgsTimeoutExceptions = numTimeoutExceptions.sumThenReset();
 
-                totalMsgsProcess.add(currentNumMsgsProcessed);
-                totalMsgsProcessFailed.add(currentNumMsgsProcessFailed);
-                totalMsgsProcessSucceed.add(currentNumMsgsProcessSucceed);
+                totalProcessed.add(currentNumMsgsProcessed);
+                totalSuccessfullyProcessed.add(currentNumMsgsProcessSucceed);
+                totalUserExceptions.add(currentNumMsgsUserExceptions);
+                totalSystemExceptions.add(currentNumMsgsSystemExceptions);
+                totalTimeoutExceptions.add(currentNumMsgsTimeoutExceptions);
 
                 double[] percentileValues;
                 synchronized (ds) {
@@ -106,7 +117,8 @@ public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
                     ds.reset();
                 }
 
-                if ((currentNumMsgsProcessed | currentNumMsgsProcessFailed | currentNumMsgsProcessSucceed) != 0) {
+                if ((currentNumMsgsProcessed | currentNumMsgsUserExceptions | currentNumMsgsProcessSucceed
+                        | currentNumMsgsSystemExceptions | currentNumMsgsTimeoutExceptions) != 0) {
 
                     for (int i = 0; i < percentileValues.length; i++) {
                         if (percentileValues[i] == Double.NaN) {
@@ -123,7 +135,8 @@ public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
                             dec.format(percentileValues[0] / 1000.0), dec.format(percentileValues[1] / 1000.0),
                             dec.format(percentileValues[2] / 1000.0), dec.format(percentileValues[3] / 1000.0),
                             dec.format(percentileValues[4] / 1000.0),
-                            throughputFormat.format(currentNumMsgsProcessSucceed / elapsed), currentNumMsgsProcessFailed);
+                            throughputFormat.format(currentNumMsgsProcessSucceed / elapsed),
+                            currentNumMsgsUserExceptions + currentNumMsgsSystemExceptions + currentNumMsgsTimeoutExceptions);
                 }
             } catch (Exception e) {
                 log.error("[{}]: {}", functionName, e.getMessage());
@@ -154,38 +167,46 @@ public class FunctionStatsImpl implements FunctionStats, AutoCloseable {
     // Internal use only
     //
 
-    public void incrementProcessFailure() {
-        this.numMsgsProcessFailed.increment();
+    public void incrementUserException() {
+        this.numUserExceptions.increment();
+    }
+
+    public void incrementSystemException() {
+        this.numSystemExceptions.increment();
+    }
+
+    public void incrementTimeoutException() {
+        this.numTimeoutExceptions.increment();
     }
 
     public void incrementProcessSuccess(long latencyNs) {
-        this.numMsgsProcessSucceed.increment();
+        this.numSuccessfullyProcessed.increment();
         synchronized (ds) {
             ds.update(TimeUnit.NANOSECONDS.toMicros(latencyNs));
         }
     }
 
     public void incrementProcess() {
-        this.numMsgsProcess.increment();
+        this.numProcessed.increment();
     }
 
-
-    //
-    // User Public API
-    //
-
-    @Override
-    public long getTotalMsgsProcess() {
-        return totalMsgsProcess.longValue();
+    public long getTotalProcessed() {
+        return totalProcessed.longValue();
     }
 
-    @Override
-    public long getTotalMsgsProcessFailed() {
-        return totalMsgsProcessFailed.longValue();
+    public long getTotalUserExceptions() {
+        return totalUserExceptions.longValue();
     }
 
-    @Override
-    public long getTotalMsgsProcessSucceed() {
-        return totalMsgsProcessSucceed.longValue();
+    public long getTotalSystemExceptions() {
+        return totalSystemExceptions.longValue();
+    }
+
+    public long getTotalTimeoutExceptions() {
+        return totalTimeoutExceptions.longValue();
+    }
+
+    public long getTotalSuccessfullyProcessed() {
+        return totalSuccessfullyProcessed.longValue();
     }
 }

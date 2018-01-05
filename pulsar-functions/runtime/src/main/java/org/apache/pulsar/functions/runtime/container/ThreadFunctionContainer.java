@@ -43,7 +43,7 @@ import org.apache.pulsar.functions.runtime.instance.JavaInstance;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
-import org.apache.pulsar.functions.stats.FunctionStatsImpl;
+import org.apache.pulsar.functions.stats.FunctionStats;
 
 /**
  * A function container implemented using java thread.
@@ -71,7 +71,7 @@ class ThreadFunctionContainer implements FunctionContainer {
     private Consumer sourceConsumer;
 
     // function stats
-    private final FunctionStatsImpl stats;
+    private final FunctionStats stats;
 
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
                             int maxBufferedTuples,
@@ -88,7 +88,7 @@ class ThreadFunctionContainer implements FunctionContainer {
         this.id = "fn-" + instanceConfig.getFunctionConfig().getName() + "-instance-" + instanceConfig.getInstanceId();
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
-        this.stats = new FunctionStatsImpl(
+        this.stats = new FunctionStats(
             id,
             client.getConfiguration().getStatsIntervalSeconds(),
             client.timer());
@@ -201,13 +201,13 @@ class ThreadFunctionContainer implements FunctionContainer {
     private void processResult(Message msg, JavaExecutionResult result, long processAt, SerDe serDe) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
-            stats.incrementProcessFailure();
+            stats.incrementUserException();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
-            stats.incrementProcessFailure();
+            stats.incrementSystemException();
         } else if (result.getTimeoutException() != null) {
             log.info("Timedout when processing message {}", msg, result.getTimeoutException());
-            stats.incrementProcessFailure();
+            stats.incrementTimeoutException();
         } else if (result.getResult() != null) {
             stats.incrementProcessSuccess(System.nanoTime() - processAt);
             if (sinkProducer != null) {
