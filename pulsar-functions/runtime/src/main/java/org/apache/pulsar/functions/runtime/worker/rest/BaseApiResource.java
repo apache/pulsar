@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.runtime.worker.rest;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.runtime.worker.FunctionActioner;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 
@@ -30,10 +31,12 @@ public class BaseApiResource {
     public static final String ATTRIBUTE_WORKER_CONFIG = "config";
     public static final String ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER = "function-state-manager";
     public static final String ATTRIBUTE_WORKER_DLOG_NAMESPACE = "distributedlog-namespace";
+    public static final String ATTRIBUTE_FUNCTION_ACTIONER = "function-actioner";
 
     private WorkerConfig workerConfig;
     private FunctionMetaDataManager functionMetaDataManager;
     private Namespace dlogNamespace;
+    private FunctionActioner functionActioner;
 
     @Context
     protected ServletContext servletContext;
@@ -57,6 +60,13 @@ public class BaseApiResource {
             this.dlogNamespace = (Namespace) servletContext.getAttribute(ATTRIBUTE_WORKER_DLOG_NAMESPACE);
         }
         return this.dlogNamespace;
+    }
+
+    public FunctionActioner getFunctionActioner() {
+        if (this.functionActioner == null) {
+            this.functionActioner = (FunctionActioner) servletContext.getAttribute(ATTRIBUTE_FUNCTION_ACTIONER);
+        }
+        return this.functionActioner;
     }
 
 }

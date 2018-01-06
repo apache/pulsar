@@ -23,6 +23,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -57,6 +58,15 @@ public class FunctionsImpl extends BaseResource implements Functions {
     public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
             return request(functions.path(tenant).path(namespace).path(function)).get(FunctionConfig.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException {
+        try {
+            return request(functions.path(tenant).path(namespace).path(function).path("status")).get(FunctionStatus.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

@@ -22,6 +22,7 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
@@ -77,7 +78,12 @@ public class FunctionActioner implements AutoCloseable {
                     FunctionAction action = actionQueue.poll(1, TimeUnit.SECONDS);
                     if (action == null) continue;
                     if (action.getAction() == FunctionAction.Action.START) {
-                        startFunction(action.getFunctionMetaData());
+                        try {
+                            startFunction(action.getFunctionMetaData());
+                        } catch (Exception ex) {
+                            log.info("Error starting function", ex);
+                            action.getFunctionMetaData().setStartupException(ex);
+                        }
                     } else {
                         stopFunction(action.getFunctionMetaData());
                     }
@@ -102,45 +108,36 @@ public class FunctionActioner implements AutoCloseable {
         actioner.join();
     }
 
-    private boolean startFunction(FunctionMetaData functionMetaData) {
+    private void startFunction(FunctionMetaData functionMetaData) throws Exception {
         log.info("Starting function {} ...", functionMetaData.getFunctionConfig().getName());
-        try {
-            File pkgDir = new File(
-                    workerConfig.getDownloadDirectory(),
-                    StringUtils.join(
-                            new String[]{
-                                    functionMetaData.getFunctionConfig().getTenant(),
-                                    functionMetaData.getFunctionConfig().getNamespace(),
-                                    functionMetaData.getFunctionConfig().getName(),
-                            },
-                            File.separatorChar));
-            pkgDir.mkdirs();
+        File pkgDir = new File(
+                workerConfig.getDownloadDirectory(),
+                StringUtils.join(
+                        new String[]{
+                                functionMetaData.getFunctionConfig().getTenant(),
+                                functionMetaData.getFunctionConfig().getNamespace(),
+                                functionMetaData.getFunctionConfig().getName(),
+                        },
+                        File.separatorChar));
+        pkgDir.mkdirs();
 
-            File pkgFile = new File(pkgDir, new File(functionMetaData.getPackageLocation().getPackagePath()).getName());
-            if (!pkgFile.exists()) {
-                log.info("Function package file {} doesn't exist, downloading from {}",
-                        pkgFile, functionMetaData.getPackageLocation());
-                if (!Utils.downloadFromBookkeeper(
-                        dlogNamespace,
-                        new FileOutputStream(pkgFile),
-                        functionMetaData.getPackageLocation().getPackagePath())) {
-                    log.error("Not able to download {} to {}", functionMetaData.getPackageLocation().getPackagePath(), pkgFile.getPath());
-                    return false;
-                }
-            }
-            Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
-                    pkgFile.getAbsolutePath(), functionContainerFactory);
-
-            AssignmentInfo assignmentInfo = new AssignmentInfo();
-            assignmentInfo.setFunctionMetaData(functionMetaData);
-            assignmentInfo.setSpawner(spawner);
-            assignments.put(functionMetaData.getFunctionConfig().getFullyQualifiedName(), assignmentInfo);
-            spawner.start();
-            return true;
-        } catch (Exception ex) {
-            log.error("Function {} failed to start", functionMetaData.getFunctionConfig().getName(), ex);
-            return false;
+        File pkgFile = new File(pkgDir, new File(functionMetaData.getPackageLocation().getPackagePath()).getName());
+        if (!pkgFile.exists()) {
+            log.info("Function package file {} doesn't exist, downloading from {}",
+                    pkgFile, functionMetaData.getPackageLocation());
+            Utils.downloadFromBookkeeper(
+                    dlogNamespace,
+                    new FileOutputStream(pkgFile),
+                    functionMetaData.getPackageLocation().getPackagePath());
         }
+        Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
+                pkgFile.getAbsolutePath(), functionContainerFactory);
+
+        AssignmentInfo assignmentInfo = new AssignmentInfo();
+        assignmentInfo.setFunctionMetaData(functionMetaData);
+        assignmentInfo.setSpawner(spawner);
+        assignments.put(functionMetaData.getFunctionConfig().getFullyQualifiedName(), assignmentInfo);
+        spawner.start();
     }
 
     private boolean stopFunction(FunctionMetaData functionMetaData) {
@@ -152,5 +149,17 @@ public class FunctionActioner implements AutoCloseable {
             return true;
         }
         return false;
+    }
+
+    public boolean containsAssignment(FunctionConfig functionConfig) {
+        return assignments.containsKey(functionConfig.getFullyQualifiedName());
+    }
+
+    public Spawner getSpawner(FunctionConfig functionConfig) {
+        if (!containsAssignment(functionConfig)) {
+            return null;
+        } else {
+            return assignments.get(functionConfig.getFullyQualifiedName()).getSpawner();
+        }
     }
 }

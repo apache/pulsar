@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.container;
 
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.LinkedBlockingQueue;
 
 import java.util.concurrent.TimeUnit;
@@ -38,6 +39,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.runtime.instance.JavaExecutionResult;
 import org.apache.pulsar.functions.runtime.instance.JavaInstance;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
@@ -208,9 +210,9 @@ class ThreadFunctionContainer implements FunctionContainer {
         } else if (result.getTimeoutException() != null) {
             log.info("Timedout when processing message {}", msg, result.getTimeoutException());
             stats.incrementTimeoutException();
-        } else if (result.getResult() != null) {
+        } else {
             stats.incrementProcessSuccess(System.nanoTime() - processAt);
-            if (sinkProducer != null) {
+            if (result.getResult() != null && sinkProducer != null) {
                 byte[] output = null;
                 if (result.getResult() != null) {
                     output = serDe.serialize(result.getResult());
@@ -233,9 +235,7 @@ class ThreadFunctionContainer implements FunctionContainer {
             } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
                 sourceConsumer.acknowledgeAsync(msg);
             }
-        } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-             sourceConsumer.acknowledgeAsync(msg);
-         }
+        }
     }
 
     @Override
@@ -288,6 +288,17 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public FunctionConfig getFunctionConfig() {
         return javaInstanceConfig.getFunctionConfig();
+    }
+
+    @Override
+    public CompletableFuture<FunctionStatus> getFunctionStatus() {
+        FunctionStatus retval = new FunctionStatus();
+        retval.setNumProcessed(stats.getTotalProcessed());
+        retval.setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed());
+        retval.setNumUserExceptions(stats.getTotalUserExceptions());
+        retval.setNumSystemExceptions(stats.getTotalSystemExceptions());
+        retval.setNumTimeouts(stats.getTotalTimeoutExceptions());
+        return CompletableFuture.completedFuture(retval);
     }
 
     private static String convertMessageIdToString(MessageId messageId) {

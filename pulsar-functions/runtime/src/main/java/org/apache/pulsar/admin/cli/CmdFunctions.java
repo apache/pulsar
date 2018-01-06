@@ -46,6 +46,7 @@ public class CmdFunctions extends CmdBase {
     private final DeleteFunction deleter;
     private final UpdateFunction updater;
     private final GetFunction getter;
+    private final GetFunctionStatus statuser;
     private final ListFunctions lister;
 
     /**
@@ -261,6 +262,17 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "GetStatus function")
+    class GetFunctionStatus extends FunctionCommand {
+        @Override
+        void runCmd() throws Exception {
+            if (tenant == null || namespace == null || functionName == null) {
+                throw new RuntimeException("Missing arguments");
+            }
+            print(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
+        }
+    }
+
     @Parameters(commandDescription = "Delete function")
     class DeleteFunction extends FunctionCommand {
         @Override
@@ -301,12 +313,14 @@ public class CmdFunctions extends CmdBase {
         deleter = new DeleteFunction();
         updater = new UpdateFunction();
         getter = new GetFunction();
+        statuser = new GetFunctionStatus();
         lister = new ListFunctions();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
         jcommander.addCommand("update", getUpdater());
         jcommander.addCommand("get", getGetter());
+        jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
     }
 
@@ -334,6 +348,9 @@ public class CmdFunctions extends CmdBase {
     GetFunction getGetter() {
         return getter;
     }
+
+    @VisibleForTesting
+    GetFunctionStatus getStatuser() { return statuser; }
 
     @VisibleForTesting
     ListFunctions getLister() {

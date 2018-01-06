@@ -23,6 +23,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.FunctionStatus;
 
 import java.util.List;
 
@@ -76,19 +77,11 @@ public interface Functions {
     FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException;
 
     /**
-     * Create a new cluster.
-     * <p>
-     * Provisions a new cluster. This operation requires Pulsar super-user privileges.
-     * <p>
-     * The name cannot contain '/' characters.
+     * Create a new function.
      *
      * @param functionConfig
      *            the function configuration object
      *
-     * @throws NotAuthorized
-     *             You don't have admin permission to create the cluster
-     * @throws ConflictException
-     *             Cluster already exists
      * @throws PulsarAdminException
      *             Unexpected error
      */
@@ -132,4 +125,20 @@ public interface Functions {
      *             Unexpected error
      */
     void deleteFunction(String tenant, String namespace, String function) throws PulsarAdminException;
+
+    /**
+     * Gets the current status of a function.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
+
 }

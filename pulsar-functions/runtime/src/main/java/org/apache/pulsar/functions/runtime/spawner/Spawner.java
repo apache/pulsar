@@ -24,9 +24,11 @@
 package org.apache.pulsar.functions.runtime.spawner;
 
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
@@ -78,6 +80,10 @@ public class Spawner implements AutoCloseable {
         if (null != functionContainer) {
             functionContainer.join();
         }
+    }
+
+    public CompletableFuture<FunctionStatus> getFunctionStatus() {
+        return functionContainer.getFunctionStatus();
     }
 
     @Override

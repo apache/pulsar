@@ -121,23 +121,17 @@ public final class Utils {
         }
     }
 
-    public static boolean downloadFromBookkeeper(Namespace namespace,
+    public static void downloadFromBookkeeper(Namespace namespace,
                                                  OutputStream outputStream,
-                                                 String packagePath) {
-        try (DistributedLogManager dlm = namespace.openLog(packagePath)) {
-            try (InputStream in = new DLInputStream(dlm)) {
-                int read = 0;
-                byte[] bytes = new byte[1024];
-                while ((read = in.read(bytes)) != -1) {
-                    outputStream.write(bytes, 0, read);
-                }
-                outputStream.flush();
-                return true;
-            }
-        } catch (Exception ex) {
-            log.error("failed to download from bookeeper with exception", ex);
-            return false;
+                                                 String packagePath) throws Exception {
+        DistributedLogManager dlm = namespace.openLog(packagePath);
+        InputStream in = new DLInputStream(dlm);
+        int read = 0;
+        byte[] bytes = new byte[1024];
+        while ((read = in.read(bytes)) != -1) {
+            outputStream.write(bytes, 0, read);
         }
+        outputStream.flush();
     }
 
     public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {
