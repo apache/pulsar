@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
+import org.apache.pulsar.functions.runtime.worker.request.MarkerRequest;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
@@ -32,6 +33,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -55,12 +57,28 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     private LinkedBlockingQueue<FunctionAction> actionQueue;
 
+    private boolean initializePhase = true;
+    private final String initializeMarkerRequestId = UUID.randomUUID().toString();
+
     public FunctionMetaDataManager(WorkerConfig workerConfig,
                                    ServiceRequestManager serviceRequestManager,
                                    LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
         this.serviceRequestManager = serviceRequestManager;
         this.actionQueue = actionQueue;
+    }
+
+    public boolean isInitializePhase() {
+        return initializePhase;
+    }
+
+    public void setInitializePhase(boolean initializePhase) {
+        this.initializePhase = initializePhase;
+    }
+
+    public void sendIntializationMarker() {
+        log.info("sending marking message...");
+        this.serviceRequestManager.submitRequest(new MarkerRequest(this.workerConfig.getWorkerId(), this.initializeMarkerRequestId));
     }
 
     @Override
@@ -208,7 +226,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             // check if request is outdated
             if (!isRequestOutdated(deregisterRequest)) {
                 // Check if this worker is suppose to run the function
-                if (isMyRequest(deregisterRequest)) {
+                if (shouldProcessRequest(deregisterRequest)) {
                     // stop running the function
                     insertStopAction(deregisterRequestFs);
                 }
@@ -247,7 +265,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             // Since this is the first time worker has seen function, just put it into internal function metadata store
             addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
-            if (isMyRequest(updateRequest)) {
+            if (shouldProcessRequest(updateRequest)) {
                 insertStartAction(updateRequestFs);
             }
             completeRequest(updateRequest, true);
@@ -265,7 +283,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 // update the function metadata
                 addFunctionToFunctionMap(updateRequestFs);
                 // check if this worker should run the update
-                if (isMyRequest(updateRequest)) {
+                if (shouldProcessRequest(updateRequest)) {
                     // Update the function
                     insertStartAction(updateRequestFs);
                 }
@@ -299,29 +317,60 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return currentFunctionMetaData.getVersion() >= requestFunctionMetaData.getVersion();
     }
 
-    private boolean isMyRequest(ServiceRequest serviceRequest) {
+    private boolean shouldProcessRequest(ServiceRequest serviceRequest) {
         return this.workerConfig.getWorkerId().equals(serviceRequest.getFunctionMetaData().getWorkerId());
     }
 
+    private boolean isSendByMe(ServiceRequest serviceRequest) {
+        return this.workerConfig.getWorkerId().equals(serviceRequest.getWorkerId());
+    }
+
     private void insertStopAction(FunctionMetaData functionMetaData) {
-        FunctionAction functionAction = new FunctionAction();
-        functionAction.setAction(FunctionAction.Action.STOP);
-        functionAction.setFunctionMetaData(functionMetaData);
-        try {
-            actionQueue.put(functionAction);
-        } catch (InterruptedException ex) {
-            throw new RuntimeException("Interrupted while putting action");
+        if (!this.isInitializePhase()) {
+            FunctionAction functionAction = new FunctionAction();
+            functionAction.setAction(FunctionAction.Action.STOP);
+            functionAction.setFunctionMetaData(functionMetaData);
+            try {
+                actionQueue.put(functionAction);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException("Interrupted while putting action");
+            }
         }
     }
 
     private void insertStartAction(FunctionMetaData functionMetaData) {
-        FunctionAction functionAction = new FunctionAction();
-        functionAction.setAction(FunctionAction.Action.START);
-        functionAction.setFunctionMetaData(functionMetaData);
-        try {
-            actionQueue.put(functionAction);
-        } catch (InterruptedException ex) {
-            throw new RuntimeException("Interrupted while putting action");
+        if (!this.isInitializePhase()) {
+            FunctionAction functionAction = new FunctionAction();
+            functionAction.setAction(FunctionAction.Action.START);
+            functionAction.setFunctionMetaData(functionMetaData);
+            try {
+                actionQueue.put(functionAction);
+            } catch (InterruptedException ex) {
+                throw new RuntimeException("Interrupted while putting action");
+            }
+        }
+    }
+
+    private boolean isMyInitializeMarkerRequest(MarkerRequest serviceRequest) {
+        return isSendByMe(serviceRequest) && this.initializeMarkerRequestId.equals(serviceRequest.getRequestId());
+    }
+
+    public void processInitializeMarker(MarkerRequest serviceRequest) {
+        if (isMyInitializeMarkerRequest(serviceRequest)) {
+            this.setInitializePhase(false);
+            log.info("Initializing Metadata state done!");
+            log.info("Launching existing assignments...");
+            // materialize current assignments
+            for (Map<String, Map<String, FunctionMetaData>> i: this.functionMap.values()) {
+                for (Map<String, FunctionMetaData> k : i.values()) {
+                    for (FunctionMetaData functionMetaData : k.values()) {
+                        // if I should run this
+                        if (this.workerConfig.getWorkerId().equals(functionMetaData.getWorkerId())) {
+                            insertStartAction(functionMetaData);
+                        }
+                    }
+                }
+            }
         }
     }
 }

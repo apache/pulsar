@@ -22,11 +22,10 @@ import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 
 public class DeregisterRequest extends ServiceRequest{
 
-    private String functionName;
+    private static final long serialVersionUID = 4041129758880596555L;
 
     public DeregisterRequest(String workerId, FunctionMetaData functionMetaData) {
         super(workerId, functionMetaData, ServiceRequestType.DELETE);
-        this.functionName = functionName;
     }
 
     public static DeregisterRequest of(String workerId, FunctionMetaData functionMetaData) {

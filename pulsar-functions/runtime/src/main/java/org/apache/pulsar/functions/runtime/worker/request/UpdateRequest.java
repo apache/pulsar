@@ -22,6 +22,8 @@ import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
 
 public class UpdateRequest extends ServiceRequest {
 
+    private static final long serialVersionUID = 4874557910196094342L;
+
     private UpdateRequest(String workerId, FunctionMetaData functionMetaData) {
         super(workerId, functionMetaData, ServiceRequestType.UPDATE);
     }

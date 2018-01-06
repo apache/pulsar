@@ -25,7 +25,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
+import org.apache.pulsar.functions.runtime.worker.request.MarkerRequest;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
+import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 
 @Slf4j
@@ -43,7 +45,13 @@ public class FunctionMetaDataTopicTailer
     }
 
     public void start() {
+        initialize();
         receiveOne();
+    }
+
+    public void initialize() {
+        log.info("Initializing Metadata state...");
+        this.functionMetaDataManager.sendIntializationMarker();
     }
 
     private void receiveOne() {
@@ -78,6 +86,9 @@ public class FunctionMetaDataTopicTailer
         }
 
         switch(serviceRequest.getRequestType()) {
+            case MARKER:
+                this.functionMetaDataManager.processInitializeMarker((MarkerRequest) serviceRequest);
+                break;
             case UPDATE:
                 this.functionMetaDataManager.processUpdate((UpdateRequest) serviceRequest);
                 break;

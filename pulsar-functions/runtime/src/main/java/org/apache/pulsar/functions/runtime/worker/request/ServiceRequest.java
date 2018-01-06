@@ -46,7 +46,8 @@ public abstract class ServiceRequest implements Serializable{
 
     public enum ServiceRequestType {
         UPDATE,
-        DELETE
+        DELETE,
+        MARKER
     }
 
     public ServiceRequest(String workerId, FunctionMetaData functionMetaData, ServiceRequestType serviceRequestType) {
