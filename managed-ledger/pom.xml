@@ -56,6 +56,17 @@
       <scope>test</scope>
     </dependency>
 
+    <!--
+        junit is a runtime dependency of zookeeper tests, so only
+        add this dependency here.
+    -->
+    <dependency>
+      <groupId>junit</groupId>
+      <artifactId>junit</artifactId>
+      <version>4.12</version>
+      <scope>test</scope>
+    </dependency>
+
     <dependency>
       <groupId>log4j</groupId>
       <artifactId>log4j</artifactId>
