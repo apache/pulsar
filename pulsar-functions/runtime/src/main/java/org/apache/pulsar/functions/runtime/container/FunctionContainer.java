@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.FunctionStatus;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -37,5 +38,7 @@ public interface FunctionContainer {
     void stop();
 
     FunctionConfig getFunctionConfig();
+
+    CompletableFuture<FunctionStatus> getFunctionStatus();
 
 }

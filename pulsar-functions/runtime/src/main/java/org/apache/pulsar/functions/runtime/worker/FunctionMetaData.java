@@ -52,6 +52,8 @@ public class FunctionMetaData implements Serializable, Cloneable {
     // the timestamp when the function was created
     private long createTime;
     private String workerId;
+    // Did we encounter any exception starting this function
+    private Exception startupException;
 
     public void incrementVersion() {
         this.version = this.version + 1;

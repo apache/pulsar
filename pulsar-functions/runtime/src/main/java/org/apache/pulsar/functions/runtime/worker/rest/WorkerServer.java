@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.worker.rest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.runtime.worker.FunctionActioner;
 import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 import org.eclipse.jetty.server.Server;
@@ -39,6 +40,7 @@ public class WorkerServer implements Runnable {
     private final WorkerConfig workerConfig;
     private final FunctionMetaDataManager functionMetaDataManager;
     private final Namespace dlogNamespace;
+    private final FunctionActioner functionActioner;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
@@ -61,6 +63,7 @@ public class WorkerServer implements Runnable {
         contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_CONFIG, this.workerConfig);
         contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionMetaDataManager);
         contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_DLOG_NAMESPACE, this.dlogNamespace);
+        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_FUNCTION_ACTIONER, this.functionActioner);
         contextHandler.setContextPath("/");
 
         server.setHandler(contextHandler);

@@ -22,13 +22,11 @@ import com.google.gson.Gson;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
-import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.runtime.worker.PackageLocationMetaData;
-import org.apache.pulsar.functions.runtime.worker.Utils;
+import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.runtime.worker.*;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
-import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 import org.apache.pulsar.functions.runtime.worker.rest.BaseApiResource;
 import org.apache.pulsar.functions.runtime.worker.rest.RestUtils;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -282,6 +280,54 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunction(tenant, namespace, functionName);
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionMetaData.getFunctionConfig())).build();
+    }
+
+    @GET
+    @Path("/{tenant}/{namespace}/{functionName}/status")
+    public Response getFunctionStatus(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("functionName") String functionName) {
+
+        // validate parameters
+        try {
+            validateGetFunctionRequestParams(tenant, namespace, functionName);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid getFunctionStatus request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(RestUtils.createMessage(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionActioner functionActioner = getFunctionActioner();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName) ||
+                !functionActioner.containsAssignment(functionMetaDataManager.getFunction(tenant, namespace, functionName).getFunctionConfig())) {
+            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunction(tenant, namespace, functionName);
+        Spawner spawner = functionActioner.getSpawner(functionMetaData.getFunctionConfig());
+        FunctionStatus functionStatus = new FunctionStatus();
+        functionStatus.setRunning(spawner == null ? false : true);
+        functionStatus.setStartupException(functionMetaData.getStartupException());
+        if (spawner != null) {
+            try {
+                FunctionStatus f = spawner.getFunctionStatus().get();
+                functionStatus.setNumProcessed(f.getNumProcessed());
+                functionStatus.setNumTimeouts(f.getNumTimeouts());
+                functionStatus.setNumSystemExceptions(f.getNumSystemExceptions());
+                functionStatus.setNumUserExceptions(f.getNumUserExceptions());
+                functionStatus.setNumSuccessfullyProcessed(f.getNumSuccessfullyProcessed());
+            } catch (Exception ex) {
+            }
+        }
+        return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStatus)).build();
     }
 
     @GET

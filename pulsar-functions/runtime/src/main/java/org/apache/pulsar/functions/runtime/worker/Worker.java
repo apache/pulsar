@@ -124,7 +124,7 @@ public class Worker extends AbstractService {
             throw new RuntimeException(e);
         }
 
-        WorkerServer server = new WorkerServer(workerConfig, functionMetaDataManager, dlogNamespace);
+        WorkerServer server = new WorkerServer(workerConfig, functionMetaDataManager, dlogNamespace, functionActioner);
         this.serverThread = new Thread(server, server.getThreadName());
 
         log.info("Start worker server on port {}...", workerConfig.getWorkerPort());
