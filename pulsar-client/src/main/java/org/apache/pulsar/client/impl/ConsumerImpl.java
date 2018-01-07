@@ -26,14 +26,7 @@ import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -111,7 +104,9 @@ public class ConsumerImpl extends ConsumerBase {
 
     private MessageCrypto msgCrypto = null;
 
-    static enum SubscriptionMode {
+    private final Map<String, String> metadata;
+
+    enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
         Durable,
@@ -162,6 +157,12 @@ public class ConsumerImpl extends ConsumerBase {
         if (conf.getCryptoKeyReader() != null) {
             String logCtx = "[" + topic + "] [" + subscription + "]";
             this.msgCrypto = new MessageCrypto(logCtx, false);
+        }
+
+        if (conf.getProperties().isEmpty()) {
+            metadata = Collections.emptyMap();
+        } else {
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
         grabCnx();
@@ -549,7 +550,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData);
+                consumerName, isDurable, startMessageIdData, metadata);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }

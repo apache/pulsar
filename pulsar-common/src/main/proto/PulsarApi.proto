@@ -178,6 +178,9 @@ message CommandSubscribe {
 	// markd-delete position  on the particular message id and
 	// will send messages from that point
 	optional MessageIdData start_message_id = 9;
+
+	/// Add optional metadata key=value to this consumer
+    repeated KeyValue metadata = 10;
 }
 
 message CommandPartitionedTopicMetadata {
