@@ -23,6 +23,7 @@
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <pulsar/MessageRoutingPolicy.h>
+#include <pulsar/TopicMetadata.h>
 
 namespace pulsar {
 
@@ -88,7 +89,7 @@ namespace pulsar {
     const DestinationNamePtr destinationName_;
     const std::string topic_;
 
-    const unsigned int numPartitions_;
+    std::unique_ptr<TopicMetadata> topicMetadata_;
 
     unsigned int numProducersCreated_;
 
@@ -112,6 +113,8 @@ namespace pulsar {
 
     // only set this promise to value, when producers on all partitions are created.
     Promise<Result, ProducerImplBaseWeakPtr> partitionedProducerCreatedPromise_;
+
+      MessageRoutingPolicyPtr getMessageRouter();
   };
 
 } //ends namespace Pulsar

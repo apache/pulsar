@@ -16,12 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+#include <cstdlib>
 #include "PartitionedProducerImpl.h"
 #include "LogUtils.h"
 #include <boost/bind.hpp>
 #include <sstream>
 #include "RoundRobinMessageRouter.h"
 #include "SinglePartitionMessageRouter.h"
+#include "TopicMetadataImpl.h"
 #include "DestinationName.h"
 #include "MessageImpl.h"
 
@@ -37,18 +39,28 @@ namespace pulsar {
                                                      const ProducerConfiguration& config):client_(client),
                                                                                           destinationName_(destinationName),
                                                                                           topic_(destinationName_->toString()),
-                                                                                          numPartitions_(numPartitions),
                                                                                           conf_(config),
                                                                                           state_(Pending)
     {
         numProducersCreated_ = 0;
+
+        topicMetadata_ = std::unique_ptr<TopicMetadata>(new TopicMetadataImpl(numPartitions));
+
         cleanup_ = false;
-        if(config.getPartitionsRoutingMode() == ProducerConfiguration::RoundRobinDistribution) {
-            routerPolicy_ = boost::make_shared<RoundRobinMessageRouter>(numPartitions);
-        } else if (config.getPartitionsRoutingMode() == ProducerConfiguration::UseSinglePartition) {
-            routerPolicy_ = boost::make_shared<SinglePartitionMessageRouter>(numPartitions);
-        } else {
-            routerPolicy_ = config.getMessageRouterPtr();
+
+        routerPolicy_ = getMessageRouter();
+    }
+
+    MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
+        switch (conf_.getPartitionsRoutingMode()) {
+            case ProducerConfiguration::RoundRobinDistribution:
+                return boost::make_shared<RoundRobinMessageRouter>();
+            case ProducerConfiguration::CustomPartition:
+                return conf_.getMessageRouterPtr();
+            case ProducerConfiguration::UseSinglePartition:
+            default:
+                unsigned int random = rand();
+                return boost::make_shared<SinglePartitionMessageRouter>(random % topicMetadata_->getNumPartitions());
         }
     }
 
@@ -63,7 +75,7 @@ namespace pulsar {
     void PartitionedProducerImpl::start() {
         boost::shared_ptr<ProducerImpl> producer;
         // create producer per partition
-        for (unsigned int i = 0; i < numPartitions_; i++) {
+        for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
             std::string topicPartitionName = destinationName_->getTopicPartitionName(i);
             producer = boost::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
             producer->getProducerCreatedFuture().addListener(boost::bind(&PartitionedProducerImpl::handleSinglePartitionProducerCreated,
@@ -89,7 +101,7 @@ namespace pulsar {
             // Ignore, we have already informed client that producer creation failed
             return;
         }
-        assert(numProducersCreated_ <= numPartitions_);
+        assert(numProducersCreated_ <= topicMetadata_->getNumPartitions());
         if (result != ResultOk) {
             state_ = Failed;
             lock.unlock();
@@ -99,9 +111,9 @@ namespace pulsar {
             return;
         }
 
-        assert(partitionIndex <= numPartitions_);
+        assert(partitionIndex <= topicMetadata_->getNumPartitions());
         numProducersCreated_++;
-        if(numProducersCreated_ == numPartitions_) {
+        if(numProducersCreated_ == topicMetadata_->getNumPartitions()) {
             lock.unlock();
             partitionedProducerCreatedPromise_.setValue(shared_from_this());
         }
@@ -110,8 +122,8 @@ namespace pulsar {
     //override
     void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
         //get partition for this message from router policy
-        short partition = (short)(routerPolicy_->getPartition(msg));
-        if (partition >= numPartitions_ || partition >= producers_.size()) {
+        short partition = (short)(routerPolicy_->getPartition(msg, *topicMetadata_));
+        if (partition >= topicMetadata_->getNumPartitions() || partition >= producers_.size()) {
             LOG_ERROR("Got Invalid Partition for message from Router Policy, Partition - " << partition);
             //change me: abort or notify failure in callback?
             //          change to appropriate error if callback
@@ -196,7 +208,7 @@ namespace pulsar {
             }
             return;
         }
-        assert (partitionIndex < numPartitions_);
+        assert (partitionIndex < topicMetadata_->getNumPartitions());
         if(numProducersCreated_ > 0) {
             numProducersCreated_--;
         }

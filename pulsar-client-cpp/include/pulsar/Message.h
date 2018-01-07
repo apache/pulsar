@@ -44,6 +44,7 @@ class Message {
     typedef std::map<std::string, std::string> StringMap;
 
     Message();
+    virtual ~Message() {}
 
     /**
      * Return the properties attached to the message.
@@ -51,7 +52,7 @@ class Message {
      *
      * @return an unmodifiable view of the properties map
      */
-    const StringMap& getProperties() const;
+    virtual const StringMap& getProperties() const;
 
     /**
      * Check whether the message has a specific property attached.
@@ -60,7 +61,7 @@ class Message {
      * @return true if the message has the specified property
      * @return false if the property is not defined
      */
-    bool hasProperty(const std::string& name) const;
+    virtual bool hasProperty(const std::string& name) const;
 
     /**
      * Get the value of a specific property
@@ -68,7 +69,7 @@ class Message {
      * @param name the name of the property
      * @return the value of the property or null if the property was not defined
      */
-    const std::string& getProperty(const std::string& name) const;
+    virtual const std::string& getProperty(const std::string& name) const;
 
     /**
      * Get the content of the message
@@ -76,21 +77,21 @@ class Message {
      *
      * @return the pointer to the message payload
      */
-    const void* getData() const;
+    virtual const void* getData() const;
 
     /**
      * Get the length of the message
      *
      * @return the length of the message payload
      */
-    std::size_t getLength() const;
+    virtual std::size_t getLength() const;
 
     /**
      * Get string representation of the message
      *
      * @return the string representation of the message payload
      */
-    std::string getDataAsString() const;
+    virtual std::string getDataAsString() const;
 
     /**
      * Get the unique message ID associated with this message.
@@ -100,24 +101,24 @@ class Message {
      * Only messages received from the consumer will have a message id assigned.
      *
      */
-    const MessageId& getMessageId() const;
+    virtual const MessageId& getMessageId() const;
 
     /**
      * Get the partition key for this message
      * @return key string that is hashed to determine message's destination partition
      */
-    const std::string& getPartitionKey() const;
-    bool hasPartitionKey() const;
+    virtual const std::string& getPartitionKey() const;
+    virtual bool hasPartitionKey() const;
 
     /**
      * Get the UTC based timestamp in milliseconds referring to when the message was published by the client producer
      */
-    uint64_t getPublishTimestamp() const;
+    virtual uint64_t getPublishTimestamp() const;
 
     /**
      * Get the event timestamp associated with this message. It is set by the client producer.
      */
-    uint64_t getEventTimestamp() const;
+    virtual uint64_t getEventTimestamp() const;
 
   private:
     typedef boost::shared_ptr<MessageImpl> MessageImplPtr;
