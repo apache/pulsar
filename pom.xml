@@ -138,7 +138,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>6.8.5</version>
+        <version>6.13.1</version>
       </dependency>
 
       <dependency>

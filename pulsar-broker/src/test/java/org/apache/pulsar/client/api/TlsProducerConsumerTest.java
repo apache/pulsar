@@ -21,9 +21,9 @@ package org.apache.pulsar.client.api;
 import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
-import org.junit.Assert;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.Test;
 
 public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
@@ -64,7 +64,7 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             byte[] expected = new byte[MESSAGE_SIZE];
             Arrays.fill(expected, (byte) i);
-            Assert.assertArrayEquals(expected, msg.getData());
+            Assert.assertEquals(expected, msg.getData());
         }
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
