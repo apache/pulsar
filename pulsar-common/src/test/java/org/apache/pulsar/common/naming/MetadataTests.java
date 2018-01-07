@@ -18,13 +18,12 @@
  */
 package org.apache.pulsar.common.naming;
 
-import junit.framework.Assert;
-import org.junit.Test;
-
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class MetadataTests {
 
