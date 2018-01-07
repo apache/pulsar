@@ -23,7 +23,7 @@
 #include <boost/algorithm/string.hpp>
 namespace pulsar {
 class CustomRoutingPolicy : public MessageRoutingPolicy {
-    int getPartition(const Message& msg) {
+    int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
         return 0;
     }
 };

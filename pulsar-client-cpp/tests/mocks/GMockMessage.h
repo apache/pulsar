@@ -16,11 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <LogUtils.h>
-#include <gmock/gmock.h>
 
-int main(int argc, char **argv) {
-    LogUtils::init("log4cxx.conf");
-    ::testing::InitGoogleMock(&argc, argv);
-    return RUN_ALL_TESTS();
+#ifndef MOCK_MESSAGE_HPP_
+#define MOCK_MESSAGE_HPP_
+
+#include <gmock/gmock.h>
+#include <pulsar/Message.h>
+
+namespace pulsar {
+    class GMockMessage : public Message {
+    public:
+        MOCK_CONST_METHOD0(hasPartitionKey, bool());
+
+        MOCK_CONST_METHOD0(getPartitionKey, const std::string&());
+    };
 }
+
+#endif // MOCK_MESSAGE_HPP_
