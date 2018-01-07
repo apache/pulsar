@@ -223,4 +223,35 @@ public class DestinationNameTest {
         assertEquals(name.getEncodedLocalName(), encodedName);
         assertEquals(name.getPersistenceNamingEncoding(), "prop/colo/ns/persistent/" + encodedName);
     }
+
+    @Test
+    public void testTopicNameWithoutCluster() throws Exception {
+        assertEquals(DestinationName.get("persistent://property/namespace/destination").getNamespace(),
+                "property/namespace");
+
+        assertEquals(DestinationName.get("persistent://property/namespace/destination"),
+                DestinationName.get("persistent", "property", "namespace", "destination"));
+
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").hashCode(),
+                DestinationName.get("persistent", "property", "cluster", "namespace", "destination").hashCode());
+
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").toString(),
+                "persistent://property/cluster/namespace/destination");
+
+        assertFalse(DestinationName.get("persistent://property/cluster/namespace/destination")
+                .equals("persistent://property/cluster/namespace/destination"));
+
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getDomain(),
+                DestinationDomain.persistent);
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getProperty(),
+                "property");
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getCluster(),
+                "cluster");
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getNamespacePortion(),
+                "namespace");
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getNamespace(),
+                "property/cluster/namespace");
+        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getLocalName(),
+                "destination");
+    }
 }

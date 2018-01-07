@@ -64,6 +64,11 @@ public class DestinationName implements ServiceUnitId {
                 }
             });
 
+    public static DestinationName get(String domain, String property, String namespace, String destination) {
+        String name = domain + "://" + property + '/' + namespace + '/' + destination;
+        return DestinationName.get(name);
+    }
+
     public static DestinationName get(String domain, String property, String cluster, String namespace,
             String destination) {
         String name = domain + "://" + property + '/' + cluster + '/' + namespace + '/' + destination;
@@ -118,7 +123,7 @@ public class DestinationName implements ServiceUnitId {
             this.partitionIndex = getPartitionIndex(destination);
 
             NamespaceName.validateNamespaceName(property, cluster, namespacePortion);
-            if (checkNotNull(localName).isEmpty()) {
+            if (localName == null || localName.isEmpty()) {
                 throw new IllegalArgumentException("Invalid destination name: " + destination);
             }
         } catch (NullPointerException e) {
