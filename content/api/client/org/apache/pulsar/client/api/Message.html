@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -144,30 +144,42 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i4" class="altColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getProducerName--">getProducerName</a></span>()</code>
+<div class="block">Get the producer name who produced this message.</div>
+</td>
+</tr>
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>Map&lt;String,String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getProperties--">getProperties</a></span>()</code>
 <div class="block">Return the properties attached to the message.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getProperty-java.lang.String-">getProperty</a></span>(String&nbsp;name)</code>
 <div class="block">Get the value of a specific property</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getPublishTime--">getPublishTime</a></span>()</code>
 <div class="block">Get the publish time of this message.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i8" class="altColor">
+<td class="colFirst"><code>long</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getSequenceId--">getSequenceId</a></span>()</code>
+<div class="block">Get the sequence id associated with this message.</div>
+</td>
+</tr>
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasKey--">hasKey</a></span>()</code>
 <div class="block">Check whether the message has a key</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasProperty-java.lang.String-">hasProperty</a></span>(String&nbsp;name)</code>
 <div class="block">Check whether the message has a specific property attached.</div>
@@ -300,6 +312,41 @@ var activeTableTab = "activeTableTab";
 <dd>1.20.0</dd>
 <dt><span class="seeLabel">See Also:</span></dt>
 <dd><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setEventTime-long-"><code>MessageBuilder.setEventTime(long)</code></a></dd>
+</dl>
+</li>
+</ul>
+<a name="getSequenceId--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getSequenceId</h4>
+<pre>long&nbsp;getSequenceId()</pre>
+<div class="block">Get the sequence id associated with this message. It is typically set by the applications via
+ <a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setSequenceId-long-"><code>MessageBuilder.setSequenceId(long)</code></a>.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>sequence id associated with this message.</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>1.22.0</dd>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setEventTime-long-"><code>MessageBuilder.setEventTime(long)</code></a></dd>
+</dl>
+</li>
+</ul>
+<a name="getProducerName--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getProducerName</h4>
+<pre>String&nbsp;getProducerName()</pre>
+<div class="block">Get the producer name who produced this message.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>producer name who produced this message, null if producer name is not set.</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>1.22.0</dd>
 </dl>
 </li>
 </ul>
