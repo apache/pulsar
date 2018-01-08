@@ -18,6 +18,8 @@
  */
 #ifndef PULSAR_MESSAGE_ROUTING_POLICY_HEADER_
 #define PULSAR_MESSAGE_ROUTING_POLICY_HEADER_
+
+#include <pulsar/DeprecatedException.h>
 #include <pulsar/Message.h>
 #include <pulsar/TopicMetadata.h>
 #include <boost/shared_ptr.hpp>
@@ -34,7 +36,17 @@ class MessageRoutingPolicy {
  public:
     virtual ~MessageRoutingPolicy() {}
 
-    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata) = 0;
+    /** @deprecated
+       Use int getPartition(const Message& msg, const TopicMetadata& topicMetadata)
+    */
+    virtual int getPartition(const Message& msg) {
+        throw DeprecatedException("Use int getPartition(const Message& msg,"
+                                          " const TopicMetadata& topicMetadata)");
+    }
+
+    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
+        return getPartition(msg);
+    }
 };
 
 typedef boost::shared_ptr<MessageRoutingPolicy> MessageRoutingPolicyPtr;

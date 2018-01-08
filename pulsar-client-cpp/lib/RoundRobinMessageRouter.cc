@@ -17,7 +17,6 @@
  * under the License.
  */
 #include "RoundRobinMessageRouter.h"
-#include <boost/algorithm/string.hpp>
 
 namespace pulsar {
     RoundRobinMessageRouter::RoundRobinMessageRouter():prevPartition_(0) {

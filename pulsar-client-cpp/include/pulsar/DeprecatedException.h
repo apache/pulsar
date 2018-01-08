@@ -16,24 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef CUSTOM_ROUTER_POLICY_HEADER_
-#define CUSTOM_ROUTER_POLICY_HEADER_
+#ifndef DEPRECATED_EXCEPTION_HPP_
+#define DEPRECATED_EXCEPTION_HPP_
 
-#include <cstdlib> // rand()
-#include <boost/algorithm/string.hpp>
-#include <pulsar/DeprecatedException.h>
+#include <stdexcept>
+#include <string>
 
 namespace pulsar {
-class CustomRoutingPolicy : public MessageRoutingPolicy {
-    /** @deprecated */
-    int getPartition(const Message& msg) {
-        throw DeprecatedException("Use getPartition(const Message&, const TopicMetadata&) instead.");
-    }
+    class DeprecatedException: public std::runtime_error {
+    public:
+        explicit DeprecatedException(const std::string& __arg);
 
-    int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-        return 0;
-    }
-};
+    private:
+        static const std::string message_prefix;
+    };
 }
 
-#endif // CUSTOM_ROUTER_POLICY_HEADER_
+#endif //DEPRECATED_EXCEPTION_HPP_
