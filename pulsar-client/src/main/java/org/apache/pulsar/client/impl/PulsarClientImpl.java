@@ -192,7 +192,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException {
-        return subscribe(topic, subscription, conf, conf.getMessageListener());
+        return subscribe(topic, subscription, conf, conf != null ? conf.getMessageListener() : null);
     }
 
     @Override
@@ -225,7 +225,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf) {
-        return subscribeAsync(topic, subscription, conf, conf.getMessageListener());
+        return subscribeAsync(topic, subscription, conf, conf != null ? conf.getMessageListener() : null);
     }
 
     @Override
@@ -283,7 +283,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException {
-        return createReader(topic, startMessageId, conf, conf.getReaderListener());
+        return createReader(topic, startMessageId, conf, conf != null ? conf.getReaderListener() : null);
     }
 
     @Override
@@ -306,7 +306,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf) {
-        return createReaderAsync(topic, startMessageId, conf, conf.getReaderListener());
+        return createReaderAsync(topic, startMessageId, conf, conf != null ? conf.getReaderListener() : null);
     }
 
     @Override
