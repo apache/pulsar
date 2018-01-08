@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.worker.rest.api.v1;
 import com.google.gson.Gson;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.annotation.Annotations;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
@@ -59,17 +60,13 @@ public class ApiV1Resource extends BaseApiResource {
                                      final @PathParam("functionName") String functionName,
                                      final @FormDataParam("data") InputStream uploadedInputStream,
                                      final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                     final @FormDataParam("sinkTopic") String sinkTopic,
-                                     final @FormDataParam("sourceTopic") String sourceTopic,
-                                     final @FormDataParam("inputSerdeClassName") String inputSerdeClassName,
-                                     final @FormDataParam("outputSerdeClassName") String outputSerdeClassName,
-                                     final @FormDataParam("className") String className) {
+                                     final @FormDataParam("functionConfig") String functionConfigJson) {
 
+        FunctionConfig functionConfig;
         // validate parameters
         try {
-            validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, sinkTopic, sourceTopic,
-                    inputSerdeClassName, outputSerdeClassName, className);
+            functionConfig = validateUpdateRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionConfigJson);
         } catch (IllegalArgumentException e) {
             log.error("Invalid register function request @ /{}/{}/{}",
                 tenant, namespace, functionName, e);
@@ -86,17 +83,6 @@ public class ApiV1Resource extends BaseApiResource {
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
         }
-
-        // function configuration
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(functionName);
-        functionConfig.setSourceTopic(sourceTopic);
-        functionConfig.setSinkTopic(sinkTopic);
-        functionConfig.setInputSerdeClassName(inputSerdeClassName);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        functionConfig.setClassName(className);
 
         // function resource limits
         LimitsConfig limitsConfig = getWorkerConfig().getDefaultLimits();
@@ -131,17 +117,13 @@ public class ApiV1Resource extends BaseApiResource {
                                    final @PathParam("functionName") String functionName,
                                    final @FormDataParam("data") InputStream uploadedInputStream,
                                    final @FormDataParam("data") FormDataContentDisposition fileDetail,
-                                   final @FormDataParam("sinkTopic") String sinkTopic,
-                                   final @FormDataParam("sourceTopic") String sourceTopic,
-                                   final @FormDataParam("inputSerdeClassName") String inputSerdeClassName,
-                                   final @FormDataParam("outputSerdeClassName") String outputSerdeClassName,
-                                   final @FormDataParam("className") String className) {
+                                   final @FormDataParam("functionConfig") String functionConfigJson) {
 
+        FunctionConfig functionConfig;
         // validate parameters
         try {
-            validateUpdateRequestParams(tenant, namespace, functionName,
-                    uploadedInputStream, fileDetail, sinkTopic, sourceTopic,
-                    inputSerdeClassName, outputSerdeClassName, className);
+            functionConfig = validateUpdateRequestParams(tenant, namespace, functionName,
+                    uploadedInputStream, fileDetail, functionConfigJson);
         } catch (IllegalArgumentException e) {
             log.error("Invalid update function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -157,17 +139,6 @@ public class ApiV1Resource extends BaseApiResource {
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
-
-        // function configuration
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant);
-        functionConfig.setNamespace(namespace);
-        functionConfig.setName(functionName);
-        functionConfig.setSourceTopic(sourceTopic);
-        functionConfig.setSinkTopic(sinkTopic);
-        functionConfig.setInputSerdeClassName(inputSerdeClassName);
-        functionConfig.setOutputSerdeClassName(outputSerdeClassName);
-        functionConfig.setClassName(className);
 
         // function resource limits
         LimitsConfig limitsConfig = getWorkerConfig().getDefaultLimits();
@@ -440,16 +411,12 @@ public class ApiV1Resource extends BaseApiResource {
         }
     }
 
-    private void validateUpdateRequestParams(String tenant,
+    private FunctionConfig validateUpdateRequestParams(String tenant,
                                              String namespace,
                                              String functionName,
                                              InputStream uploadedInputStream,
                                              FormDataContentDisposition fileDetail,
-                                             String sinkTpic,
-                                             String sourceTopic,
-                                             String inputSerdeClassName,
-                                             String outputSerdeClassName,
-                                             String className) throws IllegalArgumentException {
+                                             String functionConfigJson) throws IllegalArgumentException {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -462,17 +429,21 @@ public class ApiV1Resource extends BaseApiResource {
         if (uploadedInputStream == null || fileDetail == null) {
             throw new IllegalArgumentException("Function Package is not provided");
         }
-        if (sourceTopic == null) {
-            throw new IllegalArgumentException("Source Topic is not provided");
+        if (functionConfigJson == null) {
+            throw new IllegalArgumentException("FunctionConfig is not provided");
         }
-        if (inputSerdeClassName == null) {
-            throw new IllegalArgumentException("InputSerdeClassName is not provided");
-        }
-        if (outputSerdeClassName == null) {
-            throw new IllegalArgumentException("OutputSerdeClassName is not provided");
-        }
-        if (className == null) {
-            throw new IllegalArgumentException("ClassName is not provided");
+        try {
+            FunctionConfig functionConfig = new Gson().fromJson(functionConfigJson, FunctionConfig.class);
+            String missingField = Annotations.findMissingField(functionConfig);
+            if (missingField != null) {
+                String errorMessage = missingField.substring(0, 1).toUpperCase() + missingField.substring(1);
+                throw new IllegalArgumentException(errorMessage + " is not provided");
+            }
+            return functionConfig;
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Invalid FunctionConfig");
         }
     }
 

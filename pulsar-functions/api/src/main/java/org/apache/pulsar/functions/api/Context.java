@@ -89,4 +89,11 @@ public interface Context {
      * @return the logger object
      */
     Logger getLogger();
+
+    /**
+     * Get Any user defined key/value
+     * @param key The key
+     * @return The value specified by the user for that key. null if no such key
+     */
+    String getUserConfigValue(String key);
 }

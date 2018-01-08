@@ -23,7 +23,7 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.lang.reflect.Field;
+import java.util.Map;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -74,6 +74,8 @@ public class FunctionConfig implements Serializable {
         ATLEAST_ONCE
     }
     private ProcessingGuarantees processingGuarantees;
+
+    private Map<String, String> userConfig;
 
     public String getFullyQualifiedName() {
         return String.format("%s/%s/%s", tenant, namespace, name);
