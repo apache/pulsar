@@ -40,14 +40,11 @@ namespace pulsar {
                                                                                           destinationName_(destinationName),
                                                                                           topic_(destinationName_->toString()),
                                                                                           conf_(config),
-                                                                                          state_(Pending)
+                                                                                          state_(Pending),
+                                                                                          topicMetadata_(new TopicMetadataImpl(numPartitions))
     {
         numProducersCreated_ = 0;
-
-        topicMetadata_ = std::unique_ptr<TopicMetadata>(new TopicMetadataImpl(numPartitions));
-
         cleanup_ = false;
-
         routerPolicy_ = getMessageRouter();
     }
 

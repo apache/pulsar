@@ -21,6 +21,7 @@
 #include "DestinationName.h"
 #include <vector>
 #include <boost/shared_ptr.hpp>
+#include <boost/scoped_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/TopicMetadata.h>
@@ -89,7 +90,7 @@ namespace pulsar {
     const DestinationNamePtr destinationName_;
     const std::string topic_;
 
-    std::unique_ptr<TopicMetadata> topicMetadata_;
+    boost::scoped_ptr<TopicMetadata> topicMetadata_;
 
     unsigned int numProducersCreated_;
 
