@@ -19,8 +19,7 @@
 package org.apache.pulsar.functions.runtime.worker.rest;
 
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.runtime.worker.FunctionActioner;
-import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
+import org.apache.pulsar.functions.runtime.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
 
 import javax.servlet.ServletContext;
@@ -31,12 +30,10 @@ public class BaseApiResource {
     public static final String ATTRIBUTE_WORKER_CONFIG = "config";
     public static final String ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER = "function-state-manager";
     public static final String ATTRIBUTE_WORKER_DLOG_NAMESPACE = "distributedlog-namespace";
-    public static final String ATTRIBUTE_FUNCTION_ACTIONER = "function-actioner";
 
     private WorkerConfig workerConfig;
-    private FunctionMetaDataManager functionMetaDataManager;
+    private FunctionRuntimeManager functionRuntimeManager;
     private Namespace dlogNamespace;
-    private FunctionActioner functionActioner;
 
     @Context
     protected ServletContext servletContext;
@@ -48,11 +45,11 @@ public class BaseApiResource {
         return this.workerConfig;
     }
 
-    public FunctionMetaDataManager getWorkerFunctionStateManager() {
-        if (this.functionMetaDataManager == null) {
-            this.functionMetaDataManager = (FunctionMetaDataManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER);
+    public FunctionRuntimeManager getWorkerFunctionStateManager() {
+        if (this.functionRuntimeManager == null) {
+            this.functionRuntimeManager = (FunctionRuntimeManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER);
         }
-        return this.functionMetaDataManager;
+        return this.functionRuntimeManager;
     }
 
     public Namespace getDlogNamespace() {
@@ -61,12 +58,4 @@ public class BaseApiResource {
         }
         return this.dlogNamespace;
     }
-
-    public FunctionActioner getFunctionActioner() {
-        if (this.functionActioner == null) {
-            this.functionActioner = (FunctionActioner) servletContext.getAttribute(ATTRIBUTE_FUNCTION_ACTIONER);
-        }
-        return this.functionActioner;
-    }
-
 }

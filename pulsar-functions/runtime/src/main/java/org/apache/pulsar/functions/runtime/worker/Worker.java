@@ -45,7 +45,7 @@ public class Worker extends AbstractService {
     private final WorkerConfig workerConfig;
     private final LimitsConfig limitsConfig;
     private PulsarClient client;
-    private FunctionMetaDataManager functionMetaDataManager;
+    private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
     private FunctionContainerFactory functionContainerFactory;
     private Thread serverThread;
@@ -98,7 +98,7 @@ public class Worker extends AbstractService {
 
             this.actionQueue = new LinkedBlockingQueue<>();
 
-            this.functionMetaDataManager = new FunctionMetaDataManager(workerConfig, reqMgr, actionQueue);
+            this.functionRuntimeManager = new FunctionRuntimeManager(workerConfig, reqMgr, actionQueue);
 
             this.functionActioner = new FunctionActioner(workerConfig, limitsConfig, functionContainerFactory,
                     dlogNamespace, actionQueue);
@@ -112,7 +112,7 @@ public class Worker extends AbstractService {
                 readerConf);
 
             this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(
-                    functionMetaDataManager,
+                    functionRuntimeManager,
                     reader);
 
             log.info("Start worker {}...", workerConfig.getWorkerId());
@@ -124,7 +124,7 @@ public class Worker extends AbstractService {
             throw new RuntimeException(e);
         }
 
-        WorkerServer server = new WorkerServer(workerConfig, functionMetaDataManager, dlogNamespace, functionActioner);
+        WorkerServer server = new WorkerServer(workerConfig, functionRuntimeManager, dlogNamespace);
         this.serverThread = new Thread(server, server.getThreadName());
 
         log.info("Start worker server on port {}...", workerConfig.getWorkerPort());
@@ -146,8 +146,8 @@ public class Worker extends AbstractService {
         if (null != functionMetaDataTopicTailer) {
             functionMetaDataTopicTailer.close();
         }
-        if (null != functionMetaDataManager) {
-            functionMetaDataManager.close();
+        if (null != functionRuntimeManager) {
+            functionRuntimeManager.close();
         }
         if (null != client) {
             try {

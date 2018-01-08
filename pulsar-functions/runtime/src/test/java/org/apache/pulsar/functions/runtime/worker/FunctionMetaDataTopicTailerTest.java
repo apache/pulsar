@@ -43,12 +43,12 @@ public class FunctionMetaDataTopicTailerTest {
     private static final String TEST_NAME = "test-fmt";
 
     private final Reader reader;
-    private final FunctionMetaDataManager fsm;
+    private final FunctionRuntimeManager fsm;
     private final FunctionMetaDataTopicTailer fsc;
 
     public FunctionMetaDataTopicTailerTest() throws Exception {
         this.reader = mock(Reader.class);
-        this.fsm = mock(FunctionMetaDataManager.class);
+        this.fsm = mock(FunctionRuntimeManager.class);
         this.fsc = new FunctionMetaDataTopicTailer(fsm, reader);
     }
 

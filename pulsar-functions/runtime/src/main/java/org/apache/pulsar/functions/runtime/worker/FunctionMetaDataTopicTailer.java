@@ -27,20 +27,19 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.runtime.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.runtime.worker.request.MarkerRequest;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequest;
-import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.runtime.worker.request.UpdateRequest;
 
 @Slf4j
 public class FunctionMetaDataTopicTailer
         implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
 
-    private final FunctionMetaDataManager functionMetaDataManager;
+    private final FunctionRuntimeManager functionRuntimeManager;
     private final Reader reader;
 
-    public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
+    public FunctionMetaDataTopicTailer(FunctionRuntimeManager functionRuntimeManager,
                                        Reader reader)
             throws PulsarClientException {
-        this.functionMetaDataManager = functionMetaDataManager;
+        this.functionRuntimeManager = functionRuntimeManager;
         this.reader = reader;
     }
 
@@ -51,7 +50,7 @@ public class FunctionMetaDataTopicTailer
 
     public void initialize() {
         log.info("Initializing Metadata state...");
-        this.functionMetaDataManager.sendIntializationMarker();
+        this.functionRuntimeManager.sendIntializationMarker();
     }
 
     private void receiveOne() {
@@ -87,13 +86,13 @@ public class FunctionMetaDataTopicTailer
 
         switch(serviceRequest.getRequestType()) {
             case MARKER:
-                this.functionMetaDataManager.processInitializeMarker((MarkerRequest) serviceRequest);
+                this.functionRuntimeManager.processInitializeMarker((MarkerRequest) serviceRequest);
                 break;
             case UPDATE:
-                this.functionMetaDataManager.processUpdate((UpdateRequest) serviceRequest);
+                this.functionRuntimeManager.processUpdate((UpdateRequest) serviceRequest);
                 break;
             case DELETE:
-                this.functionMetaDataManager.proccessDeregister((DeregisterRequest) serviceRequest);
+                this.functionRuntimeManager.proccessDeregister((DeregisterRequest) serviceRequest);
                 break;
             default:
                 log.warn("Received request with unrecognized type: {}", serviceRequest);

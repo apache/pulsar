@@ -19,19 +19,17 @@
 package org.apache.pulsar.functions.runtime.worker;
 
 import lombok.*;
+import lombok.experimental.Accessors;
+import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 @Data
 @Setter
 @Getter
-@EqualsAndHashCode
-@ToString
-public class FunctionAction {
+@Accessors(chain = true)
+public class FunctionRuntimeInfo {
 
-    public enum Action {
-        START,
-        STOP
-    }
-
-    private Action action;
-    private FunctionRuntimeInfo functionRuntimeInfo;
+    // function meta data
+    private FunctionMetaData functionMetaData;
+    // The associated runtime with it if any
+    private Spawner spawner;
 }
