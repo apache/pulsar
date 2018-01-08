@@ -54,5 +54,31 @@ public final class Annotations {
         return true;
     }
 
+    /**
+     * Find a fieldname that is set null but was annotated as required.
+     *
+     * @param object object to verify
+     * @return The name of the missing field or null of all required fields are set.
+     */
+    public static String findMissingField(Object object) {
+        try {
+            for (Field f : object.getClass().getDeclaredFields()) {
+                // ignore non required field
+                if (!f.isAnnotationPresent(RequiredField.class)) {
+                    continue;
+                }
+
+                f.setAccessible(true);
+
+                if (f.get(object) == null) {
+                    return f.getName();
+                }
+            }
+        } catch (IllegalAccessException ex) {
+            return "IllegalAcccessException";
+        }
+        return null;
+    }
+
 
 }

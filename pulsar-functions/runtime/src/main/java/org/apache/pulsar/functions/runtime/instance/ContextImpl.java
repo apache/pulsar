@@ -93,4 +93,13 @@ class ContextImpl implements Context {
     public Logger getLogger() {
         return logger;
     }
+
+    @Override
+    public String getUserConfigValue(String key) {
+        if (config.getFunctionConfig().getUserConfig().containsKey(key)) {
+            return config.getFunctionConfig().getUserConfig().get(key);
+        } else {
+            return null;
+        }
+    }
 }

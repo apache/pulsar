@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.doNothing;
 import static org.powermock.api.mockito.PowerMockito.doThrow;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
+import static org.powermock.api.support.membermodification.MemberMatcher.field;
 import static org.testng.Assert.assertEquals;
 
 import com.google.gson.Gson;
@@ -216,7 +217,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
-            "Source Topic");
+            "SourceTopic");
     }
 
     @Test
@@ -233,22 +234,6 @@ public class ApiV1ResourceTest {
             outputSerdeClassName,
             className,
             "InputSerdeClassName");
-    }
-
-    @Test
-    public void testRegisterFunctionMissingOutputSerde() {
-        testRegisterFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            mockedFormData,
-            sinkTopic,
-            sourceTopic,
-            inputSerdeClassName,
-            null,
-            className,
-            "OutputSerdeClassName");
     }
 
     @Test
@@ -280,34 +265,35 @@ public class ApiV1ResourceTest {
         String className,
         String missingFieldName
     ) {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
+                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
+                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
+                .setClassName(className);
         Response response = resource.registerFunction(
             tenant,
             namespace,
             function,
             inputStream,
             details,
-            sinkTopic,
-            sourceTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
-            className);
+            new Gson().toJson(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(createMessage(missingFieldName + " is not provided"), response.getEntity());
     }
 
     private Response registerDefaultFunction() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
+                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
+                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
+                .setClassName(className);
         return resource.registerFunction(
             tenant,
             namespace,
             function,
             mockedInputStream,
-            mockedFormData,
-            sinkTopic,
-            sourceTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
-            className);
+            mockedFormData, new Gson().toJson(functionConfig));
     }
 
     @Test
@@ -496,7 +482,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
-            "Source Topic");
+            "SourceTopic");
     }
 
     @Test
@@ -513,22 +499,6 @@ public class ApiV1ResourceTest {
             outputSerdeClassName,
             className,
             "InputSerdeClassName");
-    }
-
-    @Test
-    public void testUpdateFunctionMissingOutputSerde() {
-        testUpdateFunctionMissingArguments(
-            tenant,
-            namespace,
-            function,
-            mockedInputStream,
-            mockedFormData,
-            sinkTopic,
-            sourceTopic,
-            inputSerdeClassName,
-            null,
-            className,
-            "OutputSerdeClassName");
     }
 
     @Test
@@ -560,34 +530,35 @@ public class ApiV1ResourceTest {
         String className,
         String missingFieldName
     ) {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
+                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
+                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
+                .setClassName(className);
         Response response = resource.updateFunction(
             tenant,
             namespace,
             function,
             inputStream,
             details,
-            sinkTopic,
-            sourceTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
-            className);
+            new Gson().toJson(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(createMessage(missingFieldName + " is not provided"), response.getEntity());
     }
 
     private Response updateDefaultFunction() {
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
+                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
+                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
+                .setClassName(className);
         return resource.updateFunction(
             tenant,
             namespace,
             function,
             mockedInputStream,
-            mockedFormData,
-            sinkTopic,
-            sourceTopic,
-            inputSerdeClassName,
-            outputSerdeClassName,
-            className);
+            mockedFormData, new Gson().toJson(functionConfig));
     }
 
     @Test

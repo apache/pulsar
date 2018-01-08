@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import com.google.gson.Gson;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
@@ -79,15 +80,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
             mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("sourceTopic", functionConfig.getSourceTopic(),
-                    MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("sinkTopic", functionConfig.getSinkTopic(),
-                    MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("inputSerdeClassName", functionConfig.getInputSerdeClassName(),
-                    MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("outputSerdeClassName", functionConfig.getOutputSerdeClassName(),
-                    MediaType.APPLICATION_JSON_TYPE));
-            mp.bodyPart(new FormDataBodyPart("className", functionConfig.getClassName(),
+            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
@@ -113,26 +106,8 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (fileName != null) {
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
-            if (functionConfig.getSourceTopic() != null) {
-                mp.bodyPart(new FormDataBodyPart("sourceTopic", functionConfig.getSourceTopic(),
+            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
                         MediaType.APPLICATION_JSON_TYPE));
-            }
-            if (functionConfig.getSinkTopic() != null) {
-                mp.bodyPart(new FormDataBodyPart("sinkTopic", functionConfig.getSinkTopic(),
-                        MediaType.APPLICATION_JSON_TYPE));
-            }
-            if (functionConfig.getInputSerdeClassName() != null) {
-                mp.bodyPart(new FormDataBodyPart("inputSerdeClassName", functionConfig.getInputSerdeClassName(),
-                        MediaType.APPLICATION_JSON_TYPE));
-            }
-            if (functionConfig.getOutputSerdeClassName() != null) {
-                mp.bodyPart(new FormDataBodyPart("outputSerdeClassName", functionConfig.getOutputSerdeClassName(),
-                        MediaType.APPLICATION_JSON_TYPE));
-            }
-            if (functionConfig.getClassName() != null) {
-                mp.bodyPart(new FormDataBodyPart("className", functionConfig.getClassName(),
-                        MediaType.APPLICATION_JSON_TYPE));
-            }
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
