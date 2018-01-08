@@ -22,15 +22,12 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import java.io.File;
 import java.io.FileOutputStream;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -42,17 +39,6 @@ import java.util.concurrent.TimeUnit;
 @Slf4j
 public class FunctionActioner implements AutoCloseable {
 
-    @Data
-    @Setter
-    @Getter
-    @EqualsAndHashCode
-    @ToString
-    @Slf4j
-    public static class AssignmentInfo {
-        private FunctionMetaData functionMetaData;
-        private Spawner spawner;
-    }
-
     private final WorkerConfig workerConfig;
     private final LimitsConfig limitsConfig;
     private final FunctionContainerFactory functionContainerFactory;
@@ -60,7 +46,6 @@ public class FunctionActioner implements AutoCloseable {
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
     private Thread actioner;
-    private final Map<String, AssignmentInfo> assignments = new HashMap<>();
 
     public FunctionActioner(WorkerConfig workerConfig, LimitsConfig limitsConfig,
                             FunctionContainerFactory functionContainerFactory,
@@ -79,13 +64,13 @@ public class FunctionActioner implements AutoCloseable {
                     if (action == null) continue;
                     if (action.getAction() == FunctionAction.Action.START) {
                         try {
-                            startFunction(action.getFunctionMetaData());
+                            startFunction(action.getFunctionRuntimeInfo());
                         } catch (Exception ex) {
                             log.info("Error starting function", ex);
-                            action.getFunctionMetaData().setStartupException(ex);
+                            action.getFunctionRuntimeInfo().getFunctionMetaData().setStartupException(ex);
                         }
                     } else {
-                        stopFunction(action.getFunctionMetaData());
+                        stopFunction(action.getFunctionRuntimeInfo());
                     }
                 } catch (InterruptedException ex) {
                 }
@@ -108,7 +93,8 @@ public class FunctionActioner implements AutoCloseable {
         actioner.join();
     }
 
-    private void startFunction(FunctionMetaData functionMetaData) throws Exception {
+    private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
+        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionMetaData();
         log.info("Starting function {} ...", functionMetaData.getFunctionConfig().getName());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
@@ -133,33 +119,18 @@ public class FunctionActioner implements AutoCloseable {
         Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
                 pkgFile.getAbsolutePath(), functionContainerFactory);
 
-        AssignmentInfo assignmentInfo = new AssignmentInfo();
-        assignmentInfo.setFunctionMetaData(functionMetaData);
-        assignmentInfo.setSpawner(spawner);
-        assignments.put(functionMetaData.getFunctionConfig().getFullyQualifiedName(), assignmentInfo);
+        functionRuntimeInfo.setSpawner(spawner);
         spawner.start();
     }
 
-    private boolean stopFunction(FunctionMetaData functionMetaData) {
+    private boolean stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionMetaData();
         log.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
-        AssignmentInfo assignmentInfo = assignments.get(functionMetaData.getFunctionConfig().getFullyQualifiedName());
-        if (assignmentInfo != null && assignmentInfo.getSpawner() != null) {
-            assignmentInfo.getSpawner().close();
-            assignmentInfo.setSpawner(null);
+        if (functionRuntimeInfo.getSpawner() != null) {
+            functionRuntimeInfo.getSpawner().close();
+            functionRuntimeInfo.setSpawner(null);
             return true;
         }
         return false;
-    }
-
-    public boolean containsAssignment(FunctionConfig functionConfig) {
-        return assignments.containsKey(functionConfig.getFullyQualifiedName());
-    }
-
-    public Spawner getSpawner(FunctionConfig functionConfig) {
-        if (!containsAssignment(functionConfig)) {
-            return null;
-        } else {
-            return assignments.get(functionConfig.getFullyQualifiedName()).getSpawner();
-        }
     }
 }

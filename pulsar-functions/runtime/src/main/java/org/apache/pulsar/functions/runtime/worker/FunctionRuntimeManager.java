@@ -43,10 +43,10 @@ import java.util.concurrent.LinkedBlockingQueue;
  */
 
 @Slf4j
-public class FunctionMetaDataManager implements AutoCloseable {
+public class FunctionRuntimeManager implements AutoCloseable {
 
     // tenant -> namespace -> (function name, FunctionMetaData)
-    private final Map<String, Map<String, Map<String, FunctionMetaData>>> functionMap = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Map<String, FunctionRuntimeInfo>>> functionMap = new ConcurrentHashMap<>();
 
     // A map in which the key is the service request id and value is the service request
     private final Map<String, ServiceRequest> pendingServiceRequests = new ConcurrentHashMap<>();
@@ -60,9 +60,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
     private boolean initializePhase = true;
     private final String initializeMarkerRequestId = UUID.randomUUID().toString();
 
-    public FunctionMetaDataManager(WorkerConfig workerConfig,
-                                   ServiceRequestManager serviceRequestManager,
-                                   LinkedBlockingQueue<FunctionAction> actionQueue) {
+    public FunctionRuntimeManager(WorkerConfig workerConfig,
+                                  ServiceRequestManager serviceRequestManager,
+                                  LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
         this.serviceRequestManager = serviceRequestManager;
         this.actionQueue = actionQueue;
@@ -86,15 +86,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
         serviceRequestManager.close();
     }
 
-    public FunctionMetaData getFunction(String tenant, String namespace, String functionName) {
+    public FunctionRuntimeInfo getFunction(String tenant, String namespace, String functionName) {
         return this.functionMap.get(tenant).get(namespace).get(functionName);
     }
 
-    public FunctionMetaData getFunction(FunctionConfig functionConfig) {
+    public FunctionRuntimeInfo getFunction(FunctionConfig functionConfig) {
         return getFunction(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
     }
 
-    public FunctionMetaData getFunction(FunctionMetaData functionMetaData) {
+    public FunctionRuntimeInfo getFunction(FunctionMetaData functionMetaData) {
         return getFunction(functionMetaData.getFunctionConfig());
     }
 
@@ -108,8 +108,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         if (!this.functionMap.get(tenant).containsKey(namespace)) {
             return ret;
         }
-        for (FunctionMetaData entry : this.functionMap.get(tenant).get(namespace).values()) {
-           ret.add(entry.getFunctionConfig().getName());
+        for (FunctionRuntimeInfo entry : this.functionMap.get(tenant).get(namespace).values()) {
+           ret.add(entry.getFunctionMetaData().getFunctionConfig().getName());
         }
         return ret;
     }
@@ -123,16 +123,16 @@ public class FunctionMetaDataManager implements AutoCloseable {
             this.functionMap.put(tenant, new ConcurrentHashMap<>());
         }
 
-        Map<String, Map<String, FunctionMetaData>> namespaces = this.functionMap.get(tenant);
+        Map<String, Map<String, FunctionRuntimeInfo>> namespaces = this.functionMap.get(tenant);
         String namespace = functionMetaData.getFunctionConfig().getNamespace();
         if (!namespaces.containsKey(namespace)) {
             namespaces.put(namespace, new ConcurrentHashMap<>());
         }
 
-        Map<String, FunctionMetaData> functionMetaDatas = namespaces.get(namespace);
+        Map<String, FunctionRuntimeInfo> functionMetaDatas = namespaces.get(namespace);
         String functionName = functionMetaData.getFunctionConfig().getName();
         if (functionMetaDatas.containsKey(functionName)) {
-            version = functionMetaDatas.get(functionName).getVersion() + 1;
+            version = functionMetaDatas.get(functionName).getFunctionMetaData().getVersion() + 1;
         }
         functionMetaData.setVersion(version);
 
@@ -143,7 +143,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
 
     public CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
         FunctionMetaData functionMetaData
-                = (FunctionMetaData) this.functionMap.get(tenant).get(namespace).get(functionName).clone();
+                = (FunctionMetaData) this.functionMap.get(tenant).get(namespace).get(functionName).getFunctionMetaData().clone();
 
         functionMetaData.incrementVersion();
 
@@ -228,14 +228,10 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 // Check if this worker is suppose to run the function
                 if (shouldProcessRequest(deregisterRequest)) {
                     // stop running the function
-                    insertStopAction(deregisterRequestFs);
+                    insertStopAction(functionMap.get(tenant).get(namespace).get(functionName));
                 }
                 // remove function from in memory function metadata store
-                if (this.functionMap.containsKey(tenant)
-                        && this.functionMap.get(tenant).containsKey(namespace)
-                        && this.functionMap.get(tenant).get(namespace).containsKey(functionName)) {
-                    this.functionMap.get(tenant).get(namespace).remove(functionName);
-                }
+                this.functionMap.get(tenant).get(namespace).remove(functionName);
                 completeRequest(deregisterRequest, true);
             } else {
                 completeRequest(deregisterRequest, false,
@@ -258,7 +254,6 @@ public class FunctionMetaDataManager implements AutoCloseable {
         log.debug("Process update request: {}", updateRequest);
 
         FunctionMetaData updateRequestFs = updateRequest.getFunctionMetaData();
-        String functionName = updateRequestFs.getFunctionConfig().getName();
 
         // Worker doesn't know about the function so far
         if(!this.containsFunction(updateRequestFs)) {
@@ -266,7 +261,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
             addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
             if (shouldProcessRequest(updateRequest)) {
-                insertStartAction(updateRequestFs);
+                insertStartAction(getFunction(updateRequestFs));
             }
             completeRequest(updateRequest, true);
         } else {
@@ -275,17 +270,17 @@ public class FunctionMetaDataManager implements AutoCloseable {
             // Check if request is outdated
             if (!isRequestOutdated(updateRequest)) {
                 FunctionConfig functionConfig = updateRequestFs.getFunctionConfig();
-                FunctionMetaData existingMetaData = getFunction(functionConfig.getTenant(),
+                FunctionRuntimeInfo existingFunctionRuntimeInfo = getFunction(functionConfig.getTenant(),
                         functionConfig.getNamespace(), functionConfig.getName());
 
-                insertStopAction(existingMetaData);
+                insertStopAction(existingFunctionRuntimeInfo);
 
                 // update the function metadata
                 addFunctionToFunctionMap(updateRequestFs);
                 // check if this worker should run the update
                 if (shouldProcessRequest(updateRequest)) {
                     // Update the function
-                    insertStartAction(updateRequestFs);
+                    insertStartAction(getFunction(updateRequestFs));
                 }
                 completeRequest(updateRequest, true);
             } else {
@@ -306,14 +301,14 @@ public class FunctionMetaDataManager implements AutoCloseable {
                     .put(functionConfig.getNamespace(), new ConcurrentHashMap<>());
         }
         this.functionMap.get(functionConfig.getTenant())
-                .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionMetaData);
+                .get(functionConfig.getNamespace()).put(functionConfig.getName(), new FunctionRuntimeInfo().setFunctionMetaData(functionMetaData));
     }
 
     private boolean isRequestOutdated(ServiceRequest serviceRequest) {
         FunctionMetaData requestFunctionMetaData = serviceRequest.getFunctionMetaData();
         FunctionConfig functionConfig = requestFunctionMetaData.getFunctionConfig();
         FunctionMetaData currentFunctionMetaData = this.functionMap.get(functionConfig.getTenant())
-                .get(functionConfig.getNamespace()).get(functionConfig.getName());
+                .get(functionConfig.getNamespace()).get(functionConfig.getName()).getFunctionMetaData();
         return currentFunctionMetaData.getVersion() >= requestFunctionMetaData.getVersion();
     }
 
@@ -325,11 +320,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return this.workerConfig.getWorkerId().equals(serviceRequest.getWorkerId());
     }
 
-    private void insertStopAction(FunctionMetaData functionMetaData) {
+    private void insertStopAction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase()) {
             FunctionAction functionAction = new FunctionAction();
             functionAction.setAction(FunctionAction.Action.STOP);
-            functionAction.setFunctionMetaData(functionMetaData);
+            functionAction.setFunctionRuntimeInfo(functionRuntimeInfo);
             try {
                 actionQueue.put(functionAction);
             } catch (InterruptedException ex) {
@@ -338,11 +333,11 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    private void insertStartAction(FunctionMetaData functionMetaData) {
+    private void insertStartAction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase()) {
             FunctionAction functionAction = new FunctionAction();
             functionAction.setAction(FunctionAction.Action.START);
-            functionAction.setFunctionMetaData(functionMetaData);
+            functionAction.setFunctionRuntimeInfo(functionRuntimeInfo);
             try {
                 actionQueue.put(functionAction);
             } catch (InterruptedException ex) {
@@ -361,12 +356,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
             log.info("Initializing Metadata state done!");
             log.info("Launching existing assignments...");
             // materialize current assignments
-            for (Map<String, Map<String, FunctionMetaData>> i: this.functionMap.values()) {
-                for (Map<String, FunctionMetaData> k : i.values()) {
-                    for (FunctionMetaData functionMetaData : k.values()) {
+            for (Map<String, Map<String, FunctionRuntimeInfo>> i: this.functionMap.values()) {
+                for (Map<String, FunctionRuntimeInfo> k : i.values()) {
+                    for (FunctionRuntimeInfo functionRuntimeInfo : k.values()) {
                         // if I should run this
-                        if (this.workerConfig.getWorkerId().equals(functionMetaData.getWorkerId())) {
-                            insertStartAction(functionMetaData);
+                        if (this.workerConfig.getWorkerId().equals(functionRuntimeInfo.getFunctionMetaData().getWorkerId())) {
+                            insertStartAction(functionRuntimeInfo);
                         }
                     }
                 }

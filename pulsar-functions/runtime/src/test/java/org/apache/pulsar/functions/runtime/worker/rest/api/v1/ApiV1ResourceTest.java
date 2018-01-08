@@ -47,11 +47,7 @@ import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
-import org.apache.pulsar.functions.runtime.worker.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.runtime.worker.PackageLocationMetaData;
-import org.apache.pulsar.functions.runtime.worker.Utils;
-import org.apache.pulsar.functions.runtime.worker.WorkerConfig;
+import org.apache.pulsar.functions.runtime.worker.*;
 import org.apache.pulsar.functions.runtime.worker.request.RequestResult;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -94,7 +90,7 @@ public class ApiV1ResourceTest {
         .setMaxMemoryMb(3456)
         .setMaxBufferedTuples(5678);
 
-    private FunctionMetaDataManager mockedManager;
+    private FunctionRuntimeManager mockedManager;
     private Namespace mockedNamespace;
     private ApiV1Resource resource;
     private InputStream mockedInputStream;
@@ -103,7 +99,7 @@ public class ApiV1ResourceTest {
     @BeforeMethod
     public void setup() {
         this.resource = spy(new ApiV1Resource());
-        this.mockedManager = mock(FunctionMetaDataManager.class);
+        this.mockedManager = mock(FunctionRuntimeManager.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
         this.mockedNamespace = mock(Namespace.class);
@@ -872,7 +868,9 @@ public class ApiV1ResourceTest {
             .setRuntime("test")
             .setVersion(1234)
             .setWorkerId("test-worker");
-        when(mockedManager.getFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(metaData);
+        FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()
+                .setFunctionMetaData(metaData);
+        when(mockedManager.getFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(functionRuntimeInfo);
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());

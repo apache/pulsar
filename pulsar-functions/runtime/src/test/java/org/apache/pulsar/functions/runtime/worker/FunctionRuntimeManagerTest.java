@@ -26,14 +26,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.pulsar.functions.runtime.worker.request.ServiceRequestManager;
 import org.testng.annotations.Test;
 
-public class FunctionMetaDataManagerTest {
+public class FunctionRuntimeManagerTest {
 
     @Test
     public void testClose() {
         try {
             WorkerConfig config = new WorkerConfig();
             ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
-            FunctionMetaDataManager fsm = new FunctionMetaDataManager(config,
+            FunctionRuntimeManager fsm = new FunctionRuntimeManager(config,
                     reqMgr,
                     new LinkedBlockingQueue<>());
             fsm.close();
