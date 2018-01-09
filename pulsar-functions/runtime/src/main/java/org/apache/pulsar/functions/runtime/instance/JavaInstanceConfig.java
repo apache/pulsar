@@ -24,8 +24,8 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.InstanceID;
+import org.apache.pulsar.functions.fs.FunctionID;
+import org.apache.pulsar.functions.fs.InstanceID;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 
 /**

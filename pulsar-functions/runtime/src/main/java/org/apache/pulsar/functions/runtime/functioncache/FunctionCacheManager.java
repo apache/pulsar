@@ -22,8 +22,8 @@ package org.apache.pulsar.functions.runtime.functioncache;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
-import org.apache.pulsar.functions.runtime.InstanceID;
-import org.apache.pulsar.functions.runtime.FunctionID;
+import org.apache.pulsar.functions.fs.InstanceID;
+import org.apache.pulsar.functions.fs.FunctionID;
 
 /**
  * A cache manager for caching function code and its dependencies.

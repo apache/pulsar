@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
+import org.apache.pulsar.functions.fs.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 
 @Slf4j

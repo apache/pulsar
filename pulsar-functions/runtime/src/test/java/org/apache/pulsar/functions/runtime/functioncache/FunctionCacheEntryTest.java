@@ -30,7 +30,7 @@ import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Set;
-import org.apache.pulsar.functions.runtime.InstanceID;
+import org.apache.pulsar.functions.fs.InstanceID;
 import org.testng.annotations.Test;
 
 /**
