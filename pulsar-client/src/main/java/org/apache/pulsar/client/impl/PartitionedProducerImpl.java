@@ -19,9 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -30,7 +32,9 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
@@ -41,18 +45,41 @@ import com.google.common.collect.Lists;
 public class PartitionedProducerImpl extends ProducerBase {
 
     private List<ProducerImpl> producers;
-    private int numPartitions;
     private MessageRouter routerPolicy;
     private final ProducerStats stats;
+    private final TopicMetadata topicMetadata;
 
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf, int numPartitions,
             CompletableFuture<Producer> producerCreatedFuture) {
         super(client, topic, conf, producerCreatedFuture);
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
-        this.numPartitions = numPartitions;
-        this.routerPolicy = conf.getMessageRouter(numPartitions);
+        this.topicMetadata = new TopicMetadataImpl(numPartitions);
+        this.routerPolicy = getMessageRouter();
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStats() : null;
         start();
+    }
+
+    private MessageRouter getMessageRouter() {
+        MessageRouter messageRouter;
+
+        MessageRoutingMode messageRouteMode = conf.getMessageRoutingMode();
+        MessageRouter customMessageRouter = conf.getMessageRouter();
+
+        switch (messageRouteMode) {
+        case CustomPartition:
+            checkNotNull(customMessageRouter);
+            messageRouter = customMessageRouter;
+            break;
+        case RoundRobinPartition:
+            messageRouter = new RoundRobinPartitionMessageRouterImpl();
+            break;
+        case SinglePartition:
+        default:
+            messageRouter = new SinglePartitionMessageRouterImpl(
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()));
+        }
+
+        return messageRouter;
     }
 
     @Override
@@ -70,7 +97,7 @@ public class PartitionedProducerImpl extends ProducerBase {
     private void start() {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
-        for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
+        for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
             ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<Producer>(),
                     partitionIndex);
@@ -85,7 +112,7 @@ public class PartitionedProducerImpl extends ProducerBase {
                 // due to any
                 // failure in one of the partitions and close the successfully
                 // created partitions
-                if (completed.incrementAndGet() == numPartitions) {
+                if (completed.incrementAndGet() == topicMetadata.numPartitions()) {
                     if (createFail.get() == null) {
                         setState(State.Ready);
                         producerCreatedFuture().complete(PartitionedProducerImpl.this);
@@ -121,8 +148,8 @@ public class PartitionedProducerImpl extends ProducerBase {
             return FutureUtil.failedFuture(new PulsarClientException.NotConnectedException());
         }
 
-        int partition = routerPolicy.choosePartition(message);
-        checkArgument(partition >= 0 && partition < numPartitions,
+        int partition = routerPolicy.choosePartition(message, topicMetadata);
+        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
                 "Illegal partition index chosen by the message routing policy");
         return producers.get(partition).sendAsync(message);
     }
@@ -147,7 +174,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         setState(State.Closing);
 
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
-        AtomicInteger completed = new AtomicInteger(numPartitions);
+        AtomicInteger completed = new AtomicInteger(topicMetadata.numPartitions());
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
         for (Producer producer : producers) {
             if (producer != null) {
@@ -183,7 +210,7 @@ public class PartitionedProducerImpl extends ProducerBase {
             return null;
         }
         stats.reset();
-        for (int i = 0; i < numPartitions; i++) {
+        for (int i = 0; i < topicMetadata.numPartitions(); i++) {
             stats.updateCumulativeStats(producers.get(i).getStats());
         }
         return stats;
