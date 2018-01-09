@@ -215,17 +215,9 @@ public class CmdFunctions extends CmdBase {
                 1024   // 1024 outstanding tuples
             );
 
-            ClientConfiguration clientConf;
-            if (admin instanceof PulsarFunctionsAdmin) {
-                clientConf = ((PulsarFunctionsAdmin) admin).getClientConf();
-            } else {
-                clientConf = new ClientConfiguration();
-            }
-
             try (ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
                 limitsConfig.getMaxBufferedTuples(),
-                admin.getServiceUrl().toString(),
-                clientConf)) {
+                admin.getServiceUrl().toString())) {
 
                 Spawner spawner = Spawner.createSpawner(
                     functionConfig,
