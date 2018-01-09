@@ -148,24 +148,23 @@ spec:
   template:
     metadata:
       labels:
-        app: bookkeeper
+        app: pulsar
         component: bookkeeper-replication
     spec:
-      affinity:
-        podAntiAffinity:
-          requiredDuringSchedulingIgnoredDuringExecution:
-            - labelSelector:
-                matchExpressions:
-                  - key: "app"
-                    operator: In
-                    values: 
-                      - bookkeeper
-              topologyKey: "kubernetes.io/hostname"
       containers:
         - name: replication-worker
-          image: apache/bookkeeper:latest
-          command: [ "/bin/bash", "/opt/bookkeeper/entrypoint.sh" ]
-          args: ["/opt/bookkeeper/bin/bookkeeper", "autorecovery"]
+          image: apachepulsar/pulsar:latest
+          command: ["sh", "-c"]
+          args:
+            - >
+              bin/apply-config-from-env.py conf/bookkeeper.conf &&
+              bin/bookkeeper autorecovery
           envFrom:
             - configMapRef:
                 name: bookie-config
+          env:
+              ## Configure for lower mem usage
+            - name: PULSAR_MEM
+              value: "\" -Xmx256m \""
+            - name: PULSAR_GC
+              value: "\"  \""
