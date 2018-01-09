@@ -17,10 +17,12 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
+package org.apache.pulsar.functions.fs;
 
 import static org.testng.Assert.assertEquals;
 
+import org.apache.pulsar.functions.fs.FunctionID;
+import org.apache.pulsar.functions.fs.InstanceID;
 import org.testng.annotations.Test;
 
 /**

@@ -30,7 +30,7 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.runtime.InstanceID;
+import org.apache.pulsar.functions.fs.InstanceID;
 
 /**
  * A cache entry in the function cache. Tracks which workers still reference

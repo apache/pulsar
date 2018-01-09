@@ -31,8 +31,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.runtime.InstanceID;
-import org.apache.pulsar.functions.runtime.FunctionID;
+import org.apache.pulsar.functions.fs.InstanceID;
+import org.apache.pulsar.functions.fs.FunctionID;
 import org.apache.pulsar.functions.utils.Exceptions;
 
 /**

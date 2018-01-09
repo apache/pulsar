@@ -17,49 +17,27 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
-
-import com.google.common.annotations.VisibleForTesting;
-import java.io.Serializable;
+package org.apache.pulsar.functions.fs;
 
 /**
- * A identifier for an object.
+ * Unique identifier for an execution of a function.
  */
-public class UUID implements Serializable {
+public class InstanceID extends UUID {
 
     private static final long serialVersionUID = 1L;
 
-    private final java.util.UUID uuid;
+    public static final InstanceID INVALID_INSTANCE_ID = new InstanceID(-1L, -1L);
 
-    public UUID() {
-        this.uuid = java.util.UUID.randomUUID();
+    public InstanceID() {
+        super();
     }
 
-    public UUID(long mostSigBits, long leastSigBits) {
-        this.uuid = new java.util.UUID(mostSigBits, leastSigBits);
-    }
-
-    @VisibleForTesting
-    java.util.UUID getInternalUUID() {
-        return uuid;
-    }
-
-    @Override
-    public int hashCode() {
-        return uuid.hashCode();
-    }
-
-    @Override
-    public boolean equals(Object obj) {
-        if (!(obj instanceof UUID)) {
-            return false;
-        }
-        UUID another = (UUID) obj;
-        return uuid.equals(another.uuid);
+    public InstanceID(long lowestBits, long highestBits) {
+        super(lowestBits, highestBits);
     }
 
     @Override
     public String toString() {
-        return uuid.toString();
+        return "instance-" + super.toString();
     }
 }

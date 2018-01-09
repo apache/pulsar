@@ -17,33 +17,25 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime;
-
-import static org.testng.Assert.assertEquals;
-
-import org.testng.annotations.Test;
+package org.apache.pulsar.functions.fs;
 
 /**
- * Unit test of {@link FunctionID}.
+ * A identifier for a function.
  */
-public class FunctionIDTest {
+public class FunctionID extends UUID {
 
-    @Test
-    public void testToString() {
-        FunctionID fid = new FunctionID();
-        assertEquals(
-            "fn-" + fid.getInternalUUID(),
-            fid.toString());
+    private static final long serialVersionUID = 1L;
+
+    public FunctionID() {
+        super();
     }
 
-    @Test
-    public void testConstructor() {
-        FunctionID fid = new FunctionID(1234L, 3456L);
-        assertEquals(
-            "fn-" + new java.util.UUID(1234L, 3456L).toString(),
-            fid.toString());
-        assertEquals(1234L, fid.getInternalUUID().getMostSignificantBits());
-        assertEquals(3456L, fid.getInternalUUID().getLeastSignificantBits());
+    public FunctionID(long lowestBits, long highestBits) {
+        super(lowestBits, highestBits);
     }
 
+    @Override
+    public String toString() {
+        return "fn-" + super.toString();
+    }
 }

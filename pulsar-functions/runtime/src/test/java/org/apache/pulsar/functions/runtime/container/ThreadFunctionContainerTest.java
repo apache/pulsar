@@ -32,8 +32,8 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
-import org.apache.pulsar.functions.runtime.FunctionID;
-import org.apache.pulsar.functions.runtime.InstanceID;
+import org.apache.pulsar.functions.fs.FunctionID;
+import org.apache.pulsar.functions.fs.InstanceID;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
