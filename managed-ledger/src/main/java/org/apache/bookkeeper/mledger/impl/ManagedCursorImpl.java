@@ -2230,6 +2230,7 @@ public class ManagedCursorImpl implements ManagedCursor {
         case BKException.Code.NoSuchLedgerExistsException:
         case BKException.Code.ReadException:
         case BKException.Code.LedgerRecoveryException:
+        case BKException.Code.NoSuchEntryException:
             return true;
 
         default:
