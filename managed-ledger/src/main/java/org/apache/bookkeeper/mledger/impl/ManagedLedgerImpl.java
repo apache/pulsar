@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC;
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.util.Iterator;
@@ -61,6 +62,8 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.NonRecoverableLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
 import org.apache.bookkeeper.mledger.ManagedLedgerMXBean;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl.VoidCallback;
@@ -89,6 +92,7 @@ import com.google.common.util.concurrent.RateLimiter;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final static long MegaByte = 1024 * 1024;
@@ -263,7 +267,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                                 initializeBookKeeper(callback);
                             } else {
                                 log.error("[{}] Failed to open ledger {}: {}", name, id, BKException.getMessage(rc));
-                                callback.initializeFailed(new ManagedLedgerException(BKException.getMessage(rc)));
+                                callback.initializeFailed(createManagedLedgerException(rc));
                                 return;
                             }
                         }));
@@ -337,7 +341,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     executor.submitOrdered(name, safeRun(() -> {
                         mbean.endDataLedgerCreateOp();
                         if (rc != BKException.Code.OK) {
-                            callback.initializeFailed(new ManagedLedgerException(BKException.getMessage(rc)));
+                            callback.initializeFailed(createManagedLedgerException(rc));
                             return;
                         }
 
@@ -908,7 +912,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             mbean.endDataLedgerCloseOp();
             if (rc != BKException.Code.OK) {
-                callback.terminateFailed(new ManagedLedgerException(BKException.getMessage(rc)), ctx);
+                callback.terminateFailed(createManagedLedgerException(rc), ctx);
             } else {
                 lastConfirmedEntry = new PositionImpl(lh.getId(), lh.getLastAddConfirmed());
                 // Store the new state in metadata
@@ -1042,7 +1046,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
             mbean.endDataLedgerCloseOp();
             if (rc != BKException.Code.OK) {
-                callback.closeFailed(new ManagedLedgerException(BKException.getMessage(rc)), ctx);
+                callback.closeFailed(createManagedLedgerException(rc), ctx);
                 return;
             }
 
@@ -1062,7 +1066,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Futures.waitForAll(futures).thenRun(() -> {
             callback.closeComplete(ctx);
         }).exceptionally(exception -> {
-            callback.closeFailed(new ManagedLedgerException(exception), ctx);
+            callback.closeFailed(getManagedLedgerException(exception.getCause()), ctx);
             return null;
         });
     }
@@ -1078,7 +1082,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         mbean.endDataLedgerCreateOp();
         if (rc != BKException.Code.OK) {
             log.error("[{}] Error creating ledger rc={} {}", name, rc, BKException.getMessage(rc));
-            ManagedLedgerException status = new ManagedLedgerException(BKException.getMessage(rc));
+            ManagedLedgerException status = createManagedLedgerException(rc);
 
             // Empty the list of pending requests and make all of them fail
             clearPendingAddEntries(status);
@@ -1278,7 +1282,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }).exceptionally(ex -> {
                 log.error("[{}] Error opening ledger for reading at position {} - {}", name, opReadEntry.readPosition,
                         ex.getMessage());
-                opReadEntry.readEntriesFailed(new ManagedLedgerException(ex), opReadEntry.ctx);
+                opReadEntry.readEntriesFailed(getManagedLedgerException(ex.getCause()), opReadEntry.ctx);
                 return null;
             });
         }
@@ -1306,7 +1310,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                             if (rc != BKException.Code.OK) {
                                 // Remove the ledger future from cache to give chance to reopen it later
                                 ledgerCache.remove(ledgerId, future);
-                                future.completeExceptionally(new ManagedLedgerException(BKException.getMessage(rc)));
+                                future.completeExceptionally(createManagedLedgerException(rc));
                             } else {
                                 if (log.isDebugEnabled()) {
                                     log.debug("[{}] Successfully opened ledger {} for reading", name, lh.getId());
@@ -1347,7 +1351,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 entryCache.asyncReadEntry(ledger, position, callback, ctx);
             }).exceptionally(ex -> {
                 log.error("[{}] Error opening ledger for reading at position {} - {}", name, position, ex.getMessage());
-                callback.readEntryFailed(new ManagedLedgerException(ex), ctx);
+                callback.readEntryFailed(getManagedLedgerException(ex.getCause()), ctx);
                 return null;
             });
         }
@@ -1744,7 +1748,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     int toDelete = ledgersToDelete.get();
                     if (toDelete != -1 && ledgersToDelete.compareAndSet(toDelete, -1)) {
                         // Trigger callback only once
-                        callback.deleteLedgerFailed(new ManagedLedgerException(BKException.getMessage(rc)), ctx);
+                        callback.deleteLedgerFailed(createManagedLedgerException(rc), ctx);
                     }
                 }
             }, null);
@@ -1956,7 +1960,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers.get(ledgerId) != null;
     }
 
-    long getNextValidLedger(long ledgerId) {
+    Long getNextValidLedger(long ledgerId) {
         return ledgers.ceilingKey(ledgerId + 1);
     }
 
@@ -2172,6 +2176,30 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return entryCache.getSize();
     }
 
+    /**
+     * return BK error codes that are considered not likely to be recoverable
+     */
+    private static boolean isBkErrorNotRecoverable(int rc) {
+        switch (rc) {
+        case BKException.Code.NoSuchLedgerExistsException:
+        case BKException.Code.NoSuchEntryException:
+            return true;
+
+        default:
+            return false;
+        }
+    }
+
+    public static ManagedLedgerException createManagedLedgerException(int bkErrorCode) {
+        if (bkErrorCode == BKException.Code.TooManyRequestsException) {
+            return new TooManyRequestsException("Too many request error from bookies");
+        } else if (isBkErrorNotRecoverable(bkErrorCode)) {
+            return new NonRecoverableLedgerException(BKException.getMessage(bkErrorCode));
+        } else {
+            return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
+        }
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
 }

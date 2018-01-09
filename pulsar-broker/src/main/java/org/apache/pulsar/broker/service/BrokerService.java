@@ -1063,6 +1063,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         registerConfigurationListener("dispatchThrottlingRatePerTopicInByte", (dispatchRatePerTopicInByte) -> {
             updateTopicMessageDispatchRate();
         });
+        // add listener to update managed-ledger config to skipNonRecoverableLedgers
+        registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
+            updateManagedLedgerConfig();
+        });
         // add more listeners here
     }
 
@@ -1087,6 +1091,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
+    private void updateManagedLedgerConfig() {
+        this.pulsar().getExecutor().submit(() -> {
+            // update managed-ledger config of each topic
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    String topicName = null;
+                    try {
+                        if (topicFuture.getNow(null) instanceof PersistentTopic) {
+                            PersistentTopic topic = (PersistentTopic) topicFuture.get();
+                            topicName = topicFuture.get().getName();
+                            // update skipNonRecoverableLedger configuration
+                            topic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
+                                    pulsar.getConfiguration().isAutoSkipNonRecoverableData());
+                        }
+                    } catch (Exception e) {
+                        log.warn("[{}] failed to update managed-ledger config", topicName, e);
+                    }
+                }
+            });
+        });
+    }
+    
     /**
      * Allows a listener to listen on update of {@link ServiceConfiguration} change, so listener can take appropriate
      * action if any specific config-field value has been changed.

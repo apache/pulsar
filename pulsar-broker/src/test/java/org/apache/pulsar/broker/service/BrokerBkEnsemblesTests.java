@@ -18,15 +18,23 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
+
 import java.lang.reflect.Field;
 import java.net.URL;
+import java.util.Map.Entry;
+import java.util.NavigableMap;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
+import org.apache.bookkeeper.mledger.impl.EntryCache;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
+import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.LedgerInfo;
 import org.apache.bookkeeper.util.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -35,9 +43,11 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -51,7 +61,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 /**
  */
@@ -85,6 +94,7 @@ public class BrokerBkEnsemblesTests {
             config.setAuthenticationEnabled(false);
             config.setManagedLedgerMaxEntriesPerLedger(5);
             config.setManagedLedgerMinLedgerRolloverTimeMinutes(0);
+            config.setAdvertisedAddress("127.0.0.1");
 
             pulsar = new PulsarService(config);
             pulsar.start();
@@ -206,5 +216,118 @@ public class BrokerBkEnsemblesTests {
 
     }
 
+    /**
+     * It verifies broker-configuration using which broker can skip non-recoverable data-ledgers.
+     * 
+     * <pre>
+     * 1. publish messages in 5 data-ledgers each with 20 entries under managed-ledger
+     * 2. delete first 4 data-ledgers
+     * 3. consumer will fail to consume any message as first data-ledger is non-recoverable
+     * 4. enable dynamic config to skip non-recoverable data-ledgers
+     * 5. consumer will be able to consume 20 messages from last non-deleted ledger
+     * 
+     * </pre>
+     * 
+     * @throws Exception
+     */
+    @Test(timeOut = 6000)
+    public void testSkipCorruptDataLedger() throws Exception {
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+
+        final String ns1 = "prop/usc/crash-broker";
+        final int totalMessages = 100;
+        final int totalDataLedgers = 5;
+        final int entriesPerLedger = totalMessages / totalDataLedgers;
+
+        admin.namespaces().createNamespace(ns1);
+
+        final String dn1 = "persistent://" + ns1 + "/my-topic";
+
+        // Create subscription
+        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
+        consumerConfig.setReceiverQueueSize(5);
+        Consumer consumer = client.subscribe(dn1, "my-subscriber-name", consumerConfig);
+
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(dn1).get();
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
+        ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
+        Field configField = ManagedCursorImpl.class.getDeclaredField("config");
+        configField.setAccessible(true);
+        // Create multiple data-ledger
+        ManagedLedgerConfig config = (ManagedLedgerConfig) configField.get(cursor);
+        config.setMaxEntriesPerLedger(entriesPerLedger);
+        config.setMinimumRolloverTime(1, TimeUnit.MILLISECONDS);
+        // bookkeeper client
+        Field bookKeeperField = ManagedLedgerImpl.class.getDeclaredField("bookKeeper");
+        bookKeeperField.setAccessible(true);
+        // Create multiple data-ledger
+        BookKeeper bookKeeper = (BookKeeper) bookKeeperField.get(ml);
+
+        // (1) publish messages in 5 data-ledgers each with 20 entries under managed-ledger
+        Producer producer = client.createProducer(dn1);
+        for (int i = 0; i < totalMessages; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // validate: consumer is able to consume msg and close consumer after reading 1 entry
+        Assert.assertNotNull(consumer.receive(1, TimeUnit.SECONDS));
+        consumer.close();
+
+        NavigableMap<Long, LedgerInfo> ledgerInfo = ml.getLedgersInfo();
+        Assert.assertEquals(ledgerInfo.size(), totalDataLedgers);
+        Entry<Long, LedgerInfo> lastLedger = ledgerInfo.lastEntry();
+
+        // (2) delete first 4 data-ledgers
+        ledgerInfo.entrySet().forEach(entry -> {
+            if (!entry.equals(lastLedger)) {
+                try {
+                    bookKeeper.deleteLedger(entry.getKey());
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+
+        // clean managed-ledger and recreate topic to clean any data from the cache
+        producer.close();
+        pulsar.getBrokerService().removeTopicFromCache(dn1);
+        ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
+        Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
+        field.setAccessible(true);
+        @SuppressWarnings("unchecked")
+        ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>> ledgers = (ConcurrentHashMap<String, CompletableFuture<ManagedLedgerImpl>>) field
+                .get(factory);
+        ledgers.clear();
+
+        // (3) consumer will fail to consume any message as first data-ledger is non-recoverable
+        Message msg = null;
+        // start consuming message
+        consumer = client.subscribe(dn1, "my-subscriber-name");
+        msg = consumer.receive(1, TimeUnit.SECONDS);
+        Assert.assertNull(msg);
+        consumer.close();
+
+        // (4) enable dynamic config to skip non-recoverable data-ledgers
+        admin.brokers().updateDynamicConfiguration("autoSkipNonRecoverableData", "true");
+
+        retryStrategically((test) -> config.isAutoSkipNonRecoverableData(), 5, 100);
+
+        // (5) consumer will be able to consume 20 messages from last non-deleted ledger
+        consumer = client.subscribe(dn1, "my-subscriber-name");
+        for (int i = 0; i < entriesPerLedger; i++) {
+            msg = consumer.receive(5, TimeUnit.SECONDS);
+            System.out.println(i);
+            consumer.acknowledge(msg);
+        }
+
+        producer.close();
+        consumer.close();
+        client.close();
+
+    }
+    
     private static final Logger LOG = LoggerFactory.getLogger(BrokerBkEnsemblesTests.class);
 }

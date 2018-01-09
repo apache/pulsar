@@ -155,6 +155,8 @@ configs:
   default: '50000'
 - name: managedLedgerCursorRolloverTimeInSeconds
   default: '14400'
+- name: autoSkipNonRecoverableData
+  default: 'false'
 - name: loadBalancerEnabled
   default: 'false'
 - name: loadBalancerPlacementStrategy
