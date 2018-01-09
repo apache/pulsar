@@ -1,0 +1,174 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+## Credits to Franck Cuny : https://github.com/fcuny/distributedlog-on-k8s/blob/master/bookkeeper.statefulset.yaml
+
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: ssd
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-ssd
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bookie-config
+data:
+  BK_BOOKIE_EXTRA_OPTS: "\"-Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g -XX:+UseG1GC  -XX:MaxGCPauseMillis=10 -XX:+ParallelRefProcEnabled -XX:+UnlockExperimentalVMOptions -XX:+AggressiveOpts -XX:+DoEscapeAnalysis -XX:ParallelGCThreads=32 -XX:ConcGCThreads=32 -XX:G1NewSizePercent=50 -XX:+DisableExplicitGC -XX:-ResizePLAB\""
+  BK_bookiePort: "3181"
+  BK_journalDirectory: "/bookkeeper/data/journal"
+  BK_ledgerDirectories: "/bookkeeper/data/ledgers"
+  BK_indexDirectories: "/bookkeeper/data/ledgers"
+  BK_zkServers: zookeeper
+  # the default manager is flat, which is not good for supporting large number of ledgers
+  BK_ledgerManagerType: "hierarchical"
+  # TODO: Issue 458: https://github.com/apache/bookkeeper/issues/458
+  #BK_statsProviderClass: org.apache.bookkeeper.stats.prometheus.PrometheusMetricsProvider
+  # use hostname as bookie id for StatefulSets deployment
+  BK_useHostNameAsBookieID: "true"
+---
+
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  name: bookie
+  labels:
+    app: bookkeeper
+    component: bookie
+spec:
+  serviceName: "bookkeeper"
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: bookkeeper
+        component: bookie
+      annotations:
+        pod.alpha.kubernetes.io/initialized: "true"
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+    spec:
+      terminationGracePeriodSeconds: 0
+      containers:
+        - name: bookie
+          image: apache/bookkeeper:latest
+          resources:
+            requests:
+              memory: "3Gi"
+              cpu: "1000m"
+            limits:
+              memory: "5Gi"
+              cpu: "2000m"
+          command: [ "/bin/bash", "/opt/bookkeeper/entrypoint.sh" ]
+          args: ["/opt/bookkeeper/bin/bookkeeper", "bookie"]
+          ports:
+            - name: bookie
+              containerPort: 3181
+          envFrom:
+            - configMapRef:
+                  name: bookie-config
+          volumeMounts:
+            - name: journaldisk
+              mountPath: /bookkeeper/data/journal
+            - name: ledgersdisk
+              mountPath: /bookkeeper/data/ledgers
+
+  volumeClaimTemplates:
+    - metadata:
+        name: journaldisk
+        labels:
+          component: bookkeeper
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        storageClassName: ssd
+        resources:
+          requests:
+            storage: 5Gi
+    - metadata:
+        name: ledgersdisk
+        annotations:
+          volume.alpha.kubernetes.io/storage-class: default
+        labels:
+          component: bookkeeper
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi
+---
+# A headless service to create DNS records
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+  name: bookkeeper
+  labels:
+    app: bookkeeper
+    component: bookie
+spec:
+  ports:
+  ports:
+    - name: bookie
+      port: 3181
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: bookkeeper
+    component: bookie
+
+---
+##
+## Run BookKeeper auto-recovery from a different set of containers
+## Auto-Recovery makes sure to restore the replication factor when any bookie
+## crashes and it's not recovering on its own.
+##
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: bookie-autorecovery
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: bookkeeper
+        component: bookkeeper-replication
+    spec:
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchExpressions:
+                  - key: "app"
+                    operator: In
+                    values: 
+                      - bookkeeper
+              topologyKey: "kubernetes.io/hostname"
+      containers:
+        - name: replication-worker
+          image: apache/bookkeeper:latest
+          command: [ "/bin/bash", "/opt/bookkeeper/entrypoint.sh" ]
+          args: ["/opt/bookkeeper/bin/bookkeeper", "autorecovery"]
+          envFrom:
+            - configMapRef:
+                name: bookie-config
