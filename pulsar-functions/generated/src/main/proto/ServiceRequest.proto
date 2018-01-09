@@ -1,30 +1,41 @@
-syntax = "proto2";
+syntax = "proto3";
 package generated;
 
 option java_package = "org.apache.pulsar.functions.generated";
 option java_outer_classname = "ServiceRequest";
-option optimize_for = LITE_RUNTIME;
 
 message FunctionConfig {
-    required string tenant = 1;
-    required string namespace = 2;
-    required string name = 3;
-    required string className = 4;
-    required string inputSerdeClassName = 5;
-    required string outputSerdeClassName = 6;
-    required string sourceTopic = 7;
-    required string sinkTopic = 8;
+    string tenant = 1;
+    string namespace = 2;
+    string name = 3;
+    string className = 4;
+    string inputSerdeClassName = 5;
+    string outputSerdeClassName = 6;
+    string sourceTopic = 7;
+    string sinkTopic = 8;
 }
 
 message PackageLocationMetaData {
-    required string packagePath = 1;
+    string packagePath = 1;
 }
 
-message MetaData {
-    required FunctionConfig functionConfig = 1;
-    required PackageLocationMetaData package = 2;
-    required string runtime = 3;
-    required uint64 version = 4;
-    required uint64 createTime = 5;
-    required string workerId = 6;
+message FunctionMetaData {
+    FunctionConfig functionConfig = 1;
+    PackageLocationMetaData package = 2;
+    string runtime = 3;
+    uint64 version = 4;
+    uint64 createTime = 5;
+    string workerId = 6;
+}
+
+message Request {
+    enum ServiceRequestType {
+        UPDATE = 0;
+        DELETE = 1;
+        MARKER = 2;
+    }
+
+    ServiceRequestType serviceRequestType = 1;
+    string requestId = 2;
+    FunctionMetaData functionMetaData = 3;
 }
