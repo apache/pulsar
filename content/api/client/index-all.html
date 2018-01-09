@@ -149,7 +149,15 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ChecksumException.html#ChecksumException-java.lang.String-">ChecksumException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ChecksumException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ChecksumException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">choosePartition(Message)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">since 1.22.0. Please use <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a> instead.</span></div>
+</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-">choosePartition(Message, TopicMetadata)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></dt>
+<dd>
+<div class="block">Choose a partition based on msg and the topic metadata.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">ClientConfiguration</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Class used to specify client side configuration like authentication, etc..</div>
@@ -389,7 +397,14 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter-int-">getMessageRouter(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
-<div class="block">Get the message router object</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
+ <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a>.</span></div>
+</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter--">getMessageRouter()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
+<dd>
+<div class="block">Get the message router set by <a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRouter-org.apache.pulsar.client.api.MessageRouter-"><code>ProducerConfiguration.setMessageRouter(MessageRouter)</code></a>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRoutingMode--">getMessageRoutingMode()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
@@ -599,6 +614,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.NotSupportedException.html#NotSupportedException-java.lang.String-">NotSupportedException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.NotSupportedException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.NotSupportedException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/TopicMetadata.html#numPartitions--">numPartitions()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api">TopicMetadata</a></dt>
+<dd>
+<div class="block">Return the number of partitions per topic.</div>
+</dd>
 </dl>
 <a name="I:O">
 <!--   -->
@@ -1051,6 +1070,10 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.TooManyRequestsException.html#TooManyRequestsException-java.lang.String-">TooManyRequestsException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.TooManyRequestsException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.TooManyRequestsException</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">TopicMetadata</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">Metadata of a topic that can be used for message routing.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.TopicTerminatedException.html#TopicTerminatedException-java.lang.String-">TopicTerminatedException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.TopicTerminatedException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.TopicTerminatedException</a></dt>
 <dd>&nbsp;</dd>
 </dl>

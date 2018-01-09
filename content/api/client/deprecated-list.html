@@ -86,8 +86,19 @@
 </tr>
 <tbody>
 <tr class="altColor">
+<td class="colOne"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">org.apache.pulsar.client.api.MessageRouter.choosePartition(Message)</a>
+<div class="block"><span class="deprecationComment">since 1.22.0. Please use <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a> instead.</span></div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colOne"><a href="org/apache/pulsar/client/api/Authentication.html#configure-java.util.Map-">org.apache.pulsar.client.api.Authentication.configure(Map&lt;String, String&gt;)</a>
 <div class="block"><span class="deprecationComment">This method will be deleted on versin 2.0, instead please use configure(String encodedAuthParamString) which is in EncodedAuthenticationParameterSupport for now and will be integrated into this interface.</span></div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colOne"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter-int-">org.apache.pulsar.client.api.ProducerConfiguration.getMessageRouter(int)</a>
+<div class="block"><span class="deprecationComment">since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
+ <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a>.</span></div>
 </td>
 </tr>
 </tbody>
