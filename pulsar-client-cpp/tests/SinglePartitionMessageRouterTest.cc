@@ -31,7 +31,9 @@ using ::testing::ReturnRef;
 
 using namespace pulsar;
 
-TEST(SinglePartitionMessageRouterTest, getPartitionWithoutPartitionKey) {
+// TODO: Edit Message class to suit Google Mock and enable these tests when 2.0.0 release.
+
+TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey) {
     const int selectedPartition = 1234;
 
     SinglePartitionMessageRouter router(selectedPartition);
@@ -43,7 +45,7 @@ TEST(SinglePartitionMessageRouterTest, getPartitionWithoutPartitionKey) {
     ASSERT_EQ(selectedPartition, router.getPartition(message, TopicMetadataImpl(1)));
 }
 
-TEST(SinglePartitionMessageRouterTest, getPartitionWithPartitionKey) {
+TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithPartitionKey) {
     const int numPartitons = 1234;
 
     SinglePartitionMessageRouter router(1);

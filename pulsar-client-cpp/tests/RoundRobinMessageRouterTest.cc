@@ -31,7 +31,9 @@ using ::testing::ReturnRef;
 
 using namespace pulsar;
 
-TEST(RoundRobinMessageRouterTest, getPartitionWithoutPartitionKey) {
+// TODO: Edit Message class to suit Google Mock and enable these tests when 2.0.0 release.
+
+TEST(RoundRobinMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey) {
     const int numPartitions1 = 5;
     const int numPartitions2 = 3;
 
@@ -47,7 +49,7 @@ TEST(RoundRobinMessageRouterTest, getPartitionWithoutPartitionKey) {
     }
 }
 
-TEST(RoundRobinMessageRouterTest, getPartitionWithPartitionKey) {
+TEST(RoundRobinMessageRouterTest, DISABLED_getPartitionWithPartitionKey) {
     const int numPartitons = 1234;
 
     RoundRobinMessageRouter router;

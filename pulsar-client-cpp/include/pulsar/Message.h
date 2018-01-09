@@ -39,12 +39,12 @@ class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
+// TODO: When releasing 2.0.0, make all methods virtual and create the virtual destructor for Google Mock tests
 class Message {
  public:
     typedef std::map<std::string, std::string> StringMap;
 
     Message();
-    virtual ~Message() {}
 
     /**
      * Return the properties attached to the message.
@@ -52,7 +52,7 @@ class Message {
      *
      * @return an unmodifiable view of the properties map
      */
-    virtual const StringMap& getProperties() const;
+    const StringMap& getProperties() const;
 
     /**
      * Check whether the message has a specific property attached.
@@ -61,7 +61,7 @@ class Message {
      * @return true if the message has the specified property
      * @return false if the property is not defined
      */
-    virtual bool hasProperty(const std::string& name) const;
+    bool hasProperty(const std::string& name) const;
 
     /**
      * Get the value of a specific property
@@ -69,7 +69,7 @@ class Message {
      * @param name the name of the property
      * @return the value of the property or null if the property was not defined
      */
-    virtual const std::string& getProperty(const std::string& name) const;
+    const std::string& getProperty(const std::string& name) const;
 
     /**
      * Get the content of the message
@@ -77,21 +77,21 @@ class Message {
      *
      * @return the pointer to the message payload
      */
-    virtual const void* getData() const;
+    const void* getData() const;
 
     /**
      * Get the length of the message
      *
      * @return the length of the message payload
      */
-    virtual std::size_t getLength() const;
+    std::size_t getLength() const;
 
     /**
      * Get string representation of the message
      *
      * @return the string representation of the message payload
      */
-    virtual std::string getDataAsString() const;
+    std::string getDataAsString() const;
 
     /**
      * Get the unique message ID associated with this message.
@@ -101,24 +101,24 @@ class Message {
      * Only messages received from the consumer will have a message id assigned.
      *
      */
-    virtual const MessageId& getMessageId() const;
+    const MessageId& getMessageId() const;
 
     /**
      * Get the partition key for this message
      * @return key string that is hashed to determine message's destination partition
      */
-    virtual const std::string& getPartitionKey() const;
-    virtual bool hasPartitionKey() const;
+    const std::string& getPartitionKey() const;
+    bool hasPartitionKey() const;
 
     /**
      * Get the UTC based timestamp in milliseconds referring to when the message was published by the client producer
      */
-    virtual uint64_t getPublishTimestamp() const;
+    uint64_t getPublishTimestamp() const;
 
     /**
      * Get the event timestamp associated with this message. It is set by the client producer.
      */
-    virtual uint64_t getEventTimestamp() const;
+    uint64_t getEventTimestamp() const;
 
   private:
     typedef boost::shared_ptr<MessageImpl> MessageImplPtr;

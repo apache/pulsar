@@ -24,6 +24,7 @@
 #include <pulsar/Message.h>
 
 namespace pulsar {
+    // TODO: For the mock tests, we need to make all methods and destructor virtual in Message class
     class GMockMessage : public Message {
     public:
         MOCK_CONST_METHOD0(hasPartitionKey, bool());
