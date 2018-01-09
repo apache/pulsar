@@ -37,8 +37,6 @@ public interface FunctionContainer {
 
     void stop();
 
-    FunctionConfig getFunctionConfig();
-
     CompletableFuture<FunctionStatus> getFunctionStatus();
 
 }
