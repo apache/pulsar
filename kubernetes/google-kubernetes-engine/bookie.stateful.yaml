@@ -120,8 +120,8 @@ metadata:
     service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
   name: bookkeeper
   labels:
-    app: bookkeeper
-    component: bookie
+    app: pulsar
+    component: bookkeeper
 spec:
   ports:
   ports:
@@ -130,8 +130,8 @@ spec:
       protocol: TCP
   clusterIP: None
   selector:
-    app: bookkeeper
-    component: bookie
+    app: pulsar
+    component: bookkeeper
 
 ---
 ##
