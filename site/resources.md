@@ -1,5 +1,5 @@
 ---
-title: Presentations
+title: Resources
 layout: content
 ---
 
