@@ -67,7 +67,7 @@ spec:
                 env:
                  - name: advertisedAddress
                    valueFrom:
-                       fieldRef:
+                        fieldRef:
                            fieldPath: status.podIP
 ---
 
