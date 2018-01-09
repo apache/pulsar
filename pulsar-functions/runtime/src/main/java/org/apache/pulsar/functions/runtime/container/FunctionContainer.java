@@ -29,11 +29,7 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface FunctionContainer {
 
-    String getId();
-
     void start() throws Exception;
-
-    void join() throws InterruptedException;
 
     void stop();
 

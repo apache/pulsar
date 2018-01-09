@@ -225,7 +225,11 @@ public class CmdFunctions extends CmdBase {
                     containerFactory);
 
                 spawner.start();
-                spawner.join();
+                Runtime.getRuntime().addShutdownHook(new Thread() {
+                    public void run() {
+                        spawner.close();
+                    }
+                });
             }
         }
     }

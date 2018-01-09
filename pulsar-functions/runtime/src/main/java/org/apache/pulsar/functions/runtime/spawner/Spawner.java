@@ -77,12 +77,6 @@ public class Spawner implements AutoCloseable {
         functionContainer.start();
     }
 
-    public void join() throws Exception {
-        if (null != functionContainer) {
-            functionContainer.join();
-        }
-    }
-
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         return functionContainer.getFunctionStatus();
     }
