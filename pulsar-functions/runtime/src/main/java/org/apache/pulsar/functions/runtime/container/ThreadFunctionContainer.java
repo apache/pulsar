@@ -39,10 +39,7 @@ class ThreadFunctionContainer implements FunctionContainer {
     // The thread that invokes the function
     @Getter
     private final Thread fnThread;
-
-    // The id of the thread
-    private final String id;
-
+    
     private JavaInstanceRunnable javaInstanceRunnable;
 
     ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
@@ -53,13 +50,8 @@ class ThreadFunctionContainer implements FunctionContainer {
                             PulsarClient pulsarClient) {
         this.javaInstanceRunnable = new JavaInstanceRunnable(instanceConfig, maxBufferedTuples,
                 fnCache, jarFile, pulsarClient);
-        this.id = instanceConfig.getFunctionConfig().getFullyQualifiedName();
-        this.fnThread = new Thread(threadGroup, javaInstanceRunnable, this.id);
-    }
-
-    @Override
-    public String getId() {
-        return id;
+        this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
+                instanceConfig.getFunctionConfig().getFullyQualifiedName());
     }
 
     /**
@@ -68,11 +60,6 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public void start() throws Exception {
         this.fnThread.start();
-    }
-
-    @Override
-    public void join() throws InterruptedException {
-        fnThread.join();
     }
 
     @Override
