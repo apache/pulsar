@@ -43,6 +43,8 @@ import org.testng.annotations.Test;
 @Slf4j
 public class ThreadFunctionContainerTest {
 
+    private static final String TEST_TENANT = "test-function-tenant";
+    private static final String TEST_NAMESPACE = "test-function-namespace";
     private static final String TEST_NAME = "test-function-container";
 
     private final PulsarClientImpl client;
@@ -68,6 +70,8 @@ public class ThreadFunctionContainerTest {
 
     FunctionConfig createFunctionConfig() {
         FunctionConfig config = new FunctionConfig();
+        config.setTenant(TEST_TENANT);
+        config.setNamespace(TEST_NAMESPACE);
         config.setName(TEST_NAME);
         config.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
         config.setSourceTopic(TEST_NAME + "-source");
@@ -95,9 +99,8 @@ public class ThreadFunctionContainerTest {
         JavaInstanceConfig config = createJavaInstanceConfig();
 
         ThreadFunctionContainer container = factory.createContainer(config, jarFile);
-        assertEquals(
-            "fn-" + config.getFunctionConfig().getName() + "-instance-" + config.getInstanceId(),
-            container.getFnThread().getName());
+        assertEquals(TEST_TENANT + "/" + TEST_NAMESPACE + "/" + TEST_NAME,
+                container.getFnThread().getName());
         container.stop();
         assertFalse(container.getFnThread().isAlive());
     }
