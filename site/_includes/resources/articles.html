@@ -1,0 +1,16 @@
+<table>
+  <thead>
+    <tr>
+      <th>Forum</th>
+      <th>Link</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for article in site.data.resources.articles %}
+    <tr>
+      <td><a href="{{ article.forum_link }}">{{ article.forum }}</a></td>
+      <td><a href="{{ article.link }}">{{ article.title }}</a></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

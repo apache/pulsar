@@ -1,0 +1,28 @@
+<table>
+  <thead>
+    <tr>
+      <th>Forum</th>
+      <th>Date</th>
+      <th>Presenter</th>
+      <th>Link</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for presentation in site.data.resources.presentations %}
+      <tr>
+        <td>
+          <a href="{{ presentation.forum_link }}">{{ presentation.forum }}</a>
+        </td>
+        <td>
+          {{ presentation.date }}
+        </td>
+        <td>
+          {{ presentation.presenter }}
+        </td>
+        <td>
+          <a href="{{ presentation.link }}">{{ presentation.title }}</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
