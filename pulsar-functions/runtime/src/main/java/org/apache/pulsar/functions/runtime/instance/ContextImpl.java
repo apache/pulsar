@@ -76,12 +76,12 @@ class ContextImpl implements Context {
 
     @Override
     public long getMemoryLimit() {
-        return config.getMaxMemory();
+        return config.getLimitsConfig().getMaxMemoryMb() * 1024 * 1024;
     }
 
     @Override
     public long getTimeBudgetInMs() {
-        return config.getTimeBudgetInMs();
+        return config.getLimitsConfig().getMaxTimeMs();
     }
 
     @Override

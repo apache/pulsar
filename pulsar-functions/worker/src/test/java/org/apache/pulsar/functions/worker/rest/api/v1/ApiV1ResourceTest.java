@@ -45,7 +45,7 @@ import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.worker.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.PackageLocationMetaData;

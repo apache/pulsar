@@ -29,7 +29,7 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 
 @Data
 @Setter

@@ -23,7 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import java.io.File;

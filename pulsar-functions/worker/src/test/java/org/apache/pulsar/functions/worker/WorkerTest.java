@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 
 import java.net.URISyntaxException;
 import org.testng.annotations.Test;

@@ -24,7 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.annotation.Annotations;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionStatus;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.worker.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;

@@ -114,7 +114,7 @@ public class JavaInstance implements AutoCloseable {
             throw new RuntimeException("User class must be either a Request or Raw Request Handler");
         }
 
-        if (config.getTimeBudgetInMs() > 0) {
+        if (config.getLimitsConfig().getMaxTimeMs() > 0) {
             log.info("Spinning up a executor service since time budget is infinite");
             executorService = Executors.newFixedThreadPool(1);
         }

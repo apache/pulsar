@@ -30,6 +30,7 @@ import lombok.Setter;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.serde.JavaSerDe;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.testng.annotations.Test;
@@ -82,10 +83,12 @@ public class JavaInstanceTest {
 
     private static JavaInstanceConfig createInstanceConfig() {
         FunctionConfig functionConfig = new FunctionConfig();
+        LimitsConfig limitsConfig = new LimitsConfig();
         functionConfig.setInputSerdeClassName(Utf8StringSerDe.class.getName());
         functionConfig.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
         JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
         instanceConfig.setFunctionConfig(functionConfig);
+        instanceConfig.setLimitsConfig(limitsConfig);
         return instanceConfig;
     }
 
@@ -96,7 +99,7 @@ public class JavaInstanceTest {
     @Test
     public void testLongRunningFunction() throws Exception {
         JavaInstanceConfig config = createInstanceConfig();
-        config.setTimeBudgetInMs(2000);
+        config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config, new LongRunningHandler(), Thread.currentThread().getContextClassLoader());
         String testString = "ABC123";
@@ -113,7 +116,7 @@ public class JavaInstanceTest {
     @Test
     public void testLambda() {
         JavaInstanceConfig config = createInstanceConfig();
-        config.setTimeBudgetInMs(2000);
+        config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config,
             (RequestHandler<String, String>) (input, context) -> input + "-lambda",
@@ -165,7 +168,7 @@ public class JavaInstanceTest {
     @Test
     public void testVoidOutputClasses() {
         JavaInstanceConfig config = createInstanceConfig();
-        config.setTimeBudgetInMs(2000);
+        config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config, new VoidOutputHandler(), Thread.currentThread().getContextClassLoader());
         String testString = "ABC123";
@@ -181,7 +184,7 @@ public class JavaInstanceTest {
     @Test
     public void testInconsistentInputType() {
         JavaInstanceConfig config = createInstanceConfig();
-        config.setTimeBudgetInMs(2000);
+        config.getLimitsConfig().setMaxTimeMs(2000);
         config.getFunctionConfig().setInputSerdeClassName(JavaSerDe.class.getName());
 
         try {
@@ -201,7 +204,7 @@ public class JavaInstanceTest {
     @Test
     public void testInconsistentOutputType() {
         JavaInstanceConfig config = createInstanceConfig();
-        config.setTimeBudgetInMs(2000);
+        config.getLimitsConfig().setMaxTimeMs(2000);
         config.getFunctionConfig().setOutputSerdeClassName(JavaSerDe.class.getName());
 
         try {
