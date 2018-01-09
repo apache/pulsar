@@ -31,7 +31,12 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class RawMessageImpl implements RawMessage {
+    private static final Logger log = LoggerFactory.getLogger(RawMessageImpl.class);
+
     private final MessageIdData id;
     private final ByteBuf headersAndPayload;
 
@@ -75,6 +80,7 @@ public class RawMessageImpl implements RawMessage {
             outStream.recycle();
         } catch (IOException e) {
             // This is in-memory serialization, should not fail
+            log.error("IO exception serializing to ByteBuf (this shouldn't happen as operation is in-memory)", e);
             throw new RuntimeException(e);
         }
         headers.writeInt(headersAndPayload.readableBytes());
@@ -100,6 +106,7 @@ public class RawMessageImpl implements RawMessage {
             return new RawMessageImpl(id, metadataAndPayload);
         } catch (IOException e) {
             // This is in-memory deserialization, should not fail
+            log.error("IO exception deserializing ByteBuf (this shouldn't happen as operation is in-memory)", e);
             throw new RuntimeException(e);
         }
     }
