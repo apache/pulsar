@@ -34,6 +34,7 @@
   <modules>
     <module>api</module>
     <module>runtime</module>
+    <module>worker</module>
     <module>api-examples</module>
     <module>runtime-benchmark</module>
   </modules>
