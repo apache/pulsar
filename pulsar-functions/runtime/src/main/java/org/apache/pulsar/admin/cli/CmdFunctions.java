@@ -25,13 +25,12 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.functions.annotation.Annotations;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
-import org.apache.pulsar.functions.runtime.spawner.LimitsConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.utils.Reflections;
 

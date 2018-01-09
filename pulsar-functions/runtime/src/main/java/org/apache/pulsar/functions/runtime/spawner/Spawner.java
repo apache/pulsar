@@ -29,6 +29,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionStatus;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
@@ -98,8 +99,7 @@ public class Spawner implements AutoCloseable {
         javaInstanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
         javaInstanceConfig.setFunctionId(assignmentInfo.getFunctionId());
         javaInstanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
-        javaInstanceConfig.setTimeBudgetInMs(limitsConfig.getMaxTimeMs());
-        javaInstanceConfig.setMaxMemory(limitsConfig.getMaxMemoryMb());
+        javaInstanceConfig.setLimitsConfig(limitsConfig);
         return javaInstanceConfig;
     }
 }

@@ -26,6 +26,7 @@ import lombok.ToString;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.InstanceID;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 
 /**
  * This is the config passed to the Java Instance. Contains all the information
@@ -38,9 +39,8 @@ import org.apache.pulsar.functions.runtime.InstanceID;
 @ToString
 public class JavaInstanceConfig {
     private InstanceID instanceId;
-    private FunctionConfig functionConfig;
     private FunctionID functionId;
     private String functionVersion;
-    private int timeBudgetInMs;
-    private int maxMemory;
+    private FunctionConfig functionConfig;
+    private LimitsConfig limitsConfig;
 }

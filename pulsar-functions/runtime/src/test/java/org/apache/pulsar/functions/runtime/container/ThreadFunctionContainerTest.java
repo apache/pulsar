@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.FunctionID;
 import org.apache.pulsar.functions.runtime.InstanceID;
@@ -81,8 +82,10 @@ public class ThreadFunctionContainerTest {
         config.setFunctionId(new FunctionID());
         config.setFunctionVersion("1.0");
         config.setInstanceId(new InstanceID());
-        config.setMaxMemory(2048);
-        config.setTimeBudgetInMs(2000);
+        LimitsConfig limitsConfig = new LimitsConfig();
+        limitsConfig.setMaxTimeMs(2000);
+        limitsConfig.setMaxMemoryMb(2048);
+        config.setLimitsConfig(limitsConfig);
 
         return config;
     }
