@@ -25,6 +25,7 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
@@ -224,27 +225,25 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * Get the message router object
+     * Get the message router set by {@link #setMessageRouter(MessageRouter)}.
      *
-     * @return
+     * @return message router.
+     * @deprecated since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
+     * {@link MessageRouter#choosePartition(Message, TopicMetadata)}.
+     * @see MessageRouter
      */
+    @Deprecated
     public MessageRouter getMessageRouter(int numPartitions) {
-        MessageRouter messageRouter;
+        return customMessageRouter;
+    }
 
-        switch (messageRouteMode) {
-        case CustomPartition:
-            checkNotNull(customMessageRouter);
-            messageRouter = customMessageRouter;
-            break;
-        case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl(numPartitions);
-            break;
-        case SinglePartition:
-        default:
-            messageRouter = new SinglePartitionMessageRouterImpl(numPartitions);
-        }
-
-        return messageRouter;
+    /**
+     * Get the message router set by {@link #setMessageRouter(MessageRouter)}.
+     *
+     * @return message router set by {@link #setMessageRouter(MessageRouter)}.
+     */
+    public MessageRouter getMessageRouter() {
+        return customMessageRouter;
     }
 
     /**
