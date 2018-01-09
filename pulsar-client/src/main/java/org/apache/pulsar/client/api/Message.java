@@ -96,6 +96,24 @@ public interface Message<T> {
     long getEventTime();
 
     /**
+     * Get the sequence id associated with this message. It is typically set by the applications via
+     * {@link MessageBuilder#setSequenceId(long)}.
+     *
+     * @return sequence id associated with this message.
+     * @see MessageBuilder#setEventTime(long)
+     * @since 1.22.0
+     */
+    long getSequenceId();
+
+    /**
+     * Get the producer name who produced this message.
+     *
+     * @return producer name who produced this message, null if producer name is not set.
+     * @since 1.22.0
+     */
+    String getProducerName();
+
+    /**
      * Check whether the message has a key
      *
      * @return true if the key was set while creating the message

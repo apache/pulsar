@@ -192,6 +192,23 @@ public class MessageImpl implements Message<byte[]> {
         return getData();
     }
 
+    public long getSequenceId() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasSequenceId()) {
+            return msgMetadataBuilder.getSequenceId();
+        }
+        return -1;
+    }
+
+    @Override
+    public String getProducerName() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasProducerName()) {
+            return msgMetadataBuilder.getProducerName();
+        }
+        return null;
+    }
+
     ByteBuf getDataBuffer() {
         return payload;
     }

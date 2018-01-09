@@ -1,0 +1,13 @@
+[Unit]
+Description=Bookkeeper
+After=network.target
+
+[Service]
+ExecStart=/opt/pulsar/bin/pulsar bookie
+WorkingDirectory=/opt/pulsar
+RestartSec=1s
+Restart=on-failure
+Type=simple
+
+[Install]
+WantedBy=multi-user.target

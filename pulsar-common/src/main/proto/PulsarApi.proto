@@ -34,6 +34,11 @@ message KeyValue {
 	required string value = 2;
 }
 
+message KeyLongValue {
+        required string key = 1;
+        required uint64 value = 2;
+}
+
 message EncryptionKeys {
 	required string key = 1;
 	required bytes value = 2;
@@ -173,6 +178,9 @@ message CommandSubscribe {
 	// markd-delete position  on the particular message id and
 	// will send messages from that point
 	optional MessageIdData start_message_id = 9;
+
+	/// Add optional metadata key=value to this consumer
+    repeated KeyValue metadata = 10;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -230,6 +238,11 @@ message CommandProducer {
 	/// If a producer name is specified, the name will be used,
 	/// otherwise the broker will generate a unique name
 	optional string producer_name = 4;
+
+	optional bool encrypted       = 5 [default = false];
+
+    /// Add optional metadata key=value to this producer
+    repeated KeyValue metadata    = 6;
 }
 
 message CommandSend {
@@ -278,6 +291,7 @@ message CommandAck {
 	}
 
 	optional ValidationError validation_error = 4;
+        repeated KeyLongValue properties = 5;
 }
 
 message CommandFlow {

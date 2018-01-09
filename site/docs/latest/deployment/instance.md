@@ -37,7 +37,7 @@ A Pulsar *instance* consists of multiple Pulsar {% popover clusters %} working i
 If you're deploying a single Pulsar cluster, see the [Clusters and Brokers](../../getting-started/LocalCluster#starting-the-cluster) guide.
 
 {% include admonition.html type="info" title='Running Pulsar locally or on Kubernetes?' content="
-This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If you'd like to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide. If you're looking to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](../Kubernetes) guide, which includes sections on running Pulsar on Kubernetes on [Google Container Engine](../Kubernetes#pulsar-on-google-container-engine) and on [Amazon Web Services](../Kubernetes#pulsar-on-amazon-web-services).
+This guide shows you how to deploy Pulsar in production in a non-Kubernetes. If you'd like to run a standalone Pulsar cluster on a single machine for development purposes, see the [Setting up a local cluster](../../getting-started/LocalCluster) guide. If you're looking to run Pulsar on [Kubernetes](https://kubernetes.io), see the [Pulsar on Kubernetes](../Kubernetes) guide, which includes sections on running Pulsar on Kubernetes on [Google Kubernetes Engine](../Kubernetes#pulsar-on-google-kubernetes-engine) and on [Amazon Web Services](../Kubernetes#pulsar-on-amazon-web-services).
 " %}
 
 {% include explanations/install-package.md %}

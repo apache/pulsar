@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -93,8 +96,10 @@ public class Consumer {
     private volatile int unackedMessages = 0;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
+    private final Map<String, String> metadata;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId, int priorityLevel, String consumerName,
-            int maxUnackedMessages, ServerCnx cnx, String appId) throws BrokerServiceException {
+            int maxUnackedMessages, ServerCnx cnx, String appId, Map<String, String> metadata) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -111,11 +116,14 @@ public class Consumer {
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
 
+        this.metadata = metadata != null ? metadata : Collections.emptyMap();
+
         stats = new ConsumerStats();
         stats.address = cnx.clientAddress().toString();
         stats.consumerName = consumerName;
         stats.connectedSince = DateFormatter.now();
         stats.clientVersion = cnx.getClientVersion();
+        stats.metadata = this.metadata;
 
         if (subType == SubType.Shared) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
@@ -251,7 +259,7 @@ public class Consumer {
                 iter.remove();
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
-                subscription.acknowledgeMessage(pos, AckType.Individual);
+                subscription.acknowledgeMessage(pos, AckType.Individual, Collections.emptyMap());
                 continue;
             }
             if (pendingAcks != null) {
@@ -334,15 +342,21 @@ public class Consumer {
                     position, ack.getValidationError());
         }
 
+        Map<String,Long> properties = Collections.emptyMap();
+        if (ack.getPropertiesCount() > 0) {
+            properties = ack.getPropertiesList().stream()
+                .collect(Collectors.toMap((e) -> e.getKey(),
+                                          (e) -> e.getValue()));
+        }
         if (subType == SubType.Shared) {
             // On shared subscriptions, cumulative ack is not supported
             checkArgument(ack.getAckType() == AckType.Individual);
 
             // Only ack a single message
             removePendingAcks(position);
-            subscription.acknowledgeMessage(position, AckType.Individual);
+            subscription.acknowledgeMessage(position, AckType.Individual, properties);
         } else {
-            subscription.acknowledgeMessage(position, ack.getAckType());
+            subscription.acknowledgeMessage(position, ack.getAckType(), properties);
         }
 
     }

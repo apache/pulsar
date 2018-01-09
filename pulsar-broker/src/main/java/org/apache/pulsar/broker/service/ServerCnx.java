@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -43,6 +44,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -66,6 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -239,7 +242,7 @@ public class ServerCnx extends PulsarHandler {
                 log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}", remoteAddress,
                         topic);
             }
-            ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
         }
     }
@@ -364,6 +367,7 @@ public class ServerCnx extends PulsarHandler {
                 : null;
 
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
+        final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
 
         authorizationFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
@@ -372,6 +376,14 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+
+                try {
+                    Metadata.validateMetadata(metadata);
+                } catch (IllegalArgumentException iae) {
+                    final String msg = iae.getMessage();
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                    return null;
+                }
 
                 CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
                 CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId, consumerFuture);
@@ -397,7 +409,7 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 service.getTopic(topicName).thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName,
-                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId))
+                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId, metadata))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -457,7 +469,7 @@ public class ServerCnx extends PulsarHandler {
         CompletableFuture<Boolean> authorizationFuture;
         if (service.isAuthorizationEnabled()) {
             authorizationFuture = service.getAuthorizationManager().canProduceAsync(
-                    DestinationName.get(cmdProducer.getTopic().toString()),
+                    DestinationName.get(cmdProducer.getTopic()),
                     originalPrincipal != null ? originalPrincipal : authRole);
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
@@ -469,11 +481,23 @@ public class ServerCnx extends PulsarHandler {
         final String topicName = cmdProducer.getTopic();
         final long producerId = cmdProducer.getProducerId();
         final long requestId = cmdProducer.getRequestId();
+        final boolean isEncrypted = cmdProducer.getEncrypted();
+        final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
+
         authorizationFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Client is authorized to Produce with role {}", remoteAddress, authRole);
                 }
+
+                try {
+                    Metadata.validateMetadata(metadata);
+                } catch (IllegalArgumentException iae) {
+                    final String msg = iae.getMessage();
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                    return null;
+                }
+
                 CompletableFuture<Producer> producerFuture = new CompletableFuture<>();
                 CompletableFuture<Producer> existingProducerFuture = producers.putIfAbsent(producerId, producerFuture);
 
@@ -522,9 +546,18 @@ public class ServerCnx extends PulsarHandler {
                         return;
                     }
 
+                    // Check whether the producer will publish encrypted messages or not
+                    if (topic.isEncryptionRequired() && !isEncrypted) {
+                        String msg = String.format("Encryption is required in %s", topicName);
+                        log.warn("[{}] {}", remoteAddress, msg);
+                        ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                        return;
+                    }
+
                     disableTcpNoDelayIfNeeded(topicName, producerName);
 
-                    Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole);
+                    Producer producer =
+                            new Producer(topic, ServerCnx.this, producerId, producerName, authRole, isEncrypted, metadata);
 
                     try {
                         topic.addProducer(producer);

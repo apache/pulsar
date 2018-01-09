@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -44,8 +46,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class PulsarClientImpl implements PulsarClient {
 
@@ -77,13 +77,19 @@ public class PulsarClientImpl implements PulsarClient {
 
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
+        this(serviceUrl, conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup));
+    }
+
+    public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup,
+            ConnectionPool cnxPool)
+            throws PulsarClientException {
         if (isBlank(serviceUrl) || conf == null || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
         }
         this.eventLoopGroup = eventLoopGroup;
         this.conf = conf;
         conf.getAuthentication().start();
-        cnxPool = new ConnectionPool(this, eventLoopGroup);
+        this.cnxPool = cnxPool;
         if (serviceUrl.startsWith("http")) {
             lookup = new HttpLookupService(serviceUrl, conf, eventLoopGroup);
         } else {
@@ -502,7 +508,7 @@ public class PulsarClientImpl implements PulsarClient {
         return cnxPool;
     }
 
-    EventLoopGroup eventLoopGroup() {
+    public EventLoopGroup eventLoopGroup() {
         return eventLoopGroup;
     }
 

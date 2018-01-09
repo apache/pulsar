@@ -160,6 +160,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable broker to load non-persistent topics
     private boolean enableNonPersistentTopics = true;
 
+    // Enable to run bookie along with broker
+    private boolean enableRunBookieTogether = false;
+
+    // Enable to run bookie autorecovery along with broker
+    private boolean enableRunBookieAutoRecoveryTogether = false;
+
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -291,6 +297,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
+    // Enable/disable automatic bundle unloading for load-shedding
+    @FieldContext(dynamic = true)
+    private boolean loadBalancerSheddingEnabled = true;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
     private int loadBalancerSheddingIntervalMinutes = 5;
@@ -675,6 +684,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.enableNonPersistentTopics = enableNonPersistentTopics;
     }
 
+    public boolean isEnableRunBookieTogether() {
+        return enableRunBookieTogether;
+    }
+
+    public void setEnableRunBookieTogether(boolean enableRunBookieTogether) {
+        this.enableRunBookieTogether = enableRunBookieTogether;
+    }
+
+    public boolean isEnableRunBookieAutoRecoveryTogether() {
+        return enableRunBookieAutoRecoveryTogether;
+    }
+
+    public void setEnableRunBookieAutoRecoveryTogether(boolean enableRunBookieAutoRecoveryTogether) {
+        this.enableRunBookieAutoRecoveryTogether = enableRunBookieAutoRecoveryTogether;
+    }
+
     public boolean isTlsEnabled() {
         return tlsEnabled;
     }
@@ -1028,6 +1053,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setLoadBalancerHostUsageCheckIntervalMinutes(int loadBalancerHostUsageCheckIntervalMinutes) {
         this.loadBalancerHostUsageCheckIntervalMinutes = loadBalancerHostUsageCheckIntervalMinutes;
+    }
+
+    public boolean isLoadBalancerSheddingEnabled() {
+        return loadBalancerSheddingEnabled;
+    }
+
+    public void setLoadBalancerSheddingEnabled(boolean loadBalancerSheddingEnabled) {
+        this.loadBalancerSheddingEnabled = loadBalancerSheddingEnabled;
     }
 
     public int getLoadBalancerSheddingIntervalMinutes() {

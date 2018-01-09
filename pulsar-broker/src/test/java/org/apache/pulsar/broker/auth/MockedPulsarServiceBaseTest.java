@@ -28,6 +28,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.client.BKException;
@@ -246,5 +247,15 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTime)
+            throws Exception {
+        for (int i = 0; i < retryCount; i++) {
+            if (predicate.test(null) || i == (retryCount - 1)) {
+                break;
+            }
+            Thread.sleep(intSleepTime + (intSleepTime * i));
+        }
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }

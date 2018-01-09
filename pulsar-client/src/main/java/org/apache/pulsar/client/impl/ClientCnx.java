@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.common.api.Commands;
@@ -87,14 +88,12 @@ public class ClientCnx extends PulsarHandler {
         None, SentConnectFrame, Ready
     }
 
-    public ClientCnx(PulsarClientImpl pulsarClient) {
+    public ClientCnx(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
         super(30, TimeUnit.SECONDS);
-        this.pendingLookupRequestSemaphore = new Semaphore(pulsarClient.getConfiguration().getConcurrentLookupRequest(),
-                true);
-        this.authentication = pulsarClient.getConfiguration().getAuthentication();
-        this.eventLoopGroup = pulsarClient.eventLoopGroup();
-        this.maxNumberOfRejectedRequestPerConnection = pulsarClient.getConfiguration()
-                .getMaxNumberOfRejectedRequestPerConnection();
+        this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
+        this.authentication = conf.getAuthentication();
+        this.eventLoopGroup = eventLoopGroup;
+        this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.state = State.None;
     }
 

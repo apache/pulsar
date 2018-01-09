@@ -399,7 +399,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) su);
+                        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) su, 1, TimeUnit.MINUTES);
                     } catch (Exception e) {
                         log.warn("Failed to unload namespace bundle {}", su, e);
                     }

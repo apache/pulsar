@@ -20,6 +20,8 @@ package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
 
+import java.util.Map;
+
 class TypedConsumerConfigAdapter<T> implements ConsumerConfig<byte[]> {
     private final ConsumerConfig<T> typedConfig;
     private final Schema<T> codec;
@@ -84,5 +86,10 @@ class TypedConsumerConfigAdapter<T> implements ConsumerConfig<byte[]> {
     @Override
     public int getPriorityLevel() {
         return typedConfig.getPriorityLevel();
+    }
+
+    @Override
+    public Map<String, String> getProperties() {
+        return typedConfig.getProperties();
     }
 }

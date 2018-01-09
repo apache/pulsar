@@ -70,7 +70,7 @@ class HttpLookupService implements LookupService {
                     uri = new URI(serviceUrl);
                 }
 
-                InetSocketAddress brokerAddress = new InetSocketAddress(uri.getHost(), uri.getPort());
+                InetSocketAddress brokerAddress = InetSocketAddress.createUnresolved(uri.getHost(), uri.getPort());
                 return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
             } catch (Exception e) {
                 // Failed to parse url

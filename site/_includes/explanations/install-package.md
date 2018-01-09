@@ -19,8 +19,9 @@
 
 -->
 
-{% capture binary_release_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-bin.tar.gz{% endcapture %}
-{% capture source_release_url %}http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}-src.tar.gz{% endcapture %}
+{% capture root_url %}http://www.apache.org/dist/incubator/pulsar/pulsar-{{ site.current_version }}/apache-pulsar-{{ site.current_version }}{% endcapture %}
+{% capture binary_release_url %}{{ root_url }}-bin.tar.gz{% endcapture %}
+{% capture source_release_url %}{{ root_url }}-src.tar.gz{% endcapture %}
 
 ## System requirements
 
@@ -41,10 +42,10 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
   ```shell
   # Source release
-  $ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-{{site.current_version}}/apache-pulsar-{{site.current_version}}-src.tar.gz
+  $ wget {{ source_release_url }}
 
   # Binary release
-  $ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-{{site.current_version}}/apache-pulsar-{{site.current_version}}-bin.tar.gz
+  $ wget {{ binary_release_url }}
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:

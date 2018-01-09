@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static com.google.common.base.Preconditions.checkArgument;
@@ -53,6 +55,8 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
 
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
+    private final Map<String, String> properties = new HashMap<>();
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
@@ -248,5 +252,34 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      */
     public void setPriorityLevel(int priorityLevel) {
         this.priorityLevel = priorityLevel;
+    }
+
+    /**
+     * Set a name/value property with this consumer.
+     * @param key
+     * @param value
+     * @return
+     */
+    public ConsumerConfiguration setProperty(String key, String value) {
+        checkArgument(key != null);
+        checkArgument(value != null);
+        properties.put(key, value);
+        return this;
+    }
+
+    /**
+     * Add all the properties in the provided map
+     * @param properties
+     * @return
+     */
+    public ConsumerConfiguration setProperties(Map<String, String> properties) {
+        if (properties != null) {
+            this.properties.putAll(properties);
+        }
+        return this;
+    }
+
+    public Map<String, String> getProperties() {
+        return properties;
     }
 }

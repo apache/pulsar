@@ -26,12 +26,7 @@ import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.BitSet;
-import java.util.List;
-import java.util.NavigableMap;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -103,7 +98,9 @@ public class ConsumerImpl extends ConsumerBase {
 
     private MessageCrypto msgCrypto = null;
 
-    static enum SubscriptionMode {
+    private final Map<String, String> metadata;
+
+    enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
         Durable,
@@ -154,6 +151,12 @@ public class ConsumerImpl extends ConsumerBase {
         if (conf.getCryptoKeyReader() != null) {
             String logCtx = "[" + topic + "] [" + subscription + "]";
             this.msgCrypto = new MessageCrypto(logCtx, false);
+        }
+
+        if (conf.getProperties().isEmpty()) {
+            metadata = Collections.emptyMap();
+        } else {
+            metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
         grabCnx();
@@ -316,7 +319,8 @@ public class ConsumerImpl extends ConsumerBase {
 
     // we may not be able to ack message being acked by client. However messages in prior
     // batch may be ackable
-    private void ackMessagesInEarlierBatch(BatchMessageIdImpl batchMessageId, MessageIdImpl message) {
+    private void ackMessagesInEarlierBatch(BatchMessageIdImpl batchMessageId, MessageIdImpl message,
+                                           Map<String,Long> properties) {
         // get entry before this message and ack that message on broker
         MessageIdImpl lowerKey = batchMessageAckTracker.lowerKey(message);
         if (lowerKey != null) {
@@ -328,7 +332,7 @@ public class ConsumerImpl extends ConsumerBase {
                 log.debug("[{}] [{}] ack prior message {} to broker on cumulative ack for message {}", subscription,
                         consumerId, lowerKey, batchMessageId);
             }
-            sendAcknowledge(lowerKey, AckType.Cumulative);
+            sendAcknowledge(lowerKey, AckType.Cumulative, properties);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] no messages prior to message {}", subscription, consumerId, batchMessageId);
@@ -336,7 +340,8 @@ public class ConsumerImpl extends ConsumerBase {
         }
     }
 
-    boolean markAckForBatchMessage(BatchMessageIdImpl batchMessageId, AckType ackType) {
+    boolean markAckForBatchMessage(BatchMessageIdImpl batchMessageId, AckType ackType,
+                                   Map<String,Long> properties) {
         // we keep track of entire batch and so need MessageIdImpl and cannot use BatchMessageIdImpl
         MessageIdImpl message = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
                 batchMessageId.getPartitionIndex());
@@ -390,7 +395,7 @@ public class ConsumerImpl extends ConsumerBase {
         } else {
             // we cannot ack this message to broker. but prior message may be ackable
             if (ackType == AckType.Cumulative) {
-                ackMessagesInEarlierBatch(batchMessageId, message);
+                ackMessagesInEarlierBatch(batchMessageId, message, properties);
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,
@@ -433,7 +438,8 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType) {
+    protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
+                                                    Map<String,Long> properties) {
         checkArgument(messageId instanceof MessageIdImpl);
         if (getState() != State.Ready && getState() != State.Connecting) {
             stats.incrementNumAcksFailed();
@@ -441,7 +447,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         if (messageId instanceof BatchMessageIdImpl) {
-            if (markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType)) {
+            if (markAckForBatchMessage((BatchMessageIdImpl) messageId, ackType, properties)) {
                 // all messages in batch have been acked so broker can be acked via sendAcknowledge()
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] [{}] acknowledging message - {}, acktype {}", subscription, consumerName, messageId,
@@ -457,12 +463,14 @@ public class ConsumerImpl extends ConsumerBase {
         if (ackType == AckType.Cumulative && !(messageId instanceof BatchMessageIdImpl)) {
             updateBatchAckTracker((MessageIdImpl) messageId, ackType);
         }
-        return sendAcknowledge(messageId, ackType);
+        return sendAcknowledge(messageId, ackType, properties);
     }
 
-    private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType) {
+    private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
+                                                    Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
-        final ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(), ackType, null);
+        final ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(),
+                                            ackType, null, properties);
 
         // There's no actual response from ack messages
         final CompletableFuture<Void> ackFuture = new CompletableFuture<Void>();
@@ -536,7 +544,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData);
+                consumerName, isDurable, startMessageIdData, metadata);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -1088,7 +1096,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     private void discardMessage(MessageIdData messageId, ClientCnx currentCnx, ValidationError validationError) {
         ByteBuf cmd = Commands.newAck(consumerId, messageId.getLedgerId(), messageId.getEntryId(), AckType.Individual,
-                validationError);
+                                      validationError, Collections.emptyMap());
         currentCnx.ctx().writeAndFlush(cmd, currentCnx.ctx().voidPromise());
         increaseAvailablePermits(currentCnx);
         stats.incrementNumReceiveFailed();

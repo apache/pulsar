@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.Map;
 
 public interface ConsumerConfig<T> extends Serializable {
     long getAckTimeoutMillis();
@@ -36,4 +37,7 @@ public interface ConsumerConfig<T> extends Serializable {
     String getConsumerName();
 
     int getPriorityLevel();
+
+    Map<String, String> getProperties();
+
 }

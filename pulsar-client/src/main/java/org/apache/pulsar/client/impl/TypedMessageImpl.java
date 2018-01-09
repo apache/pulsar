@@ -89,4 +89,14 @@ class TypedMessageImpl<T> implements Message<T> {
         }
         return null;
     }
+
+    @Override
+    public long getSequenceId() {
+        return message.getSequenceId();
+    }
+
+    @Override
+    public String getProducerName() {
+        return message.getProducerName();
+    }
 }
