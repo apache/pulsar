@@ -39,52 +39,41 @@ import io.swagger.annotations.ApiResponses;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/resource-quotas", description = "Quota admin APIs", tags = "resource-quotas")
-public class ResourceQuotas extends ResourceQuotasBase {
+public class ResourceQuotasLegacy extends ResourceQuotasBase {
 
     @GET
-    @ApiOperation(value = "Get the default quota", response = String.class, responseContainer = "Set")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public ResourceQuota getDefaultResourceQuota() throws Exception {
-        return super.getDefaultResourceQuota();
-    }
-
-    @POST
-    @ApiOperation(value = "Set the default quota", response = String.class, responseContainer = "Set")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
-    public void setDefaultResourceQuota(ResourceQuota quota) throws Exception {
-        super.setDefaultResourceQuota(quota);
-    }
-
-    @GET
-    @Path("/{property}/{namespace}/{bundle}")
-    @ApiOperation(value = "Get resource quota of a namespace bundle.")
+    @Path("/{property}/{cluster}/{namespace}/{bundle}")
+    @ApiOperation(hidden = true, value = "Get resource quota of a namespace bundle.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
     public ResourceQuota getNamespaceBundleResourceQuota(@PathParam("property") String property,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
-        validateNamespaceName(property, namespace);
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange) {
+        validateNamespaceName(property, cluster, namespace);
         return internalGetNamespaceBundleResourceQuota(bundleRange);
     }
 
     @POST
-    @Path("/{property}/{namespace}/{bundle}")
-    @ApiOperation(value = "Set resource quota on a namespace.")
+    @Path("/{property}/{cluster}/{namespace}/{bundle}")
+    @ApiOperation(hidden = true, value = "Set resource quota on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void setNamespaceBundleResourceQuota(@PathParam("property") String property,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange, ResourceQuota quota) {
-        validateNamespaceName(property, namespace);
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange, ResourceQuota quota) {
+        validateNamespaceName(property, cluster, namespace);
         internalSetNamespaceBundleResourceQuota(bundleRange, quota);
     }
 
     @DELETE
-    @Path("/{property}/{namespace}/{bundle}")
-    @ApiOperation(value = "Remove resource quota for a namespace.")
+    @Path("/{property}/{cluster}/{namespace}/{bundle}")
+    @ApiOperation(hidden = true, value = "Remove resource quota for a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 409, message = "Concurrent modification") })
     public void removeNamespaceBundleResourceQuota(@PathParam("property") String property,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
-        validateNamespaceName(property, namespace);
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("bundle") String bundleRange) {
+        validateNamespaceName(property, cluster, namespace);
         internalRemoveNamespaceBundleResourceQuota(bundleRange);
     }
 }

@@ -119,13 +119,6 @@ public class DestinationNameTest {
         }
 
         try {
-            DestinationName.get("persistent://property/cluster/namespace");
-            fail("Should have raised exception");
-        } catch (IllegalArgumentException e) {
-            // Ok
-        }
-
-        try {
             DestinationName.get("property/cluster/namespace/destination");
             fail("Should have raised exception");
         } catch (IllegalArgumentException e) {
@@ -226,32 +219,25 @@ public class DestinationNameTest {
 
     @Test
     public void testTopicNameWithoutCluster() throws Exception {
-        assertEquals(DestinationName.get("persistent://property/namespace/destination").getNamespace(),
-                "property/namespace");
+        DestinationName dn = DestinationName.get("persistent://property/namespace/destination");
 
-        assertEquals(DestinationName.get("persistent://property/namespace/destination"),
-                DestinationName.get("persistent", "property", "namespace", "destination"));
+        assertEquals(dn.getNamespace(), "property/namespace");
 
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").hashCode(),
-                DestinationName.get("persistent", "property", "cluster", "namespace", "destination").hashCode());
+        assertEquals(dn, DestinationName.get("persistent", "property", "namespace", "destination"));
 
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").toString(),
-                "persistent://property/cluster/namespace/destination");
+        assertEquals(dn.hashCode(),
+                DestinationName.get("persistent", "property", "namespace", "destination").hashCode());
 
-        assertFalse(DestinationName.get("persistent://property/cluster/namespace/destination")
-                .equals("persistent://property/cluster/namespace/destination"));
+        assertEquals(dn.toString(), "persistent://property/namespace/destination");
+        assertEquals(dn.getDomain(), DestinationDomain.persistent);
+        assertEquals(dn.getProperty(), "property");
+        assertEquals(dn.getCluster(), null);
+        assertEquals(dn.getNamespacePortion(), "namespace");
+        assertEquals(dn.getNamespace(), "property/namespace");
+        assertEquals(dn.getLocalName(), "destination");
 
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getDomain(),
-                DestinationDomain.persistent);
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getProperty(),
-                "property");
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getCluster(),
-                "cluster");
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getNamespacePortion(),
-                "namespace");
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getNamespace(),
-                "property/cluster/namespace");
-        assertEquals(DestinationName.get("persistent://property/cluster/namespace/destination").getLocalName(),
-                "destination");
+        assertEquals(dn.getEncodedLocalName(), "destination");
+        assertEquals(dn.getPartitionedTopicName(), "persistent://property/namespace/destination");
+        assertEquals(dn.getPersistenceNamingEncoding(), "property/namespace/persistent/destination");
     }
 }

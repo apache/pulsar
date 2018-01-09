@@ -83,7 +83,7 @@ import com.google.common.collect.Sets;
 @Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
-    private Namespaces namespaces;
+    private NamespacesLegacy namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
     private List<NamespaceName> testGlobalNamespaces;
@@ -121,7 +121,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        namespaces = spy(new Namespaces());
+        namespaces = spy(new NamespacesLegacy());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(namespaces).globalZk();

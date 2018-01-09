@@ -224,20 +224,20 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected Policies getNamespacePolicies(String property, String cluster, String namespace) {
+    protected Policies getNamespacePolicies(NamespaceName namespaceName) {
         try {
-            Policies policies = policiesCache().get(AdminResource.path(POLICIES, property, cluster, namespace))
+            Policies policies = policiesCache().get(AdminResource.path(POLICIES, namespaceName.toString()))
                     .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
             // fetch bundles from LocalZK-policies
             NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
-                    .getBundles(NamespaceName.get(property, cluster, namespace));
+                    .getBundles(namespaceName);
             BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
             policies.bundles = bundleData != null ? bundleData : policies.bundles;
             return policies;
         } catch (RestException re) {
             throw re;
         } catch (Exception e) {
-            log.error("[{}] Failed to get namespace policies {}/{}/{}", clientAppId(), property, cluster, namespace, e);
+            log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
@@ -246,11 +246,11 @@ public abstract class AdminResource extends PulsarWebResource {
         return ObjectMapperFactory.getThreadLocal();
     }
 
-    ZooKeeperDataCache<PropertyAdmin> propertiesCache() {
+    public ZooKeeperDataCache<PropertyAdmin> propertiesCache() {
         return pulsar().getConfigurationCache().propertiesCache();
     }
 
-    ZooKeeperDataCache<Policies> policiesCache() {
+    protected ZooKeeperDataCache<Policies> policiesCache() {
         return pulsar().getConfigurationCache().policiesCache();
     }
 
@@ -258,7 +258,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getLocalZkCacheService().policiesCache();
     }
 
-    ZooKeeperDataCache<ClusterData> clustersCache() {
+    protected ZooKeeperDataCache<ClusterData> clustersCache() {
         return pulsar().getConfigurationCache().clustersCache();
     }
 
@@ -266,7 +266,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getLocalZkCacheService().managedLedgerListCache();
     }
 
-    Set<String> clusters() {
+    protected Set<String> clusters() {
         try {
             return pulsar().getConfigurationCache().clustersListCache().get();
         } catch (Exception e) {
@@ -294,7 +294,7 @@ public abstract class AdminResource extends PulsarWebResource {
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
         validateGlobalNamespaceOwnership(dn.getNamespaceObject());
-        
+
         try {
             checkConnect(dn);
         } catch (WebApplicationException e) {
@@ -354,5 +354,5 @@ public abstract class AdminResource extends PulsarWebResource {
         }
         return metadataFuture;
     }
-    
+
 }
