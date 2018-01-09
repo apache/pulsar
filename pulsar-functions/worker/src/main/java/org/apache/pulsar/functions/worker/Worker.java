@@ -94,7 +94,7 @@ public class Worker extends AbstractService {
                 client.createProducer(workerConfig.getFunctionMetadataTopic()));
 
             this.functionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples(),
-                    workerConfig.getPulsarServiceUrl(), new ClientConfiguration());
+                    workerConfig.getPulsarServiceUrl());
 
             this.actionQueue = new LinkedBlockingQueue<>();
 

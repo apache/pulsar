@@ -41,10 +41,9 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     private volatile boolean closed;
 
     public ThreadFunctionContainerFactory(int maxBufferedTuples,
-                                          String pulsarServiceUrl,
-                                          ClientConfiguration conf)
+                                          String pulsarServiceUrl)
             throws Exception {
-        this(maxBufferedTuples, pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, conf) : null);
+        this(maxBufferedTuples, pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()) : null);
     }
 
     @VisibleForTesting
