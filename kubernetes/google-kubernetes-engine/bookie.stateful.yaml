@@ -83,7 +83,7 @@ spec:
             - name: advertisedAddress
               valueFrom:
                 fieldRef:
-                    fieldPath: status.hostIP
+                  fieldPath: status.hostIP
           volumeMounts:
             - name: journal-disk
               mountPath: /pulsar/data/bookkeeper/journal
@@ -101,16 +101,16 @@ spec:
               bin/bookkeeper shell metaformat --nonInteractive || true;
           envFrom:
             - configMapRef:
-                  name: bookie-config
+                name: bookie-config
 
       volumes:
           # Mount local disks
         - name: journal-disk
           hostPath:
-              path: /mnt/disks/ssd0
+            path: /mnt/disks/ssd0
         - name: ledgers-disk
           hostPath:
-              path: /mnt/disks/ssd1
+            path: /mnt/disks/ssd1
 ---
 # A headless service to create DNS records
 apiVersion: v1
