@@ -23,10 +23,10 @@ import org.apache.pulsar.functions.worker.FunctionMetaData;
 public class UpdateRequest extends ServiceRequest{
 
     private UpdateRequest(String workerId, FunctionMetaData functionMetaData) {
-        super(workerId, functionMetaData, org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType.UPDATE);
+        super(workerId, functionMetaData, org.apache.pulsar.functions.proto.ServiceRequest.Request.ServiceRequestType.UPDATE);
     }
 
-    public UpdateRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    public UpdateRequest(org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         super(serviceRequest);
     }
 
@@ -34,7 +34,7 @@ public class UpdateRequest extends ServiceRequest{
         return new UpdateRequest(workerId, functionMetaData);
     }
 
-    public static UpdateRequest of(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    public static UpdateRequest of(org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         return new UpdateRequest(serviceRequest);
     }
 }

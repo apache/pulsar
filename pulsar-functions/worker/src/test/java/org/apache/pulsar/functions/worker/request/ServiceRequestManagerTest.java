@@ -57,7 +57,7 @@ public class ServiceRequestManagerTest {
     public void testSubmitRequest() throws Exception {
         ServiceRequest request = mock(ServiceRequest.class);
         when(request.getServiceRequest())
-                .thenReturn(org.apache.pulsar.functions.generated.ServiceRequest.Request.newBuilder().build());
+                .thenReturn(org.apache.pulsar.functions.proto.ServiceRequest.Request.newBuilder().build());
         MessageId msgId = mock(MessageId.class);
 
         when(producer.sendAsync(any(byte[].class)))

@@ -32,7 +32,7 @@
   <name>Pulsar Functions :: Parent</name>
 
   <modules>
-    <module>generated</module>
+    <module>proto</module>
     <module>api</module>
     <module>runtime</module>
     <module>worker</module>

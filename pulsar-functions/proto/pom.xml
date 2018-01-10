@@ -30,8 +30,8 @@
         <version>1.22.0-incubating-SNAPSHOT</version>
     </parent>
 
-    <artifactId>pulsar-functions-generated</artifactId>
-    <name>Pulsar Functions :: Generated</name>
+    <artifactId>pulsar-functions-proto</artifactId>
+    <name>Pulsar Functions :: Proto</name>
 
     <dependencies>
 

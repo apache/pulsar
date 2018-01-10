@@ -74,10 +74,10 @@ public class FunctionMetaDataTopicTailer
     @Override
     public void accept(Message msg) {
 
-        org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest;
+        org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest;
 
         try {
-            serviceRequest = org.apache.pulsar.functions.generated.ServiceRequest.Request.parseFrom(msg.getData());
+            serviceRequest = org.apache.pulsar.functions.proto.ServiceRequest.Request.parseFrom(msg.getData());
         } catch (InvalidProtocolBufferException e) {
             log.error("Received bad service request at message {}", msg.getMessageId(), e);
             // TODO: find a better way to handle bad request

@@ -23,14 +23,14 @@ import org.apache.pulsar.functions.worker.FunctionMetaData;
 public class DeregisterRequest extends ServiceRequest {
 
     private DeregisterRequest(String workerId, FunctionMetaData functionMetaData) {
-        super(workerId, functionMetaData, org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType.DELETE);
+        super(workerId, functionMetaData, org.apache.pulsar.functions.proto.ServiceRequest.Request.ServiceRequestType.DELETE);
     }
 
-    private DeregisterRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    private DeregisterRequest(org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         super(serviceRequest);
     }
 
-    public static DeregisterRequest of (org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    public static DeregisterRequest of (org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         return new DeregisterRequest(serviceRequest);
     }
 

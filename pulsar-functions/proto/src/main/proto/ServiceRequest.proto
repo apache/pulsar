@@ -17,9 +17,9 @@
  * under the License.
  */
 syntax = "proto3";
-package generated;
+package proto;
 
-option java_package = "org.apache.pulsar.functions.generated";
+option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "ServiceRequest";
 
 message FunctionConfig {
