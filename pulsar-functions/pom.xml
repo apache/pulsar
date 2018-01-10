@@ -36,8 +36,29 @@
     <module>api</module>
     <module>runtime</module>
     <module>worker</module>
+    <module>cli</module>
     <module>api-examples</module>
     <module>runtime-benchmark</module>
   </modules>
+
+  <dependencyManagement>
+    <dependencies>
+
+      <dependency>
+        <groupId>org.projectlombok</groupId>
+        <artifactId>lombok</artifactId>
+        <version>1.16.12</version>
+      </dependency>
+
+    </dependencies>
+  </dependencyManagement>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <scope>provided</scope>
+    </dependency>
+  </dependencies>
 
 </project>

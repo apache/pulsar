@@ -31,7 +31,7 @@ import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 
 import com.google.gson.Gson;
-import dlshade.com.google.common.collect.Lists;
+import com.google.common.collect.Lists;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;

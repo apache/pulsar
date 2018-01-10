@@ -24,7 +24,7 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
-import io.netty.util.Timer;
+import org.apache.pulsar.shade.io.netty.util.Timer;
 import java.net.URL;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;

@@ -19,9 +19,9 @@
 package org.apache.pulsar.functions.stats;
 
 import com.yahoo.sketches.quantiles.DoublesSketch;
-import io.netty.util.Timeout;
-import io.netty.util.Timer;
-import io.netty.util.TimerTask;
+import org.apache.pulsar.shade.io.netty.util.Timeout;
+import org.apache.pulsar.shade.io.netty.util.Timer;
+import org.apache.pulsar.shade.io.netty.util.TimerTask;
 import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
