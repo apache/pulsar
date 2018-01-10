@@ -96,7 +96,28 @@ spec:
 
 ---
 
-###
+apiVersion: v1
+kind: Service
+metadata:
+    name: broker-lb
+    annotations:
+        cloud.google.com/load-balancer-type: "Internal"
+    labels:
+        app: pulsar
+spec:
+    type: LoadBalancer
+    ports:
+      - port: 6650
+        protocol: TCP
+        name: pulsar
+      - port: 8080
+        protocol: TCP
+        name: http
+    selector:
+        app: pulsar
+        component: broker
+
+---
 
 apiVersion: v1
 kind: Pod
