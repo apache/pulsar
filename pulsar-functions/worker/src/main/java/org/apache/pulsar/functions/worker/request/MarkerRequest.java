@@ -21,10 +21,10 @@ package org.apache.pulsar.functions.worker.request;
 public class MarkerRequest extends ServiceRequest {
 
     private MarkerRequest(String workerId, String requestId) {
-        super(requestId, workerId, null, org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType.MARKER);
+        super(requestId, workerId, null, org.apache.pulsar.functions.proto.ServiceRequest.Request.ServiceRequestType.MARKER);
     }
 
-    public MarkerRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    public MarkerRequest(org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         super(serviceRequest);
     }
 
@@ -32,7 +32,7 @@ public class MarkerRequest extends ServiceRequest {
         return new MarkerRequest(workerId, requestId);
     }
 
-    public static MarkerRequest of(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    public static MarkerRequest of(org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         return new MarkerRequest(serviceRequest);
     }
 }

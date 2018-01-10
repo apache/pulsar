@@ -29,7 +29,7 @@ import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.functions.generated.ServiceRequest;
+import org.apache.pulsar.functions.proto.ServiceRequest;
 import org.apache.pulsar.functions.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.worker.request.UpdateRequest;
 import org.testng.annotations.AfterMethod;

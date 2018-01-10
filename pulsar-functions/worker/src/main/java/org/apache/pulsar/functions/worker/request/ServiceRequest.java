@@ -26,7 +26,6 @@ import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.client.api.MessageId;
 
-import java.io.Serializable;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -40,21 +39,21 @@ import org.apache.pulsar.functions.worker.PackageLocationMetaData;
 @ToString
 @Accessors(chain = true)
 public abstract class ServiceRequest {
-    private org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest;
+    private org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest;
     @Setter
     private CompletableFuture<MessageId> completableFutureRequestMessageId;
     @Setter
     private CompletableFuture<RequestResult> requestResultCompletableFuture;
 
     public ServiceRequest(String workerId, FunctionMetaData functionMetaData,
-                          org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType serviceRequestType) {
+                          org.apache.pulsar.functions.proto.ServiceRequest.Request.ServiceRequestType serviceRequestType) {
         this(UUID.randomUUID().toString(), workerId, functionMetaData, serviceRequestType);
     }
 
     public ServiceRequest(String requestId, String workerId, FunctionMetaData functionMetaData,
-                          org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType serviceRequestType) {
-        org.apache.pulsar.functions.generated.ServiceRequest.FunctionConfig.Builder functionConfigBuilder
-                = org.apache.pulsar.functions.generated.ServiceRequest.FunctionConfig.newBuilder()
+                          org.apache.pulsar.functions.proto.ServiceRequest.Request.ServiceRequestType serviceRequestType) {
+        org.apache.pulsar.functions.proto.ServiceRequest.FunctionConfig.Builder functionConfigBuilder
+                = org.apache.pulsar.functions.proto.ServiceRequest.FunctionConfig.newBuilder()
                 .setTenant(functionMetaData.getFunctionConfig().getTenant())
                 .setNamespace(functionMetaData.getFunctionConfig().getNamespace())
                 .setName(functionMetaData.getFunctionConfig().getName())
@@ -64,12 +63,12 @@ public abstract class ServiceRequest {
                 .setSourceTopic(functionMetaData.getFunctionConfig().getSourceTopic())
                 .setSinkTopic(functionMetaData.getFunctionConfig().getSinkTopic());
 
-        org.apache.pulsar.functions.generated.ServiceRequest.PackageLocationMetaData.Builder packageLocationMetaDataBuilder
-                = org.apache.pulsar.functions.generated.ServiceRequest.PackageLocationMetaData.newBuilder()
+        org.apache.pulsar.functions.proto.ServiceRequest.PackageLocationMetaData.Builder packageLocationMetaDataBuilder
+                = org.apache.pulsar.functions.proto.ServiceRequest.PackageLocationMetaData.newBuilder()
                 .setPackagePath(functionMetaData.getPackageLocation().getPackagePath());
 
-        org.apache.pulsar.functions.generated.ServiceRequest.FunctionMetaData.Builder functionMetaDataBuilder
-                = org.apache.pulsar.functions.generated.ServiceRequest.FunctionMetaData.newBuilder()
+        org.apache.pulsar.functions.proto.ServiceRequest.FunctionMetaData.Builder functionMetaDataBuilder
+                = org.apache.pulsar.functions.proto.ServiceRequest.FunctionMetaData.newBuilder()
                 .setFunctionConfig(functionConfigBuilder)
                 .setPackageLocation(packageLocationMetaDataBuilder)
                 .setRuntime(functionMetaData.getRuntime())
@@ -77,8 +76,8 @@ public abstract class ServiceRequest {
                 .setCreateTime(functionMetaData.getCreateTime())
                 .setWorkerId(functionMetaData.getWorkerId());
 
-        org.apache.pulsar.functions.generated.ServiceRequest.Request.Builder requestBuilder
-                = org.apache.pulsar.functions.generated.ServiceRequest.Request.newBuilder()
+        org.apache.pulsar.functions.proto.ServiceRequest.Request.Builder requestBuilder
+                = org.apache.pulsar.functions.proto.ServiceRequest.Request.newBuilder()
                 .setRequestId(requestId)
                 .setWorkerId(workerId)
                 .setServiceRequestType(serviceRequestType)
@@ -87,7 +86,7 @@ public abstract class ServiceRequest {
         this.serviceRequest = requestBuilder.build();
     }
 
-    public ServiceRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+    public ServiceRequest(org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest) {
         this.serviceRequest = serviceRequest;
     }
 
