@@ -182,7 +182,7 @@
             "// Notice": "add PULSAR_MEM, PULSAR_GC, according to your environment.",
             "webServicePort": "8082",
             "zookeeperServers":  "master.mesos:2181",
-            "globalZookeeperServers":  "master.mesos:2181",
+            "globalConfigurationZookeeperServers":  "master.mesos:2181",
             "clusterName": "pulsar-dcos"
           },
 
@@ -223,7 +223,7 @@
           "env": {
             "webServicePort": "8082",
             "zookeeperServers":  "master.mesos:2181",
-            "globalZookeeperServers":  "master.mesos:2181",
+            "globalConfigurationZookeeperServers":  "master.mesos:2181",
             "clusterName": "pulsar-dcos",
             "webServiceUrl": "http://broker.brokers.pulsar.marathon.mesos:8082",
             "brokerServiceUrl":  "pulsar://broker.brokers.pulsar.marathon.mesos:6650"

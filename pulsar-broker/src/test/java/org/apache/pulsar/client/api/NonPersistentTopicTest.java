@@ -838,7 +838,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setClusterName("r1");
             config1.setWebServicePort(webServicePort1);
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
-            config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config1.setGlobalConfigurationZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
             config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
             config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -863,7 +863,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setClusterName("r2");
             config2.setWebServicePort(webServicePort2);
             config2.setZookeeperServers("127.0.0.1:" + zkPort2);
-            config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config2.setGlobalConfigurationZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
             config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
             config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
@@ -888,7 +888,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setClusterName("r3");
             config3.setWebServicePort(webServicePort3);
             config3.setZookeeperServers("127.0.0.1:" + zkPort3);
-            config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
+            config3.setGlobalConfigurationZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
             config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
             config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));

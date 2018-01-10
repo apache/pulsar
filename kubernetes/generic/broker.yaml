@@ -27,7 +27,7 @@ data:
     # better GC behavior at high throughput
     PULSAR_MEM: "\" -Xms1g -Xmx1g -XX:MaxDirectMemorySize=1g\""
     zookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
-    globalZookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
+    globalConfigurationZookeeperServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
     clusterName: us-central
 ---
 ##

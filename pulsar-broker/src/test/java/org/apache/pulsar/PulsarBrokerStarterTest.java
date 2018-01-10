@@ -47,7 +47,7 @@ public class PulsarBrokerStarterTest {
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");
-        printWriter.println("globalZookeeperServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
+        printWriter.println("globalConfigurationZookeeperServers=gz1.example.com,gz2.example.com,gz3.example.com/foo");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=false");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -99,7 +99,7 @@ public class PulsarBrokerStarterTest {
         Assert.assertTrue(ServiceConfiguration.class.isInstance(returnValue));
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
         Assert.assertEquals(serviceConfig.getZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
-        Assert.assertEquals(serviceConfig.getGlobalZookeeperServers(),
+        Assert.assertEquals(serviceConfig.getGlobalConfigurationZookeeperServers(),
                 "gz1.example.com,gz2.example.com,gz3.example.com/foo");
         Assert.assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         Assert.assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
@@ -217,7 +217,7 @@ public class PulsarBrokerStarterTest {
         }
         PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
         printWriter.println("zookeeperServers=z1.example.com,z2.example.com,z3.example.com");
-        printWriter.println("globalZookeeperServers=");
+        printWriter.println("globalConfigurationZookeeperServers=");
         printWriter.println("brokerDeleteInactiveTopicsEnabled=false");
         printWriter.println("statusFilePath=/tmp/status.html");
         printWriter.println("managedLedgerDefaultEnsembleSize=1");
@@ -248,7 +248,7 @@ public class PulsarBrokerStarterTest {
         Assert.assertTrue(ServiceConfiguration.class.isInstance(returnValue));
         ServiceConfiguration serviceConfig = (ServiceConfiguration) returnValue;
         Assert.assertEquals(serviceConfig.getZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
-        Assert.assertEquals(serviceConfig.getGlobalZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
+        Assert.assertEquals(serviceConfig.getGlobalConfigurationZookeeperServers(), "z1.example.com,z2.example.com,z3.example.com");
         Assert.assertFalse(serviceConfig.isBrokerDeleteInactiveTopicsEnabled());
         Assert.assertEquals(serviceConfig.getStatusFilePath(), "/tmp/status.html");
         Assert.assertEquals(serviceConfig.getBacklogQuotaDefaultLimitGB(), 18);

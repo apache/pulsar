@@ -88,7 +88,7 @@
         state: directory
       with_items:
         - data/zookeeper
-    - name: Add pulsar_env.sh configuration file 
+    - name: Add pulsar_env.sh configuration file
       template:
         src: "../templates/pulsar_env.sh"
         dest: "/opt/pulsar/conf/pulsar_env.sh"
@@ -114,7 +114,7 @@
         bin/pulsar initialize-cluster-metadata \
           --cluster {{ cluster_name }} \
           --zookeeper localhost:2181 \
-          --global-zookeeper localhost:2181 \
+          --global-configuration-zookeeper localhost:2181 \
           --web-service-url {{ http_url }} \
           --broker-service-url {{ service_url }}
       args:
@@ -169,7 +169,7 @@
       args:
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
-      
+
 - name:  Hosts addresses
   hosts: localhost
   become: false

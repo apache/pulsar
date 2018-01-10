@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -25,7 +25,8 @@ where command is one of:
     broker           Run a broker server
     bookie           Run a bookie server
     zookeeper        Run a zookeeper server
-    global-zookeeper Run a global-zookeeper server
+    global-zookeeper Deprecated. Run a global-configuration-zookeeper server
+    global-configuration-zookeeper Run a global-configuration-zookeeper server
     discovery        Run a discovery server
     websocket        Run a websocket proxy server
     standalone       Run a standalone Pulsar service
@@ -71,6 +72,9 @@ case $command in
         echo "doing $startStop $command ..."
         ;;
     (global-zookeeper)
+        echo "doing $startStop $command ..."
+        ;;
+    (global-configuration-zookeeper)
         echo "doing $startStop $command ..."
         ;;
     (discovery)

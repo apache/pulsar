@@ -59,7 +59,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         Set<String> superUser = Sets.newHashSet("");
         config.setAuthorizationEnabled(true);
-        config.setGlobalZookeeperServers("dummy-zk-servers");
+        config.setGlobalConfigurationZookeeperServers("dummy-zk-servers");
         config.setSuperUserRoles(superUser);
         config.setClusterName("c1");
         config.setWebServicePort(TEST_PORT);

@@ -29,8 +29,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
+    @Deprecated
     // Global-Zookeeper quorum connection string
     private String globalZookeeperServers;
+
+    // Global-Configuration-Zookeeper quorum connection string
+    private String globalConfigurationZookeeperServers;
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
@@ -86,12 +90,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getGlobalConfigurationZookeeperServers() {
+        return globalConfigurationZookeeperServers;
+    }
+
+    public void setGlobalCongigurationZookeeperServers(String globalConfigurationZookeeperServers) {
+        this.globalConfigurationZookeeperServers = globalConfigurationZookeeperServers;
     }
 
     public int getZookeeperSessionTimeoutMs() {

@@ -109,7 +109,7 @@ public class PulsarStandaloneStarter {
         PulsarConfigurationLoader.isComplete(config);
         // Set ZK server's host to localhost
         config.setZookeeperServers("127.0.0.1:" + zkPort);
-        config.setGlobalZookeeperServers("127.0.0.1:" + zkPort);
+        config.setGlobalConfigurationZookeeperServers("127.0.0.1:" + zkPort);
 
         if (advertisedAddress != null) {
             // Use advertised address from command line
