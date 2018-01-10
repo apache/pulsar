@@ -83,8 +83,6 @@ metadata:
     labels:
         app: pulsar
         component: broker
-    annotations:
-        cloud.google.com/load-balancer-type: "Internal"
 spec:
     ports:
       - port: 8080
