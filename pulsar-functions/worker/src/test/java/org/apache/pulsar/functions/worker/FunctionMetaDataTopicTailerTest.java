@@ -29,6 +29,7 @@ import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.functions.generated.ServiceRequest;
 import org.apache.pulsar.functions.worker.request.DeregisterRequest;
 import org.apache.pulsar.functions.worker.request.UpdateRequest;
 import org.testng.annotations.AfterMethod;
@@ -39,8 +40,6 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 public class FunctionMetaDataTopicTailerTest {
-
-    private static final String TEST_NAME = "test-fmt";
 
     private final Reader reader;
     private final FunctionRuntimeManager fsm;
@@ -60,12 +59,11 @@ public class FunctionMetaDataTopicTailerTest {
 
     @Test
     public void testUpdate() throws Exception {
-        UpdateRequest request = UpdateRequest.of(
-            TEST_NAME,
-            mock(FunctionMetaData.class));
+
+        UpdateRequest request = UpdateRequest.of(ServiceRequest.Request.newBuilder().build());
 
         Message msg = mock(Message.class);
-        when(msg.getData()).thenReturn(Utils.toByteArray(request));
+        when(msg.getData()).thenReturn(request.getServiceRequest().toByteArray());
 
         CompletableFuture<Message> receiveFuture = CompletableFuture.completedFuture(msg);
         when(reader.readNextAsync())
@@ -81,5 +79,4 @@ public class FunctionMetaDataTopicTailerTest {
         verify(fsm, times(1)).processUpdate(any(UpdateRequest.class));
         verify(fsm, times(0)).proccessDeregister(any(DeregisterRequest.class));
     }
-
 }

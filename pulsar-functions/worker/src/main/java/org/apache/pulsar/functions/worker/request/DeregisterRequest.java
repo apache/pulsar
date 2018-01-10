@@ -22,20 +22,19 @@ import org.apache.pulsar.functions.worker.FunctionMetaData;
 
 public class DeregisterRequest extends ServiceRequest {
 
-    private static final long serialVersionUID = 4041129758880596555L;
+    private DeregisterRequest(String workerId, FunctionMetaData functionMetaData) {
+        super(workerId, functionMetaData, org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType.DELETE);
+    }
 
-    public DeregisterRequest(String workerId, FunctionMetaData functionMetaData) {
-        super(workerId, functionMetaData, ServiceRequestType.DELETE);
+    private DeregisterRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        super(serviceRequest);
+    }
+
+    public static DeregisterRequest of (org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        return new DeregisterRequest(serviceRequest);
     }
 
     public static DeregisterRequest of(String workerId, FunctionMetaData functionMetaData) {
         return new DeregisterRequest(workerId, functionMetaData);
-    }
-
-    @Override
-    public String toString() {
-        return "DeregisterRequest{"
-                + super.toString()
-                + "}";
     }
 }

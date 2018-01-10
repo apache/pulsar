@@ -22,11 +22,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.util.FutureUtil;
 
-import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.functions.worker.Utils;
 
 @Slf4j
 public class ServiceRequestManager implements AutoCloseable {
@@ -41,14 +38,7 @@ public class ServiceRequestManager implements AutoCloseable {
         if (log.isDebugEnabled()) {
             log.debug("Submitting Service Request: {}", serviceRequest);
         }
-        byte[] bytes;
-        try {
-            bytes = Utils.toByteArray(serviceRequest);
-        } catch (IOException e) {
-            log.error("error serializing request {}", serviceRequest, e);
-            return FutureUtil.failedFuture(e);
-        }
-        return producer.sendAsync(bytes);
+        return producer.sendAsync(serviceRequest.getServiceRequest().toByteArray());
     }
 
     @Override

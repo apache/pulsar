@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -18,88 +18,109 @@
  */
 package org.apache.pulsar.functions.worker.request;
 
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import lombok.experimental.Accessors;
 import org.apache.pulsar.client.api.MessageId;
 
 import java.io.Serializable;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.worker.FunctionMetaData;
+import org.apache.pulsar.functions.worker.PackageLocationMetaData;
 
-public abstract class ServiceRequest implements Serializable{
-
-    private String requestId;
-    private ServiceRequestType serviceRequestType;
-    private String workerId;
-    private FunctionMetaData functionMetaData;
-    transient private CompletableFuture<MessageId> completableFutureRequestMessageId;
-    transient private CompletableFuture<RequestResult> requestResultCompletableFuture;
-
-    @Override
-    public String toString() {
-        return "ServiceRequest{" +
-                "requestId='" + requestId + '\'' +
-                ", serviceRequestType=" + serviceRequestType +
-                ", workerId='" + workerId + '\'' +
-                ", functionMetaData=" + functionMetaData +
-                '}';
-    }
-
-    public enum ServiceRequestType {
-        UPDATE,
-        DELETE,
-        MARKER
-    }
-
-    public ServiceRequest(String workerId, FunctionMetaData functionMetaData, ServiceRequestType serviceRequestType) {
-        this(workerId, functionMetaData, serviceRequestType, UUID.randomUUID().toString());
-    }
+@Data
+@Getter
+@EqualsAndHashCode
+@ToString
+@Accessors(chain = true)
+public abstract class ServiceRequest {
+    private org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest;
+    @Setter
+    private CompletableFuture<MessageId> completableFutureRequestMessageId;
+    @Setter
+    private CompletableFuture<RequestResult> requestResultCompletableFuture;
 
     public ServiceRequest(String workerId, FunctionMetaData functionMetaData,
-                          ServiceRequestType serviceRequestType, String requestId) {
-        this.workerId = workerId;
-        this.functionMetaData = functionMetaData;
-        this.serviceRequestType = serviceRequestType;
-        this.requestId = requestId;
+                          org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType serviceRequestType) {
+        this(UUID.randomUUID().toString(), workerId, functionMetaData, serviceRequestType);
     }
 
-    public ServiceRequestType getRequestType() {
-        return this.serviceRequestType;
+    public ServiceRequest(String requestId, String workerId, FunctionMetaData functionMetaData,
+                          org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType serviceRequestType) {
+        org.apache.pulsar.functions.generated.ServiceRequest.FunctionConfig.Builder functionConfigBuilder
+                = org.apache.pulsar.functions.generated.ServiceRequest.FunctionConfig.newBuilder()
+                .setTenant(functionMetaData.getFunctionConfig().getTenant())
+                .setNamespace(functionMetaData.getFunctionConfig().getNamespace())
+                .setName(functionMetaData.getFunctionConfig().getName())
+                .setClassName(functionMetaData.getFunctionConfig().getClassName())
+                .setInputSerdeClassName(functionMetaData.getFunctionConfig().getInputSerdeClassName())
+                .setOutputSerdeClassName(functionMetaData.getFunctionConfig().getOutputSerdeClassName())
+                .setSourceTopic(functionMetaData.getFunctionConfig().getSourceTopic())
+                .setSinkTopic(functionMetaData.getFunctionConfig().getSinkTopic());
+
+        org.apache.pulsar.functions.generated.ServiceRequest.PackageLocationMetaData.Builder packageLocationMetaDataBuilder
+                = org.apache.pulsar.functions.generated.ServiceRequest.PackageLocationMetaData.newBuilder()
+                .setPackagePath(functionMetaData.getPackageLocation().getPackagePath());
+
+        org.apache.pulsar.functions.generated.ServiceRequest.FunctionMetaData.Builder functionMetaDataBuilder
+                = org.apache.pulsar.functions.generated.ServiceRequest.FunctionMetaData.newBuilder()
+                .setFunctionConfig(functionConfigBuilder)
+                .setPackageLocation(packageLocationMetaDataBuilder)
+                .setRuntime(functionMetaData.getRuntime())
+                .setVersion(functionMetaData.getVersion())
+                .setCreateTime(functionMetaData.getCreateTime())
+                .setWorkerId(functionMetaData.getWorkerId());
+
+        org.apache.pulsar.functions.generated.ServiceRequest.Request.Builder requestBuilder
+                = org.apache.pulsar.functions.generated.ServiceRequest.Request.newBuilder()
+                .setRequestId(requestId)
+                .setWorkerId(workerId)
+                .setServiceRequestType(serviceRequestType)
+                .setFunctionMetaData(functionMetaDataBuilder);
+
+        this.serviceRequest = requestBuilder.build();
     }
 
-    public String getWorkerId() {
-        return this.workerId;
-    }
-
-    public FunctionMetaData getFunctionMetaData() {
-        return functionMetaData;
+    public ServiceRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        this.serviceRequest = serviceRequest;
     }
 
     public String getRequestId() {
-        return requestId;
+        return this.serviceRequest.getRequestId();
     }
 
-    public void setRequestId(String requestId) {
-        this.requestId = requestId;
+    public FunctionMetaData getFunctionMetaData() {
+
+        FunctionConfig functionConfig = new FunctionConfig();
+        functionConfig.setTenant(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getTenant());
+        functionConfig.setNamespace(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getNamespace());
+        functionConfig.setName(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getName());
+        functionConfig.setClassName(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getClassName());
+        functionConfig.setInputSerdeClassName(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getInputSerdeClassName());
+        functionConfig.setOutputSerdeClassName(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getOutputSerdeClassName());
+        functionConfig.setSourceTopic(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getSourceTopic());
+        functionConfig.setSinkTopic(this.serviceRequest.getFunctionMetaData().getFunctionConfig().getSinkTopic());
+
+        PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
+        packageLocationMetaData.setPackagePath(this.serviceRequest.getFunctionMetaData().getPackageLocation().getPackagePath());
+
+        FunctionMetaData functionMetaData = new FunctionMetaData();
+        functionMetaData.setFunctionConfig(functionConfig);
+        functionMetaData.setPackageLocation(packageLocationMetaData);
+        functionMetaData.setRuntime(this.serviceRequest.getFunctionMetaData().getRuntime());
+        functionMetaData.setVersion(this.serviceRequest.getFunctionMetaData().getVersion());
+        functionMetaData.setCreateTime(this.serviceRequest.getFunctionMetaData().getCreateTime());
+        functionMetaData.setWorkerId(this.serviceRequest.getFunctionMetaData().getWorkerId());
+        return functionMetaData;
     }
 
-    public CompletableFuture<RequestResult> getRequestResultCompletableFuture() {
-        return requestResultCompletableFuture;
-    }
-
-    public void setRequestResultCompletableFuture(CompletableFuture<RequestResult> requestResultCompletableFuture) {
-        this.requestResultCompletableFuture = requestResultCompletableFuture;
-    }
-
-    public CompletableFuture<MessageId> getCompletableFutureRequestMessageId() {
-        return completableFutureRequestMessageId;
-    }
-
-    public void setCompletableFutureRequestMessageId(CompletableFuture<MessageId> completableFutureRequestMessageId) {
-        this.completableFutureRequestMessageId = completableFutureRequestMessageId;
-    }
-
-    public boolean isValidRequest() {
-        return this.requestId != null && this.serviceRequestType != null
-                && this.workerId != null && this.functionMetaData != null;
+    public String getWorkerId() {
+        return this.serviceRequest.getWorkerId();
     }
 }

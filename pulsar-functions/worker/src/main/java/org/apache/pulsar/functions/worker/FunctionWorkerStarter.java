@@ -76,5 +76,4 @@ public class FunctionWorkerStarter {
         final Worker worker = new Worker(workerConfig, limitsConfig);
         worker.startAsync();
     }
-
 }

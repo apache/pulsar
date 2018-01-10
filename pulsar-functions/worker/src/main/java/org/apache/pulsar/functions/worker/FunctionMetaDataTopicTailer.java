@@ -20,12 +20,13 @@ package org.apache.pulsar.functions.worker;
 
 import java.io.IOException;
 import java.util.function.Function;
+
+import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.worker.request.DeregisterRequest;
-import org.apache.pulsar.functions.worker.request.ServiceRequest;
 import org.apache.pulsar.functions.worker.request.MarkerRequest;
 import org.apache.pulsar.functions.worker.request.UpdateRequest;
 
@@ -72,10 +73,12 @@ public class FunctionMetaDataTopicTailer
 
     @Override
     public void accept(Message msg) {
-        ServiceRequest serviceRequest;
+
+        org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest;
+
         try {
-            serviceRequest = (ServiceRequest) Utils.getObject(msg.getData());
-        } catch (IOException | ClassNotFoundException e) {
+            serviceRequest = org.apache.pulsar.functions.generated.ServiceRequest.Request.parseFrom(msg.getData());
+        } catch (InvalidProtocolBufferException e) {
             log.error("Received bad service request at message {}", msg.getMessageId(), e);
             // TODO: find a better way to handle bad request
             throw new RuntimeException(e);
@@ -84,15 +87,15 @@ public class FunctionMetaDataTopicTailer
             log.debug("Received Service Request: {}", serviceRequest);
         }
 
-        switch(serviceRequest.getRequestType()) {
+        switch(serviceRequest.getServiceRequestType()) {
             case MARKER:
-                this.functionRuntimeManager.processInitializeMarker((MarkerRequest) serviceRequest);
+                this.functionRuntimeManager.processInitializeMarker(MarkerRequest.of(serviceRequest));
                 break;
             case UPDATE:
-                this.functionRuntimeManager.processUpdate((UpdateRequest) serviceRequest);
+                this.functionRuntimeManager.processUpdate(UpdateRequest.of(serviceRequest));
                 break;
             case DELETE:
-                this.functionRuntimeManager.proccessDeregister((DeregisterRequest) serviceRequest);
+                this.functionRuntimeManager.proccessDeregister(DeregisterRequest.of(serviceRequest));
                 break;
             default:
                 log.warn("Received request with unrecognized type: {}", serviceRequest);

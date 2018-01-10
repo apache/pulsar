@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -78,7 +78,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     public void sendIntializationMarker() {
         log.info("sending marking message...");
-        this.serviceRequestManager.submitRequest(new MarkerRequest(this.workerConfig.getWorkerId(), this.initializeMarkerRequestId));
+        this.serviceRequestManager.submitRequest(MarkerRequest.of(this.workerConfig.getWorkerId(), this.initializeMarkerRequestId));
     }
 
     @Override
@@ -109,7 +109,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
             return ret;
         }
         for (FunctionRuntimeInfo entry : this.functionMap.get(tenant).get(namespace).values()) {
-           ret.add(entry.getFunctionMetaData().getFunctionConfig().getName());
+            ret.add(entry.getFunctionMetaData().getFunctionConfig().getName());
         }
         return ret;
     }
@@ -158,7 +158,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     private boolean containsFunction(FunctionConfig functionConfig) {
         return containsFunction(
-            functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+                functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
     }
 
     public boolean containsFunction(String tenant, String namespace, String functionName) {
@@ -208,12 +208,6 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     public void proccessDeregister(DeregisterRequest deregisterRequest) {
 
-        // check if the request is valid
-        if (!deregisterRequest.isValidRequest()) {
-            completeRequest(deregisterRequest, false, "Received invalid request");
-            return;
-        }
-
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
         String tenant = deregisterRequestFs.getFunctionConfig().getTenant();
@@ -222,7 +216,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         log.debug("Process deregister request: {}", deregisterRequest);
 
         // Check if we still have this function. Maybe already deleted by someone else
-        if(this.containsFunction(deregisterRequestFs)) {
+        if (this.containsFunction(deregisterRequestFs)) {
             // check if request is outdated
             if (!isRequestOutdated(deregisterRequest)) {
                 // Check if this worker is suppose to run the function
@@ -245,18 +239,12 @@ public class FunctionRuntimeManager implements AutoCloseable {
 
     public void processUpdate(UpdateRequest updateRequest) {
 
-        // check if the request is valid
-        if (!updateRequest.isValidRequest()) {
-            completeRequest(updateRequest, false, "Received invalid request");
-            return;
-        }
-
         log.debug("Process update request: {}", updateRequest);
 
         FunctionMetaData updateRequestFs = updateRequest.getFunctionMetaData();
 
         // Worker doesn't know about the function so far
-        if(!this.containsFunction(updateRequestFs)) {
+        if (!this.containsFunction(updateRequestFs)) {
             // Since this is the first time worker has seen function, just put it into internal function metadata store
             addFunctionToFunctionMap(updateRequestFs);
             // Check if this worker is suppose to run the function
@@ -356,7 +344,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
             log.info("Initializing Metadata state done!");
             log.info("Launching existing assignments...");
             // materialize current assignments
-            for (Map<String, Map<String, FunctionRuntimeInfo>> i: this.functionMap.values()) {
+            for (Map<String, Map<String, FunctionRuntimeInfo>> i : this.functionMap.values()) {
                 for (Map<String, FunctionRuntimeInfo> k : i.values()) {
                     for (FunctionRuntimeInfo functionRuntimeInfo : k.values()) {
                         // if I should run this
