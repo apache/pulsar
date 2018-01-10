@@ -22,8 +22,6 @@ package org.apache.pulsar.functions.runtime.functioncache;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
-import org.apache.pulsar.functions.fs.InstanceID;
-import org.apache.pulsar.functions.fs.FunctionID;
 
 /**
  * A cache manager for caching function code and its dependencies.
@@ -33,10 +31,10 @@ public interface FunctionCacheManager extends AutoCloseable {
     /**
      * Returns the function code class loader associated with id.
      *
-     * @param id function id
+     * @param fid function id
      * @return class loader which can load the function code.
      */
-    ClassLoader getClassLoader(FunctionID id);
+    ClassLoader getClassLoader(String fid);
 
     /**
      * Registers a function with its required jar files and classpaths.
@@ -48,19 +46,16 @@ public interface FunctionCacheManager extends AutoCloseable {
      * @param requiredJarFiles collection of blob keys identifying the required jar files.
      * @param requiredClasspaths collection of classpaths that are added to the function code class loader.
      */
-    default void registerFunction(FunctionID fid,
+    default void registerFunction(String fid,
                                   List<String> requiredJarFiles,
                                   List<URL> requiredClasspaths)
         throws IOException {
-        registerFunctionInstance(
-            fid,
-            InstanceID.INVALID_INSTANCE_ID,
-            requiredJarFiles,
+        registerFunctionInstance(fid, null, requiredJarFiles,
             requiredClasspaths);
     }
 
-    void registerFunctionInstance(FunctionID fid,
-                                  InstanceID eid,
+    void registerFunctionInstance(String fid,
+                                  String eid,
                                   List<String> requiredJarFiles,
                                   List<URL> requiredClasspaths)
         throws IOException;
@@ -70,12 +65,12 @@ public interface FunctionCacheManager extends AutoCloseable {
      *
      * @param fid function id
      */
-    default void unregisterFunction(FunctionID fid) {
-        unregisterFunctionInstance(fid, InstanceID.INVALID_INSTANCE_ID);
+    default void unregisterFunction(String fid) {
+        unregisterFunctionInstance(fid, null);
     }
 
-    void unregisterFunctionInstance(FunctionID fid,
-                                    InstanceID eid);
+    void unregisterFunctionInstance(String fid,
+                                    String eid);
 
     /**
      * Close the cache manager to release created class loaders.

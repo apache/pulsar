@@ -24,8 +24,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.fs.FunctionID;
-import org.apache.pulsar.functions.fs.InstanceID;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 
 /**
@@ -38,8 +36,8 @@ import org.apache.pulsar.functions.fs.LimitsConfig;
 @EqualsAndHashCode
 @ToString
 public class JavaInstanceConfig {
-    private InstanceID instanceId;
-    private FunctionID functionId;
+    private String instanceId;
+    private String functionId;
     private String functionVersion;
     private FunctionConfig functionConfig;
     private LimitsConfig limitsConfig;

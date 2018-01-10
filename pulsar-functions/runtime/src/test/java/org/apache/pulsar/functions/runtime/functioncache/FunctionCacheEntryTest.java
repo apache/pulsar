@@ -30,7 +30,6 @@ import java.net.URI;
 import java.net.URL;
 import java.util.Collections;
 import java.util.Set;
-import org.apache.pulsar.functions.fs.InstanceID;
 import org.testng.annotations.Test;
 
 /**
@@ -53,7 +52,7 @@ public class FunctionCacheEntryTest {
 
     @Test
     public void testConstructor() {
-        InstanceID iid = new InstanceID(12L, 34L);
+        String iid = java.util.UUID.randomUUID().toString();
         FunctionCacheEntry entry = new FunctionCacheEntry(
             jarFiles,
             classpaths,
@@ -65,8 +64,8 @@ public class FunctionCacheEntryTest {
 
     @Test
     public void testUnregister() {
-        InstanceID iid1 = new InstanceID(12L, 34L);
-        InstanceID iid2 = new InstanceID(12L, 35L);
+        String iid1 = java.util.UUID.randomUUID().toString();
+        String iid2 = java.util.UUID.randomUUID().toString();
         FunctionCacheEntry entry = new FunctionCacheEntry(
             jarFiles,
             classpaths,
@@ -83,13 +82,13 @@ public class FunctionCacheEntryTest {
 
     @Test
     public void testRegisterJarFilesDontMatch() {
-        InstanceID iid = new InstanceID(12L, 35L);
+        String iid = java.util.UUID.randomUUID().toString();
         FunctionCacheEntry entry = new FunctionCacheEntry(
             jarFiles,
             classpaths,
             libraryUrls,
             iid);
-        InstanceID iid2 = new InstanceID(123L, 345L);
+        String iid2 = java.util.UUID.randomUUID().toString();
         try {
             entry.register(
                 iid2,
@@ -105,13 +104,13 @@ public class FunctionCacheEntryTest {
 
     @Test
     public void testRegisterClasspathsDontMatch() throws IOException {
-        InstanceID iid = new InstanceID(12L, 35L);
+        String iid = java.util.UUID.randomUUID().toString();
         FunctionCacheEntry entry = new FunctionCacheEntry(
             jarFiles,
             classpaths,
             libraryUrls,
             iid);
-        InstanceID iid2 = new InstanceID(123L, 345L);
+        String iid2 = java.util.UUID.randomUUID().toString();
         try {
             entry.register(
                 iid2,
@@ -127,8 +126,8 @@ public class FunctionCacheEntryTest {
 
     @Test
     public void testRegister() {
-        InstanceID iid1 = new InstanceID(12L, 34L);
-        InstanceID iid2 = new InstanceID(12L, 35L);
+        String iid1 = java.util.UUID.randomUUID().toString();
+        String iid2 = java.util.UUID.randomUUID().toString();
         FunctionCacheEntry entry = new FunctionCacheEntry(
             jarFiles,
             classpaths,

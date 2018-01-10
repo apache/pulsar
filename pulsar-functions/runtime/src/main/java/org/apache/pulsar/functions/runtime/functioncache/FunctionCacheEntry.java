@@ -30,7 +30,6 @@ import java.util.Set;
 import java.util.stream.Collectors;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.InstanceID;
 
 /**
  * A cache entry in the function cache. Tracks which workers still reference
@@ -43,7 +42,7 @@ class FunctionCacheEntry implements AutoCloseable {
     @Getter
     private final URLClassLoader classLoader;
 
-    private final Set<InstanceID> executionHolders;
+    private final Set<String> executionHolders;
 
     @Getter
     private final Set<String> jarFiles;
@@ -53,7 +52,7 @@ class FunctionCacheEntry implements AutoCloseable {
     FunctionCacheEntry(Collection<String> requiredJarFiles,
                        Collection<URL> requiredClasspaths,
                        URL[] libraryURLs,
-                       InstanceID initialInstanceId) {
+                       String initialInstanceId) {
         this.classLoader = FunctionClassLoaders.create(libraryURLs, FunctionClassLoaders.class.getClassLoader());
         this.classpaths = requiredClasspaths.stream()
             .map(URL::toString)
@@ -63,11 +62,11 @@ class FunctionCacheEntry implements AutoCloseable {
     }
 
     @VisibleForTesting
-    boolean isInstanceRegistered(InstanceID iid) {
+    boolean isInstanceRegistered(String iid) {
         return executionHolders.contains(iid);
     }
 
-    public void register(InstanceID eid,
+    public void register(String eid,
                          Collection<String> requiredJarFiles,
                          Collection<URL> requiredClassPaths) {
         if (jarFiles.size() != requiredJarFiles.size()
@@ -90,7 +89,7 @@ class FunctionCacheEntry implements AutoCloseable {
         this.executionHolders.add(eid);
     }
 
-    public boolean unregister(InstanceID eid) {
+    public boolean unregister(String eid) {
         this.executionHolders.remove(eid);
         return this.executionHolders.isEmpty();
     }

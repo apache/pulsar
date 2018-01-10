@@ -31,8 +31,6 @@ import java.net.URL;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.Function;
-import org.apache.pulsar.functions.fs.FunctionID;
-import org.apache.pulsar.functions.fs.InstanceID;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -76,42 +74,38 @@ public class FunctionCacheManagerImplTest {
 
     @Test(expectedExceptions = IllegalStateException.class)
     public void testGetClassLoaderNotFound() {
-        FunctionID fid = new FunctionID();
-        this.cacheManager.getClassLoader(fid);
+        this.cacheManager.getClassLoader(java.util.UUID.randomUUID().toString());
     }
 
     @Test(expectedExceptions = NullPointerException.class)
     public void testRegisterNullFunctionID() throws Exception {
         this.cacheManager.registerFunctionInstance(
             null,
-            new InstanceID(),
+                java.util.UUID.randomUUID().toString(),
             Collections.emptyList(),
             Collections.emptyList());
     }
 
     @Test
     public void testRegister() throws Exception {
-        FunctionID fid = new FunctionID();
-        InstanceID iid = new InstanceID();
-
-        this.cacheManager.registerFunctionInstance(
-            fid,
-            iid,
+        String fid = java.util.UUID.randomUUID().toString();
+        String eid = java.util.UUID.randomUUID().toString();
+        this.cacheManager.registerFunctionInstance(fid, eid,
             jarFiles,
             classpaths);
 
         assertEquals(1, cacheManager.getCacheFunctions().size());
         FunctionCacheEntry entry = cacheManager.getCacheFunctions().get(fid);
         assertNotNull(entry);
-        assertTrue(entry.isInstanceRegistered(iid));
+        assertTrue(entry.isInstanceRegistered(eid));
         verifyClassLoader(cacheManager.getClassLoader(fid));
     }
 
     @Test
     public void testRegisterTwoInstances() throws Exception {
-        FunctionID fid = new FunctionID();
-        InstanceID iid1 = new InstanceID();
-        InstanceID iid2 = new InstanceID();
+        String fid = java.util.UUID.randomUUID().toString();
+        String iid1 = java.util.UUID.randomUUID().toString();
+        String iid2 = java.util.UUID.randomUUID().toString();
 
         this.cacheManager.registerFunctionInstance(
             fid,
@@ -140,8 +134,8 @@ public class FunctionCacheManagerImplTest {
 
     @Test
     public void testUnregister() throws Exception {
-        FunctionID fid = new FunctionID();
-        InstanceID iid = new InstanceID();
+        String fid = java.util.UUID.randomUUID().toString();
+        String iid = java.util.UUID.randomUUID().toString();
 
         this.cacheManager.registerFunctionInstance(
             fid,
