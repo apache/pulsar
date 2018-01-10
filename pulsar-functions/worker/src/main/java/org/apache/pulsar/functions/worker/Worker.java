@@ -59,6 +59,14 @@ public class Worker extends AbstractService {
 
     @Override
     protected void doStart() {
+        try {
+            doStartImpl();
+        } catch (Throwable t) {
+            t.printStackTrace();
+        }
+    }
+
+    protected void doStartImpl() {
         // initialize the dlog namespace
         // TODO: move this as part of pulsar cluster initialization later
         URI dlogUri;

@@ -47,7 +47,7 @@ if [ $? == 0 ]; then
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/runtime/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+BUILT_JAR=`ls $PULSAR_HOME/worker/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
     echo "\nCouldn't find pulsar jar.";
     echo "Make sure you've run 'mvn package'\n";
@@ -87,7 +87,7 @@ add_maven_deps_to_classpath() {
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/runtime/target/classpath.txt"
+    f="${PULSAR_HOME}/worker/target/classpath.txt"
     if [ ! -f "${f}" ]
     then
 	    ${MVN} -f "${PULSAR_HOME}/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
@@ -144,7 +144,7 @@ OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 cd "$PULSAR_HOME"
 if [ $COMMAND == "worker" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-function-worker.log"}
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.runtime.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.functions.worker.FunctionWorkerStarter -c $PULSAR_WORKER_CONF $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
 else

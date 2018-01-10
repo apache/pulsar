@@ -24,7 +24,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.LimitsConfig;
-import org.slf4j.bridge.SLF4JBridgeHandler;
 
 /**
  * A starter to start function worker.
@@ -55,9 +54,6 @@ public class FunctionWorkerStarter {
             System.exit(-1);
             return;
         }
-
-        SLF4JBridgeHandler.removeHandlersForRootLogger();
-        SLF4JBridgeHandler.install();
 
         WorkerConfig workerConfig;
         if (isBlank(workerArguments.configFile)) {

@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import dlshade.org.apache.zookeeper.KeeperException.Code;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
@@ -28,6 +27,9 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
+import org.apache.pulsar.functions.worker.dlog.DLInputStream;
+import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
+import org.apache.zookeeper.KeeperException.Code;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -38,8 +40,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.net.URI;
 import java.util.UUID;
-import org.apache.pulsar.functions.worker.dlog.DLInputStream;
-import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 
 @Slf4j
 public final class Utils {

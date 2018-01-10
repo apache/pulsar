@@ -34,8 +34,8 @@
     <version>1.22.0-incubating-SNAPSHOT</version>
   </parent>
 
-  <artifactId>pulsar-functions-runtime</artifactId>
-  <name>Pulsar Functions :: Runtime</name>
+  <artifactId>pulsar-functions-cli</artifactId>
+  <name>Pulsar Functions :: CLI</name>
 
   <dependencies>
 
@@ -55,55 +55,32 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-api</artifactId>
+      <artifactId>pulsar-client-tools</artifactId>
       <version>${project.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.dataformat</groupId>
-      <artifactId>jackson-dataformat-yaml</artifactId>
-      <version>${jackson.version}</version>
+      <groupId>org.glassfish.jersey.media</groupId>
+      <artifactId>jersey-media-json-jackson</artifactId>
+      <version>${jersery.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-annotations</artifactId>
-      <version>${jackson.version}</version>
+      <groupId>org.glassfish.jersey.core</groupId>
+      <artifactId>jersey-client</artifactId>
+      <version>${jersery.version}</version>
     </dependency>
 
     <dependency>
-      <groupId>com.fasterxml.jackson.core</groupId>
-      <artifactId>jackson-databind</artifactId>
-      <version>${jackson.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.code.gson</groupId>
-      <artifactId>gson</artifactId>
-      <version>${gson.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>net.jodah</groupId>
-      <artifactId>typetools</artifactId>
-      <version>0.5.0</version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.yahoo.datasketches</groupId>
-      <artifactId>sketches-core</artifactId>
-      <version>0.6.0 </version>
-    </dependency>
-
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
+      <groupId>org.glassfish.jersey.media</groupId>
+      <artifactId>jersey-media-multipart</artifactId>
+      <version>${jersery.version}</version>
     </dependency>
 
   </dependencies>
