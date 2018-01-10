@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -58,7 +59,12 @@ public class MessageImpl implements Message {
         msg.messageId = null;
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
-        msg.properties = Collections.emptyMap();
+        if (msgMetadataBuilder.getPropertiesCount() > 0) {
+            msg.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+        } else {
+            msg.properties = Collections.emptyMap();
+        }
         return msg;
     }
 
@@ -75,12 +81,8 @@ public class MessageImpl implements Message {
         this.payload = Unpooled.copiedBuffer(payload);
 
         if (msgMetadata.getPropertiesCount() > 0) {
-            Map<String, String> properties = Maps.newTreeMap();
-            for (KeyValue entry : msgMetadata.getPropertiesList()) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-
-            this.properties = Collections.unmodifiableMap(properties);
+            this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
         } else {
             properties = Collections.emptyMap();
         }
