@@ -29,7 +29,6 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 
 @Data
 @Setter
@@ -41,8 +40,6 @@ public class FunctionMetaData implements Serializable, Cloneable {
 
     // function config
     private FunctionConfig functionConfig;
-    // resource / limits config
-    private LimitsConfig limitsConfig;
     // function package location
     private PackageLocationMetaData packageLocation;
     private String runtime;

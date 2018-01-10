@@ -95,7 +95,6 @@ public class ApiV1Resource extends BaseApiResource {
         // function state
         FunctionMetaData functionMetaData = new FunctionMetaData();
         functionMetaData.setFunctionConfig(functionConfig);
-        functionMetaData.setLimitsConfig(limitsConfig);
         functionMetaData.setCreateTime(System.currentTimeMillis());
         functionMetaData.setVersion(0);
 
@@ -151,7 +150,6 @@ public class ApiV1Resource extends BaseApiResource {
         // function state
         FunctionMetaData functionMetaData = new FunctionMetaData();
         functionMetaData.setFunctionConfig(functionConfig);
-        functionMetaData.setLimitsConfig(limitsConfig);
         functionMetaData.setCreateTime(System.currentTimeMillis());
         functionMetaData.setVersion(0);
 

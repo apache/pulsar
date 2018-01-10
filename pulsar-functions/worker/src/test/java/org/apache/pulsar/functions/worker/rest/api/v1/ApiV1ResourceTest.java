@@ -839,7 +839,6 @@ public class ApiV1ResourceTest {
         FunctionMetaData metaData = new FunctionMetaData()
             .setCreateTime(System.currentTimeMillis())
             .setFunctionConfig(config)
-            .setLimitsConfig(limitsConfig)
             .setPackageLocation(new PackageLocationMetaData().setPackagePath("/path/to/package"))
             .setRuntime("test")
             .setVersion(1234)

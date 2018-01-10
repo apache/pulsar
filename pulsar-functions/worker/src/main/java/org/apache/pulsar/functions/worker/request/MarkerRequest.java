@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -19,16 +19,20 @@
 package org.apache.pulsar.functions.worker.request;
 
 public class MarkerRequest extends ServiceRequest {
-    private static final long serialVersionUID = -6074909284607487042L;
 
-    public MarkerRequest(String workerId, String requestId) {
-        super(workerId, null, ServiceRequestType.MARKER, requestId);
+    private MarkerRequest(String workerId, String requestId) {
+        super(requestId, workerId, null, org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType.MARKER);
     }
 
-    @Override
-    public String toString() {
-        return "MarkerRequest{"
-                + super.toString()
-                + "}";
+    public MarkerRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        super(serviceRequest);
+    }
+
+    public static MarkerRequest of(String workerId, String requestId) {
+        return new MarkerRequest(workerId, requestId);
+    }
+
+    public static MarkerRequest of(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        return new MarkerRequest(serviceRequest);
     }
 }

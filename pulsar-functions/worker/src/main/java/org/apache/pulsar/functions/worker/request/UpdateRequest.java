@@ -20,22 +20,21 @@ package org.apache.pulsar.functions.worker.request;
 
 import org.apache.pulsar.functions.worker.FunctionMetaData;
 
-public class UpdateRequest extends ServiceRequest {
-
-    private static final long serialVersionUID = 4874557910196094342L;
+public class UpdateRequest extends ServiceRequest{
 
     private UpdateRequest(String workerId, FunctionMetaData functionMetaData) {
-        super(workerId, functionMetaData, ServiceRequestType.UPDATE);
+        super(workerId, functionMetaData, org.apache.pulsar.functions.generated.ServiceRequest.Request.ServiceRequestType.UPDATE);
+    }
+
+    public UpdateRequest(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        super(serviceRequest);
     }
 
     public static UpdateRequest of(String workerId, FunctionMetaData functionMetaData) {
         return new UpdateRequest(workerId, functionMetaData);
     }
 
-    @Override
-    public String toString() {
-        return "UpdateRequest{"
-                + super.toString()
-                + "}";
+    public static UpdateRequest of(org.apache.pulsar.functions.generated.ServiceRequest.Request serviceRequest) {
+        return new UpdateRequest(serviceRequest);
     }
 }

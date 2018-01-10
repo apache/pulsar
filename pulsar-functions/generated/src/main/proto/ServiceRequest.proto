@@ -21,7 +21,7 @@ message PackageLocationMetaData {
 
 message FunctionMetaData {
     FunctionConfig functionConfig = 1;
-    PackageLocationMetaData package = 2;
+    PackageLocationMetaData packageLocation = 2;
     string runtime = 3;
     uint64 version = 4;
     uint64 createTime = 5;
@@ -38,4 +38,5 @@ message Request {
     ServiceRequestType serviceRequestType = 1;
     string requestId = 2;
     FunctionMetaData functionMetaData = 3;
+    string workerId = 4;
 }
