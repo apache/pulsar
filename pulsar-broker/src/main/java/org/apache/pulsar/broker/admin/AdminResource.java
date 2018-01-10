@@ -49,6 +49,7 @@ import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.impl.NamespaceIsolationPolicies;
+import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
@@ -202,6 +203,54 @@ public abstract class AdminResource extends PulsarWebResource {
         return namespaces;
     }
 
+    protected NamespaceName namespaceName;
+
+    protected void validateNamespaceName(String property, String namespace) {
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
+        }
+    }
+
+    protected void validateNamespaceName(String property, String cluster, String namespace) {
+        try {
+            this.namespaceName = NamespaceName.get(property, cluster, namespace);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
+        }
+    }
+
+    protected DestinationName destinationName;
+
+    protected void validateDestinationName(String property, String namespace, String encodedTopic) {
+        String topic = Codec.decode(encodedTopic);
+        try {
+            this.namespaceName = NamespaceName.get(property, namespace);
+            this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
+                    topic, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+
+        this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+    }
+
+    protected void validateDestinationName(String property, String cluster, String namespace, String encodedTopic) {
+        String topic = Codec.decode(encodedTopic);
+        try {
+            this.namespaceName = NamespaceName.get(property, cluster, namespace);
+            this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+        } catch (IllegalArgumentException e) {
+            log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
+                    namespace, topic, e);
+            throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
+        }
+    }
+
     /**
      * Redirect the call to the specified broker
      *
@@ -262,7 +311,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().clustersCache();
     }
 
-    ZooKeeperChildrenCache managedLedgerListCache() {
+    protected ZooKeeperChildrenCache managedLedgerListCache() {
         return pulsar().getLocalZkCacheService().managedLedgerListCache();
     }
 
@@ -286,32 +335,30 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().namespaceIsolationPoliciesCache();
     }
 
-    protected PartitionedTopicMetadata getPartitionedTopicMetadata(String property, String cluster, String namespace,
-            String destination, boolean authoritative) {
-        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
-        validateClusterOwnership(dn.getCluster());
+    protected PartitionedTopicMetadata getPartitionedTopicMetadata(DestinationName destinationName,
+            boolean authoritative) {
+        validateClusterOwnership(destinationName.getCluster());
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        validateGlobalNamespaceOwnership(dn.getNamespaceObject());
+        validateGlobalNamespaceOwnership(destinationName.getNamespaceObject());
 
         try {
-            checkConnect(dn);
+            checkConnect(destinationName);
         } catch (WebApplicationException e) {
-            validateAdminAccessOnProperty(dn.getProperty());
+            validateAdminAccessOnProperty(destinationName.getProperty());
         } catch (Exception e) {
             // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing lookup. destination={}, role={}. Error: {}", destination,
+            log.warn("Unexpected error while authorizing lookup. destination={}, role={}. Error: {}", destinationName,
                     clientAppId(), e.getMessage(), e);
             throw new RestException(e);
         }
 
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, property, cluster, namespace, domain(),
-                dn.getEncodedLocalName());
+        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), destinationName.getEncodedLocalName());
         PartitionedTopicMetadata partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), dn,
+            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), destinationName,
                     partitionMetadata.partitions);
         }
         return partitionMetadata;
@@ -328,8 +375,8 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(PulsarService pulsar,
-            String path) {
+    protected static CompletableFuture<PartitionedTopicMetadata> fetchPartitionedTopicMetadataAsync(
+            PulsarService pulsar, String path) {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             // gets the number of partitions from the zk cache

@@ -84,7 +84,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private Clusters clusters;
     private Properties properties;
     private NamespacesLegacy namespaces;
-    private PersistentTopics persistentTopics;
+    private PersistentTopicsLegacy persistentTopics;
     private Brokers brokers;
     private ResourceQuotasLegacy resourceQuotas;
     private BrokerStats brokerStats;
@@ -145,7 +145,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
 
-        persistentTopics = spy(new PersistentTopics());
+        persistentTopics = spy(new PersistentTopicsLegacy());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(persistentTopics).globalZk();

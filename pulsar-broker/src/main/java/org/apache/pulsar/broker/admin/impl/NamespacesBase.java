@@ -64,26 +64,6 @@ import io.swagger.annotations.ApiResponses;
 
 public abstract class NamespacesBase extends AdminResource {
 
-    protected NamespaceName namespaceName;
-
-    protected void validateNamespaceName(String property, String namespace) {
-        try {
-            this.namespaceName = NamespaceName.get(property, namespace);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
-        }
-    }
-
-    protected void validateNamespaceName(String property, String cluster, String namespace) {
-        try {
-            this.namespaceName = NamespaceName.get(property, cluster, namespace);
-        } catch (IllegalArgumentException e) {
-            log.warn("[{}] Failed to create namespace with invalid name {}", clientAppId(), namespace, e);
-            throw new RestException(Status.PRECONDITION_FAILED, "Namespace name is not valid");
-        }
-    }
-
     public List<String> getPropertyNamespaces(String property) {
         validateAdminAccessOnProperty(property);
 

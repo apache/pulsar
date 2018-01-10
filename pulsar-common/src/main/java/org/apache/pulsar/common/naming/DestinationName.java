@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -63,6 +61,11 @@ public class DestinationName implements ServiceUnitId {
                     return new DestinationName(name);
                 }
             });
+
+    public static DestinationName get(String domain, NamespaceName namespaceName, String destination) {
+        String name = domain + "://" + namespaceName.toString() + '/' + destination;
+        return DestinationName.get(name);
+    }
 
     public static DestinationName get(String domain, String property, String namespace, String destination) {
         String name = domain + "://" + property + '/' + namespace + '/' + destination;

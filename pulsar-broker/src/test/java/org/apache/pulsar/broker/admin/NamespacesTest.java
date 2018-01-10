@@ -1066,13 +1066,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockWebUrl(localWebServiceUrl, testNs);
 
             try {
-                topics.validateAdminOperationOnDestination(topicName, false);
+                topics.validateDestinationName(topicName.getProperty(), topicName.getCluster(),
+                        topicName.getNamespace(), topicName.getEncodedLocalName());
+                topics.validateAdminOperationOnDestination(false);
             } catch (RestException e) {
                 fail("validateAdminAccessOnProperty failed");
             }
 
             try {
-                topics.validateAdminOperationOnDestination(DestinationName.get(""), false);
+                topics.validateAdminOperationOnDestination(false);
                 fail("validateAdminAccessOnProperty failed");
             } catch (Exception e) {
                 // OK
