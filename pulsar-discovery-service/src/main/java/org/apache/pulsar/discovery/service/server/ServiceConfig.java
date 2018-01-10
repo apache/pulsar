@@ -35,7 +35,10 @@ public class ServiceConfig implements PulsarConfiguration {
     // Local-Zookeeper quorum connection string
     private String zookeeperServers;
     // Global-Zookeeper quorum connection string
+    @Deprecated
     private String globalZookeeperServers;
+    // Global-Configuration-Zookeeper quorum connection string
+    private String globalConfigurationZookeeperServers;
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
@@ -90,12 +93,22 @@ public class ServiceConfig implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getGlobalConfigurationZookeeperServers() {
+        return globalConfigurationZookeeperServers;
+    }
+
+    public void setGlobalConfigurationZookeeperServers(String globalConfigurationZookeeperServers) {
+        this.globalConfigurationZookeeperServers = globalConfigurationZookeeperServers;
     }
 
     public int getZookeeperSessionTimeoutMs() {

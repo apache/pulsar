@@ -56,7 +56,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Sets;
 
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
-    
+
     private int port;
     private ProxyServer proxyServer;
     private WebSocketService service;
@@ -73,7 +73,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         config.setAuthenticationEnabled(true);
         config.setAuthenticationProviders(
                 Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
-        config.setGlobalZookeeperServers("dummy-zk-servers");
+        config.setGlobalConfigurationZookeeperServers("dummy-zk-servers");
         config.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
         service = spy(new WebSocketService(config));
         doReturn(mockZooKeeperClientFactory).when(service).getZooKeeperClientFactory();

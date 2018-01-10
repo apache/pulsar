@@ -51,13 +51,17 @@ public class DiscoveryServiceStarter {
         // load config file
         final ServiceConfig config = PulsarConfigurationLoader.create(configFile, ServiceConfig.class);
         checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-        checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "global-zookeeperServers must be provided");
-        
+        if(!isEmpty(config.getGlobalZookeeperServers())) {
+            config.setGlobalConfigurationZookeeperServers(config.getGlobalZookeeperServers());
+        }
+        checkArgument(!isEmpty(config.getGlobalConfigurationZookeeperServers()),
+            "global-configuration-zookeeperServers must be provided");
+
         // create Discovery service
         DiscoveryService discoveryService = new DiscoveryService(config);
         // create a web-service
         final ServerManager server = new ServerManager(config);
-        
+
         Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
@@ -69,7 +73,7 @@ public class DiscoveryServiceStarter {
                 }
             }
         });
-        
+
         discoveryService.start();
         startWebService(server, config);
     }

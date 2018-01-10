@@ -99,9 +99,9 @@ public class WebSocketService implements Closeable {
     public void start() throws PulsarServerException, PulsarClientException, MalformedURLException, ServletException,
             DeploymentException {
 
-        if (isNotBlank(config.getGlobalZookeeperServers())) {
+        if (isNotBlank(config.getGlobalConfigurationZookeeperServers())) {
             this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                    (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
+                    (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalConfigurationZookeeperServers(),
                     this.orderedExecutor, this.executor);
             try {
                 this.globalZkCache.start();
@@ -116,7 +116,7 @@ public class WebSocketService implements Closeable {
         if (config.isAuthorizationEnabled()) {
             if (configurationCacheService == null) {
                 throw new PulsarServerException(
-                        "Failed to initialize authorization manager due to empty GlobalZookeeperServers");
+                        "Failed to initialize authorization manager due to empty GlobalConfigurationZookeeperServers");
             }
             authorizationManager = new AuthorizationManager(this.config, configurationCacheService);
         }
@@ -214,7 +214,8 @@ public class WebSocketService implements Closeable {
 
     private ClusterData retrieveClusterData() throws PulsarServerException {
         if (configurationCacheService == null) {
-            throw new PulsarServerException("Failed to retrieve Cluster data due to empty GlobalZookeeperServers");
+            throw new PulsarServerException(
+                "Failed to retrieve Cluster data due to empty GlobalConfigurationZookeeperServers");
         }
         try {
             String path = "/admin/clusters/" + config.getClusterName();

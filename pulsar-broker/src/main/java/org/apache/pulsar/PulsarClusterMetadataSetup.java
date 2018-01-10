@@ -69,9 +69,14 @@ public class PulsarClusterMetadataSetup {
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
 
+        @Deprecated
         @Parameter(names = { "-gzk",
                 "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true)
         private String globalZookeeper;
+
+        @Parameter(names = { "-gczk",
+            "--global-configuration-zookeeper" }, description = "Global Configuration ZooKeeper quorum connection string", required = false)
+        private String globalConfigurationZookeeper;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -92,8 +97,12 @@ public class PulsarClusterMetadataSetup {
             return;
         }
 
-        log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,
-                arguments.globalZookeeper);
+        if (arguments.globalConfigurationZookeeper == null) {
+            arguments.globalConfigurationZookeeper = arguments.globalZookeeper;
+        }
+
+        log.info("Setting up cluster {} with zk={} global-config-zk={}", arguments.cluster, arguments.zookeeper,
+                arguments.globalConfigurationZookeeper);
 
         // Format BookKeeper metadata
         ClientConfiguration bkConf = new ClientConfiguration();
@@ -105,7 +114,7 @@ public class PulsarClusterMetadataSetup {
 
         ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
         ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
+        ZooKeeper globalZk = zkfactory.create(arguments.globalConfigurationZookeeper, SessionType.ReadWrite, 30000).get();
 
         localZk.create("/managed-ledgers", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);

@@ -38,15 +38,17 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;
-    
-    // Pulsar cluster url to connect to broker (optional if globalZookeeperServers present)
+
+    // Pulsar cluster url to connect to broker (optional if globalConfigurationZookeeperServers present)
     private String serviceUrl;
     private String serviceUrlTls;
     private String brokerServiceUrl;
     private String brokerServiceUrlTls;
 
     // Global Zookeeper quorum connection string
+    @Deprecated
     private String globalZookeeperServers;
+    private String globalConfigurationZookeeperServers;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
 
@@ -92,7 +94,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-    
+
     private Properties properties = new Properties();
 
     public String getClusterName() {
@@ -102,7 +104,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     public void setClusterName(String clusterName) {
         this.clusterName = clusterName;
     }
-    
+
     public String getServiceUrl() {
         return serviceUrl;
     }
@@ -135,12 +137,22 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getGlobalConfigurationZookeeperServers() {
+        return globalConfigurationZookeeperServers;
+    }
+
+    public void setGlobalConfigurationZookeeperServers(String globalConfigurationZookeeperServers) {
+        this.globalConfigurationZookeeperServers = globalConfigurationZookeeperServers;
     }
 
     public long getZooKeeperSessionTimeoutMillis() {
@@ -278,7 +290,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
         this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
     }
-    
+
     public Properties getProperties() {
         return properties;
     }

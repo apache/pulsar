@@ -48,8 +48,13 @@ public class ProxyServiceStarter {
     @Parameter(names = { "-zk", "--zookeeper-servers" }, description = "Local zookeeper connection string")
     private String zookeeperServers = "";
 
+    @Deprecated
     @Parameter(names = { "-gzk", "--global-zookeeper-servers" }, description = "Global zookeeper connection string")
     private String globalZookeeperServers = "";
+
+    @Parameter(names = { "-gczk", "--global-configuration-zookeeper-servers" },
+        description = "Global configuration zookeeper connection string")
+    private String globalConfigurationZookeeperServers = "";
 
     @Parameter(names = { "-h", "--help" }, description = "Show this help message")
     private boolean help = false;
@@ -85,11 +90,15 @@ public class ProxyServiceStarter {
 
         if (!isBlank(globalZookeeperServers)) {
             // Use globalZookeeperServers from command line
-            config.setGlobalZookeeperServers(globalZookeeperServers);
+            config.setGlobalCongigurationZookeeperServers(globalZookeeperServers);
+        }
+        if (!isBlank(globalConfigurationZookeeperServers)) {
+            // Use globalConfigurationZookeeperServers from command line
+            config.setGlobalCongigurationZookeeperServers(globalZookeeperServers);
         }
 
         checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-        checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "globalZookeeperServers must be provided");
+        checkArgument(!isEmpty(config.getGlobalConfigurationZookeeperServers()), "globalConfigurationZookeeperServers must be provided");
 
         // create broker service
         ProxyService discoveryService = new ProxyService(config);
