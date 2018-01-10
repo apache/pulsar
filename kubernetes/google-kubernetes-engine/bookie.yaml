@@ -19,13 +19,25 @@
 
 ## Credits to Franck Cuny : https://github.com/fcuny/distributedlog-on-k8s/blob/master/bookkeeper.statefulset.yaml
 
-kind: StorageClass
 apiVersion: storage.k8s.io/v1
+kind: StorageClass
 metadata:
   name: ssd
 provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
+  zones: us-central1-a
+
+---
+
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: hdd
+provisioner: kubernetes.io/gce-pd
+parameters:
+  type: pd-standard
+  zones: us-central1-a
 
 ---
 apiVersion: v1
@@ -102,6 +114,21 @@ spec:
           envFrom:
             - configMapRef:
                 name: bookie-config
+      volumeClaimTemplates:
+        - metadata:
+            name: journal-disk
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            resources:
+              requests: 10Gi
+            storageClassName: ssd
+        - metadata:
+            name: ledger-disk
+          spec:
+            accessModes: [ "ReadWriteOnce" ]
+            resources:
+              requests: 10Gi
+            storageClassName: hdd
 
       volumes:
           # Mount local disks
