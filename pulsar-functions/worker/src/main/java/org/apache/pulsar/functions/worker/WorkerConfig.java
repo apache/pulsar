@@ -48,14 +48,7 @@ public class WorkerConfig implements Serializable {
     private String pulsarServiceUrl;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
-    private LimitsConfig defaultLimits;
-
-    public String getFunctionMetadataTopicSubscription() {
-        if (this.workerId == null) {
-            throw new IllegalStateException("Worker Id is not set");
-        }
-        return String.format("%s-subscription", this.workerId);
-    }
+    private LimitsConfig limitsConfig;
 
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

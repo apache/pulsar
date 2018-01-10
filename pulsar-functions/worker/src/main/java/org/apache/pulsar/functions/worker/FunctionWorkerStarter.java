@@ -62,14 +62,11 @@ public class FunctionWorkerStarter {
             workerConfig = WorkerConfig.load(workerArguments.configFile);
         }
 
-        LimitsConfig limitsConfig;
-        if (null == workerConfig.getDefaultLimits()) {
-            limitsConfig = new LimitsConfig(-1, -1, -1, 1024);
-        } else {
-            limitsConfig = workerConfig.getDefaultLimits();
+        if (null == workerConfig.getLimitsConfig()) {
+            workerConfig.setLimitsConfig(new LimitsConfig(-1, -1, -1, 1024));
         }
 
-        final Worker worker = new Worker(workerConfig, limitsConfig);
+        final Worker worker = new Worker(workerConfig);
         worker.startAsync();
     }
 }

@@ -116,7 +116,7 @@ public class ApiV1ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
             .setWorkerId("test")
             .setWorkerPort(8080)
-            .setDefaultLimits(limitsConfig)
+            .setLimitsConfig(limitsConfig)
             .setDownloadDirectory("/tmp/pulsar/functions")
             .setFunctionMetadataTopic("pulsar/functions")
             .setNumFunctionPackageReplicas(3)

@@ -34,7 +34,6 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
@@ -42,7 +41,6 @@ import org.apache.pulsar.functions.worker.rest.WorkerServer;
 public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
-    private final LimitsConfig limitsConfig;
     private PulsarClient client;
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
@@ -52,9 +50,8 @@ public class Worker extends AbstractService {
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private FunctionActioner functionActioner;
 
-    public Worker(WorkerConfig workerConfig, LimitsConfig limitsConfig) {
+    public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
-        this.limitsConfig = limitsConfig;
     }
 
     @Override
@@ -100,14 +97,14 @@ public class Worker extends AbstractService {
             ServiceRequestManager reqMgr = new ServiceRequestManager(
                 client.createProducer(workerConfig.getFunctionMetadataTopic()));
 
-            this.functionContainerFactory = new ThreadFunctionContainerFactory(limitsConfig.getMaxBufferedTuples(),
+            this.functionContainerFactory = new ThreadFunctionContainerFactory(workerConfig.getLimitsConfig().getMaxBufferedTuples(),
                     workerConfig.getPulsarServiceUrl());
 
             this.actionQueue = new LinkedBlockingQueue<>();
 
             this.functionRuntimeManager = new FunctionRuntimeManager(workerConfig, reqMgr, actionQueue);
 
-            this.functionActioner = new FunctionActioner(workerConfig, limitsConfig, functionContainerFactory,
+            this.functionActioner = new FunctionActioner(workerConfig, functionContainerFactory,
                     dlogNamespace, actionQueue);
             this.functionActioner.start();
 
@@ -124,7 +121,6 @@ public class Worker extends AbstractService {
 
             log.info("Start worker {}...", workerConfig.getWorkerId());
             log.info("Worker Configs: {}", workerConfig);
-            log.info("Limits Configs: {}", limitsConfig);
         } catch (Exception e) {
             log.error("Failed to create pulsar client to {}",
                 workerConfig.getPulsarServiceUrl(), e);
