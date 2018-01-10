@@ -89,9 +89,6 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
         }
 
-        // function resource limits
-        LimitsConfig limitsConfig = getWorkerConfig().getDefaultLimits();
-
         // function state
         FunctionMetaData functionMetaData = new FunctionMetaData();
         functionMetaData.setFunctionConfig(functionConfig);
@@ -143,9 +140,6 @@ public class ApiV1Resource extends BaseApiResource {
                     .type(MediaType.APPLICATION_JSON)
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
-
-        // function resource limits
-        LimitsConfig limitsConfig = getWorkerConfig().getDefaultLimits();
 
         // function state
         FunctionMetaData functionMetaData = new FunctionMetaData();

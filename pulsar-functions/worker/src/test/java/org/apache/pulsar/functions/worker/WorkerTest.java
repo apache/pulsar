@@ -35,7 +35,8 @@ public class WorkerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setWorkerId(workerId);
         workerConfig.setDownloadDirectory("/tmp");
-        Worker worker = new Worker(workerConfig, new LimitsConfig(-1, -1, -1, 1024));
+        workerConfig.setLimitsConfig(new LimitsConfig(-1, -1, -1, 1024));
+        Worker worker = new Worker(workerConfig);
         worker.startAsync();
         worker.awaitRunning();
     }

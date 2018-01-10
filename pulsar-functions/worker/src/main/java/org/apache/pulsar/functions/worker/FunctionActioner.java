@@ -23,7 +23,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import java.io.File;
@@ -40,19 +39,17 @@ import java.util.concurrent.TimeUnit;
 public class FunctionActioner implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
-    private final LimitsConfig limitsConfig;
     private final FunctionContainerFactory functionContainerFactory;
     private final Namespace dlogNamespace;
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
     private Thread actioner;
 
-    public FunctionActioner(WorkerConfig workerConfig, LimitsConfig limitsConfig,
+    public FunctionActioner(WorkerConfig workerConfig,
                             FunctionContainerFactory functionContainerFactory,
                             Namespace dlogNamespace,
                             LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
-        this.limitsConfig = limitsConfig;
         this.functionContainerFactory = functionContainerFactory;
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
@@ -116,7 +113,7 @@ public class FunctionActioner implements AutoCloseable {
                     new FileOutputStream(pkgFile),
                     functionMetaData.getPackageLocation().getPackagePath());
         }
-        Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), limitsConfig,
+        Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), workerConfig.getLimitsConfig(),
                 pkgFile.getAbsolutePath(), functionContainerFactory);
 
         functionRuntimeInfo.setSpawner(spawner);
