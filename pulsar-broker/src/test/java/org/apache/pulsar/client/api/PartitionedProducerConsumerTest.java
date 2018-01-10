@@ -311,7 +311,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         }
 
         try {
-            producer = pulsarClient.createProducer(dn.toString());
+            producer = pulsarClient.createProducer(dn.toString(), (ProducerConfiguration) null);
             Assert.fail("should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
@@ -320,7 +320,7 @@ public class PartitionedProducerConsumerTest extends ProducerConsumerBase {
         ConsumerConfiguration consumerConf = new ConsumerConfiguration();
 
         try {
-            consumer = pulsarClient.subscribe(dn.toString(), "my-subscriber-name");
+            consumer = pulsarClient.subscribe(dn.toString(), "my-subscriber-name", (ConsumerConfiguration<byte[]>) null);
             Assert.fail("Should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
