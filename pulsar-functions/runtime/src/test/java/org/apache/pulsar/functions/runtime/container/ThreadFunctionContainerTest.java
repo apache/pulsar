@@ -32,8 +32,6 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
-import org.apache.pulsar.functions.fs.FunctionID;
-import org.apache.pulsar.functions.fs.InstanceID;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -83,9 +81,9 @@ public class ThreadFunctionContainerTest {
         JavaInstanceConfig config = new JavaInstanceConfig();
 
         config.setFunctionConfig(createFunctionConfig());
-        config.setFunctionId(new FunctionID());
+        config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
-        config.setInstanceId(new InstanceID());
+        config.setInstanceId(java.util.UUID.randomUUID().toString());
         LimitsConfig limitsConfig = new LimitsConfig();
         limitsConfig.setMaxTimeMs(2000);
         limitsConfig.setMaxMemoryMb(2048);

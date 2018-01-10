@@ -31,8 +31,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.InstanceID;
-import org.apache.pulsar.functions.fs.FunctionID;
 import org.apache.pulsar.functions.utils.Exceptions;
 
 /**
@@ -42,19 +40,19 @@ import org.apache.pulsar.functions.utils.Exceptions;
 public class FunctionCacheManagerImpl implements FunctionCacheManager {
 
     /** Registered Functions **/
-    private final Map<FunctionID, FunctionCacheEntry> cacheFunctions;
+    private final Map<String, FunctionCacheEntry> cacheFunctions;
 
     public FunctionCacheManagerImpl() {
         this.cacheFunctions = Collections.synchronizedMap(Maps.newHashMap());
     }
 
     @VisibleForTesting
-    Map<FunctionID, FunctionCacheEntry> getCacheFunctions() {
+    Map<String, FunctionCacheEntry> getCacheFunctions() {
         return cacheFunctions;
     }
 
     @Override
-    public ClassLoader getClassLoader(FunctionID fid) {
+    public ClassLoader getClassLoader(String fid) {
         checkNotNull(fid, "FunctionID not set");
 
         synchronized (cacheFunctions) {
@@ -66,8 +64,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void registerFunctionInstance(FunctionID fid,
-                                         InstanceID eid,
+    public void registerFunctionInstance(String fid,
+                                         String eid,
                                          List<String> requiredJarFiles,
                                          List<URL> requiredClasspaths)
             throws IOException {
@@ -110,8 +108,8 @@ public class FunctionCacheManagerImpl implements FunctionCacheManager {
     }
 
     @Override
-    public void unregisterFunctionInstance(FunctionID fid,
-                                           InstanceID eid) {
+    public void unregisterFunctionInstance(String fid,
+                                           String eid) {
         synchronized (cacheFunctions) {
             FunctionCacheEntry entry = cacheFunctions.get(fid);
 

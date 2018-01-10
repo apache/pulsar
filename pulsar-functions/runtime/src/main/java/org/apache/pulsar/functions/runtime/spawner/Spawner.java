@@ -32,7 +32,6 @@ import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
-import org.apache.pulsar.functions.fs.FunctionID;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 
 @Slf4j
@@ -44,7 +43,7 @@ public class Spawner implements AutoCloseable {
                                         FunctionContainerFactory containerFactory) {
         AssignmentInfo assignmentInfo = new AssignmentInfo(
             fnConfig,
-            new FunctionID(),
+            UUID.randomUUID().toString(),
             UUID.randomUUID().toString()
         );
         return new Spawner(
