@@ -83,6 +83,7 @@ import org.testng.collections.Maps;
 import com.google.common.collect.Sets;
 
 import jersey.repackaged.com.google.common.collect.Lists;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(BrokerClientIntegrationTest.class);
@@ -260,14 +261,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         OwnershipCache ownershipCache = pulsar.getNamespaceService().getOwnershipCache();
         assertTrue(ownershipCache.getOwnedBundles().keySet().isEmpty());
         // Strategical retry
-        for (int i = 0; i < 5; i++) {
-            if (producer1.getClientCnx() != null || consumer1.getClientCnx() != null
-                    || producer2.getClientCnx() != null) {
-                Thread.sleep(100);
-            } else {
-                break;
-            }
-        }
+        retryStrategically((test) -> (producer1.getClientCnx() == null && consumer1.getClientCnx() == null
+                && producer2.getClientCnx() == null), 5, 100);
         // [2] All clients must be disconnected and in connecting state
         // producer1 must not be able to connect again
         assertTrue(producer1.getClientCnx() == null);
@@ -766,5 +761,5 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         pulsarClient.close();
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
 }

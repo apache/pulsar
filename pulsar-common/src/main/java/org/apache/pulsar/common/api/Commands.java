@@ -23,7 +23,9 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
@@ -359,11 +361,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */ );
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap());
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId) {
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+            Map<String, String> metadata) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -376,6 +379,8 @@ public class Commands {
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
+        subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
+
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
         subscribeBuilder.recycle();
@@ -449,7 +454,13 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName) {
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                Map<String, String> metadata) {
+        return newProducer(topic, producerId, requestId, producerName, false, metadata);
+    }
+
+    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
+                boolean encrypted, Map<String, String> metadata) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -457,6 +468,9 @@ public class Commands {
         if (producerName != null) {
             producerBuilder.setProducerName(producerName);
         }
+        producerBuilder.setEncrypted(encrypted);
+
+        producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
@@ -561,7 +575,7 @@ public class Commands {
     }
 
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
-            ValidationError validationError) {
+                                 ValidationError validationError, Map<String,Long> properties) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
         ackBuilder.setConsumerId(consumerId);
         ackBuilder.setAckType(ackType);
@@ -572,6 +586,10 @@ public class Commands {
         ackBuilder.setMessageId(messageIdData);
         if (validationError != null) {
             ackBuilder.setValidationError(validationError);
+        }
+        for (Map.Entry<String,Long> e : properties.entrySet()) {
+            ackBuilder.addProperties(
+                    PulsarApi.KeyLongValue.newBuilder().setKey(e.getKey()).setValue(e.getValue()).build());
         }
         CommandAck ack = ackBuilder.build();
 
@@ -764,6 +782,56 @@ public class Commands {
             headers.resetReaderIndex();
         }
         return command;
+    }
+
+    public static ByteBuf serializeMetadataAndPayload(ChecksumType checksumType,
+                                                      MessageMetadata msgMetadata, ByteBuf payload) {
+        // / Wire format
+        // [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
+        int msgMetadataSize = msgMetadata.getSerializedSize();
+        int payloadSize = payload.readableBytes();
+        int magicAndChecksumLength = ChecksumType.Crc32c.equals(checksumType) ? (2 + 4 /* magic + checksumLength*/) : 0;
+        boolean includeChecksum = magicAndChecksumLength > 0;
+        int headerContentSize = magicAndChecksumLength + 4 + msgMetadataSize; // magicLength +
+                                                                              // checksumSize + msgMetadataLength +
+                                                                              // msgMetadataSize
+        int checksumReaderIndex = -1;
+        int totalSize = headerContentSize + payloadSize;
+
+        ByteBuf metadataAndPayload = PooledByteBufAllocator.DEFAULT.buffer(totalSize, totalSize);
+        try {
+            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(metadataAndPayload);
+
+            //Create checksum placeholder
+            if (includeChecksum) {
+                metadataAndPayload.writeShort(magicCrc32c);
+                checksumReaderIndex = metadataAndPayload.writerIndex();
+                metadataAndPayload.writerIndex(metadataAndPayload.writerIndex()
+                                               + checksumSize); //skip 4 bytes of checksum
+            }
+
+            // Write metadata
+            metadataAndPayload.writeInt(msgMetadataSize);
+            msgMetadata.writeTo(outStream);
+            outStream.recycle();
+        } catch (IOException e) {
+            // This is in-memory serialization, should not fail
+            throw new RuntimeException(e);
+        }
+
+        // write checksum at created checksum-placeholder
+        if (includeChecksum) {
+            metadataAndPayload.markReaderIndex();
+            metadataAndPayload.readerIndex(checksumReaderIndex + checksumSize);
+            int metadataChecksum = computeChecksum(metadataAndPayload);
+            int computedChecksum = resumeChecksum(metadataChecksum, payload);
+            // set computed checksum
+            metadataAndPayload.setInt(checksumReaderIndex, computedChecksum);
+            metadataAndPayload.resetReaderIndex();
+        }
+        metadataAndPayload.writeBytes(payload);
+
+        return metadataAndPayload;
     }
 
     public static long initBatchMessageMetadata(PulsarApi.MessageMetadata.Builder messageMetadata,

@@ -810,4 +810,29 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void unsubscribeNamespaceBundle(String namespace, String bundle, String subscription) throws PulsarAdminException;
+
+    /**
+     * Set the encryption required status for all topics within a namespace.
+     * <p>
+     * When encryption required is true, the broker will prevent to store unencrypted messages.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param encryptionRequired
+     *            whether message encryption is required or not
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
 }
