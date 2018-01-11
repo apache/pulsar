@@ -259,24 +259,32 @@ ns
 
 #### Experimenting with your cluster
 
-Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. From the same `pulsar-admin` pod, for example, you can use [`pulsar-perf`](../../reference/CliTools#pulsar-perf) to create a test {% popover producer %} to publish 10,000 messages a second on a topic in the {% popover property %} and {% popover namespace %} you created:
+Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](../../reference/CliTools#pulsar-perf) to create a test {% popover producer %} to publish 10,000 messages a second on a topic in the {% popover property %} and {% popover namespace %} you created.
+
+First, create an alias to use the `pulsar-perf` tool via the admin pod:
 
 ```bash
-$ bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic \
+$ alias pulsar-perf='kubectl exec pulsar-admin -it -- bin/pulsar-perf'
+```
+
+Now, produce messages:
+
+```bash
+$ pulsar-perf produce persistent://prop/us-central/ns/my-topic \
   --rate 10000
 ```
 
 Similarly, you can start a {% popover consumer %} to subscribe to and receive all the messages on that topic:
 
 ```bash
-$ bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic \
+$ pulsar-perf consume persistent://prop/us-central/ns/my-topic \
   --subscriber-name my-subscription-name
 ```
 
 You can also view [stats](../../admin/Stats) for the topic using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-persistent-stats) tool:
 
 ```bash
-$ bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
+$ pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
 ```
 
 ### Monitoring
@@ -292,6 +300,9 @@ All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometh
 In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view dashbaords for Pulsar {% popover namespaces %} (message rates, latency, and storage), JVM stats, {% popover ZooKeeper %}, and {% popover BookKeeper %}. You can get access to the pod serving Grafana using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
 
 ```bash
+$ kubectl port-forward \
+  $(kubectl get pods -l component=grafana -o jsonpath='{.items[*].metadata.name}') 3000
+
 $ kubectl port-forward $(kubectl get pods | grep grafana | awk '{print $1}') 3000
 ```
 
@@ -306,7 +317,8 @@ For example, you can have sortable tables showing all namespaces, topics, and br
 You can access to the pod serving the Pulsar dashboard using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
 
 ```bash
-$ kubectl port-forward $(kubectl get pods | grep pulsar-dashboard | awk '{print $1}') 8080:80
+$ kubectl port-forward \
+  $(kubectl get pods -l component=dashboard -o jsonpath='{.items[*].metadata.name}') 8080:80
 ```
 
 You can then access the dashboard in your web browser at [localhost:8080](http://localhost:8080).
