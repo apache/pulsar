@@ -1,14 +1,13 @@
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.broker.service.schema;
 
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 
-public class SchemaRegistryService implements SchemaRegistry {
+public class DefaultSchemaRegistryService implements SchemaRegistryService {
     private final PulsarService pulsar;
 
-    public SchemaRegistryService(PulsarService pulsar) {
+    public DefaultSchemaRegistryService(PulsarService pulsar) {
         this.pulsar = pulsar;
     }
 
