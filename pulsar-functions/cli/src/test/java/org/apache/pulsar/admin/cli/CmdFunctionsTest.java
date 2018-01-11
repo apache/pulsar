@@ -42,7 +42,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;

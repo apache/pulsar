@@ -26,9 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.functions.worker.request.DeregisterRequest;
-import org.apache.pulsar.functions.worker.request.MarkerRequest;
-import org.apache.pulsar.functions.worker.request.UpdateRequest;
+import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 
 @Slf4j
 public class FunctionMetaDataTopicTailer
@@ -74,10 +72,10 @@ public class FunctionMetaDataTopicTailer
     @Override
     public void accept(Message msg) {
 
-        org.apache.pulsar.functions.proto.ServiceRequest.Request serviceRequest;
+        ServiceRequest serviceRequest;
 
         try {
-            serviceRequest = org.apache.pulsar.functions.proto.ServiceRequest.Request.parseFrom(msg.getData());
+            serviceRequest = ServiceRequest.parseFrom(msg.getData());
         } catch (InvalidProtocolBufferException e) {
             log.error("Received bad service request at message {}", msg.getMessageId(), e);
             // TODO: find a better way to handle bad request
@@ -88,14 +86,14 @@ public class FunctionMetaDataTopicTailer
         }
 
         switch(serviceRequest.getServiceRequestType()) {
-            case MARKER:
-                this.functionRuntimeManager.processInitializeMarker(MarkerRequest.of(serviceRequest));
+            case INITIALIZE:
+                this.functionRuntimeManager.processInitializeMarker(serviceRequest);
                 break;
             case UPDATE:
-                this.functionRuntimeManager.processUpdate(UpdateRequest.of(serviceRequest));
+                this.functionRuntimeManager.processUpdate(serviceRequest);
                 break;
             case DELETE:
-                this.functionRuntimeManager.proccessDeregister(DeregisterRequest.of(serviceRequest));
+                this.functionRuntimeManager.proccessDeregister(serviceRequest);
                 break;
             default:
                 log.warn("Received request with unrecognized type: {}", serviceRequest);

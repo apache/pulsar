@@ -21,19 +21,35 @@ syntax = "proto3";
 package proto;
 
 option java_package = "org.apache.pulsar.functions.proto";
-option java_outer_classname = "Request";
+option java_outer_classname = "Function";
 
-import "Function.proto";
+message FunctionConfig {
 
-message ServiceRequest {
-    enum ServiceRequestType {
-        UPDATE = 0;
-        DELETE = 1;
-        INITIALIZE = 2;
+    enum ProcessingGuarantees {
+        ATMOST_ONCE = 0;
+        ATLEAST_ONCE = 1;
     }
+    string tenant = 1;
+    string namespace = 2;
+    string name = 3;
+    string className = 4;
+    string inputSerdeClassName = 5;
+    string outputSerdeClassName = 6;
+    string sourceTopic = 7;
+    string sinkTopic = 8;
+    ProcessingGuarantees processingGuarantees = 9;
+    map<string,string> userConfig = 10;
+}
 
-    ServiceRequestType serviceRequestType = 1;
-    string requestId = 2;
-    FunctionMetaData functionMetaData = 3;
-    string workerId = 4;
+message PackageLocationMetaData {
+    string packagePath = 1;
+}
+
+message FunctionMetaData {
+    FunctionConfig functionConfig = 1;
+    PackageLocationMetaData packageLocation = 2;
+    string runtime = 3;
+    uint64 version = 4;
+    uint64 createTime = 5;
+    string workerId = 6;
 }

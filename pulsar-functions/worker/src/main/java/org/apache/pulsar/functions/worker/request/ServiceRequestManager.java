@@ -22,6 +22,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -38,7 +39,7 @@ public class ServiceRequestManager implements AutoCloseable {
         if (log.isDebugEnabled()) {
             log.debug("Submitting Service Request: {}", serviceRequest);
         }
-        return producer.sendAsync(serviceRequest.getServiceRequest().toByteArray());
+        return producer.sendAsync(serviceRequest.toByteArray());
     }
 
     @Override

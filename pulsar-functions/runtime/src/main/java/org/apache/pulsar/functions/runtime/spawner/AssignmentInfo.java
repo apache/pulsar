@@ -24,7 +24,7 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 
 /**
  * This corresponds to all the information about the a particular function assignment

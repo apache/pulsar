@@ -20,16 +20,18 @@ package org.apache.pulsar.functions.worker.rest.api.v1;
 
 import com.google.gson.Gson;
 import javax.ws.rs.core.Response.Status;
+
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.annotation.Annotations;
-import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.functions.fs.FunctionStatus;
-import org.apache.pulsar.functions.fs.LimitsConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
-import org.apache.pulsar.functions.worker.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.PackageLocationMetaData;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.BaseApiResource;
@@ -50,6 +52,8 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -90,24 +94,24 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         // function state
-        FunctionMetaData functionMetaData = new FunctionMetaData();
-        functionMetaData.setFunctionConfig(functionConfig);
-        functionMetaData.setCreateTime(System.currentTimeMillis());
-        functionMetaData.setVersion(0);
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionConfig(functionConfig)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
 
         WorkerConfig workerConfig = getWorkerConfig();
-        PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
-        packageLocationMetaData.setPackagePath(String.format(
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackagePath(String.format(
             // TODO: dlog 0.5.0 doesn't support filesystem path
             "%s_%s_%s_%s",
             tenant,
             namespace,
             functionName,
             Utils.getUniquePackageName(fileDetail.getFileName())));
-        functionMetaData.setPackageLocation(packageLocationMetaData);
-        functionMetaData.setWorkerId(workerConfig.getWorkerId());
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+        functionMetaDataBuilder.setWorkerId(workerConfig.getWorkerId());
         
-        return updateRequest(functionMetaData, uploadedInputStream);
+        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
     @PUT
@@ -142,24 +146,24 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         // function state
-        FunctionMetaData functionMetaData = new FunctionMetaData();
-        functionMetaData.setFunctionConfig(functionConfig);
-        functionMetaData.setCreateTime(System.currentTimeMillis());
-        functionMetaData.setVersion(0);
+        FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
+                .setFunctionConfig(functionConfig)
+                .setCreateTime(System.currentTimeMillis())
+                .setVersion(0);
 
         WorkerConfig workerConfig = getWorkerConfig();
-        PackageLocationMetaData packageLocationMetaData = new PackageLocationMetaData();
-        packageLocationMetaData.setPackagePath(String.format(
-            // TODO: dlog 0.5.0 doesn't support filesystem path
-            "%s_%s_%s_%s",
-            tenant,
-            namespace,
-            functionName,
-            Utils.getUniquePackageName(fileDetail.getFileName())));
-        functionMetaData.setPackageLocation(packageLocationMetaData);
-        functionMetaData.setWorkerId(workerConfig.getWorkerId());
+        PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
+                .setPackagePath(String.format(
+                        // TODO: dlog 0.5.0 doesn't support filesystem path
+                        "%s_%s_%s_%s",
+                        tenant,
+                        namespace,
+                        functionName,
+                        Utils.getUniquePackageName(fileDetail.getFileName())));
+        functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
+        functionMetaDataBuilder.setWorkerId(workerConfig.getWorkerId());
 
-        return updateRequest(functionMetaData, uploadedInputStream);
+        return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
 
@@ -224,7 +228,7 @@ public class ApiV1Resource extends BaseApiResource {
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
-                                    final @PathParam("functionName") String functionName) {
+                                    final @PathParam("functionName") String functionName) throws InvalidProtocolBufferException {
 
         // validate parameters
         try {
@@ -247,7 +251,8 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         FunctionMetaData functionMetaData = functionRuntimeManager.getFunction(tenant, namespace, functionName).getFunctionMetaData();
-        return Response.status(Response.Status.OK).entity(new Gson().toJson(functionMetaData.getFunctionConfig())).build();
+        String functionConfigJson = JsonFormat.printer().print(functionMetaData.getFunctionConfig());
+        return Response.status(Response.Status.OK).entity(functionConfigJson).build();
     }
 
     @GET
@@ -276,13 +281,11 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-
         FunctionRuntimeInfo functionRuntimeInfo = functionRuntimeManager.getFunction(tenant, namespace, functionName);
-        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionMetaData();
         Spawner spawner = functionRuntimeInfo.getSpawner();
         FunctionStatus functionStatus = new FunctionStatus();
         functionStatus.setRunning(spawner == null ? false : true);
-        functionStatus.setStartupException(functionMetaData.getStartupException());
+        functionStatus.setStartupException(functionRuntimeInfo.getStartupException());
         if (spawner != null) {
             try {
                 FunctionStatus f = spawner.getFunctionStatus().get();
@@ -430,10 +433,34 @@ public class ApiV1Resource extends BaseApiResource {
             throw new IllegalArgumentException("FunctionConfig is not provided");
         }
         try {
-            FunctionConfig functionConfig = new Gson().fromJson(functionConfigJson, FunctionConfig.class);
-            String missingField = Annotations.findMissingField(functionConfig);
-            if (missingField != null) {
-                String errorMessage = missingField.substring(0, 1).toUpperCase() + missingField.substring(1);
+            FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+            JsonFormat.parser().merge(functionConfigJson, functionConfigBuilder);
+            FunctionConfig functionConfig = functionConfigBuilder.build();
+
+            List<String> missingFields = new LinkedList<>();
+            if (functionConfig.getTenant() == null || functionConfig.getTenant().isEmpty()) {
+                missingFields.add("Tenant");
+            }
+            if (functionConfig.getNamespace() == null || functionConfig.getNamespace().isEmpty()) {
+                missingFields.add("Namespace");
+            }
+            if (functionConfig.getName() == null || functionConfig.getName().isEmpty()) {
+                missingFields.add("Name");
+            }
+            if (functionConfig.getClassName() == null || functionConfig.getClassName().isEmpty()) {
+                missingFields.add("ClassName");
+            }
+            if (functionConfig.getInputSerdeClassName() == null || functionConfig.getInputSerdeClassName().isEmpty()) {
+                missingFields.add("InputSerdeClassName");
+            }
+            if (functionConfig.getOutputSerdeClassName() == null || functionConfig.getOutputSerdeClassName().isEmpty()) {
+                missingFields.add("OutputSerdeClassName");
+            }
+            if (functionConfig.getSourceTopic() == null || functionConfig.getSourceTopic().isEmpty()) {
+                missingFields.add("SourceTopic");
+            }
+            if (!missingFields.isEmpty()) {
+                String errorMessage = StringUtils.join(missingFields, ",");
                 throw new IllegalArgumentException(errorMessage + " is not provided");
             }
             return functionConfig;

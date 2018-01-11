@@ -24,7 +24,7 @@ functionMetadataTopic: persistent://standalone/sample/ns1/pulsar_functions/metad
 pulsarServiceUrl: pulsar://localhost:6650
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
-defaultLimits:
+limitsConfig:
   maxTimeMs: -1
   maxMemoryMb: -1
   maxCpuCores: -1

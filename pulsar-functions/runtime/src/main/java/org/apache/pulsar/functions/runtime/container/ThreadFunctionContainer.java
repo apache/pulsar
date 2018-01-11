@@ -29,6 +29,7 @@ import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.stats.FunctionStats;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 /**
  * A function container implemented using java thread.
@@ -51,7 +52,7 @@ class ThreadFunctionContainer implements FunctionContainer {
         this.javaInstanceRunnable = new JavaInstanceRunnable(instanceConfig, maxBufferedTuples,
                 fnCache, jarFile, pulsarClient);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                instanceConfig.getFunctionConfig().getFullyQualifiedName());
+                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
     }
 
     /**

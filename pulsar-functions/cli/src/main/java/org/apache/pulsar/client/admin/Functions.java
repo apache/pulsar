@@ -18,12 +18,11 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
-import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionStatus;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 
 import java.util.List;
 
