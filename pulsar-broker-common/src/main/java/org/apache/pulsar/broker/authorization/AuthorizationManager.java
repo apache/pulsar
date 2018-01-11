@@ -104,7 +104,7 @@ public class AuthorizationManager {
                         }
                     }
                 }
-                canConsumeAsync(destination, role).thenAccept(isAuthorized -> {
+                checkAuthorization(destination, role, AuthAction.consume).thenAccept(isAuthorized -> {
                     permissionFuture.complete(isAuthorized);
                 });
             }).exceptionally(ex -> {
@@ -120,10 +120,6 @@ public class AuthorizationManager {
         return permissionFuture;
     }
 
-    public CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role) {
-        return checkAuthorization(destination, role, AuthAction.consume);
-    }
-
     public boolean canConsume(DestinationName destination, String role, String subscription) throws Exception {
         try {
             return canConsumeAsync(destination, role, subscription).get(cacheTimeOutInSec, SECONDS);
@@ -137,10 +133,6 @@ public class AuthorizationManager {
         }
     }
 
-    public boolean canConsume(DestinationName destination, String role) throws Exception {
-        return canConsume(destination, role, null);
-    }
-
     /**
      * Check whether the specified role can perform a lookup for the specified destination.
      *
@@ -152,7 +144,7 @@ public class AuthorizationManager {
      * @throws Exception
      */
     public boolean canLookup(DestinationName destination, String role) throws Exception {
-        return canProduce(destination, role) || canConsume(destination, role);
+        return canProduce(destination, role) || canConsume(destination, role, null);
     }
 
     private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role,
