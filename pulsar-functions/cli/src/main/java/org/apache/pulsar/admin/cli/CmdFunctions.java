@@ -278,7 +278,9 @@ public class CmdFunctions extends CmdBase {
             if (tenant == null || namespace == null || functionName == null) {
                 throw new RuntimeException("Missing arguments");
             }
-            print(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
+            String json = JsonFormat.printer().print(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
     }
 

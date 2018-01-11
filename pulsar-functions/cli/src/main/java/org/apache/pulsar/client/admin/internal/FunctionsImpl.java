@@ -24,14 +24,13 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
-import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
 import javax.ws.rs.client.Entity;
-import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
@@ -73,7 +72,10 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
-            return request(functions.path(tenant).path(namespace).path(function).path("status")).get(FunctionStatus.class);
+            String jsonResponse = request(functions.path(tenant).path(namespace).path(function).path("status")).get().readEntity(String.class);
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+            JsonFormat.parser().merge(jsonResponse, functionStatusBuilder);
+            return functionStatusBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
         }

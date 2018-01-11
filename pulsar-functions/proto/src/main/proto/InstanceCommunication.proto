@@ -24,15 +24,16 @@ import "google/protobuf/empty.proto";
 option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "InstanceCommunication";
 
-message FunctionStatusResponseProto {
-    string failureException = 1;
-    int64 numProcessed = 2;
-    int64 numSuccessfullyProcessed = 3;
-    int64 numTimeouts = 4;
-    int64 numUserExceptions = 5;
-    int64 numSystemExceptions = 6;
+message FunctionStatus {
+    bool running = 1;
+    string failureException = 2;
+    int64 numProcessed = 3;
+    int64 numSuccessfullyProcessed = 4;
+    int64 numTimeouts = 5;
+    int64 numUserExceptions = 6;
+    int64 numSystemExceptions = 7;
 }
 
 service InstanceControl {
-    rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatusResponseProto) {}
+    rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
 }

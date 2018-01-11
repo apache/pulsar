@@ -23,13 +23,12 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.protobuf.Empty;
-import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 
@@ -161,29 +160,18 @@ class ProcessFunctionContainer implements FunctionContainer {
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
-        ListenableFuture<InstanceCommunication.FunctionStatusResponseProto> response = stub.getFunctionStatus(Empty.newBuilder().build());
-        Futures.addCallback(response, new FutureCallback<InstanceCommunication.FunctionStatusResponseProto>() {
+        ListenableFuture<FunctionStatus> response = stub.getFunctionStatus(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
                 retval.completeExceptionally(throwable);
             }
 
             @Override
-            public void onSuccess(InstanceCommunication.FunctionStatusResponseProto t) {
-                retval.complete(convertToFunctionStatus(t));
+            public void onSuccess(InstanceCommunication.FunctionStatus t) {
+                retval.complete(t);
             }
         });
-        return retval;
-    }
-
-    private FunctionStatus convertToFunctionStatus(InstanceCommunication.FunctionStatusResponseProto status) {
-        FunctionStatus retval = new FunctionStatus();
-        retval.setRunning(true);
-        retval.setNumProcessed(status.getNumProcessed());
-        retval.setNumSuccessfullyProcessed(status.getNumSuccessfullyProcessed());
-        retval.setNumUserExceptions(status.getNumUserExceptions());
-        retval.setNumSystemExceptions(status.getNumSystemExceptions());
-        retval.setNumTimeouts(status.getNumTimeouts());
         return retval;
     }
 

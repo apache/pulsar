@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
-import org.apache.pulsar.functions.fs.FunctionStatus;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 
 import java.util.concurrent.CompletableFuture;
 
