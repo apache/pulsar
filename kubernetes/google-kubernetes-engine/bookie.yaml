@@ -114,30 +114,23 @@ spec:
           envFrom:
             - configMapRef:
                 name: bookie-config
-      volumeClaimTemplates:
-        - metadata:
-            name: journal-disk
-          spec:
-            accessModes: [ "ReadWriteOnce" ]
-            resources:
-              requests: 10Gi
-            storageClassName: ssd
-        - metadata:
-            name: ledger-disk
-          spec:
-            accessModes: [ "ReadWriteOnce" ]
-            resources:
-              requests: 10Gi
-            storageClassName: hdd
-
-      volumes:
-          # Mount local disks
-        - name: journal-disk
-          hostPath:
-            path: /mnt/disks/ssd0
-        - name: ledgers-disk
-          hostPath:
-            path: /mnt/disks/ssd1
+  volumeClaimTemplates:
+    - metadata:
+        name: journal-disk
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: ssd
+    - metadata:
+        name: ledger-disk
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: 10Gi
+        storageClassName: hdd
 ---
 # A headless service to create DNS records
 apiVersion: v1
