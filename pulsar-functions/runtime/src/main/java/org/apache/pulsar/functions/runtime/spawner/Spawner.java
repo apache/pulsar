@@ -44,6 +44,7 @@ public class Spawner implements AutoCloseable {
         AssignmentInfo assignmentInfo = new AssignmentInfo(
             fnConfig,
             UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
             UUID.randomUUID().toString()
         );
         return new Spawner(
@@ -55,7 +56,7 @@ public class Spawner implements AutoCloseable {
 
     private final LimitsConfig limitsConfig;
     private final AssignmentInfo assignmentInfo;
-    private final FunctionContainerFactory threadFunctionContainerFactory;
+    private final FunctionContainerFactory functionContainerFactory;
     private final String codeFile;
 
     private FunctionContainer functionContainer;
@@ -66,13 +67,13 @@ public class Spawner implements AutoCloseable {
                     FunctionContainerFactory containerFactory) {
         this.limitsConfig = limitsConfig;
         this.assignmentInfo = assignmentInfo;
-        this.threadFunctionContainerFactory = containerFactory;
+        this.functionContainerFactory = containerFactory;
         this.codeFile = codeFile;
     }
 
     public void start() throws Exception {
         log.info("Spawner starting function {}", this.assignmentInfo.getFunctionConfig().getName());
-        functionContainer = threadFunctionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
+        functionContainer = functionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         functionContainer.start();
     }
 
@@ -92,6 +93,7 @@ public class Spawner implements AutoCloseable {
         javaInstanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
         javaInstanceConfig.setFunctionId(assignmentInfo.getFunctionId());
         javaInstanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
+        javaInstanceConfig.setInstanceId(assignmentInfo.getInstanceId());
         javaInstanceConfig.setLimitsConfig(limitsConfig);
         return javaInstanceConfig;
     }

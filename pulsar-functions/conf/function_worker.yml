@@ -29,3 +29,8 @@ limitsConfig:
   maxMemoryMb: -1
   maxCpuCores: -1
   maxBufferedTuples: 1024
+threadContainerFactory:
+  threadGroupName: "Thread Function Container Group"
+# processContainerFactory:
+#   javaInstanceJarLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/java-instance.jar"
+#   logDirectory: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/logs"

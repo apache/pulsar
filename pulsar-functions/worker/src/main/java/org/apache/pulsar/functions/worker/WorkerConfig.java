@@ -50,6 +50,27 @@ public class WorkerConfig implements Serializable {
     private String downloadDirectory;
     private LimitsConfig limitsConfig;
 
+    @Data
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    class ThreadContainerFactory {
+        private String threadGroupName;
+    }
+    private ThreadContainerFactory threadContainerFactory;
+
+    @Data
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    class ProcessContainerFactory {
+        private String javaInstanceJarLocation;
+        private String logDirectory;
+    }
+    private ProcessContainerFactory processContainerFactory;
+
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);

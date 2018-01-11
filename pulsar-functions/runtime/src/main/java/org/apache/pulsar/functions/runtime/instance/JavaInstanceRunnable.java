@@ -53,6 +53,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final PulsarClientImpl client;
     private Producer sinkProducer;
     private Consumer sourceConsumer;
+    @Getter
     private Exception failureException;
 
     // function stats
@@ -79,12 +80,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     /**
-     * The core logic that initialize the thread container and executes the function
+     * The core logic that initialize the instance thread and executes the function
      */
     @Override
     public void run() {
         try {
-            log.info("Thread Function Container Starting Java Instance {}", javaInstanceConfig.getFunctionConfig().getName());
+            log.info("Starting Java Instance {}", javaInstanceConfig.getFunctionConfig().getName());
 
             // start the sink producer
             startSinkProducer();

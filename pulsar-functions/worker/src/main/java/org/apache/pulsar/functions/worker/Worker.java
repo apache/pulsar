@@ -33,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
@@ -97,8 +98,20 @@ public class Worker extends AbstractService {
             ServiceRequestManager reqMgr = new ServiceRequestManager(
                 client.createProducer(workerConfig.getFunctionMetadataTopic()));
 
-            this.functionContainerFactory = new ThreadFunctionContainerFactory(workerConfig.getLimitsConfig().getMaxBufferedTuples(),
-                    workerConfig.getPulsarServiceUrl());
+            if (workerConfig.getThreadContainerFactory() != null) {
+                this.functionContainerFactory = new ThreadFunctionContainerFactory(
+                        workerConfig.getThreadContainerFactory().getThreadGroupName(),
+                        workerConfig.getLimitsConfig().getMaxBufferedTuples(),
+                        workerConfig.getPulsarServiceUrl());
+            } else if (workerConfig.getProcessContainerFactory() != null) {
+                this.functionContainerFactory = new ProcessFunctionContainerFactory(
+                        workerConfig.getLimitsConfig().getMaxBufferedTuples(),
+                        workerConfig.getPulsarServiceUrl(),
+                        workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
+                        workerConfig.getProcessContainerFactory().getLogDirectory());
+            } else {
+                throw new RuntimeException("Either Thread or Process Container Factory need to be set");
+            }
 
             this.actionQueue = new LinkedBlockingQueue<>();
 

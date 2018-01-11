@@ -24,61 +24,45 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
+import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 
 /**
  * Thread based function container factory implementation.
  */
 @Slf4j
-public class ThreadFunctionContainerFactory implements FunctionContainerFactory {
+public class ProcessFunctionContainerFactory implements FunctionContainerFactory {
 
-    private final ThreadGroup threadGroup;
-    private final FunctionCacheManager fnCache;
-    private final PulsarClient pulsarClient;
     private int maxBufferedTuples;
-    private volatile boolean closed;
-
-    public ThreadFunctionContainerFactory(String threadGroupName,
-                                          int maxBufferedTuples,
-                                          String pulsarServiceUrl)
-            throws Exception {
-        this(threadGroupName, maxBufferedTuples, pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()) : null);
-    }
+    private String pulsarServiceUrl;
+    private String javaInstanceJarFile;
+    private String logDirectory;
 
     @VisibleForTesting
-    ThreadFunctionContainerFactory(String threadGroupName, int maxBufferedTuples, PulsarClient pulsarClient) {
-        this.fnCache = new FunctionCacheManagerImpl();
-        this.threadGroup = new ThreadGroup(threadGroupName);
+    public ProcessFunctionContainerFactory(int maxBufferedTuples,
+                                           String pulsarServiceUrl,
+                                           String javaInstanceJarFile,
+                                           String logDirectory) {
+
         this.maxBufferedTuples = maxBufferedTuples;
-        this.pulsarClient = pulsarClient;
+        this.pulsarServiceUrl = pulsarServiceUrl;
+        this.javaInstanceJarFile = javaInstanceJarFile;
+        this.logDirectory = logDirectory;
     }
 
     @Override
-    public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig, String jarFile) {
-        return new ThreadFunctionContainer(
+    public ProcessFunctionContainer createContainer(JavaInstanceConfig instanceConfig, String jarFile) {
+        return new ProcessFunctionContainer(
             instanceConfig,
             maxBufferedTuples,
-            fnCache,
-            threadGroup,
+            javaInstanceJarFile,
+            logDirectory,
             jarFile,
-            pulsarClient);
+            pulsarServiceUrl);
     }
 
     @Override
     public void close() {
-        if (closed) {
-            return;
-        }
-        closed = true;
-
-        threadGroup.interrupt();
-        fnCache.close();
-        try {
-            pulsarClient.close();
-        } catch (PulsarClientException e) {
-            log.warn("Failed to close pulsar client when closing function container factory", e);
-        }
     }
 }
