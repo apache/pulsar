@@ -46,6 +46,8 @@ public class Policies {
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
 
+    public boolean encryption_required = false;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -58,7 +60,8 @@ public class Policies {
                     && Objects.equals(persistence, other.persistence) && Objects.equals(bundles, other.bundles)
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && message_ttl_in_seconds == other.message_ttl_in_seconds
-                    && Objects.equals(retention_policies, other.retention_policies);
+                    && Objects.equals(retention_policies, other.retention_policies)
+                    && Objects.equals(encryption_required, other.encryption_required);
         }
 
         return false;
@@ -82,7 +85,8 @@ public class Policies {
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
-                .add("deleted", deleted).toString();
+                .add("deleted", deleted)
+                .add("encryption_required", encryption_required).toString();
     }
 }
 

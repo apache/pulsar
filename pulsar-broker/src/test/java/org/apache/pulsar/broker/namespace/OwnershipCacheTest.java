@@ -37,6 +37,7 @@ import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.PulsarService;
@@ -150,7 +151,7 @@ public class OwnershipCacheTest {
         OwnedBundle nsObj = cache.getOwnedBundle(testFullBundle);
         // this would disable the ownership
         doReturn(cache).when(nsService).getOwnershipCache();
-        nsObj.handleUnloadRequest(pulsar);
+        nsObj.handleUnloadRequest(pulsar, 5, TimeUnit.SECONDS);
         Thread.sleep(1000);
 
         // case 3: some other broker owned the namespace, getOrSetOwner() should return other broker's URL

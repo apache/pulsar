@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -38,6 +39,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import io.netty.buffer.ByteBuf;
 import org.slf4j.Logger;
@@ -52,11 +54,11 @@ public class RawReaderImpl implements RawReader {
     private final ConsumerConfiguration consumerConfiguration;
     private RawConsumerImpl consumer;
 
-    public RawReaderImpl(PulsarClientImpl client, String topic, CompletableFuture<Consumer> consumerFuture) {
+    public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
+                         CompletableFuture<Consumer> consumerFuture) {
         this.client = client;
+        this.subscription = subscription;
         this.topic = topic;
-
-        subscription = "raw-reader";
 
         consumerConfiguration = new ConsumerConfiguration();
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
@@ -74,6 +76,11 @@ public class RawReaderImpl implements RawReader {
     @Override
     public CompletableFuture<RawMessage> readNextAsync() {
         return consumer.receiveRawAsync();
+    }
+
+    @Override
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties) {
+        return consumer.doAcknowledge(messageId, AckType.Cumulative, properties);
     }
 
     @Override
@@ -108,7 +115,10 @@ public class RawReaderImpl implements RawReader {
             if (future == null) {
                 assert(messageAndCnx == null);
             } else {
-                future.complete(messageAndCnx.msg);
+                if (!future.complete(messageAndCnx.msg)) {
+                    messageAndCnx.msg.close();
+                    closeAsync();
+                }
 
                 ClientCnx currentCnx = cnx();
                 if (currentCnx == messageAndCnx.cnx) {
@@ -130,10 +140,14 @@ public class RawReaderImpl implements RawReader {
                 while (!pendingRawReceives.isEmpty()) {
                     toError.add(pendingRawReceives.remove());
                 }
+                RawMessageAndCnx m = incomingRawMessages.poll();
+                while (m != null) {
+                    m.msg.close();
+                    m = incomingRawMessages.poll();
+                }
                 incomingRawMessages.clear();
             }
-            toError.forEach((f) -> f.completeExceptionally(
-                                    new PulsarClientException.ConsumerBusyException("Sought while reading")));
+            toError.forEach((f) -> f.cancel(false));
         }
 
         @Override

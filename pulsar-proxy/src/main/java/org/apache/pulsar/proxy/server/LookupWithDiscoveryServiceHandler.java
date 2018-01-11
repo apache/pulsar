@@ -97,7 +97,7 @@ public class LookupWithDiscoveryServiceHandler implements LookupProxyHandler {
             return;
         }
 
-        InetSocketAddress addr = new InetSocketAddress(brokerURI.getHost(), brokerURI.getPort());
+        InetSocketAddress addr = InetSocketAddress.createUnresolved(brokerURI.getHost(), brokerURI.getPort());
         if (log.isDebugEnabled()) {
             log.debug("Getting connections to '{}'", addr);
         }

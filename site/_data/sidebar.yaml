@@ -33,6 +33,8 @@ groups:
 - title: Deployment
   dir: deployment
   docs:
+  - title: Deploy on Amazon Web Services
+    endpoint: aws-cluster
   - title: Single cluster on bare metal
     endpoint: cluster
   - title: Multi-cluster instance on bare metal

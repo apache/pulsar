@@ -66,6 +66,7 @@ spec:
                     bin/pulsar bookie
                 ports:
                   - containerPort: 3181
+                    hostPort: 3181
                     name: client
                 envFrom:
                   - configMapRef:
