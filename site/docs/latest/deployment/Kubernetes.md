@@ -214,31 +214,47 @@ $ kubectl get pods
 
 #### Set up properties and namespaces
 
+```bash
+$ alias pulsar-admin='kubectl exec pulsar-admin -it -- bin/pulsar-admin'
+```
+
+
 Once all of the components are up and running, you'll need to create at least one Pulsar {% popover property %} and at least one {% popover namespace %}.
 
 {% include admonition.html type='info' content='
 This step is not strictly required if Pulsar [authentication and authorization](../../admin/Authz) is turned on, though it allows you to change [policies](../../admin/PropertiesNamespaces#managing-namespaces) for each of the namespaces later.
 ' %}
 
-To create properties and namespaces, connect to the `pulsar-admin` pod that has already been configured to act as a client for your newly created Pulsar cluster.
+You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster.
+
+One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool installed on the admin pod.
 
 ```bash
-$ kubectl exec pulsar-admin -it -- bash
+$ alias pulsar-admin='kubectl exec pulsar-admin -it -- bin/pulsar-admin'
 ```
 
-From there, you can issue all admin commands. Here's an example command that would create a property named `prop` and a namespace within that property named `prop/us-central/ns`.
+Now, any time you use `pulsar-admin`, you will running commands on the pod. This command will create a property called `prop`:
 
 ```bash
-export MY_PROPERTY=prop
-export MY_NAMESPACE=prop/us-central/ns
-
-# Provision a new Pulsar property
-$ bin/pulsar-admin properties create $MY_PROPERTY \
+$ pulsar-admin properties create prop \
   --admin-roles admin \
   --allowed-clusters us-central
+```
 
-# Create a namespace
-$ bin/pulsar-admin namespaces create $MY_NAMESPACE
+This command will create a `ns` namespace under the `prop` property and the `us-central` cluster:
+
+```bash
+$ pulsar-admin namespaces create prop/us-central/ns
+```
+
+To verify that everything has gone as planned:
+
+```bash
+$ pulsar-admin properties list
+prop
+
+$ pulsar-admin namespaces list prop/us-central
+ns
 ```
 
 #### Experimenting with your cluster
