@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.util.HashSet;
@@ -52,7 +51,7 @@ import org.testng.collections.Maps;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import junit.framework.Assert;
+import org.testng.Assert;
 
 public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithoutServiceDiscoveryTest.class);
