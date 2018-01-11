@@ -201,7 +201,7 @@ $ bin/pulsar initialize-cluster-metadata \
 
 #### Deploy the rest of the components
 
-Once cluster metadata has been successfully initialized, you can then deploy the {% popover bookies %}, {% popover brokers %}, and monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](../../admin/Dashboard)).
+Once cluster metadata has been successfully initialized, you can then deploy the {% popover bookies %}, {% popover brokers %}, monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](../../admin/Dashboard)), and Pulsar cluster proxy:
 
 ```bash
 $ kubectl apply -f bookie.yaml
@@ -213,7 +213,7 @@ $ kubectl apply -f proxy.yaml
 You can check on the status of the pods for these components either in the Kubernetes Dashboard or using `kubectl`:
 
 ```bash
-$ kubectl get pods -l app=pulsar
+$ kubectl get pods -w -l app=pulsar
 ```
 
 #### Set up properties and namespaces
@@ -224,15 +224,13 @@ Once all of the components are up and running, you'll need to create at least on
 This step is not strictly required if Pulsar [authentication and authorization](../../admin/Authz) is turned on, though it allows you to change [policies](../../admin/PropertiesNamespaces#managing-namespaces) for each of the namespaces later.
 ' %}
 
-You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster.
-
-One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool installed on the admin pod.
+You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool installed on the admin pod.
 
 ```bash
 $ alias pulsar-admin='kubectl exec pulsar-admin -it -- bin/pulsar-admin'
 ```
 
-Now, any time you use `pulsar-admin`, you will running commands on the pod. This command will create a property called `prop`:
+Now, any time you run `pulsar-admin`, you will be running commands from that pod. This command will create a property called `prop`:
 
 ```bash
 $ pulsar-admin properties create prop \
