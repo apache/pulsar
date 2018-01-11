@@ -29,8 +29,8 @@ import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.LimitsConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.serde.JavaSerDe;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.testng.annotations.Test;
@@ -82,12 +82,12 @@ public class JavaInstanceTest {
     }
 
     private static JavaInstanceConfig createInstanceConfig() {
-        FunctionConfig functionConfig = new FunctionConfig();
+        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         LimitsConfig limitsConfig = new LimitsConfig();
-        functionConfig.setInputSerdeClassName(Utf8StringSerDe.class.getName());
-        functionConfig.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
+        functionConfigBuilder.setInputSerdeClassName(Utf8StringSerDe.class.getName());
+        functionConfigBuilder.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
         JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
-        instanceConfig.setFunctionConfig(functionConfig);
+        instanceConfig.setFunctionConfig(functionConfigBuilder.build());
         instanceConfig.setLimitsConfig(limitsConfig);
         return instanceConfig;
     }
@@ -185,7 +185,8 @@ public class JavaInstanceTest {
     public void testInconsistentInputType() {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
-        config.getFunctionConfig().setInputSerdeClassName(JavaSerDe.class.getName());
+        config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
+                .setInputSerdeClassName(JavaSerDe.class.getName()).build());
 
         try {
             new JavaInstance(
@@ -205,7 +206,8 @@ public class JavaInstanceTest {
     public void testInconsistentOutputType() {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
-        config.getFunctionConfig().setOutputSerdeClassName(JavaSerDe.class.getName());
+        config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
+                .setOutputSerdeClassName(JavaSerDe.class.getName()).build());
 
         try {
             new JavaInstance(

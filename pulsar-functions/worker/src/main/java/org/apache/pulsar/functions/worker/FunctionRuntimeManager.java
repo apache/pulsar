@@ -20,14 +20,13 @@ package org.apache.pulsar.functions.worker;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.worker.request.DeregisterRequest;
-import org.apache.pulsar.functions.worker.request.MarkerRequest;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 import org.apache.pulsar.functions.worker.request.RequestResult;
-import org.apache.pulsar.functions.worker.request.ServiceRequest;
+import org.apache.pulsar.functions.worker.request.ServiceRequestInfo;
 import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
-import org.apache.pulsar.functions.worker.request.UpdateRequest;
-
+import org.apache.pulsar.functions.worker.request.ServiceRequestUtils;
 
 import java.util.Collection;
 import java.util.LinkedList;
@@ -45,11 +44,11 @@ import java.util.concurrent.LinkedBlockingQueue;
 @Slf4j
 public class FunctionRuntimeManager implements AutoCloseable {
 
-    // tenant -> namespace -> (function name, FunctionMetaData)
+    // tenant -> namespace -> (function name, FunctionRuntimeInfo)
     private final Map<String, Map<String, Map<String, FunctionRuntimeInfo>>> functionMap = new ConcurrentHashMap<>();
 
     // A map in which the key is the service request id and value is the service request
-    private final Map<String, ServiceRequest> pendingServiceRequests = new ConcurrentHashMap<>();
+    private final Map<String, ServiceRequestInfo> pendingServiceRequests = new ConcurrentHashMap<>();
 
     private final ServiceRequestManager serviceRequestManager;
 
@@ -77,8 +76,11 @@ public class FunctionRuntimeManager implements AutoCloseable {
     }
 
     public void sendIntializationMarker() {
-        log.info("sending marking message...");
-        this.serviceRequestManager.submitRequest(MarkerRequest.of(this.workerConfig.getWorkerId(), this.initializeMarkerRequestId));
+        log.info("Sending Initialize message...");
+        this.serviceRequestManager.submitRequest(
+                ServiceRequestUtils.getIntializationRequest(
+                        this.initializeMarkerRequestId,
+                        this.workerConfig.getWorkerId()));
     }
 
     @Override
@@ -134,20 +136,27 @@ public class FunctionRuntimeManager implements AutoCloseable {
         if (functionMetaDatas.containsKey(functionName)) {
             version = functionMetaDatas.get(functionName).getFunctionMetaData().getVersion() + 1;
         }
-        functionMetaData.setVersion(version);
 
-        UpdateRequest updateRequest = UpdateRequest.of(this.workerConfig.getWorkerId(), functionMetaData);
+        FunctionMetaData newFunctionMetaData = functionMetaData.toBuilder().setVersion(version).build();
+
+        ServiceRequest updateRequest = ServiceRequestUtils.getUpdateRequest(
+                this.workerConfig.getWorkerId(), newFunctionMetaData);
 
         return submit(updateRequest);
     }
 
     public CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
-        FunctionMetaData functionMetaData
-                = (FunctionMetaData) this.functionMap.get(tenant).get(namespace).get(functionName).getFunctionMetaData().clone();
+        FunctionMetaData functionMetaData = this.functionMap
+                .get(tenant).get(namespace)
+                .get(functionName)
+                .getFunctionMetaData();
 
-        functionMetaData.incrementVersion();
+        FunctionMetaData newFunctionMetaData = functionMetaData.toBuilder()
+                .setVersion(functionMetaData.getVersion() + 1)
+                .build();
 
-        DeregisterRequest deregisterRequest = DeregisterRequest.of(this.workerConfig.getWorkerId(), functionMetaData);
+        ServiceRequest deregisterRequest = ServiceRequestUtils.getDeregisterRequest(
+                this.workerConfig.getWorkerId(), newFunctionMetaData);
 
         return submit(deregisterRequest);
     }
@@ -173,14 +182,15 @@ public class FunctionRuntimeManager implements AutoCloseable {
     }
 
     private CompletableFuture<RequestResult> submit(ServiceRequest serviceRequest) {
+        ServiceRequestInfo serviceRequestInfo = ServiceRequestInfo.of(serviceRequest);
         CompletableFuture<MessageId> messageIdCompletableFuture = this.serviceRequestManager.submitRequest(serviceRequest);
 
-        serviceRequest.setCompletableFutureRequestMessageId(messageIdCompletableFuture);
+        serviceRequestInfo.setCompletableFutureRequestMessageId(messageIdCompletableFuture);
         CompletableFuture<RequestResult> requestResultCompletableFuture = new CompletableFuture<>();
 
-        serviceRequest.setRequestResultCompletableFuture(requestResultCompletableFuture);
+        serviceRequestInfo.setRequestResultCompletableFuture(requestResultCompletableFuture);
 
-        this.pendingServiceRequests.put(serviceRequest.getRequestId(), serviceRequest);
+        this.pendingServiceRequests.put(serviceRequestInfo.getServiceRequest().getRequestId(), serviceRequestInfo);
 
         return requestResultCompletableFuture;
     }
@@ -192,13 +202,14 @@ public class FunctionRuntimeManager implements AutoCloseable {
      * @param message
      */
     private void completeRequest(ServiceRequest serviceRequest, boolean isSuccess, String message) {
-        ServiceRequest pendingServiceRequest
-                = this.pendingServiceRequests.getOrDefault(serviceRequest.getRequestId(), null);
-        if (pendingServiceRequest != null) {
+        ServiceRequestInfo pendingServiceRequestInfo
+                = this.pendingServiceRequests.getOrDefault(
+                        serviceRequest.getRequestId(), null);
+        if (pendingServiceRequestInfo != null) {
             RequestResult requestResult = new RequestResult();
             requestResult.setSuccess(isSuccess);
             requestResult.setMessage(message);
-            pendingServiceRequest.getRequestResultCompletableFuture().complete(requestResult);
+            pendingServiceRequestInfo.getRequestResultCompletableFuture().complete(requestResult);
         }
     }
 
@@ -206,7 +217,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         completeRequest(serviceRequest, isSuccess, null);
     }
 
-    public void proccessDeregister(DeregisterRequest deregisterRequest) {
+    public void proccessDeregister(ServiceRequest deregisterRequest) {
 
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
@@ -237,7 +248,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    public void processUpdate(UpdateRequest updateRequest) {
+    public void processUpdate(ServiceRequest updateRequest) {
 
         log.debug("Process update request: {}", updateRequest);
 
@@ -334,11 +345,11 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    private boolean isMyInitializeMarkerRequest(MarkerRequest serviceRequest) {
+    private boolean isMyInitializeMarkerRequest(ServiceRequest serviceRequest) {
         return isSendByMe(serviceRequest) && this.initializeMarkerRequestId.equals(serviceRequest.getRequestId());
     }
 
-    public void processInitializeMarker(MarkerRequest serviceRequest) {
+    public void processInitializeMarker(ServiceRequest serviceRequest) {
         if (isMyInitializeMarkerRequest(serviceRequest)) {
             this.setInitializePhase(false);
             log.info("Initializing Metadata state done!");

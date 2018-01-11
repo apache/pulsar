@@ -50,7 +50,6 @@ public class FunctionsTool extends PulsarAdminTool {
         }
 
         FunctionsTool tool = new FunctionsTool(properties);
-
         if (tool.run(Arrays.copyOfRange(args, 1, args.length), (url, config) -> {
             try {
                 return new PulsarFunctionsAdmin(url, config);

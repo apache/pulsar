@@ -22,6 +22,7 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
@@ -64,7 +65,7 @@ public class FunctionActioner implements AutoCloseable {
                             startFunction(action.getFunctionRuntimeInfo());
                         } catch (Exception ex) {
                             log.info("Error starting function", ex);
-                            action.getFunctionRuntimeInfo().getFunctionMetaData().setStartupException(ex);
+                            action.getFunctionRuntimeInfo().setStartupException(ex);
                         }
                     } else {
                         stopFunction(action.getFunctionRuntimeInfo());

@@ -19,34 +19,24 @@
 
 package org.apache.pulsar.functions.fs;
 
-import static org.testng.Assert.assertEquals;
-
+import java.io.File;
 import java.net.URL;
+
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
 
 /**
  * Unit test of {@link FunctionConfig}.
  */
 public class FunctionConfigTest {
 
-    public static final String TEST_NAME = "test-function-config";
-
-    @Test
-    public void testGetterSetter() {
-        FunctionConfig fc = new FunctionConfig();
-        fc.setSinkTopic(TEST_NAME + "-sink");
-        fc.setSourceTopic(TEST_NAME + "-source");
-        fc.setName(TEST_NAME);
-
-        assertEquals(TEST_NAME, fc.getName());
-        assertEquals(TEST_NAME + "-sink", fc.getSinkTopic());
-        assertEquals(TEST_NAME + "-source", fc.getSourceTopic());
-    }
-
     @Test
     public void testLoadFunctionConfig() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_function_config.yml");
-        FunctionConfig fc = FunctionConfig.load(yamlUrl.toURI().getPath());
+        FunctionConfig fc = FunctionConfigUtils.loadConfig(new File(yamlUrl.toURI().getPath())).build();
 
         assertEquals("test-function", fc.getName());
         assertEquals("test-sink-topic", fc.getSinkTopic());

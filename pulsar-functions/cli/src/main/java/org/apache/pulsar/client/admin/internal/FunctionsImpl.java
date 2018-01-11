@@ -18,24 +18,27 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import com.google.gson.Gson;
+import com.google.protobuf.util.JsonFormat;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
-import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionStatus;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
 import javax.ws.rs.client.Entity;
+import javax.ws.rs.client.Invocation;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import java.io.File;
 import java.util.List;
 
+@Slf4j
 public class FunctionsImpl extends BaseResource implements Functions {
 
     private final WebTarget functions;
@@ -58,7 +61,10 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
-            return request(functions.path(tenant).path(namespace).path(function)).get(FunctionConfig.class);
+            String jsonResponse = request(functions.path(tenant).path(namespace).path(function)).get().readEntity(String.class);
+            FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+            JsonFormat.parser().merge(jsonResponse, functionConfigBuilder);
+            return functionConfigBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -80,7 +86,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
             mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
+            mp.bodyPart(new FormDataBodyPart("functionConfig", JsonFormat.printer().print(functionConfig),
                     MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
@@ -106,7 +112,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (fileName != null) {
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
-            mp.bodyPart(new FormDataBodyPart("functionConfig", new Gson().toJson(functionConfig),
+            mp.bodyPart(new FormDataBodyPart("functionConfig", JsonFormat.printer().print(functionConfig),
                         MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);

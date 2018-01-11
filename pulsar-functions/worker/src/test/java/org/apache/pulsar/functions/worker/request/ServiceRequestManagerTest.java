@@ -28,6 +28,7 @@ import static org.testng.Assert.assertSame;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 import org.apache.pulsar.functions.worker.Utils;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.annotations.AfterMethod;
@@ -55,9 +56,7 @@ public class ServiceRequestManagerTest {
 
     @Test
     public void testSubmitRequest() throws Exception {
-        ServiceRequest request = mock(ServiceRequest.class);
-        when(request.getServiceRequest())
-                .thenReturn(org.apache.pulsar.functions.proto.ServiceRequest.Request.newBuilder().build());
+        ServiceRequest request = ServiceRequest.newBuilder().build();
         MessageId msgId = mock(MessageId.class);
 
         when(producer.sendAsync(any(byte[].class)))

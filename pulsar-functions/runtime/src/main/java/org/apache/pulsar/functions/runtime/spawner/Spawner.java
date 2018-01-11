@@ -27,9 +27,9 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.fs.LimitsConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;

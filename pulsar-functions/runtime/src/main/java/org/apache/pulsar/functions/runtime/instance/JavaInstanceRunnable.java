@@ -24,10 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.stats.FunctionStats;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -72,9 +73,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stats = new FunctionStats(
-            instanceConfig.getFunctionConfig().getFullyQualifiedName(),
-            client.getConfiguration().getStatsIntervalSeconds(),
-            client.timer());
+                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
+                client.getConfiguration().getStatsIntervalSeconds(),
+                client.timer());
     }
 
     /**
@@ -92,7 +93,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // start the function thread
             loadJars();
             // initialize the thread context
-            ThreadContext.put("function", javaInstanceConfig.getFunctionConfig().getFullyQualifiedName());
+            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()));
             JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
 
             while (true) {
@@ -103,7 +104,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.debug("Received message: {}", msg.getMessageId());
                 } catch (InterruptedException ie) {
                     log.info("Function thread {} is interrupted",
-                            javaInstanceConfig.getFunctionConfig().getFullyQualifiedName(), ie);
+                            FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), ie);
                     break;
                 }
 
@@ -174,7 +175,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         });
 
         this.sourceConsumer = client.subscribe(javaInstanceConfig.getFunctionConfig().getSourceTopic(),
-                javaInstanceConfig.getFunctionConfig().getFullyQualifiedName(), conf);
+                FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), conf);
     }
 
     private void processResult(Message msg, JavaExecutionResult result, long processAt, SerDe serDe) {

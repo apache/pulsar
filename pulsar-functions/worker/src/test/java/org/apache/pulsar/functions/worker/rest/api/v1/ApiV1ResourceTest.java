@@ -32,23 +32,27 @@ import static org.testng.Assert.assertEquals;
 
 import com.google.gson.Gson;
 import com.google.common.collect.Lists;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
+
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.fs.FunctionConfig;
-import org.apache.pulsar.functions.fs.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
-import org.apache.pulsar.functions.worker.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
-import org.apache.pulsar.functions.worker.PackageLocationMetaData;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.request.RequestResult;
@@ -130,7 +134,7 @@ public class ApiV1ResourceTest {
     //
 
     @Test
-    public void testRegisterFunctionMissingTenant() {
+    public void testRegisterFunctionMissingTenant() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             null,
             namespace,
@@ -146,7 +150,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingNamespace() {
+    public void testRegisterFunctionMissingNamespace() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             null,
@@ -162,7 +166,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingFunctionName() {
+    public void testRegisterFunctionMissingFunctionName() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -178,7 +182,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingPackage() {
+    public void testRegisterFunctionMissingPackage() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -194,7 +198,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingPackageDetails() {
+    public void testRegisterFunctionMissingPackageDetails() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -210,7 +214,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingSourceTopic() {
+    public void testRegisterFunctionMissingSourceTopic() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -226,7 +230,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingInputSerde() {
+    public void testRegisterFunctionMissingInputSerde() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -242,7 +246,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingClassName() {
+    public void testRegisterFunctionMissingClassName() throws InvalidProtocolBufferException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -269,40 +273,64 @@ public class ApiV1ResourceTest {
         String outputSerdeClassName,
         String className,
         String missingFieldName
-    ) {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
-                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
-                .setClassName(className);
+    ) throws InvalidProtocolBufferException {
+        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        if (tenant != null) {
+            functionConfigBuilder.setTenant(tenant);
+        }
+        if (namespace != null) {
+            functionConfigBuilder.setNamespace(namespace);
+        }
+        if (function != null) {
+            functionConfigBuilder.setName(function);
+        }
+        if (sinkTopic != null) {
+            functionConfigBuilder.setSinkTopic(sinkTopic);
+        }
+        if (sourceTopic != null) {
+            functionConfigBuilder.setSourceTopic(sourceTopic);
+        }
+        if (inputSerdeClassName != null) {
+            functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
+        }
+        if (outputSerdeClassName != null) {
+            functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
+        }
+        if (className != null) {
+            functionConfigBuilder.setClassName(className);
+        }
+
+        FunctionConfig functionConfig = functionConfigBuilder.build();
         Response response = resource.registerFunction(
-            tenant,
-            namespace,
-            function,
-            inputStream,
-            details,
-            new Gson().toJson(functionConfig));
+                tenant,
+                namespace,
+                function,
+                inputStream,
+                details,
+                JsonFormat.printer().print(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         Assert.assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
     }
 
-    private Response registerDefaultFunction() {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
+    private Response registerDefaultFunction() throws InvalidProtocolBufferException {
+        FunctionConfig functionConfig = FunctionConfig.newBuilder()
+                .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
                 .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
-                .setClassName(className);
+                .setClassName(className).build();
         return resource.registerFunction(
             tenant,
             namespace,
             function,
             mockedInputStream,
-            mockedFormData, new Gson().toJson(functionConfig));
+            mockedFormData, JsonFormat.printer().print(functionConfig));
     }
 
     @Test
-    public void testRegisterExistedFunction() {
+    public void testRegisterExistedFunction() throws InvalidProtocolBufferException {
+        Configurator.setRootLevel(Level.DEBUG);
+
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         Response response = registerDefaultFunction();
@@ -395,7 +423,7 @@ public class ApiV1ResourceTest {
     //
 
     @Test
-    public void testUpdateFunctionMissingTenant() {
+    public void testUpdateFunctionMissingTenant() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             null,
             namespace,
@@ -411,7 +439,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingNamespace() {
+    public void testUpdateFunctionMissingNamespace() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             null,
@@ -427,7 +455,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingFunctionName() {
+    public void testUpdateFunctionMissingFunctionName() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -443,7 +471,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingPackage() {
+    public void testUpdateFunctionMissingPackage() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -459,7 +487,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingPackageDetails() {
+    public void testUpdateFunctionMissingPackageDetails() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -475,7 +503,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingSourceTopic() {
+    public void testUpdateFunctionMissingSourceTopic() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -491,7 +519,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingInputSerde() {
+    public void testUpdateFunctionMissingInputSerde() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -507,7 +535,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingClassName() {
+    public void testUpdateFunctionMissingClassName() throws InvalidProtocolBufferException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -534,40 +562,62 @@ public class ApiV1ResourceTest {
         String outputSerdeClassName,
         String className,
         String missingFieldName
-    ) {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
-                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
-                .setClassName(className);
+    ) throws InvalidProtocolBufferException {
+        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        if (tenant != null) {
+            functionConfigBuilder.setTenant(tenant);
+        }
+        if (namespace != null) {
+            functionConfigBuilder.setNamespace(namespace);
+        }
+        if (function != null) {
+            functionConfigBuilder.setName(function);
+        }
+        if (sinkTopic != null) {
+            functionConfigBuilder.setSinkTopic(sinkTopic);
+        }
+        if (sourceTopic != null) {
+            functionConfigBuilder.setSourceTopic(sourceTopic);
+        }
+        if (inputSerdeClassName != null) {
+            functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
+        }
+        if (outputSerdeClassName != null) {
+            functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
+        }
+        if (className != null) {
+            functionConfigBuilder.setClassName(className);
+        }
+
+        FunctionConfig functionConfig = functionConfigBuilder.build();
         Response response = resource.updateFunction(
             tenant,
             namespace,
             function,
             inputStream,
             details,
-            new Gson().toJson(functionConfig));
+            JsonFormat.printer().print(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
     }
 
-    private Response updateDefaultFunction() {
-        FunctionConfig functionConfig = new FunctionConfig();
-        functionConfig.setTenant(tenant).setNamespace(namespace).setName(function)
+    private Response updateDefaultFunction() throws InvalidProtocolBufferException {
+        FunctionConfig functionConfig = FunctionConfig.newBuilder()
+                .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
                 .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
-                .setClassName(className);
+                .setClassName(className).build();
         return resource.updateFunction(
             tenant,
             namespace,
             function,
             mockedInputStream,
-            mockedFormData, new Gson().toJson(functionConfig));
+            mockedFormData, JsonFormat.printer().print(functionConfig));
     }
 
     @Test
-    public void testUpdateNotExistedFunction() {
+    public void testUpdateNotExistedFunction() throws InvalidProtocolBufferException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = updateDefaultFunction();
@@ -796,7 +846,7 @@ public class ApiV1ResourceTest {
         String namespace,
         String function,
         String missingFieldName
-    ) {
+    ) throws InvalidProtocolBufferException {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
@@ -806,7 +856,7 @@ public class ApiV1ResourceTest {
         assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
     }
 
-    private Response getDefaultFunctionInfo() {
+    private Response getDefaultFunctionInfo() throws InvalidProtocolBufferException {
         return resource.getFunctionInfo(
             tenant,
             namespace,
@@ -814,7 +864,7 @@ public class ApiV1ResourceTest {
     }
 
     @Test
-    public void testGetNotExistedFunction() {
+    public void testGetNotExistedFunction() throws InvalidProtocolBufferException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = getDefaultFunctionInfo();
@@ -826,30 +876,30 @@ public class ApiV1ResourceTest {
     public void testGetFunctionSuccess() throws Exception {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
-        FunctionConfig config = new FunctionConfig()
-            .setClassName(className)
+        FunctionConfig functionConfig = FunctionConfig.newBuilder()
+                .setClassName(className)
             .setInputSerdeClassName(inputSerdeClassName)
             .setOutputSerdeClassName(outputSerdeClassName)
             .setName(function)
             .setNamespace(namespace)
-            .setProcessingGuarantees(ProcessingGuarantees.ATMOST_ONCE)
+            .setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE)
             .setSinkTopic(sinkTopic)
             .setSourceTopic(sourceTopic)
-            .setTenant(tenant);
-        FunctionMetaData metaData = new FunctionMetaData()
+            .setTenant(tenant).build();
+        FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())
-            .setFunctionConfig(config)
-            .setPackageLocation(new PackageLocationMetaData().setPackagePath("/path/to/package"))
+            .setFunctionConfig(functionConfig)
+            .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
             .setRuntime("test")
             .setVersion(1234)
-            .setWorkerId("test-worker");
+            .setWorkerId("test-worker").build();
         FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()
                 .setFunctionMetaData(metaData);
         when(mockedManager.getFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(functionRuntimeInfo);
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(new Gson().toJson(config), response.getEntity());
+        assertEquals(JsonFormat.printer().print(functionConfig), response.getEntity());
     }
 
     //

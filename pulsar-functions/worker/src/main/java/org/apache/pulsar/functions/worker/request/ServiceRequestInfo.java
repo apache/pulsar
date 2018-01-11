@@ -16,34 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker;
+package org.apache.pulsar.functions.worker.request;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
-
-import java.io.Serializable;
+import lombok.ToString;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.client.api.MessageId;
+
+import java.util.concurrent.CompletableFuture;
+
+import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 
 @Data
-@Setter
 @Getter
 @EqualsAndHashCode
+@ToString
 @Accessors(chain = true)
-/**
- * Package location metadata defines the location where a function package is stored.
- *
- * <p>The location metadata includes a <code>dlogUri</code> (the bookkeeper cluster to store the packages) and
- * the path to the pacakge.
- */
-public class PackageLocationMetaData implements Serializable {
+public class ServiceRequestInfo {
+    private final ServiceRequest serviceRequest;
+    @Setter
+    private CompletableFuture<MessageId> completableFutureRequestMessageId;
+    @Setter
+    private CompletableFuture<RequestResult> requestResultCompletableFuture;
 
-    private String packagePath;
-
-    @Override
-    public String toString() {
-        return packagePath;
+    private ServiceRequestInfo(ServiceRequest serviceRequest) {
+        this.serviceRequest = serviceRequest;
     }
 
+    public static ServiceRequestInfo of (ServiceRequest serviceRequest) {
+        return new ServiceRequestInfo(serviceRequest);
+    }
 }

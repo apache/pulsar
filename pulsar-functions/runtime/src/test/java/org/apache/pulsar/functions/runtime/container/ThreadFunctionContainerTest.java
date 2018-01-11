@@ -29,8 +29,8 @@ import java.net.URL;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.fs.FunctionConfig;
 import org.apache.pulsar.functions.fs.LimitsConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -67,14 +67,14 @@ public class ThreadFunctionContainerTest {
     }
 
     FunctionConfig createFunctionConfig() {
-        FunctionConfig config = new FunctionConfig();
-        config.setTenant(TEST_TENANT);
-        config.setNamespace(TEST_NAMESPACE);
-        config.setName(TEST_NAME);
-        config.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        config.setSourceTopic(TEST_NAME + "-source");
-        config.setSinkTopic(TEST_NAME + "-sink");
-        return config;
+        FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
+        functionConfigBuilder.setTenant(TEST_TENANT);
+        functionConfigBuilder.setNamespace(TEST_NAMESPACE);
+        functionConfigBuilder.setName(TEST_NAME);
+        functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
+        functionConfigBuilder.setSourceTopic(TEST_NAME + "-source");
+        functionConfigBuilder.setSinkTopic(TEST_NAME + "-sink");
+        return functionConfigBuilder.build();
     }
 
     JavaInstanceConfig createJavaInstanceConfig() {

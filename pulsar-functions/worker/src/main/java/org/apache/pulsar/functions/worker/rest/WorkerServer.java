@@ -76,6 +76,7 @@ public class WorkerServer implements Runnable {
 
             server.join();
         } catch (Exception ex) {
+            log.error("ex: {}", ex, ex);
             final String message = getErrorMessage(server, this.workerConfig.getWorkerPort(), ex);
             log.error(message);
             System.exit(1);

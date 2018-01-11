@@ -22,16 +22,22 @@ import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
+import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.functions.annotation.Annotations;
 import org.apache.pulsar.functions.api.RequestHandler;
-import org.apache.pulsar.functions.fs.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import java.io.File;
@@ -117,38 +123,42 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void processArguments() throws Exception {
+
+            FunctionConfig.Builder functionConfigBuilder;
             if (null != fnConfigFile) {
-                functionConfig = FunctionConfig.load(fnConfigFile);
+                functionConfigBuilder = FunctionConfigUtils.loadConfig(new File(fnConfigFile));
             } else {
-                functionConfig = new FunctionConfig();
+                functionConfigBuilder = FunctionConfig.newBuilder();
             }
             if (null != sourceTopicName) {
-                functionConfig.setSourceTopic(sourceTopicName);
+                functionConfigBuilder.setSourceTopic(sourceTopicName);
             }
             if (null != sinkTopicName) {
-                functionConfig.setSinkTopic(sinkTopicName);
+                functionConfigBuilder.setSinkTopic(sinkTopicName);
             }
             if (null != tenant) {
-                functionConfig.setTenant(tenant);
+                functionConfigBuilder.setTenant(tenant);
             }
             if (null != namespace) {
-                functionConfig.setNamespace(namespace);
+                functionConfigBuilder.setNamespace(namespace);
             }
             if (null != functionName) {
-                functionConfig.setName(functionName);
+                functionConfigBuilder.setName(functionName);
             }
             if (null != className) {
-                functionConfig.setClassName(className);
+                functionConfigBuilder.setClassName(className);
             }
             if (null != inputSerdeClassName) {
-                functionConfig.setInputSerdeClassName(inputSerdeClassName);
+                functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
             }
             if (null != outputSerdeClassName) {
-                functionConfig.setOutputSerdeClassName(outputSerdeClassName);
+                functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
             }
             if (null != processingGuarantees) {
-                functionConfig.setProcessingGuarantees(processingGuarantees);
+                functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
             }
+
+            functionConfig = functionConfigBuilder.build();
 
             // check if the function class exists in Jar and it implements RequestHandler class
             if (!Reflections.classExistsInJar(new File(jarFile), functionConfig.getClassName())) {
@@ -253,7 +263,10 @@ public class CmdFunctions extends CmdBase {
             if (tenant == null || namespace == null || functionName == null) {
                 throw new RuntimeException("Missing arguments");
             }
-            print(fnAdmin.functions().getFunction(tenant, namespace, functionName));
+
+            String json = JsonFormat.printer().print(fnAdmin.functions().getFunction(tenant, namespace, functionName));
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
     }
 
