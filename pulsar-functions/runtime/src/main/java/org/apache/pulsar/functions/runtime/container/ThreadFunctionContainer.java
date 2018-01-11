@@ -24,7 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.fs.FunctionStatus;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceRunnable;
@@ -76,12 +76,18 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         FunctionStats stats = javaInstanceRunnable.getStats();
-        FunctionStatus retval = new FunctionStatus();
-        retval.setNumProcessed(stats.getTotalProcessed());
-        retval.setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed());
-        retval.setNumUserExceptions(stats.getTotalUserExceptions());
-        retval.setNumSystemExceptions(stats.getTotalSystemExceptions());
-        retval.setNumTimeouts(stats.getTotalTimeoutExceptions());
-        return CompletableFuture.completedFuture(retval);
+        FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+        if (javaInstanceRunnable.getFailureException() != null) {
+            functionStatusBuilder.setRunning(false);
+            functionStatusBuilder.setFailureException(javaInstanceRunnable.getFailureException().getMessage());
+        } else {
+            functionStatusBuilder.setRunning(true);
+        }
+        functionStatusBuilder.setNumProcessed(stats.getTotalProcessed());
+        functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed());
+        functionStatusBuilder.setNumUserExceptions(stats.getTotalUserExceptions());
+        functionStatusBuilder.setNumSystemExceptions(stats.getTotalSystemExceptions());
+        functionStatusBuilder.setNumTimeouts(stats.getTotalTimeoutExceptions());
+        return CompletableFuture.completedFuture(functionStatusBuilder.build());
     }
 }

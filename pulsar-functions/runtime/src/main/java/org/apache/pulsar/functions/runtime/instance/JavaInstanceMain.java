@@ -190,11 +190,12 @@ public class JavaInstanceMain {
         }
 
         @Override
-        public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatusResponseProto> responseObserver) {
+        public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
             FunctionStats stats = javaInstanceRunnable.getStats();
             String failureException = javaInstanceRunnable.getFailureException() != null
                     ? javaInstanceRunnable.getFailureException().getMessage() : "";
-            InstanceCommunication.FunctionStatusResponseProto response = InstanceCommunication.FunctionStatusResponseProto.newBuilder()
+            InstanceCommunication.FunctionStatus response = InstanceCommunication.FunctionStatus.newBuilder()
+                    .setRunning(true)
                     .setFailureException(failureException)
                     .setNumProcessed(stats.getTotalProcessed())
                     .setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed())

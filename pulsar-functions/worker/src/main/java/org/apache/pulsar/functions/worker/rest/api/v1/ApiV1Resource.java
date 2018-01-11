@@ -25,10 +25,10 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.pulsar.functions.fs.FunctionStatus;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -259,7 +259,7 @@ public class ApiV1Resource extends BaseApiResource {
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
-                                    final @PathParam("functionName") String functionName) {
+                                    final @PathParam("functionName") String functionName) throws InvalidProtocolBufferException {
 
         // validate parameters
         try {
@@ -283,25 +283,26 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionRuntimeInfo functionRuntimeInfo = functionRuntimeManager.getFunction(tenant, namespace, functionName);
         Spawner spawner = functionRuntimeInfo.getSpawner();
-        FunctionStatus functionStatus = new FunctionStatus();
-        functionStatus.setRunning(spawner == null ? false : true);
-        functionStatus.setStartupException(functionRuntimeInfo.getStartupException());
+        FunctionStatus functionStatus;
         if (spawner != null) {
             try {
-                FunctionStatus f = spawner.getFunctionStatus().get();
-                functionStatus.setNumProcessed(f.getNumProcessed());
-                functionStatus.setNumTimeouts(f.getNumTimeouts());
-                functionStatus.setNumSystemExceptions(f.getNumSystemExceptions());
-                functionStatus.setNumUserExceptions(f.getNumUserExceptions());
-                functionStatus.setNumSuccessfullyProcessed(f.getNumSuccessfullyProcessed());
+                functionStatus = spawner.getFunctionStatus().get();
             } catch (Exception ex) {
                 log.error("Got Exception Getting Status from Spawner", ex);
                 return Response.status(Status.INTERNAL_SERVER_ERROR)
                         .type(MediaType.APPLICATION_JSON)
                         .entity(RestUtils.createMessage(ex.getMessage())).build();
             }
+        } else {
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+            functionStatusBuilder.setRunning(false);
+            if (functionRuntimeInfo.getStartupException() != null) {
+                functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
+            }
+            functionStatus = functionStatusBuilder.build();
         }
-        return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStatus)).build();
+        String functionConfigJson = JsonFormat.printer().print(functionStatus);
+        return Response.status(Response.Status.OK).entity(functionConfigJson).build();
     }
 
     @GET
