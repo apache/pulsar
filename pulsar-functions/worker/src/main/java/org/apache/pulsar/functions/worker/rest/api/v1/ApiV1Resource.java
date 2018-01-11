@@ -295,6 +295,10 @@ public class ApiV1Resource extends BaseApiResource {
                 functionStatus.setNumUserExceptions(f.getNumUserExceptions());
                 functionStatus.setNumSuccessfullyProcessed(f.getNumSuccessfullyProcessed());
             } catch (Exception ex) {
+                log.error("Got Exception Getting Status from Spawner", ex);
+                return Response.status(Status.INTERNAL_SERVER_ERROR)
+                        .type(MediaType.APPLICATION_JSON)
+                        .entity(RestUtils.createMessage(ex.getMessage())).build();
             }
         }
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStatus)).build();

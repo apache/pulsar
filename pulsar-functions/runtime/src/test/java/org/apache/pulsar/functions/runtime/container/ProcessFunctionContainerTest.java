@@ -19,47 +19,40 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-
-import org.apache.pulsar.shade.io.netty.util.Timer;
-import java.net.URL;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
+import java.util.List;
+
+import static org.testng.Assert.assertEquals;
+
 /**
  * Unit test of {@link ThreadFunctionContainer}.
  */
 @Slf4j
-public class ThreadFunctionContainerTest {
+public class ProcessFunctionContainerTest {
 
     private static final String TEST_TENANT = "test-function-tenant";
     private static final String TEST_NAMESPACE = "test-function-namespace";
     private static final String TEST_NAME = "test-function-container";
 
-    private final PulsarClientImpl client;
-    private final ThreadFunctionContainerFactory factory;
-    private final String jarFile;
+    private final ProcessFunctionContainerFactory factory;
+    private final String userJarFile;
+    private final String javaInstanceJarFile;
+    private final String pulsarServiceUrl;
+    private final String logDirectory;
 
-    public ThreadFunctionContainerTest() {
-        URL jarUrl = getClass().getClassLoader().getResource("multifunction.jar");
-        this.jarFile = jarUrl.getPath();
-        this.client = mock(PulsarClientImpl.class);
-        when(client.getConfiguration()).thenReturn(new ClientConfiguration());
-        when(client.timer()).thenReturn(mock(Timer.class));
-
-        this.factory = new ThreadFunctionContainerFactory(
-            "ThreadFunctionContainerFactory",
-            1024,
-            client);
+    public ProcessFunctionContainerTest() {
+        this.userJarFile = "/Users/user/UserJar.jar";
+        this.javaInstanceJarFile = "/Users/user/JavaInstance.jar";
+        this.pulsarServiceUrl = "pulsar://localhost:6670";
+        this.logDirectory = "Users/user/logs";
+        this.factory = new ProcessFunctionContainerFactory(
+            1024, pulsarServiceUrl, javaInstanceJarFile, logDirectory);
     }
 
     @AfterMethod
@@ -75,6 +68,8 @@ public class ThreadFunctionContainerTest {
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
         functionConfigBuilder.setSourceTopic(TEST_NAME + "-source");
         functionConfigBuilder.setSinkTopic(TEST_NAME + "-sink");
+        functionConfigBuilder.setInputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
+        functionConfigBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         return functionConfigBuilder.build();
     }
 
@@ -97,11 +92,26 @@ public class ThreadFunctionContainerTest {
     public void testConstructor() {
         JavaInstanceConfig config = createJavaInstanceConfig();
 
-        ThreadFunctionContainer container = factory.createContainer(config, jarFile);
-        assertEquals(TEST_TENANT + "/" + TEST_NAMESPACE + "/" + TEST_NAME,
-                container.getFnThread().getName());
-        container.stop();
-        assertFalse(container.getFnThread().isAlive());
+        ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
+        List<String> args = container.getProcessBuilder().command();
+        assertEquals(args.size(), 39);
+        args.remove(args.size() - 1);
+        String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
+                + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionId()
+                + " org.apache.pulsar.functions.runtime.instance.JavaInstanceMain --instance-id "
+                + config.getInstanceId() + " --function-id " + config.getFunctionId()
+                + " --function-version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
+                + " --namespace " + config.getFunctionConfig().getNamespace()
+                + " --name " + config.getFunctionConfig().getName()
+                + " --function-classname " + config.getFunctionConfig().getClassName()
+                + " --source-topic " + config.getFunctionConfig().getSourceTopic()
+                + " --input-serde-classname " + config.getFunctionConfig().getInputSerdeClassName()
+                + " --sink-topic " + config.getFunctionConfig().getSinkTopic()
+                + " --output-serde-classname " + config.getFunctionConfig().getOutputSerdeClassName()
+                + " --processing-guarantees ATMOST_ONCE --jar " + userJarFile
+                + " --pulsar-serviceurl " + pulsarServiceUrl
+                + " --max-buffered-tuples 1024 --port";
+        assertEquals(expectedArgs, String.join(" ", args));
     }
 
 }

@@ -225,6 +225,7 @@ public class CmdFunctions extends CmdBase {
             );
 
             try (ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
+                "LocalRunnerThreadGroup",
                 limitsConfig.getMaxBufferedTuples(),
                 admin.getServiceUrl().toString())) {
 

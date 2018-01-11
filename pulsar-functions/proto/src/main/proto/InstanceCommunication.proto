@@ -16,30 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+syntax = "proto3";
+package proto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import "google/protobuf/empty.proto";
 
-/**
- * This corresponds to all the information about the a particular function assignment
- * to a spawner.
- */
+option java_package = "org.apache.pulsar.functions.proto";
+option java_outer_classname = "InstanceCommunication";
 
-@Data
-@Setter
-@Getter
-@EqualsAndHashCode
-@ToString
-@AllArgsConstructor
-class AssignmentInfo {
-    private FunctionConfig functionConfig;
-    private String functionId;
-    private String functionVersion;
-    private String instanceId;
+message FunctionStatusResponseProto {
+    string failureException = 1;
+    int64 numProcessed = 2;
+    int64 numSuccessfullyProcessed = 3;
+    int64 numTimeouts = 4;
+    int64 numUserExceptions = 5;
+    int64 numSystemExceptions = 6;
+}
+
+service InstanceControl {
+    rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatusResponseProto) {}
 }
