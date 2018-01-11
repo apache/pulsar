@@ -1,5 +1,8 @@
 package org.apache.pulsar.broker.service.schema;
 
+import org.apache.bookkeeper.mledger.AsyncCallbacks;
+import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
@@ -13,6 +16,17 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
 
     @Override
     public Schema getSchema(String schemaId) {
+        pulsar.getManagedLedgerFactory().asyncOpen(schemaId, new AsyncCallbacks.OpenLedgerCallback() {
+            @Override
+            public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
+
+            }
+
+            @Override
+            public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
+
+            }
+        }, null);
         return null;
     }
 
