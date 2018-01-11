@@ -299,8 +299,6 @@ In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view d
 ```bash
 $ kubectl port-forward \
   $(kubectl get pods -l component=grafana -o jsonpath='{.items[*].metadata.name}') 3000
-
-$ kubectl port-forward $(kubectl get pods | grep grafana | awk '{print $1}') 3000
 ```
 
 You can then access the dashboard in your web browser at [localhost:3000](http://localhost:3000).
