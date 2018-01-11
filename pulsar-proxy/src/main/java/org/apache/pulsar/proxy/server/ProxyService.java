@@ -148,7 +148,7 @@ public class ProxyService implements Closeable {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
             tlsBootstrap.bind(proxyConfig.getServicePortTls()).sync();
-            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getWebServicePortTls());
+            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls());
         }
     }
 
