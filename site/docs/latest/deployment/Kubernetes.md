@@ -182,19 +182,22 @@ This step may take several minutes, as Kubernetes needs to download the Docker i
 
 #### Initialize cluster metadata
 
-Once ZooKeeper is running, you need to [initialize the metadata](../InstanceSetup#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for {% popover BookKeeper %} and Pulsar more broadly.
+Once ZooKeeper is running, you need to [initialize the metadata](../InstanceSetup#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for {% popover BookKeeper %} and Pulsar more broadly. There is a Kubernetes [job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) in the `cluster-metadata.yaml` file that you only need to run once:
 
 ```bash
-$ kubectl exec -it zk-0 -- \
-    bin/pulsar initialize-cluster-metadata \
-      --cluster us-central \
-      --zookeeper zookeeper \
-      --global-zookeeper zookeeper \
-      --web-service-url http://broker.default.svc.cluster.local:8080/ \
-      --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
+$ kubectl apply -f cluster-metadata.yaml
 ```
 
-Make sure to modify the metadata values for your own cluster when necessary.
+For the sake of reference, that job runs the following command on an ephemeral pod:
+
+```bash
+$ bin/pulsar initialize-cluster-metadata \
+  --cluster us-central \
+  --zookeeper zookeeper \
+  --global-zookeeper zookeeper \
+  --web-service-url http://broker.default.svc.cluster.local:8080/ \
+  --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
+```
 
 #### Deploy the rest of the components
 
@@ -204,20 +207,16 @@ Once cluster metadata has been successfully initialized, you can then deploy the
 $ kubectl apply -f bookie.yaml
 $ kubectl apply -f broker.yaml
 $ kubectl apply -f monitoring.yaml
+$ kubectl apply -f proxy.yaml
 ```
 
 You can check on the status of the pods for these components either in the Kubernetes Dashboard or using `kubectl`:
 
 ```bash
-$ kubectl get pods
+$ kubectl get pods -l app=pulsar
 ```
 
 #### Set up properties and namespaces
-
-```bash
-$ alias pulsar-admin='kubectl exec pulsar-admin -it -- bin/pulsar-admin'
-```
-
 
 Once all of the components are up and running, you'll need to create at least one Pulsar {% popover property %} and at least one {% popover namespace %}.
 
