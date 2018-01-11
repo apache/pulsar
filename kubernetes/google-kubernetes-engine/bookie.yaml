@@ -19,6 +19,7 @@
 
 ## Credits to Franck Cuny : https://github.com/fcuny/distributedlog-on-k8s/blob/master/bookkeeper.statefulset.yaml
 
+# SSDs for bookie journal storage
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -27,9 +28,8 @@ provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-ssd
   zones: us-central1-a
-
 ---
-
+# HDDs for bookie ledger storage
 apiVersion: storage.k8s.io/v1
 kind: StorageClass
 metadata:
@@ -38,7 +38,6 @@ provisioner: kubernetes.io/gce-pd
 parameters:
   type: pd-standard
   zones: us-central1-a
-
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -52,7 +51,26 @@ data:
   zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
   statsProviderClass: org.apache.bookkeeper.stats.PrometheusMetricsProvider
 ---
-
+# A headless service to create DNS records
+apiVersion: v1
+kind: Service
+metadata:
+  name: bookkeeper
+  labels:
+    app: pulsar
+    component: bookkeeper
+  annotations:
+    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
+spec:
+  ports:
+    - name: bookie
+      port: 3181
+      protocol: TCP
+  clusterIP: None
+  selector:
+    app: pulsar
+    component: bookkeeper
+---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
@@ -63,6 +81,10 @@ metadata:
 spec:
   serviceName: "bookkeeper"
   replicas: 3
+  selector:
+    matchLabels:
+      app: pulsar
+      component: bookkeeper
   template:
     metadata:
       labels:
@@ -131,26 +153,6 @@ spec:
           requests:
             storage: 10Gi
         storageClassName: bookie-hdd
----
-# A headless service to create DNS records
-apiVersion: v1
-kind: Service
-metadata:
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
-  name: bookkeeper
-  labels:
-    app: pulsar
-    component: bookkeeper
-spec:
-  ports:
-    - name: bookie
-      port: 3181
-      protocol: TCP
-  clusterIP: None
-  selector:
-    app: pulsar
-    component: bookkeeper
 
 ---
 ##
