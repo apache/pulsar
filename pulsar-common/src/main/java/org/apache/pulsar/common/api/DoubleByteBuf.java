@@ -383,7 +383,7 @@ public final class DoubleByteBuf extends AbstractReferenceCountedByteBuf {
 
     @Override
     public ByteBuffer nioBuffer(int index, int length) {
-        ByteBuffer dst = ByteBuffer.allocate(length);
+        ByteBuffer dst = isDirect() ? ByteBuffer.allocateDirect(length) : ByteBuffer.allocate(length);
         ByteBuf b = Unpooled.wrappedBuffer(dst);
         b.writerIndex(0);
         getBytes(index, b, length);
