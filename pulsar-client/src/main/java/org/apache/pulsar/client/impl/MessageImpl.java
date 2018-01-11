@@ -59,12 +59,7 @@ public class MessageImpl implements Message {
         msg.messageId = null;
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
-        if (msgMetadataBuilder.getPropertiesCount() > 0) {
-            msg.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
-                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
-        } else {
-            msg.properties = Collections.emptyMap();
-        }
+        msg.properties = null;
         return msg;
     }
 
@@ -218,13 +213,21 @@ public class MessageImpl implements Message {
     }
 
     @Override
-    public Map<String, String> getProperties() {
-        return properties;
+    public synchronized Map<String, String> getProperties() {
+        if (this.properties == null) {
+            if (msgMetadataBuilder.getPropertiesCount() > 0) {
+                this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+            } else {
+                this.properties = Collections.emptyMap();
+            }
+        }
+        return this.properties;
     }
 
     @Override
     public boolean hasProperty(String name) {
-        return properties.containsKey(name);
+        return getProperties().containsKey(name);
     }
 
     @Override

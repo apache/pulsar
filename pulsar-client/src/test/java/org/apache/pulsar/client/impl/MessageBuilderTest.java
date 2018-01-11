@@ -73,6 +73,7 @@ public class MessageBuilderTest {
         builder.setProperties(map);
         Message msg = builder.build();
         assertEquals(map, msg.getProperties());
+        assertEquals("value1", msg.getProperty("key1"));
     }
     
 }
