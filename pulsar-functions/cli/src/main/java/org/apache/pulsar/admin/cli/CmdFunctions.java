@@ -233,7 +233,9 @@ public class CmdFunctions extends CmdBase {
                     functionConfig,
                     limitsConfig,
                     jarFile,
-                    containerFactory);
+                    containerFactory,
+                    null,
+                    0);
 
                 spawner.start();
                 Runtime.getRuntime().addShutdownHook(new Thread() {
