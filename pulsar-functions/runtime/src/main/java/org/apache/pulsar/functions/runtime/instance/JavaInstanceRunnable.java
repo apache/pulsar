@@ -249,7 +249,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
-        return javaInstance.getAndResetMetrics();
+        if (javaInstance != null) {
+            return javaInstance.getAndResetMetrics();
+        } else {
+            return null;
+        }
     }
 
     private static String convertMessageIdToString(MessageId messageId) {

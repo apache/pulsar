@@ -29,6 +29,12 @@ limitsConfig:
   maxMemoryMb: -1
   maxCpuCores: -1
   maxBufferedTuples: 1024
+metricsConfig:
+  metricsSinkClassName: org.apache.pulsar.functions.runtime.metrics.sink.PrometheusSink
+  metricsCollectionInterval: 30
+  metricsSinkConfig:
+    path: /metrics
+    port: 9099
 threadContainerFactory:
   threadGroupName: "Thread Function Container Group"
 # processContainerFactory:

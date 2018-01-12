@@ -139,7 +139,8 @@ class ContextImpl implements Context {
 
     @Override
     public void recordMetric(String metricName, double value) {
-        accumulatedMetrics.getOrDefault(metricName, new AccumulatedMetricDatum()).update(value);
+        accumulatedMetrics.putIfAbsent(metricName, new AccumulatedMetricDatum());
+        accumulatedMetrics.get(metricName).update(value);
     }
 
     public MetricsData getAndResetMetrics() {
