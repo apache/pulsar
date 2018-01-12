@@ -20,7 +20,6 @@ package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.testng.AssertJUnit.assertTrue;
 
 import java.net.URI;
 import java.util.*;
@@ -214,7 +213,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         } catch (Exception e) {
             pulsarClientException = e;
         }
-        assertTrue(pulsarClientException instanceof PulsarClientException);
+        Assert.assertTrue(pulsarClientException instanceof PulsarClientException);
 
         testSyncProducerAndConsumer(batchMessageDelayMs);
 

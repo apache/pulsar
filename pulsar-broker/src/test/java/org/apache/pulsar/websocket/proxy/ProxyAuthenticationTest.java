@@ -21,8 +21,6 @@ package org.apache.pulsar.websocket.proxy;
 import static java.util.concurrent.Executors.newFixedThreadPool;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertTrue;
 
 import java.lang.reflect.Method;
 import java.net.URI;
@@ -58,8 +56,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Sets;
 
-import javax.validation.constraints.AssertTrue;
-
 public class ProxyAuthenticationTest extends ProducerConsumerBase {
 
     private int port;
@@ -84,7 +80,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         // If this is not set, 500 error occurs.
         config.setGlobalZookeeperServers("dummy");
 
-        if (methodName.equals("authenticatedSocketTest")) {
+        if (methodName.equals("authenticatedSocketTest") || methodName.equals("statsTest")) {
             config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockAuthenticationProvider"));
         } else {
             config.setAuthenticationProviders(Sets.newHashSet("org.apache.pulsar.websocket.proxy.MockUnauthenticationProvider"));
@@ -172,7 +168,7 @@ public class ProxyAuthenticationTest extends ProducerConsumerBase {
         } catch (Exception e) {
             exception = e;
         }
-        assertTrue(exception instanceof java.util.concurrent.ExecutionException);
+        Assert.assertTrue(exception instanceof java.util.concurrent.ExecutionException);
     }
 
     @Test(timeOut=10000)

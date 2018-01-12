@@ -82,7 +82,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private int connectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
     // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
-    private String anonymousUserRole = "";
+    private String anonymousUserRole = null;
 
     /***** --- TLS --- ****/
     // Enable TLS
