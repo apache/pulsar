@@ -34,6 +34,17 @@ message FunctionStatus {
     int64 numSystemExceptions = 7;
 }
 
+message MetricsData {
+    message DataDigest {
+        double count = 1;
+        double sum = 2;
+        double max = 3;
+        double min = 4;
+    }
+    map<string, DataDigest> metrics = 1;
+}
+
 service InstanceControl {
     rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
+    rpc GetAndResetMetrics(google.protobuf.Empty) returns (MetricsData) {}
 }

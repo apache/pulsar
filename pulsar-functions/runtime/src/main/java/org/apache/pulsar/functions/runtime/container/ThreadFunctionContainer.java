@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
@@ -89,5 +90,10 @@ class ThreadFunctionContainer implements FunctionContainer {
         functionStatusBuilder.setNumSystemExceptions(stats.getTotalSystemExceptions());
         functionStatusBuilder.setNumTimeouts(stats.getTotalTimeoutExceptions());
         return CompletableFuture.completedFuture(functionStatusBuilder.build());
+    }
+
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
+        return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
     }
 }

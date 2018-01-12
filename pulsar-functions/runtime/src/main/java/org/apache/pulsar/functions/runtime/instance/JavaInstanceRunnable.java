@@ -25,6 +25,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.stats.FunctionStats;
@@ -55,6 +56,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private Consumer sourceConsumer;
     @Getter
     private Exception failureException;
+    private JavaInstance javaInstance;
 
     // function stats
     @Getter
@@ -95,7 +97,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             loadJars();
             // initialize the thread context
             ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()));
-            JavaInstance javaInstance = new JavaInstance(javaInstanceConfig);
+            javaInstance = new JavaInstance(javaInstanceConfig);
 
             while (true) {
                 JavaExecutionResult result;
@@ -244,6 +246,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             javaInstanceConfig.getFunctionId(),
             javaInstanceConfig.getInstanceId());
         log.info("Unloading JAR files for function {}", javaInstanceConfig);
+    }
+
+    public InstanceCommunication.MetricsData getAndResetMetrics() {
+        return javaInstance.getAndResetMetrics();
     }
 
     private static String convertMessageIdToString(MessageId messageId) {
