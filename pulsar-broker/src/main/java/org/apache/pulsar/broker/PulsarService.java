@@ -491,7 +491,7 @@ public class PulsarService implements AutoCloseable {
 
         this.localZkCache = new LocalZooKeeperCache(getZkClient(), getOrderedExecutor());
         this.globalZkCache = new GlobalZooKeeperCache(getZooKeeperClientFactory(),
-                (int) config.getZooKeeperSessionTimeoutMillis(), config.getGlobalZookeeperServers(),
+                (int) config.getZooKeeperSessionTimeoutMillis(), config.getConfigurationStoreServers(),
                 getOrderedExecutor(), this.cacheExecutor);
         try {
             this.globalZkCache.start();

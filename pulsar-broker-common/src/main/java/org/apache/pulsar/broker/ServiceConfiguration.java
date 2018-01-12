@@ -41,8 +41,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(required = true)
     private String zookeeperServers;
     // Global Zookeeper quorum connection string
+    @Deprecated
     @FieldContext(required = false)
     private String globalZookeeperServers;
+    // Configuration Store connection string
+    @FieldContext(required = false)
+    private String configurationStoreServers;
     private int brokerServicePort = 6650;
     private int brokerServicePortTls = 6651;
     // Port to use to server HTTP request
@@ -460,6 +464,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.zookeeperServers = zookeeperServers;
     }
 
+    @Deprecated
     public String getGlobalZookeeperServers() {
         if (this.globalZookeeperServers == null || this.globalZookeeperServers.isEmpty()) {
             // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
@@ -469,8 +474,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return globalZookeeperServers;
     }
 
+    @Deprecated
     public void setGlobalZookeeperServers(String globalZookeeperServers) {
         this.globalZookeeperServers = globalZookeeperServers;
+    }
+
+    public String getConfigurationStoreServers() {
+        if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
+            // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
+            // ZooKeeper cluster
+            return this.getZookeeperServers();
+        }
+        return configurationStoreServers;
+    }
+
+    public void setConfigurationStoreServers(String configurationStoreServers) {
+        this.configurationStoreServers = configurationStoreServers;
     }
 
     public int getBrokerServicePort() {

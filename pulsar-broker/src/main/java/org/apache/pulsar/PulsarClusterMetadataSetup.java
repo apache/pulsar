@@ -78,9 +78,14 @@ public class PulsarClusterMetadataSetup {
                 "--zookeeper" }, description = "Local ZooKeeper quorum connection string", required = true)
         private String zookeeper;
 
+        @Deprecated
         @Parameter(names = { "-gzk",
                 "--global-zookeeper" }, description = "Global ZooKeeper quorum connection string", required = true)
         private String globalZookeeper;
+
+        @Parameter(names = { "-cs",
+            "--configuration-store" }, description = "Configuration Store connection string", required = false)
+        private String configurationStore;
 
         @Parameter(names = { "-h", "--help" }, description = "Show this help message")
         private boolean help = false;
@@ -101,12 +106,15 @@ public class PulsarClusterMetadataSetup {
             throw e;
         }
 
-        log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,
-                arguments.globalZookeeper);
+        if (arguments.configurationStore == null) {
+            arguments.configurationStore = arguments.globalZookeeper;
+        }
 
+        log.info("Setting up cluster {} with zk={} configuration-store ={}", arguments.cluster, arguments.zookeeper,
+                arguments.configurationStore);
         ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
         ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper globalZk = zkfactory.create(arguments.globalZookeeper, SessionType.ReadWrite, 30000).get();
+        ZooKeeper globalZk = zkfactory.create(arguments.configurationStore, SessionType.ReadWrite, 30000).get();
 
         // Format BookKeeper metadata
         ServerConfiguration bkConf = new ServerConfiguration();
