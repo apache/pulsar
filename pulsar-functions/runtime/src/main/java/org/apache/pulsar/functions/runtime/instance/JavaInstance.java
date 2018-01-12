@@ -33,6 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.utils.Reflections;
 
@@ -203,5 +204,9 @@ public class JavaInstance implements AutoCloseable {
         if (null != executorService) {
             executorService.shutdown();
         }
+    }
+
+    public InstanceCommunication.MetricsData getAndResetMetrics() {
+        return context.getAndResetMetrics();
     }
 }

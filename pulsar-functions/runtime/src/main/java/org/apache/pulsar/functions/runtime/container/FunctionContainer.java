@@ -19,7 +19,7 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -32,6 +32,8 @@ public interface FunctionContainer {
 
     void stop();
 
-    CompletableFuture<FunctionStatus> getFunctionStatus();
+    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
+
+    CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
 
 }

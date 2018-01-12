@@ -18,8 +18,14 @@
  */
 package org.apache.pulsar.functions.runtime.instance;
 
+import lombok.Getter;
+import lombok.Setter;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.slf4j.Logger;
+
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -33,9 +39,37 @@ class ContextImpl implements Context {
     private String currentTopicName;
     private long startTime;
 
+    @Getter
+    @Setter
+    private class AccumulatedMetricDatum {
+        private double count;
+        private double sum;
+        private double max;
+        private double min;
+        AccumulatedMetricDatum() {
+            count = 0;
+            sum = 0;
+            max = Double.MIN_VALUE;
+            min = Double.MAX_VALUE;
+        }
+        public void update(double value) {
+            count++;
+            sum += value;
+            if (max < value) {
+                max = value;
+            }
+            if (min > value) {
+                min = value;
+            }
+        }
+    }
+
+    private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
+
     public ContextImpl(JavaInstanceConfig config, Logger logger) {
         this.config = config;
         this.logger = logger;
+        this.accumulatedMetrics = new ConcurrentHashMap<>();
     }
 
     public void setCurrentMessageContext(String messageId, String topicName) {
@@ -101,5 +135,25 @@ class ContextImpl implements Context {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public void recordMetric(String metricName, double value) {
+        accumulatedMetrics.getOrDefault(metricName, new AccumulatedMetricDatum()).update(value);
+    }
+
+    public MetricsData getAndResetMetrics() {
+        MetricsData.Builder metricsDataBuilder = MetricsData.newBuilder();
+        for (String metricName : accumulatedMetrics.keySet()) {
+            MetricsData.DataDigest.Builder bldr = MetricsData.DataDigest.newBuilder();
+            bldr.setSum(accumulatedMetrics.get(metricName).getSum());
+            bldr.setCount(accumulatedMetrics.get(metricName).getCount());
+            bldr.setMax(accumulatedMetrics.get(metricName).getMax());
+            bldr.setMin(accumulatedMetrics.get(metricName).getMax());
+            metricsDataBuilder.putMetrics(metricName, bldr.build());
+        }
+        MetricsData retval = metricsDataBuilder.build();
+        accumulatedMetrics.clear();
+        return retval;
     }
 }

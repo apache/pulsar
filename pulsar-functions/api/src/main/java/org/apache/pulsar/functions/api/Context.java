@@ -96,4 +96,11 @@ public interface Context {
      * @return The value specified by the user for that key. null if no such key
      */
     String getUserConfigValue(String key);
+
+    /**
+     * Record a user defined metric
+     * @param metricName The name of the metric
+     * @param value The value of the metric
+     */
+    void recordMetric(String metricName, double value);
 }

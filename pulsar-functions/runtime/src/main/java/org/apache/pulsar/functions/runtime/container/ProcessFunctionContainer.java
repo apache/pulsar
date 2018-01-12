@@ -175,6 +175,24 @@ class ProcessFunctionContainer implements FunctionContainer {
         return retval;
     }
 
+    @Override
+    public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
+        CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+        ListenableFuture<InstanceCommunication.MetricsData> response = stub.getAndResetMetrics(Empty.newBuilder().build());
+        Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                retval.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.MetricsData t) {
+                retval.complete(t);
+            }
+        });
+        return retval;
+    }
+
     private int findAvailablePort() {
         // The logic here is a little flaky. There is no guarantee that this
         // port returned will be available later on when the instance starts
