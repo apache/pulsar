@@ -237,7 +237,7 @@ serviceUrl=https://broker.example.com:8443/
 
 # Set Athenz auth plugin and its parameters
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
-authParams=tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1
+authParams={"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}
 
 # Enable TLS
 useTls=true
