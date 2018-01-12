@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 @Slf4j
 public class Spawner implements AutoCloseable {
@@ -89,13 +90,20 @@ public class Spawner implements AutoCloseable {
         functionContainer = functionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         functionContainer.start();
         if (metricsSink != null) {
+            log.info("Scheduling Metrics Collection every " + metricsCollectionInterval + " secs for " + FunctionConfigUtils.getFullyQualifiedName(assignmentInfo.getFunctionConfig()));
             metricsCollectionTimer = new Timer();
             metricsCollectionTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    functionContainer.getAndResetMetrics().thenAccept(t -> metricsSink.processRecord(t, assignmentInfo.getFunctionConfig()));
+                    log.info("Collecting metrics for function" + FunctionConfigUtils.getFullyQualifiedName(assignmentInfo.getFunctionConfig()));
+                    functionContainer.getAndResetMetrics().thenAccept(t -> {
+                        if (t != null) {
+                            log.debug("Collected metrics {}", t);
+                            metricsSink.processRecord(t, assignmentInfo.getFunctionConfig());
+                        }
+                    });
                 }
-            }, metricsCollectionInterval, metricsCollectionInterval);
+            }, metricsCollectionInterval * 1000, metricsCollectionInterval * 1000);
         }
     }
 

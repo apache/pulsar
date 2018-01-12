@@ -120,6 +120,7 @@ public class Worker extends AbstractService {
             this.functionRuntimeManager = new FunctionRuntimeManager(workerConfig, reqMgr, actionQueue);
 
             this.metricsSink = createMetricsSink();
+            metricsSink.init(workerConfig.getMetricsConfig().getMetricsSinkConfig());
 
             this.functionActioner = new FunctionActioner(workerConfig, functionContainerFactory,
                     metricsSink, workerConfig.getMetricsConfig().getMetricsCollectionInterval(),
@@ -140,8 +141,7 @@ public class Worker extends AbstractService {
             log.info("Start worker {}...", workerConfig.getWorkerId());
             log.info("Worker Configs: {}", workerConfig);
         } catch (Exception e) {
-            log.error("Failed to create pulsar client to {}",
-                workerConfig.getPulsarServiceUrl(), e);
+            log.error("Error Starting up in worker", e);
             throw new RuntimeException(e);
         }
 

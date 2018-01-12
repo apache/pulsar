@@ -21,16 +21,12 @@ package org.apache.pulsar.functions.runtime.metrics.sink;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.net.InetSocketAddress;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Strings;
 import com.google.common.base.Ticker;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -38,7 +34,6 @@ import com.google.common.cache.CacheBuilder;
 import com.sun.net.httpserver.HttpServer;
 
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 
 /**
@@ -51,10 +46,6 @@ abstract class AbstractWebSink implements MetricsSink {
 
     // Metrics will be published on http://host:port/path, the port
     private static final String KEY_PORT = "port";
-
-    // If you want to specify a file from which to read the port instead of
-    // supplying it directly
-    private static final String KEY_PORT_FILE = "port-file";
 
     // The path
     private static final String KEY_PATH = "path";
@@ -84,7 +75,6 @@ abstract class AbstractWebSink implements MetricsSink {
     @Override
     public final void init(Map<String, String> conf) {
         String path = conf.get(KEY_PATH);
-        String portFile = conf.get(KEY_PORT_FILE);
 
         cacheMaxSize = Long.valueOf(conf.getOrDefault(KEY_METRICS_CACHE_MAX_SIZE,
                 DEFAULT_MAX_CACHE_SIZE));
@@ -95,22 +85,7 @@ abstract class AbstractWebSink implements MetricsSink {
         // initialize child classes
         initialize(conf);
 
-        int port = Integer.valueOf(conf.getOrDefault(KEY_PORT, "0"));
-        if (port == 0) {
-            if (!Strings.isNullOrEmpty(portFile)) {
-                try (Stream<String> lines = Files.lines(Paths.get(portFile))) {
-                    port = Integer.valueOf(lines.findFirst().get().trim());
-                } catch (IOException | SecurityException | IllegalArgumentException e) {
-                    throw new IllegalArgumentException("Could not parse " + KEY_PORT_FILE + " " + portFile
-                            + " Make sure the file is readable,"
-                            + " only contains the port on which the service should run"
-                            + " and is UTF8 encoded", e);
-                }
-            } else {
-                throw new IllegalArgumentException("Neither 'port' nor 'port_file' "
-                        + "were specified in config for metrics sink");
-            }
-        }
+        int port = Integer.valueOf(conf.getOrDefault(KEY_PORT, "9099"));
         startHttpServer(path, port);
     }
 
@@ -122,6 +97,7 @@ abstract class AbstractWebSink implements MetricsSink {
      * @param port
      */
     protected void startHttpServer(String path, int port) {
+        LOG.info("Starting AbstractWebMetricSink at path" + path + " and port " + port);
         try {
             httpServer = HttpServer.create(new InetSocketAddress(port), 0);
             httpServer.createContext(path, httpExchange -> {
