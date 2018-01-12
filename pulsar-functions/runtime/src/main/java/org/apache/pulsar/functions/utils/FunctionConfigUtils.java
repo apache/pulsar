@@ -48,4 +48,16 @@ public class FunctionConfigUtils {
     public static String getFullyQualifiedName(FunctionConfig functionConfig) {
         return String.format("%s/%s/%s", functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
     }
+
+    public static String extractTenantFromFQN(String fullyQualifiedName) {
+        return fullyQualifiedName.split("/")[0];
+    }
+
+    public static String extractNamespaceFromFQN(String fullyQualifiedName) {
+        return fullyQualifiedName.split("/")[1];
+    }
+
+    public static String extractFunctionNameFromFQN(String fullyQualifiedName) {
+        return fullyQualifiedName.split("/")[2];
+    }
 }
