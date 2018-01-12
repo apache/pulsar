@@ -30,6 +30,7 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.fs.LimitsConfig;
+import org.apache.pulsar.functions.fs.MetricsConfig;
 
 @Data
 @Setter
@@ -49,6 +50,7 @@ public class WorkerConfig implements Serializable {
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
     private LimitsConfig limitsConfig;
+    private MetricsConfig metricsConfig;
 
     @Data
     @Setter

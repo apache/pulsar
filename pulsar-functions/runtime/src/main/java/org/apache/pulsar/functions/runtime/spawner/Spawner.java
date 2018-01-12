@@ -23,6 +23,8 @@
  */
 package org.apache.pulsar.functions.runtime.spawner;
 
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
@@ -33,6 +35,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
+import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 
 @Slf4j
 public class Spawner implements AutoCloseable {
@@ -40,7 +43,8 @@ public class Spawner implements AutoCloseable {
     public static Spawner createSpawner(FunctionConfig fnConfig,
                                         LimitsConfig limitsConfig,
                                         String codeFile,
-                                        FunctionContainerFactory containerFactory) {
+                                        FunctionContainerFactory containerFactory,
+                                        MetricsSink metricsSink, int metricsCollectionInterval) {
         AssignmentInfo assignmentInfo = new AssignmentInfo(
             fnConfig,
             UUID.randomUUID().toString(),
@@ -51,7 +55,9 @@ public class Spawner implements AutoCloseable {
             limitsConfig,
             assignmentInfo,
             codeFile,
-            containerFactory);
+            containerFactory,
+            metricsSink,
+            metricsCollectionInterval);
     }
 
     private final LimitsConfig limitsConfig;
@@ -60,21 +66,37 @@ public class Spawner implements AutoCloseable {
     private final String codeFile;
 
     private FunctionContainer functionContainer;
+    private MetricsSink metricsSink;
+    private int metricsCollectionInterval;
+    private Timer metricsCollectionTimer;
 
     private Spawner(LimitsConfig limitsConfig,
                     AssignmentInfo assignmentInfo,
                     String codeFile,
-                    FunctionContainerFactory containerFactory) {
+                    FunctionContainerFactory containerFactory,
+                    MetricsSink metricsSink,
+                    int metricsCollectionInterval) {
         this.limitsConfig = limitsConfig;
         this.assignmentInfo = assignmentInfo;
         this.functionContainerFactory = containerFactory;
         this.codeFile = codeFile;
+        this.metricsSink = metricsSink;
+        this.metricsCollectionInterval = metricsCollectionInterval;
     }
 
     public void start() throws Exception {
         log.info("Spawner starting function {}", this.assignmentInfo.getFunctionConfig().getName());
         functionContainer = functionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         functionContainer.start();
+        if (metricsSink != null) {
+            metricsCollectionTimer = new Timer();
+            metricsCollectionTimer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    functionContainer.getAndResetMetrics().thenAccept(t -> metricsSink.processRecord(t, assignmentInfo.getFunctionConfig()));
+                }
+            }, metricsCollectionInterval, metricsCollectionInterval);
+        }
     }
 
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
@@ -85,6 +107,9 @@ public class Spawner implements AutoCloseable {
     public void close() {
         if (null != functionContainer) {
             functionContainer.stop();
+        }
+        if (metricsCollectionTimer != null) {
+            metricsCollectionTimer.cancel();
         }
     }
 

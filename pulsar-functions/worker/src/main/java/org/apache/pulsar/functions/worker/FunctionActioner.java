@@ -24,6 +24,7 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import java.io.File;
@@ -41,6 +42,8 @@ public class FunctionActioner implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
     private final FunctionContainerFactory functionContainerFactory;
+    private final MetricsSink metricsSink;
+    private final int metricsCollectionInterval;
     private final Namespace dlogNamespace;
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
@@ -48,10 +51,14 @@ public class FunctionActioner implements AutoCloseable {
 
     public FunctionActioner(WorkerConfig workerConfig,
                             FunctionContainerFactory functionContainerFactory,
+                            MetricsSink metricsSink,
+                            int metricCollectionInterval,
                             Namespace dlogNamespace,
                             LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
         this.functionContainerFactory = functionContainerFactory;
+        this.metricsSink = metricsSink;
+        this.metricsCollectionInterval = metricCollectionInterval;
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
         actioner = new Thread(() -> {
@@ -115,7 +122,8 @@ public class FunctionActioner implements AutoCloseable {
                     functionMetaData.getPackageLocation().getPackagePath());
         }
         Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), workerConfig.getLimitsConfig(),
-                pkgFile.getAbsolutePath(), functionContainerFactory);
+                pkgFile.getAbsolutePath(), functionContainerFactory,
+                metricsSink, metricsCollectionInterval);
 
         functionRuntimeInfo.setSpawner(spawner);
         spawner.start();

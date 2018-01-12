@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
@@ -42,6 +43,7 @@ import org.apache.pulsar.functions.worker.rest.WorkerServer;
 public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
+    private MetricsSink metricsSink;
     private PulsarClient client;
     private FunctionRuntimeManager functionRuntimeManager;
     private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
@@ -117,7 +119,10 @@ public class Worker extends AbstractService {
 
             this.functionRuntimeManager = new FunctionRuntimeManager(workerConfig, reqMgr, actionQueue);
 
+            this.metricsSink = createMetricsSink();
+
             this.functionActioner = new FunctionActioner(workerConfig, functionContainerFactory,
+                    metricsSink, workerConfig.getMetricsConfig().getMetricsCollectionInterval(),
                     dlogNamespace, actionQueue);
             this.functionActioner.start();
 
@@ -174,6 +179,20 @@ public class Worker extends AbstractService {
         }
         if (null != functionActioner) {
             functionActioner.close();
+        }
+    }
+
+    private MetricsSink createMetricsSink() {
+        String className = workerConfig.getMetricsConfig().getMetricsSinkClassName();
+        try {
+            MetricsSink sink = (MetricsSink) Class.forName(className).newInstance();
+            return sink;
+        } catch (InstantiationException e) {
+            throw new RuntimeException(e + " IMetricsSink class must have a no-arg constructor.");
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e + " IMetricsSink class must be concrete.");
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e + " IMetricsSink class must be a class path.");
         }
     }
 }
