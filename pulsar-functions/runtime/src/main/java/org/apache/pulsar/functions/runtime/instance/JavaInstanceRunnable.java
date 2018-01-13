@@ -249,11 +249,26 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
+        InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
+        addSystemMetrics("__total_processed__", stats.getTotalProcessed(), bldr);
+        addSystemMetrics("__total_successfully_processed__", stats.getTotalSuccessfullyProcessed(), bldr);
+        addSystemMetrics("__total_system_exceptions__", stats.getTotalSystemExceptions(), bldr);
+        addSystemMetrics("__total_timeout_exceptions__", stats.getTotalTimeoutExceptions(), bldr);
+        addSystemMetrics("__total_user_exceptions__", stats.getTotalUserExceptions(), bldr);
         if (javaInstance != null) {
-            return javaInstance.getAndResetMetrics();
-        } else {
-            return null;
+            InstanceCommunication.MetricsData userMetrics =  javaInstance.getAndResetMetrics();
+            if (userMetrics != null) {
+                bldr.putAllMetrics(userMetrics.getMetricsMap());
+            }
         }
+        return bldr.build();
+    }
+
+    private static void addSystemMetrics(String metricName, double value, InstanceCommunication.MetricsData.Builder bldr) {
+        InstanceCommunication.MetricsData.DataDigest digest =
+                InstanceCommunication.MetricsData.DataDigest.newBuilder()
+                .setCount(value).setSum(value).setMax(value).setMin(0).build();
+        bldr.putMetrics(metricName, digest);
     }
 
     private static String convertMessageIdToString(MessageId messageId) {
