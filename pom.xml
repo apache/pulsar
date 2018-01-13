@@ -747,6 +747,11 @@ flexible messaging model and an intuitive client API.</description>
           </excludes>
         </configuration>
       </plugin>
+      <plugin>
+        <groupId>net.revelc.code.formatter</groupId>
+        <artifactId>formatter-maven-plugin</artifactId>
+        <version>2.7.0</version>
+      </plugin>
     </plugins>
 
     <pluginManagement>
@@ -813,6 +818,27 @@ flexible messaging model and an intuitive client API.</description>
               </pluginExecutions>
             </lifecycleMappingMetadata>
           </configuration>
+        </plugin>
+        <plugin>
+          <groupId>net.revelc.code.formatter</groupId>
+          <artifactId>formatter-maven-plugin</artifactId>
+          <version>2.7.0</version>
+          <executions>
+            <execution>
+              <id>code-format</id>
+              <phase>clean</phase>
+              <goals>
+                <goal>format</goal>
+              </goals>
+            </execution>
+            <execution>
+              <id>code-format-check</id>
+              <phase>validate</phase>
+              <goals>
+                <goal>validate</goal>
+              </goals>
+            </execution>
+          </executions>
         </plugin>
       </plugins>
     </pluginManagement>
