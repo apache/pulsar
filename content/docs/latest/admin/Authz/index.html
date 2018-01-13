@@ -2438,7 +2438,7 @@
 
 <span class="c"># Set Athenz auth plugin and its parameters
 </span><span class="py">authPlugin</span><span class="p">=</span><span class="s">org.apache.pulsar.client.impl.auth.AuthenticationAthenz</span>
-<span class="py">authParams</span><span class="p">=</span><span class="s">tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1</span>
+<span class="py">authParams</span><span class="p">=</span><span class="s">{"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}</span>
 
 <span class="c"># Enable TLS
 </span><span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
