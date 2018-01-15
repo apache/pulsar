@@ -37,6 +37,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -349,7 +350,8 @@ public class ServerCnx extends PulsarHandler {
         if (service.isAuthorizationEnabled()) {
             authorizationFuture = service.getAuthorizationManager().canConsumeAsync(
                     DestinationName.get(subscribe.getTopic()),
-                    originalPrincipal != null ? originalPrincipal : authRole);
+                    originalPrincipal != null ? originalPrincipal : authRole,
+                    subscribe.getSubscription());
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
         }
@@ -459,6 +461,15 @@ public class ServerCnx extends PulsarHandler {
                 log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
+            return null;
+        }).exceptionally(ex -> {
+            String msg = String.format("[%s] %s with role %s", remoteAddress, ex.getMessage(), authRole);
+            if (ex.getCause() instanceof PulsarServerException) {
+                log.info(msg);
+            } else {
+                log.warn(msg);
+            }
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, ex.getMessage()));
             return null;
         });
     }

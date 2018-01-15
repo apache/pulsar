@@ -29,6 +29,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -308,7 +309,7 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n", required = true)
         private String bundle;
-        
+
         @Parameter(names = { "--unload",
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
         private boolean unload;
@@ -534,6 +535,21 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription auth mode on a namespace")
+    private class SetSubscriptionAuthMode extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-m", "--subscription-auth-mode" }, description = "subscription name", required = true)
+        private String mode;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscriptionAuthMode(namespace, SubscriptionAuthMode.valueOf(mode));
+        }
+    }
+
     private static long validateSizeString(String s) {
         char last = s.charAt(s.length() - 1);
         String subStr = s.substring(0, s.length() - 1);
@@ -623,5 +639,6 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("unsubscribe", new Unsubscribe());
 
         jcommander.addCommand("set-encryption-required", new SetEncryptionRequired());
+        jcommander.addCommand("set-subscription-auth-mode", new SetSubscriptionAuthMode());
     }
 }
