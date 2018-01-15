@@ -458,7 +458,7 @@ public class Consumer {
         DestinationName destination = DestinationName.get(subscription.getDestination());
         if (cnx.getBrokerService().getAuthorizationManager() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId)) {
+                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId, subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {

@@ -33,6 +33,7 @@ import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 /**
  * Admin interface for namespaces management
@@ -835,4 +836,13 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
+
+     /**
+     * Set the given subscription auth mode on all destinations on a namespace
+     *
+     * @param namespace
+     * @param subscriptionAuthMode
+     * @throws PulsarAdminException
+     */
+    void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException;
 }
