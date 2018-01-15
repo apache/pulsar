@@ -373,6 +373,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
 
+    /**** --- Metrics --- ****/
+    // If true, export topic level metrics otherwise namespace level
+    private boolean topicMetricsEnabled = false;
+
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1298,4 +1303,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
+
+    public boolean isTopicMetricsEnabled() {
+        return topicMetricsEnabled;
+    }
+
+    public void setTopicMetricsEnabled(boolean topicMetricsEnabled) {
+        this.topicMetricsEnabled = topicMetricsEnabled;
+    }
 }
