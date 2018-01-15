@@ -93,14 +93,14 @@
                   </includes>
                 </filter>
                 <filter>
-                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <artifact>org.apache.pulsar:pulsar-client-admin-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
                 </filter>
               </filters>
               <relocations>
-               <relocation>
+                <relocation>
                   <pattern>org.asynchttpclient</pattern>
                   <shadedPattern>org.apache.pulsar.admin.shade.org.asynchttpclient</shadedPattern>
                 </relocation>

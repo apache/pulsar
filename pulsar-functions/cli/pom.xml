@@ -55,7 +55,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-tools</artifactId>
+      <artifactId>pulsar-client-tools-shaded</artifactId>
       <version>${project.version}</version>
     </dependency>
 
