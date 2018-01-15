@@ -323,7 +323,7 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
 
-        Collection<String> functionStateList = functionRuntimeManager.listFunction(tenant, namespace);
+        Collection<String> functionStateList = functionRuntimeManager.listFunctions(tenant, namespace);
 
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }

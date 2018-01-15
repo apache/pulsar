@@ -28,6 +28,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -78,7 +79,6 @@ public class FunctionMetaDataTopicTailerTest {
         receiveFuture.thenApply(Function.identity()).get();
 
         verify(reader, times(2)).readNextAsync();
-        verify(fsm, times(1)).processUpdate(any(ServiceRequest.class));
-        verify(fsm, times(0)).proccessDeregister(any(ServiceRequest.class));
+        verify(fsm, times(1)).processRequest(any(MessageId.class), any(ServiceRequest.class));
     }
 }
