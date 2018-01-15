@@ -172,7 +172,7 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     }
 
     public String getConfigurationStoreServers() {
-        return configurationStoreServers;
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
     }
 
     public void setConfigurationStoreServers(String configurationStoreServers) {

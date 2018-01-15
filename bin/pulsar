@@ -107,7 +107,7 @@ where command is one of:
     broker              Run a broker server
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
-    global-zookeeper    Deprecated. Run a configuration-store server
+    global-zookeeper    Run a configuration-store server(Deprecated. Use "bin/pulsar configuration-store" instead)
     configuration-store    Run a configuration-store server
     discovery           Run a discovery server
     proxy               Run a pulsar proxy
@@ -128,7 +128,7 @@ Environment variables:
    PULSAR_BROKER_CONF            Configuration file for broker (default: $DEFAULT_BROKER_CONF)
    PULSAR_BOOKKEEPER_CONF        Configuration file for bookie (default: $DEFAULT_BOOKKEEPER_CONF)
    PULSAR_ZK_CONF                Configuration file for zookeeper (default: $DEFAULT_ZK_CONF)
-   PULSAR_GLOBAL_ZK_CONF         Deprecated. Configuration file for global configuration zookeeper (default: $DEFAULT_GLOBAL_ZK_CONF)
+   PULSAR_GLOBAL_ZK_CONF         Configuration file for global configuration zookeeper (default: $DEFAULT_GLOBAL_ZK_CONF) (Deprecated. Replace with "PULSAR_CONFIGURATION_STORE_CONF")
    PULSAR_CONFIGURATION_STORE_CONF         Configuration file for global configuration zookeeper (default: $DEFAULT_CONFIGURATION_STORE_CONF)
    PULSAR_DISCOVERY_CONF         Configuration file for discovery service (default: $DEFAULT_DISCOVERY_CONF)
    PULSAR_WEBSOCKET_CONF         Configuration file for websocket proxy (default: $DEFAULT_WEBSOCKET_CONF)
@@ -195,6 +195,7 @@ fi
 
 if [ -z "$PULSAR_GLOBAL_ZK_CONF" ]; then
     PULSAR_GLOBAL_ZK_CONF=$DEFAULT_GLOBAL_ZK_CONF
+    PULSAR_CONFIGURATION_STORE_CONF=$DEFAULT_GLOBAL_ZK_CONF
 fi
 
 if [ -z "$PULSAR_CONFIGURATION_STORE_CONF" ]; then

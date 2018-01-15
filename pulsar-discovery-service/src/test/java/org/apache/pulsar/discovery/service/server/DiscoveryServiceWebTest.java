@@ -20,6 +20,7 @@ package org.apache.pulsar.discovery.service.server;
 
 import static org.apache.bookkeeper.test.PortManager.nextFreePort;
 import static org.testng.Assert.assertTrue;
+import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -27,9 +28,12 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.discovery.service.DiscoveryService;
+import org.apache.pulsar.discovery.service.PulsarServerException;
 import org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter;
 import org.apache.pulsar.discovery.service.server.ServerManager;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
 /**
@@ -60,6 +64,64 @@ public class DiscoveryServiceWebTest {
         DiscoveryServiceStarter.startWebService(server, config);
         assertTrue(server.isStarted());
         server.stop();
+        testConfigFile.delete();
+    }
+
+    /**
+     * Test Configuration BackwardCompat for the change from globalzookeeper to configurationStore
+     */
+    @Test
+    public void testConfigurationBackwardCompat() throws Exception {
+        DiscoveryService service = Mockito.mock(DiscoveryService.class);
+
+        int port = nextFreePort();
+        File testConfigFile = new File("tmp." + System.currentTimeMillis() + ".properties");
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        PrintWriter printWriter = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
+        printWriter.println("zookeeperServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
+        printWriter.println("globalZookeeperServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
+        printWriter.println("webServicePort=" + port);
+        printWriter.close();
+        testConfigFile.deleteOnExit();
+
+        ServiceConfig config = PulsarConfigurationLoader.create(testConfigFile.getAbsolutePath(), ServiceConfig.class);
+        // have zookeeperServers and globalZookeeperServers, config is valid
+        // should not throw IllegalArgumentException.
+        DiscoveryServiceStarter.checkConfig(config);
+
+
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        PrintWriter printWriter2 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
+        printWriter2.println("zookeeperServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
+        printWriter2.println("configurationStoreServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
+        printWriter2.println("webServicePort=" + port);
+        printWriter2.close();
+        config = PulsarConfigurationLoader.create(testConfigFile.getAbsolutePath(), ServiceConfig.class);
+        // have zookeeperServers and configurationStoreServers, config is valid
+        // should not throw IllegalArgumentException.
+        DiscoveryServiceStarter.checkConfig(config);
+
+
+        if (testConfigFile.exists()) {
+            testConfigFile.delete();
+        }
+        PrintWriter printWriter3 = new PrintWriter(new OutputStreamWriter(new FileOutputStream(testConfigFile)));
+        printWriter3.println("zookeeperServers=z1.pulsar.com,z2.pulsar.com,z3.pulsar.com");
+        printWriter3.println("webServicePort=" + port);
+        printWriter3.close();
+        config = PulsarConfigurationLoader.create(testConfigFile.getAbsolutePath(), ServiceConfig.class);
+        // only have zookeeperServers
+        // should throw IllegalArgumentException.
+        try {
+            DiscoveryServiceStarter.checkConfig(config);
+        } catch (IllegalArgumentException e) {
+            // expected: configure error
+        }
+
         testConfigFile.delete();
     }
 

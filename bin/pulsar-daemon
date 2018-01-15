@@ -25,7 +25,7 @@ where command is one of:
     broker           Run a broker server
     bookie           Run a bookie server
     zookeeper        Run a zookeeper server
-    global-zookeeper Deprecated. Run a configuration-store server
+    global-zookeeper Run a configuration-store server (Deprecated. Use pulsar-daemon configuration-store instead)
     configuration-store Run a configuration-store server
     discovery        Run a discovery server
     websocket        Run a websocket proxy server

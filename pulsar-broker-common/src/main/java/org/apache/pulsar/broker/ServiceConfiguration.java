@@ -481,9 +481,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public String getConfigurationStoreServers() {
         if (this.configurationStoreServers == null || this.configurationStoreServers.isEmpty()) {
-            // If the configuration is not set, assuming that the globalZK is not enabled and all data is in the same
-            // ZooKeeper cluster
-            return this.getZookeeperServers();
+            // If the configuration is not set, assuming that all data is in the same as globalZK cluster
+            return this.getGlobalZookeeperServers();
         }
         return configurationStoreServers;
     }
