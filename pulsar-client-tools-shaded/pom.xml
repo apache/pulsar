@@ -150,6 +150,10 @@
                   <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
                 </relocation>
                 <relocation>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                </relocation>
+                <relocation>
                   <pattern>io.netty</pattern>
                   <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
                 </relocation>
