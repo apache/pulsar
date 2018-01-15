@@ -18,23 +18,35 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.google.protobuf.ByteString;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.Snapshot;
 import org.apache.pulsar.functions.proto.Request.ServiceRequest;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.request.ServiceRequestInfo;
 import org.apache.pulsar.functions.worker.request.ServiceRequestManager;
 import org.apache.pulsar.functions.worker.request.ServiceRequestUtils;
 
+import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -50,6 +62,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
     // A map in which the key is the service request id and value is the service request
     private final Map<String, ServiceRequestInfo> pendingServiceRequests = new ConcurrentHashMap<>();
 
+    private final PulsarClient pulsarClient;
+
     private final ServiceRequestManager serviceRequestManager;
 
     private final WorkerConfig workerConfig;
@@ -59,11 +73,18 @@ public class FunctionRuntimeManager implements AutoCloseable {
     private boolean initializePhase = true;
     private final String initializeMarkerRequestId = UUID.randomUUID().toString();
 
+    // The message id of the last messaged processed by function runtime manager
+    private MessageId lastProcessedMessageId;
+
+    private PulsarAdmin pulsarAdminClient;
+
     public FunctionRuntimeManager(WorkerConfig workerConfig,
-                                  ServiceRequestManager serviceRequestManager,
-                                  LinkedBlockingQueue<FunctionAction> actionQueue) {
+                                  PulsarClient pulsarClient,
+                                  LinkedBlockingQueue<FunctionAction> actionQueue) throws PulsarClientException {
         this.workerConfig = workerConfig;
-        this.serviceRequestManager = serviceRequestManager;
+        this.pulsarClient = pulsarClient;
+        this.serviceRequestManager = new ServiceRequestManager(
+                this.pulsarClient.createProducer(this.workerConfig.getFunctionMetadataTopic()));
         this.actionQueue = actionQueue;
     }
 
@@ -86,6 +107,14 @@ public class FunctionRuntimeManager implements AutoCloseable {
     @Override
     public void close() {
         serviceRequestManager.close();
+        try {
+            this.pulsarClient.close();
+        } catch (PulsarClientException e) {
+            log.error("Failed to close pulsar client");
+        }
+        if (this.pulsarAdminClient != null) {
+            this.pulsarAdminClient.close();
+        }
     }
 
     public FunctionRuntimeInfo getFunction(String tenant, String namespace, String functionName) {
@@ -100,7 +129,17 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return getFunction(functionMetaData.getFunctionConfig());
     }
 
-    public Collection<String> listFunction(String tenant, String namespace) {
+    public List<FunctionRuntimeInfo> getAllFunctions() {
+        List<FunctionRuntimeInfo> ret = new LinkedList<>();
+        for (Map<String, Map<String, FunctionRuntimeInfo>> i : this.functionMap.values()) {
+            for (Map<String, FunctionRuntimeInfo> j : i.values()) {
+                ret.addAll(j.values());
+            }
+        }
+        return ret;
+    }
+
+    public Collection<String> listFunctions(String tenant, String namespace) {
         List<String> ret = new LinkedList<>();
 
         if (!this.functionMap.containsKey(tenant)) {
@@ -195,6 +234,26 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return requestResultCompletableFuture;
     }
 
+    public void processRequest(MessageId messageId, ServiceRequest serviceRequest) {
+        // make sure that snapshotting and processing requests don't happen simultaneously
+        synchronized (this) {
+            switch (serviceRequest.getServiceRequestType()) {
+                case INITIALIZE:
+                    this.processInitializeMarker(serviceRequest);
+                    break;
+                case UPDATE:
+                    this.processUpdate(serviceRequest);
+                    break;
+                case DELETE:
+                    this.proccessDeregister(serviceRequest);
+                    break;
+                default:
+                    log.warn("Received request with unrecognized type: {}", serviceRequest);
+            }
+            this.lastProcessedMessageId = messageId;
+        }
+    }
+
     /**
      * Complete requests that this worker has pending
      * @param serviceRequest
@@ -204,7 +263,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
     private void completeRequest(ServiceRequest serviceRequest, boolean isSuccess, String message) {
         ServiceRequestInfo pendingServiceRequestInfo
                 = this.pendingServiceRequests.getOrDefault(
-                        serviceRequest.getRequestId(), null);
+                serviceRequest.getRequestId(), null);
         if (pendingServiceRequestInfo != null) {
             RequestResult requestResult = new RequestResult();
             requestResult.setSuccess(isSuccess);
@@ -289,6 +348,121 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
+    /**
+     * Restores the latest snapshot into in memory state
+     * @return the message Id associated with the latest snapshot
+     */
+    public MessageId restore() {
+        List<Integer> snapshots = getSnapshotTopics();
+        if (snapshots.isEmpty()) {
+            // if no snapshot that go to earliest message in fmt
+            return MessageId.earliest;
+        } else {
+
+            String latestsSnapshot = String.format("persistent://%s/%s/snapshot-%d",
+                    this.workerConfig.getPulsarFunctionsNamespace(),
+                    this.workerConfig.getFunctionMetadataSnapshotsTopicPath(),
+                    snapshots.get(0));
+            log.info("Restoring state snapshot from {}", latestsSnapshot);
+            Snapshot snapshot = null;
+            MessageId lastAppliedMessageId = null;
+            try (Reader reader = this.pulsarClient.createReader(
+                    latestsSnapshot, MessageId.earliest, new ReaderConfiguration())){
+                snapshot = Snapshot.parseFrom(reader.readNextAsync().get().getData());
+                for (FunctionMetaData functionMetaData : snapshot.getFunctionMetaDataListList()) {
+                    this.addFunctionToFunctionMap(functionMetaData);
+                }
+                lastAppliedMessageId = MessageId.fromByteArray(snapshot.getLastAppliedMessageId().toByteArray());
+
+            } catch (InterruptedException | ExecutionException | IOException e) {
+                log.error("Failed to read snapshot from topic " + latestsSnapshot);
+                throw new RuntimeException(e);
+            }
+            log.info("Restored state snapshot from {} with last message id {}", latestsSnapshot, lastAppliedMessageId);
+            return lastAppliedMessageId;
+        }
+    }
+
+    /**
+     * Snap shots the current state and puts it in a topic.  Only one worker should execute this at a time
+     */
+    public void snapshot() {
+        Snapshot.Builder snapshotBuilder = Snapshot.newBuilder();
+
+        List<Integer> snapshots = getSnapshotTopics();
+        int nextSnapshotTopicIndex = 0;
+        if (!snapshots.isEmpty()) {
+            nextSnapshotTopicIndex = snapshots.get(0);
+        }
+        nextSnapshotTopicIndex += 1;
+        String nextSnapshotTopic = String.format("persistent://%s/%s/snapshot-%d",
+                this.workerConfig.getPulsarFunctionsNamespace(),
+                this.workerConfig.getFunctionMetadataSnapshotsTopicPath(),
+                nextSnapshotTopicIndex);
+
+        // Make sure not processing any requests at the same time
+        synchronized (this) {
+            List<FunctionRuntimeInfo> functionRuntimeInfoList = this.getAllFunctions();
+            if (functionRuntimeInfoList.isEmpty()) {
+                return;
+            }
+            for (FunctionRuntimeInfo functionRuntimeInfo : functionRuntimeInfoList) {
+                snapshotBuilder.addFunctionMetaDataList(functionRuntimeInfo.getFunctionMetaData());
+            }
+            log.info("Writing snapshot to {} with last message id {}", nextSnapshotTopic, this.lastProcessedMessageId);
+            snapshotBuilder.setLastAppliedMessageId(ByteString.copyFrom(this.lastProcessedMessageId.toByteArray()));
+        }
+        try (Producer producer = this.pulsarClient.createProducer(nextSnapshotTopic)){
+            producer.send(snapshotBuilder.build().toByteArray());
+        } catch (PulsarClientException e) {
+            log.error("Failed to write snapshot", e);
+            throw new RuntimeException(e);
+        }
+
+        // deleting older snapshots
+        for (Integer snapshotIndex : snapshots) {
+            String oldSnapshotTopic = String.format("persistent://%s/%s/snapshot-%d",
+                    this.workerConfig.getPulsarFunctionsNamespace(),
+                    this.workerConfig.getFunctionMetadataSnapshotsTopicPath(),
+                    snapshotIndex);
+            log.info("Deleting old snapshot {}", oldSnapshotTopic);
+            this.deleteSnapshot(oldSnapshotTopic);
+        }
+    }
+
+    private void deleteSnapshot(String snapshotTopic) {
+        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
+        try {
+            pulsarAdmin.persistentTopics().delete(snapshotTopic);
+        } catch (PulsarAdminException e) {
+            log.error("Failed to delete old snapshot {}", snapshotTopic, e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    private List<Integer> getSnapshotTopics() {
+        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
+        String namespace = workerConfig.getPulsarFunctionsNamespace();
+        String snapshotsTopicPath = workerConfig.getFunctionMetadataSnapshotsTopicPath();
+        String snapshotTopicPath = String.format("persistent://%s/%s", namespace, snapshotsTopicPath);
+        List<Integer> ret = new LinkedList<>();
+        try {
+            List<String> topics = pulsarAdmin.persistentTopics().getList(namespace);
+            for (String topic : topics) {
+                if (topic.startsWith(snapshotTopicPath)) {
+                    ret.add(Integer.parseInt(
+                            topic.replace(
+                                    String.format("%s/snapshot-", snapshotTopicPath, snapshotsTopicPath), "")));
+                }
+            }
+        } catch (PulsarAdminException e) {
+            log.error("Error getting persistent topics", e);
+            throw new RuntimeException(e);
+        }
+        Collections.sort(ret, Collections.reverseOrder());
+        return ret;
+    }
+
     private void addFunctionToFunctionMap(FunctionMetaData functionMetaData) {
         FunctionConfig functionConfig = functionMetaData.getFunctionConfig();
         if (!this.functionMap.containsKey(functionConfig.getTenant())) {
@@ -366,5 +540,12 @@ public class FunctionRuntimeManager implements AutoCloseable {
                 }
             }
         }
+    }
+
+    public PulsarAdmin getPulsarAdminClient() {
+        if (this.pulsarAdminClient == null) {
+            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+        }
+        return this.pulsarAdminClient;
     }
 }

@@ -20,8 +20,13 @@
 workerId: standalone
 workerPort: 6750
 zookeeperServers: localhost:2181
-functionMetadataTopic: persistent://standalone/sample/ns1/pulsar_functions/metadata
+functionMetadataTopicName: metadata
+functionMetadataSnapshotsTopicPath: snapshots
+clusterCoordinateTopicName: coordinate
+snapshotFreqMs: 600000
+pulsarFunctionsNamespace: sample/standalone/functions
 pulsarServiceUrl: pulsar://localhost:6650
+pulsarWebServiceUrl: http://localhost:8080
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
 limitsConfig:

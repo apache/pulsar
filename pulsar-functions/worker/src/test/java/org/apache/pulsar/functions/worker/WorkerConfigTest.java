@@ -35,14 +35,16 @@ public class WorkerConfigTest {
         WorkerConfig wc = new WorkerConfig();
         wc.setPulsarServiceUrl("pulsar://localhost:1234");
         wc.setZookeeperServers("localhost:1234");
-        wc.setFunctionMetadataTopic(TEST_NAME + "-meta-topic");
+        wc.setPulsarFunctionsNamespace("sample/standalone/functions");
+        wc.setFunctionMetadataTopicName(TEST_NAME + "-meta-topic");
         wc.setNumFunctionPackageReplicas(3);
         wc.setWorkerId(TEST_NAME + "-worker");
         wc.setWorkerPort(1234);
 
         assertEquals("pulsar://localhost:1234", wc.getPulsarServiceUrl());
         assertEquals("localhost:1234", wc.getZookeeperServers());
-        assertEquals(TEST_NAME + "-meta-topic", wc.getFunctionMetadataTopic());
+        assertEquals(TEST_NAME + "-meta-topic", wc.getFunctionMetadataTopicName());
+        assertEquals("sample/standalone/functions", wc.getPulsarFunctionsNamespace());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals(TEST_NAME + "-worker", wc.getWorkerId());
         assertEquals(1234, wc.getWorkerPort());
@@ -55,7 +57,7 @@ public class WorkerConfigTest {
 
         assertEquals("pulsar://localhost:6650", wc.getPulsarServiceUrl());
         assertEquals("localhost:1234", wc.getZookeeperServers());
-        assertEquals("test-function-metadata-topic", wc.getFunctionMetadataTopic());
+        assertEquals("test-function-metadata-topic", wc.getFunctionMetadataTopicName());
         assertEquals(3, wc.getNumFunctionPackageReplicas());
         assertEquals("test-worker", wc.getWorkerId());
         assertEquals(7654, wc.getWorkerPort());

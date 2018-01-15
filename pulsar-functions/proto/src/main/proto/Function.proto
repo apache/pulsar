@@ -53,3 +53,9 @@ message FunctionMetaData {
     uint64 createTime = 5;
     string workerId = 6;
 }
+
+message Snapshot {
+    repeated FunctionMetaData functionMetaDataList = 1;
+    bytes lastAppliedMessageId = 2;
+
+}

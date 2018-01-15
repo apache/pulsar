@@ -54,8 +54,8 @@ public class FunctionMetaDataTopicTailer
 
     private void receiveOne() {
         reader.readNextAsync()
-            .thenAccept(this)
-            .exceptionally(this);
+                .thenAccept(this)
+                .exceptionally(this);
     }
 
     @Override
@@ -85,19 +85,7 @@ public class FunctionMetaDataTopicTailer
             log.debug("Received Service Request: {}", serviceRequest);
         }
 
-        switch(serviceRequest.getServiceRequestType()) {
-            case INITIALIZE:
-                this.functionRuntimeManager.processInitializeMarker(serviceRequest);
-                break;
-            case UPDATE:
-                this.functionRuntimeManager.processUpdate(serviceRequest);
-                break;
-            case DELETE:
-                this.functionRuntimeManager.proccessDeregister(serviceRequest);
-                break;
-            default:
-                log.warn("Received request with unrecognized type: {}", serviceRequest);
-        }
+        this.functionRuntimeManager.processRequest(msg.getMessageId(), serviceRequest);
 
         // receive next request
         receiveOne();

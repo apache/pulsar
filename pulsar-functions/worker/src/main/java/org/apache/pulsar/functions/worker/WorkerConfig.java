@@ -45,12 +45,17 @@ public class WorkerConfig implements Serializable {
     private String workerId;
     private int workerPort;
     private String zookeeperServers;
-    private String functionMetadataTopic;
+    private String functionMetadataTopicName;
     private String pulsarServiceUrl;
+    private String pulsarWebServiceUrl;
+    private String clusterCoordinateTopicName;
+    private String functionMetadataSnapshotsTopicPath;
+    private String pulsarFunctionsNamespace;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
     private LimitsConfig limitsConfig;
     private MetricsConfig metricsConfig;
+    private long snapshotFreqMs;
 
     @Data
     @Setter
@@ -72,6 +77,14 @@ public class WorkerConfig implements Serializable {
         private String logDirectory;
     }
     private ProcessContainerFactory processContainerFactory;
+
+    public String getFunctionMetadataTopic() {
+        return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionMetadataTopicName);
+    }
+
+    public String getClusterCoordinationTopic() {
+        return String.format("persistent://%s/%s", pulsarFunctionsNamespace, clusterCoordinateTopicName);
+    }
 
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());

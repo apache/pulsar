@@ -27,6 +27,8 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.exceptions.ZKException;
 import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -38,7 +40,9 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.net.MalformedURLException;
 import java.net.URI;
+import java.net.URL;
 import java.util.UUID;
 
 @Slf4j
@@ -168,5 +172,24 @@ public final class Utils {
             throw e;
         }
         return dlogUri;
+    }
+
+    public static PulsarAdmin getPulsarAdminClient(String pulsarWebServiceUrl) {
+        URL url = null;
+        try {
+            url = new URL(pulsarWebServiceUrl);
+        } catch (MalformedURLException e) {
+            log.error("Error when parsing pulsar web service url", e);
+            throw new RuntimeException(e);
+        }
+
+        PulsarAdmin admin = null;
+        try {
+            admin = new PulsarAdmin(url, new org.apache.pulsar.client.api.ClientConfiguration());
+        } catch (PulsarClientException e) {
+            log.error("Error creating pulsar admin client", e);
+            throw new RuntimeException(e);
+        }
+        return admin;
     }
 }

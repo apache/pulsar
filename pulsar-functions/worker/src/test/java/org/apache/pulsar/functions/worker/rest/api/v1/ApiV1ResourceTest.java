@@ -122,7 +122,7 @@ public class ApiV1ResourceTest {
             .setWorkerPort(8080)
             .setLimitsConfig(limitsConfig)
             .setDownloadDirectory("/tmp/pulsar/functions")
-            .setFunctionMetadataTopic("pulsar/functions")
+            .setFunctionMetadataTopicName("pulsar/functions")
             .setNumFunctionPackageReplicas(3)
             .setPulsarServiceUrl("pulsar://localhost:6650/")
             .setZookeeperServers("localhost:2181");
@@ -944,7 +944,7 @@ public class ApiV1ResourceTest {
     @Test
     public void testListFunctionsSuccess() throws Exception {
         List<String> functions = Lists.newArrayList("test-1", "test-2");
-        when(mockedManager.listFunction(eq(tenant), eq(namespace))).thenReturn(functions);
+        when(mockedManager.listFunctions(eq(tenant), eq(namespace))).thenReturn(functions);
 
         Response response = listDefaultFunctions();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());

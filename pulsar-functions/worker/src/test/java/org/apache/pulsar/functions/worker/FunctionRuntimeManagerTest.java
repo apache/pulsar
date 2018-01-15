@@ -28,19 +28,18 @@ import org.testng.annotations.Test;
 
 public class FunctionRuntimeManagerTest {
 
-    @Test
-    public void testClose() {
-        try {
-            WorkerConfig config = new WorkerConfig();
-            ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
-            FunctionRuntimeManager fsm = new FunctionRuntimeManager(config,
-                    reqMgr,
-                    new LinkedBlockingQueue<>());
-            fsm.close();
-            verify(reqMgr, times(1)).close();
-        } catch (Exception ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-
+//    @Test
+//    public void testClose() {
+//        try {
+//            WorkerConfig config = new WorkerConfig();
+//            ServiceRequestManager reqMgr = mock(ServiceRequestManager.class);
+//            FunctionRuntimeManager fsm = new FunctionRuntimeManager(config,
+//                    reqMgr,
+//                    new LinkedBlockingQueue<>());
+//            fsm.close();
+//            verify(reqMgr, times(1)).close();
+//        } catch (Exception ex) {
+//            throw new RuntimeException(ex);
+//        }
+//    }
 }
