@@ -47,6 +47,7 @@ public class Policies {
     public static final String LAST_BOUNDARY = "0xffffffff";
 
     public boolean encryption_required = false;
+    public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
     @Override
     public boolean equals(Object obj) {
@@ -61,7 +62,8 @@ public class Policies {
                     && Objects.equals(latency_stats_sample_rate, other.latency_stats_sample_rate)
                     && message_ttl_in_seconds == other.message_ttl_in_seconds
                     && Objects.equals(retention_policies, other.retention_policies)
-                    && Objects.equals(encryption_required, other.encryption_required);
+                    && Objects.equals(encryption_required, other.encryption_required)
+                    && Objects.equals(subscription_auth_mode, other.subscription_auth_mode);
         }
 
         return false;
@@ -86,7 +88,7 @@ public class Policies {
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted)
-                .add("encryption_required", encryption_required).toString();
+                .add("encryption_required", encryption_required)
+                .add("subscription_auth_mode", subscription_auth_mode).toString();
     }
 }
-
