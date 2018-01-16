@@ -101,9 +101,10 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new LongRunningHandler(), Thread.currentThread().getContextClassLoader());
+            config, new LongRunningHandler(), Utf8StringSerDe.of(), Utf8StringSerDe.of());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
+        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
+                Utf8StringSerDe.of());
 
         assertNull(result.getUserException());
         assertNotNull(result.getTimeoutException());
@@ -120,9 +121,10 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config,
             (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-            Thread.currentThread().getContextClassLoader());
+            Utf8StringSerDe.of(), Utf8StringSerDe.of());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString));
+        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
+                Utf8StringSerDe.of());
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
     }
@@ -136,7 +138,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new UnsupportedHandler(), Thread.currentThread().getContextClassLoader());
+                config, new UnsupportedHandler(), Utf8StringSerDe.of(), Utf8StringSerDe.of());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -153,7 +155,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new VoidInputHandler(), Thread.currentThread().getContextClassLoader());
+                config, new VoidInputHandler(), Utf8StringSerDe.of(), null);
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -170,9 +172,10 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new VoidOutputHandler(), Thread.currentThread().getContextClassLoader());
+            config, new VoidOutputHandler(), Utf8StringSerDe.of(), Utf8StringSerDe.of());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString));
+        JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString),
+                Utf8StringSerDe.of());
         assertNull(result.getUserException());
         assertNull(result.getTimeoutException());
         assertNull(result.getResult());
@@ -192,7 +195,7 @@ public class JavaInstanceTest {
             new JavaInstance(
                 config,
                 (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-                Thread.currentThread().getContextClassLoader());
+                JavaSerDe.of(), Utf8StringSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
@@ -213,7 +216,7 @@ public class JavaInstanceTest {
             new JavaInstance(
                 config,
                 (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-                Thread.currentThread().getContextClassLoader());
+                Utf8StringSerDe.of(), JavaSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));
