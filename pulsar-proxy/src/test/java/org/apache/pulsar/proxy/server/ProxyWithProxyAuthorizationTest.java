@@ -108,9 +108,8 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
         proxyConfig.setAuthorizationEnabled(false);
-        proxyConfig.setDiscoveryServiceEnabled(false);
-        proxyConfig.setDiscoveryServiceURL("pulsar://localhost:" + BROKER_PORT);
-        proxyConfig.setDiscoveryServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+        proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
+        proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
         
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setServicePortTls(PortManager.nextFreePort());

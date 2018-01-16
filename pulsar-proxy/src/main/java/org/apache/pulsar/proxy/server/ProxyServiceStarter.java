@@ -88,7 +88,8 @@ public class ProxyServiceStarter {
             config.setGlobalZookeeperServers(globalZookeeperServers);
         }
 
-        if (config.isDiscoveryServiceEnabled() || config.isAuthorizationEnabled()) {
+        if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
+                || config.isAuthorizationEnabled()) {
             checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
             checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "globalZookeeperServers must be provided");
         }

@@ -187,7 +187,7 @@ message CommandSubscribe {
 message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
-    optional string original_principal = 3;
+	optional string original_principal = 3;
 }
 
 message CommandPartitionedTopicMetadataResponse {

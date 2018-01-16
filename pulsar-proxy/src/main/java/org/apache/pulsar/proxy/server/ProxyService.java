@@ -19,6 +19,8 @@
 package org.apache.pulsar.proxy.server;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isEmpty;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -112,8 +114,8 @@ public class ProxyService implements Closeable {
     public void start() throws Exception {
         ServiceConfiguration serviceConfiguration = PulsarConfigurationLoader.convertFrom(proxyConfig);
         authenticationService = new AuthenticationService(serviceConfiguration);
-        
-        if (proxyConfig.isDiscoveryServiceEnabled()) {
+
+        if (!isEmpty(proxyConfig.getZookeeperServers()) && !isEmpty(proxyConfig.getGlobalZookeeperServers())) {
             localZooKeeperConnectionService = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
                     proxyConfig.getZookeeperServers(), proxyConfig.getZookeeperSessionTimeoutMs());
             localZooKeeperConnectionService.start(new ShutdownService() {
@@ -123,7 +125,6 @@ public class ProxyService implements Closeable {
                     Runtime.getRuntime().halt(-1);
                 }
             });
-
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
             authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);

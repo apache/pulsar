@@ -170,11 +170,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
             state = State.ProxyLookupRequests;
-            if (service.getConfiguration().isDiscoveryServiceEnabled()) {
-                lookupProxyHandler = new LookupWithDiscoveryServiceHandler(service, this);
-            } else {
-                lookupProxyHandler = new LookupViaServiceUrl(service, this);
-            }
+            ProxyConfiguration proxyConfig = service.getConfiguration();
+            lookupProxyHandler = new LookupProxyHandler(service, this);
             ctx.writeAndFlush(Commands.newConnected(connect.getProtocolVersion()));
         }
     }

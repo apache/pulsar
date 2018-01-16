@@ -34,14 +34,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
-
-    // If Discovery Service is Disabled the proxy will just authenticate the client 
-    // and forward all requests to a VIP or any other service discovery port 
-    private boolean discoveryServiceEnabled = true;
     
     // if Service Discovery is Disabled this url should point to the discovery service provider. 
-    private String discoveryServiceURL = "pulsar://localhost:6650/";
-    private String discoveryServiceURLTLS = "pulsar://localhost:6651/";
+    private String brokerServiceURL;
+    private String brokerServiceURLTLS;
     
     // Port to use to server binary-proto request
     private int servicePort = 6650;
@@ -86,28 +82,20 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     private Properties properties = new Properties();
 
-    public String getDiscoveryServiceURLTLS() {
-        return discoveryServiceURLTLS;
+    public String getBrokerServiceURLTLS() {
+        return brokerServiceURLTLS;
     }
     
-    public void setDiscoveryServiceURLTLS(String discoveryServiceURLTLS) {
-        this.discoveryServiceURLTLS = discoveryServiceURLTLS;
+    public void setBrokerServiceURLTLS(String discoveryServiceURLTLS) {
+        this.brokerServiceURLTLS = discoveryServiceURLTLS;
     }
     
-    public String getDiscoveryServiceURL() {
-        return discoveryServiceURL;
+    public String getBrokerServiceURL() {
+        return brokerServiceURL;
     }
     
-    public void setDiscoveryServiceURL(String discoveryServiceURL) {
-        this.discoveryServiceURL = discoveryServiceURL;
-    }
-    
-    public boolean isDiscoveryServiceEnabled() {
-        return discoveryServiceEnabled;
-    }
-    
-    public void setDiscoveryServiceEnabled(boolean discoveryServiceEnabled) {
-        this.discoveryServiceEnabled = discoveryServiceEnabled;
+    public void setBrokerServiceURL(String discoveryServiceURL) {
+        this.brokerServiceURL = discoveryServiceURL;
     }
     
     public String getZookeeperServers() {

@@ -179,13 +179,15 @@ public class ServerCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", topicName, remoteAddress, requestId);
         }
-        final String proxyClientAuthRole = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.proxyClientAuthRole;
-        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
-        
-        isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
-            if (isProxyAuthorized) {
-                final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-                if (lookupSemaphore.tryAcquire()) {
+
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
+            final String proxyClientAuthRole = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
+                    : this.proxyClientAuthRole;
+            CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
+
+            isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
+                if (isProxyAuthorized) {
                     lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topicName),
                             lookup.getAuthoritative(), proxyClientAuthRole != null ? proxyClientAuthRole : authRole,
                             lookup.getRequestId()).handle((lookupResponse, ex) -> {
@@ -202,19 +204,20 @@ public class ServerCnx extends PulsarHandler {
                                 return null;
                             });
                 } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Failed lookup due to too many lookup-requests {}", remoteAddress, topicName);
-                    }
-                    ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
-                            "Failed due to too many pending lookup requests", requestId));
+                    final String msg = "Proxy Client is not authorized to Lookup";
+                    log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
+                    ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                    lookupSemaphore.release();
                 }
-            } else {
-                final String msg = "Proxy Client is not authorized to Lookup";
-                log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                return null;
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed lookup due to too many lookup-requests {}", remoteAddress, topicName);
             }
-            return null;
-        });
+            ctx.writeAndFlush(newLookupErrorResponse(ServerError.TooManyRequests,
+                    "Failed due to too many pending lookup requests", requestId));
+        }
     }
 
     @Override
@@ -224,55 +227,57 @@ public class ServerCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received PartitionMetadataLookup from {} for {}", topicName, remoteAddress, requestId);
         }
-        final String proxyClientAuthRole =  partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.proxyClientAuthRole;
-        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
+        final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
+        if (lookupSemaphore.tryAcquire()) {
 
-        isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
-            if (isProxyAuthorized) {
-                final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-                if (lookupSemaphore.tryAcquire()) {
-                    getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                            proxyClientAuthRole != null ? proxyClientAuthRole : authRole, DestinationName.get(topicName))
-                                    .handle((metadata, ex) -> {
-                                        if (ex == null) {
-                                            int partitions = metadata.partitions;
-                                            ctx.writeAndFlush(
-                                                    Commands.newPartitionMetadataResponse(partitions, requestId));
+            final String proxyClientAuthRole = partitionMetadata.hasOriginalPrincipal()
+                    ? partitionMetadata.getOriginalPrincipal() : this.proxyClientAuthRole;
+            CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
+
+            isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
+                    if (isProxyAuthorized) {
+                        getPartitionedTopicMetadata(getBrokerService().pulsar(),
+                                proxyClientAuthRole != null ? proxyClientAuthRole : authRole,
+                                DestinationName.get(topicName)).handle((metadata, ex) -> {
+                                    if (ex == null) {
+                                        int partitions = metadata.partitions;
+                                        ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
+                                    } else {
+                                        if (ex instanceof PulsarClientException) {
+                                            log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
+                                                    remoteAddress, topicName, ex.getMessage());
+                                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
+                                                    ServerError.AuthorizationError, ex.getMessage(), requestId));
                                         } else {
-                                            if (ex instanceof PulsarClientException) {
-                                                log.warn("Failed to authorize {} at [{}] on topic {} : {}", getRole(),
-                                                        remoteAddress, topicName, ex.getMessage());
-                                                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(
-                                                        ServerError.AuthorizationError, ex.getMessage(), requestId));
-                                            } else {
-                                                log.warn("Failed to get Partitioned Metadata [{}] {}: {}",
-                                                        remoteAddress, topicName, ex.getMessage(), ex);
-                                                ServerError error = (ex instanceof RestException)
-                                                        && ((RestException) ex).getResponse().getStatus() < 500
-                                                                ? ServerError.MetadataError
-                                                                : ServerError.ServiceNotReady;
-                                                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error,
-                                                        ex.getMessage(), requestId));
-                                            }
+                                            log.warn("Failed to get Partitioned Metadata [{}] {}: {}", remoteAddress,
+                                                    topicName, ex.getMessage(), ex);
+                                            ServerError error = (ex instanceof RestException)
+                                                    && ((RestException) ex).getResponse().getStatus() < 500
+                                                            ? ServerError.MetadataError : ServerError.ServiceNotReady;
+                                            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(error,
+                                                    ex.getMessage(), requestId));
                                         }
-                                        lookupSemaphore.release();
-                                        return null;
-                                    });
-                } else {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}",
-                                remoteAddress, topicName);
+                                    }
+                                    lookupSemaphore.release();
+                                    return null;
+                                });
+                    } else {
+                        final String msg = "Proxy Client is not authorized to Get Partition Metadata";
+                        log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
+                        ctx.writeAndFlush(
+                                Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
+                        lookupSemaphore.release();
                     }
-                    ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
-                            "Failed due to too many pending lookup requests", requestId));   
-                }
-            } else {
-                final String msg = "Proxy Client is not authorized to Get Partition Metadata";
-                log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
+                    return null;
+            });
+        } else {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed Partition-Metadata lookup due to too many lookup-requests {}", remoteAddress,
+                        topicName);
             }
-            return null;
-        });
+            ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
+                    "Failed due to too many pending lookup requests", requestId));
+        }
     }
 
     private CompletableFuture<Boolean> isProxyAuthorized(String topicName, String proxyClientAuthRole) {
