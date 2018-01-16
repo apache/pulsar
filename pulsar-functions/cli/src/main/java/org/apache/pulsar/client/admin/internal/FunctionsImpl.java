@@ -30,10 +30,12 @@ import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
 
+import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import java.io.File;
 import java.util.List;
 
@@ -50,7 +52,11 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public List<String> getFunctions(String tenant, String namespace) throws PulsarAdminException {
         try {
-            return request(functions.path(tenant).path(namespace)).get(new GenericType<List<String>>() {
+            Response response = request(functions.path(tenant).path(namespace)).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            return response.readEntity(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -60,7 +66,11 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public FunctionConfig getFunction(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
-            String jsonResponse = request(functions.path(tenant).path(namespace).path(function)).get().readEntity(String.class);
+             Response response = request(functions.path(tenant).path(namespace).path(function)).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            String jsonResponse = response.readEntity(String.class);
             FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
             JsonFormat.parser().merge(jsonResponse, functionConfigBuilder);
             return functionConfigBuilder.build();
@@ -72,7 +82,11 @@ public class FunctionsImpl extends BaseResource implements Functions {
     @Override
     public FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException {
         try {
-            String jsonResponse = request(functions.path(tenant).path(namespace).path(function).path("status")).get().readEntity(String.class);
+            Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get();
+            if (!response.getStatusInfo().equals(Response.Status.OK)) {
+                throw new ClientErrorException(response);
+            }
+            String jsonResponse = response.readEntity(String.class);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             JsonFormat.parser().merge(jsonResponse, functionStatusBuilder);
             return functionStatusBuilder.build();
