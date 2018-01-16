@@ -45,6 +45,7 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -310,7 +311,7 @@ public class ApiV1ResourceTest {
                 JsonFormat.printer().print(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        Assert.assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
+        Assert.assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     private Response registerDefaultFunction() throws InvalidProtocolBufferException {
@@ -335,7 +336,7 @@ public class ApiV1ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("Function " + function + " already exist"), response.getEntity());
+        assertEquals(new ErrorData("Function " + function + " already exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -351,7 +352,7 @@ public class ApiV1ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("upload failure"), response.getEntity());
+        assertEquals(new ErrorData("upload failure").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -373,7 +374,6 @@ public class ApiV1ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(rr.toJson(), response.getEntity());
     }
 
     @Test
@@ -395,7 +395,7 @@ public class ApiV1ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(rr.toJson(), response.getEntity());
+        assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -415,7 +415,7 @@ public class ApiV1ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("java.io.IOException: Function registeration interrupted"), response.getEntity());
+        assertEquals(new ErrorData("java.io.IOException: Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
@@ -599,7 +599,7 @@ public class ApiV1ResourceTest {
             JsonFormat.printer().print(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
+        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     private Response updateDefaultFunction() throws InvalidProtocolBufferException {
@@ -622,7 +622,7 @@ public class ApiV1ResourceTest {
 
         Response response = updateDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("Function " + function + " doesn't exist"), response.getEntity());
+        assertEquals(new ErrorData("Function " + function + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -638,7 +638,7 @@ public class ApiV1ResourceTest {
 
         Response response = updateDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("upload failure"), response.getEntity());
+        assertEquals(new ErrorData("upload failure").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -660,7 +660,6 @@ public class ApiV1ResourceTest {
 
         Response response = updateDefaultFunction();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(rr.toJson(), response.getEntity());
     }
 
     @Test
@@ -682,7 +681,7 @@ public class ApiV1ResourceTest {
 
         Response response = updateDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(rr.toJson(), response.getEntity());
+        assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -702,7 +701,7 @@ public class ApiV1ResourceTest {
 
         Response response = updateDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("java.io.IOException: Function registeration interrupted"), response.getEntity());
+        assertEquals(new ErrorData("java.io.IOException: Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
@@ -748,7 +747,7 @@ public class ApiV1ResourceTest {
             function);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
+        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     private Response deregisterDefaultFunction() {
@@ -764,7 +763,7 @@ public class ApiV1ResourceTest {
 
         Response response = deregisterDefaultFunction();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("Function " + function + " doesn't exist"), response.getEntity());
+        assertEquals(new ErrorData("Function " + function + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -794,7 +793,7 @@ public class ApiV1ResourceTest {
 
         Response response = deregisterDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(rr.toJson(), response.getEntity());
+        assertEquals(new ErrorData(rr.getMessage()).reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -807,7 +806,7 @@ public class ApiV1ResourceTest {
 
         Response response = deregisterDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("java.io.IOException: Function deregisteration interrupted"), response.getEntity());
+        assertEquals(new ErrorData("java.io.IOException: Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
@@ -853,7 +852,7 @@ public class ApiV1ResourceTest {
             function);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
+        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     private Response getDefaultFunctionInfo() throws InvalidProtocolBufferException {
@@ -869,7 +868,7 @@ public class ApiV1ResourceTest {
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage("Function " + function + " doesn't exist"), response.getEntity());
+        assertEquals(new ErrorData("Function " + function + " doesn't exist").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test
@@ -932,7 +931,7 @@ public class ApiV1ResourceTest {
             namespace);
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(RestUtils.createMessage(missingFieldName + " is not provided"), response.getEntity());
+        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     private Response listDefaultFunctions() {

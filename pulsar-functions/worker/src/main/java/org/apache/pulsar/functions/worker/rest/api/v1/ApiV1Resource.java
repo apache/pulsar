@@ -25,6 +25,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -35,7 +36,6 @@ import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.BaseApiResource;
-import org.apache.pulsar.functions.worker.rest.RestUtils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -81,7 +81,7 @@ public class ApiV1Resource extends BaseApiResource {
                 tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage())).build();
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
@@ -90,7 +90,7 @@ public class ApiV1Resource extends BaseApiResource {
             log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(String.format("Function %s already exist", functionName))).build();
+                    .entity(new ErrorData(String.format("Function %s already exist", functionName))).build();
         }
 
         // function state
@@ -134,7 +134,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage())).build();
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
@@ -142,7 +142,7 @@ public class ApiV1Resource extends BaseApiResource {
         if (!functionRuntimeManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
         // function state
@@ -181,7 +181,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage())).build();
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
@@ -190,7 +190,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
         CompletableFuture<RequestResult> completableFuture
@@ -202,7 +202,7 @@ public class ApiV1Resource extends BaseApiResource {
             if (!requestResult.isSuccess()) {
                 return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(requestResult.toJson())
+                    .entity(new ErrorData(requestResult.getMessage()))
                     .build();
             }
         } catch (ExecutionException e) {
@@ -210,14 +210,13 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName, e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getCause().getMessage()))
+                    .entity(new ErrorData(e.getCause().getMessage()))
                     .build();
         } catch (InterruptedException e) {
             log.error("Interrupted Exception while deregistering function @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
             return Response.status(Status.REQUEST_TIMEOUT)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage()))
                     .build();
         }
 
@@ -238,7 +237,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage())).build();
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
@@ -247,7 +246,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
         FunctionMetaData functionMetaData = functionRuntimeManager.getFunction(tenant, namespace, functionName).getFunctionMetaData();
@@ -269,7 +268,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage())).build();
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
@@ -278,7 +277,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(String.format("Function %s doesn't exist", functionName))).build();
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
         FunctionRuntimeInfo functionRuntimeInfo = functionRuntimeManager.getFunction(tenant, namespace, functionName);
@@ -291,7 +290,7 @@ public class ApiV1Resource extends BaseApiResource {
                 log.error("Got Exception Getting Status from Spawner", ex);
                 return Response.status(Status.INTERNAL_SERVER_ERROR)
                         .type(MediaType.APPLICATION_JSON)
-                        .entity(RestUtils.createMessage(ex.getMessage())).build();
+                        .entity(new ErrorData(ex.getMessage())).build();
             }
         } else {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
@@ -318,7 +317,7 @@ public class ApiV1Resource extends BaseApiResource {
                     tenant, namespace, e);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage())).build();
+                    .entity(new ErrorData(e.getMessage())).build();
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
@@ -342,7 +341,7 @@ public class ApiV1Resource extends BaseApiResource {
             log.error("Error uploading file {}", functionMetaData.getPackageLocation(), e);
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getMessage()))
+                    .entity(new ErrorData(e.getMessage()))
                     .build();
         }
 
@@ -358,22 +357,22 @@ public class ApiV1Resource extends BaseApiResource {
             if (!requestResult.isSuccess()) {
                 return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(requestResult.toJson())
+                    .entity(new ErrorData(requestResult.getMessage()))
                     .build();
             }
         } catch (ExecutionException e) {
             return Response.serverError()
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(RestUtils.createMessage(e.getCause().getMessage()))
+                    .entity(new ErrorData(e.getCause().getMessage()))
                     .build();
         } catch (InterruptedException e) {
             return Response.status(Status.REQUEST_TIMEOUT)
                 .type(MediaType.APPLICATION_JSON)
-                .entity(RestUtils.createMessage(e.getCause().getMessage()))
+                .entity(new ErrorData(e.getCause().getMessage()))
                 .build();
         }
 
-        return Response.status(Response.Status.OK).entity(requestResult.toJson()).build();
+        return Response.status(Response.Status.OK).build();
     }
 
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
