@@ -19,5 +19,6 @@
 
 name: test-function
 className: org.apache.pulsar.functions.test.TestFunction
-sourceTopic: test-source-topic
+inputs:
+  "test-source-topic" : "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe"
 sinkTopic: test-sink-topic

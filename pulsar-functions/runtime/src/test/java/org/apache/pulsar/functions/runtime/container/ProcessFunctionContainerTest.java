@@ -66,9 +66,11 @@ public class ProcessFunctionContainerTest {
         functionConfigBuilder.setNamespace(TEST_NAMESPACE);
         functionConfigBuilder.setName(TEST_NAME);
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        functionConfigBuilder.setSourceTopic(TEST_NAME + "-source");
+        functionConfigBuilder.putInputs(TEST_NAME + "-source1",
+                "org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
+        functionConfigBuilder.putInputs(TEST_NAME + "-source2",
+                "org.apache.pulsar.functions.runtime.serde.JavaSerializer");
         functionConfigBuilder.setSinkTopic(TEST_NAME + "-sink");
-        functionConfigBuilder.setInputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         functionConfigBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         return functionConfigBuilder.build();
     }
@@ -104,8 +106,8 @@ public class ProcessFunctionContainerTest {
                 + " --namespace " + config.getFunctionConfig().getNamespace()
                 + " --name " + config.getFunctionConfig().getName()
                 + " --function-classname " + config.getFunctionConfig().getClassName()
-                + " --source-topic " + config.getFunctionConfig().getSourceTopic()
-                + " --input-serde-classname " + config.getFunctionConfig().getInputSerdeClassName()
+                + " --source-topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
+                + " --input-serde-classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
                 + " --sink-topic " + config.getFunctionConfig().getSinkTopic()
                 + " --output-serde-classname " + config.getFunctionConfig().getOutputSerdeClassName()
                 + " --processing-guarantees ATMOST_ONCE --jar " + userJarFile

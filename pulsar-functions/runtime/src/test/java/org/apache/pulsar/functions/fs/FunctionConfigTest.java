@@ -27,6 +27,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.testng.annotations.Test;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link FunctionConfig}.
@@ -40,7 +41,8 @@ public class FunctionConfigTest {
 
         assertEquals("test-function", fc.getName());
         assertEquals("test-sink-topic", fc.getSinkTopic());
-        assertEquals("test-source-topic", fc.getSourceTopic());
+        assertEquals(1, fc.getInputsCount());
+        assertTrue(fc.containsInputs("test-source-topic"));
     }
 
 }

@@ -33,10 +33,10 @@ message FunctionConfig {
     string namespace = 2;
     string name = 3;
     string className = 4;
-    string inputSerdeClassName = 5;
+    // map from input topic name to serde
+    map<string, string> inputs = 5;
     string outputSerdeClassName = 6;
-    string sourceTopic = 7;
-    string sinkTopic = 8;
+    string sinkTopic = 7;
     ProcessingGuarantees processingGuarantees = 9;
     map<string,string> userConfig = 10;
 }

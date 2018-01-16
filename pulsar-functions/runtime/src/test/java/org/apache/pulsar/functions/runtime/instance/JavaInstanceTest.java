@@ -35,6 +35,8 @@ import org.apache.pulsar.functions.runtime.serde.JavaSerDe;
 import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
 import org.testng.annotations.Test;
 
+import java.util.Arrays;
+
 public class JavaInstanceTest {
 
     private class LongRunningHandler implements RequestHandler<String, String> {
@@ -84,7 +86,7 @@ public class JavaInstanceTest {
     private static JavaInstanceConfig createInstanceConfig() {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         LimitsConfig limitsConfig = new LimitsConfig();
-        functionConfigBuilder.setInputSerdeClassName(Utf8StringSerDe.class.getName());
+        functionConfigBuilder.putInputs("TEST", Utf8StringSerDe.class.getName());
         functionConfigBuilder.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
         JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());
@@ -101,7 +103,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new LongRunningHandler(), Utf8StringSerDe.of(), Utf8StringSerDe.of());
+            config, new LongRunningHandler(), Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
                 Utf8StringSerDe.of());
@@ -121,7 +123,7 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config,
             (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-            Utf8StringSerDe.of(), Utf8StringSerDe.of());
+                Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
                 Utf8StringSerDe.of());
@@ -138,7 +140,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new UnsupportedHandler(), Utf8StringSerDe.of(), Utf8StringSerDe.of());
+                config, new UnsupportedHandler(), Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -155,7 +157,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new VoidInputHandler(), Utf8StringSerDe.of(), null);
+                config, new VoidInputHandler(), Arrays.asList(Utf8StringSerDe.of()), null);
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -172,7 +174,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new VoidOutputHandler(), Utf8StringSerDe.of(), Utf8StringSerDe.of());
+            config, new VoidOutputHandler(), Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString),
                 Utf8StringSerDe.of());
@@ -189,13 +191,13 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
-                .setInputSerdeClassName(JavaSerDe.class.getName()).build());
+                .putInputs("TEST", JavaSerDe.class.getName()).build());
 
         try {
             new JavaInstance(
                 config,
                 (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-                JavaSerDe.of(), Utf8StringSerDe.of());
+                    Arrays.asList(JavaSerDe.of()), Utf8StringSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
@@ -216,7 +218,7 @@ public class JavaInstanceTest {
             new JavaInstance(
                 config,
                 (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-                Utf8StringSerDe.of(), JavaSerDe.of());
+                    Arrays.asList(Utf8StringSerDe.of()), JavaSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));
