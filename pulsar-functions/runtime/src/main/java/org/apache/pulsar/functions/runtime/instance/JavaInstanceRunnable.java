@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime.instance;
 
 import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
@@ -30,6 +31,7 @@ import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.serde.SerDe;
 import org.apache.pulsar.functions.stats.FunctionStats;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.Reflections;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -57,6 +59,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter
     private Exception failureException;
     private JavaInstance javaInstance;
+
+    private SerDe inputSerDe;
+    private SerDe outputSerDe;
+
+    @Getter
+    @Setter
+    private class InputMessage {
+        private Object object;
+        private String messageId;
+    }
 
     // function stats
     @Getter
@@ -97,7 +109,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             loadJars();
             // initialize the thread context
             ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()));
-            javaInstance = new JavaInstance(javaInstanceConfig);
+
+            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+
+            // create the serde
+            this.inputSerDe = initializeSerDe(javaInstanceConfig.getFunctionConfig().getInputSerdeClassName(), clsLoader);
+            this.outputSerDe = initializeSerDe(javaInstanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
+
+            javaInstance = new JavaInstance(javaInstanceConfig, clsLoader, inputSerDe, outputSerDe);
 
             while (true) {
                 JavaExecutionResult result;
@@ -118,9 +137,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 result = javaInstance.handleMessage(
                         convertMessageIdToString(msg.getMessageId()),
                         javaInstanceConfig.getFunctionConfig().getSourceTopic(),
-                        msg.getData());
+                        msg.getData(),
+                        inputSerDe);
                 log.debug("Got result: {}", result.getResult());
-                processResult(msg, result, processAt, javaInstance.getOutputSerDe());
+                processResult(msg, result, processAt, outputSerDe);
             }
 
             javaInstance.close();
@@ -274,4 +294,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private static String convertMessageIdToString(MessageId messageId) {
         return messageId.toByteArray().toString();
     }
+
+    private static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader) {
+        if (null == serdeClassName) {
+            return null;
+        } else {
+            return Reflections.createInstance(
+                    serdeClassName,
+                    SerDe.class,
+                    clsLoader);
+        }
+    }
+
 }

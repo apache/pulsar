@@ -64,51 +64,30 @@ public class JavaInstance implements AutoCloseable {
         Object.class
     );
 
-    private static SerDe initializeSerDe(String serdeClassName, ClassLoader classLoader) {
-        if (null == serdeClassName) {
-            return null;
-        } else {
-            return Reflections.createInstance(
-                serdeClassName,
-                SerDe.class,
-                classLoader);
-        }
-    }
-
     private ContextImpl context;
     private RequestHandler requestHandler;
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
-    private SerDe inputSerDe;
-    @Getter
-    private SerDe outputSerDe;
 
-    public JavaInstance(JavaInstanceConfig config) {
-        this(config, Thread.currentThread().getContextClassLoader());
-    }
-
-    public JavaInstance(JavaInstanceConfig config, ClassLoader clsLoader) {
+    public JavaInstance(JavaInstanceConfig config, ClassLoader clsLoader,
+                        SerDe inputSerDe, SerDe outputSerDe) {
         this(
             config,
             Reflections.createInstance(
                 config.getFunctionConfig().getClassName(),
-                clsLoader),
-            clsLoader);
+                clsLoader), inputSerDe, outputSerDe);
     }
 
-    JavaInstance(JavaInstanceConfig config, Object object, ClassLoader clsLoader) {
+    JavaInstance(JavaInstanceConfig config, Object object, SerDe inputSerDe, SerDe outputSerDe) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
 
         this.context = new ContextImpl(config, instanceLog);
 
-        // create the serde
-        this.inputSerDe = initializeSerDe(config.getFunctionConfig().getInputSerdeClassName(), clsLoader);
-        this.outputSerDe = initializeSerDe(config.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
         // create the functions
         if (object instanceof RequestHandler) {
             requestHandler = (RequestHandler) object;
-            computeInputAndOutputTypesAndVerifySerDe();
+            computeInputAndOutputTypesAndVerifySerDe(inputSerDe, outputSerDe);
         } else if (object instanceof RawRequestHandler) {
             rawRequestHandler = (RawRequestHandler) object;
         } else {
@@ -121,7 +100,7 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    private void computeInputAndOutputTypesAndVerifySerDe() {
+    private void computeInputAndOutputTypesAndVerifySerDe(SerDe inputSerDe, SerDe outputSerDe) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(RequestHandler.class, requestHandler.getClass());
         verifySupportedType(typeArgs[0], false);
         verifySupportedType(typeArgs[1], true);
@@ -151,14 +130,14 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data) {
+    public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data, SerDe inputSerDe) {
         context.setCurrentMessageContext(messageId, topicName);
         JavaExecutionResult executionResult = new JavaExecutionResult();
         if (executorService == null) {
-            return processMessage(executionResult, data);
+            return processMessage(executionResult, data, inputSerDe);
         }
         Future<?> future = executorService.submit(() -> {
-            return processMessage(executionResult, data);
+            return processMessage(executionResult, data, inputSerDe);
         });
         try {
             future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
@@ -177,7 +156,8 @@ public class JavaInstance implements AutoCloseable {
         return executionResult;
     }
 
-    private JavaExecutionResult processMessage(JavaExecutionResult executionResult, byte[] data) {
+    private JavaExecutionResult processMessage(JavaExecutionResult executionResult, byte[] data,
+                                               SerDe inputSerDe) {
         if (requestHandler != null) {
             try {
                 Object input = inputSerDe.deserialize(data);
