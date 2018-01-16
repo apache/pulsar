@@ -30,7 +30,6 @@ import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
-import org.apache.pulsar.functions.annotation.Annotations;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
@@ -103,13 +102,13 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to Jar\n",
                 listConverter = StringConverter.class)
         protected String jarFile;
-        @Parameter(names = "--source-topic", description = "Input Topic Name\n")
-        protected String sourceTopicName;
+        @Parameter(names = "--source-topics", description = "Input Topic Name\n")
+        protected String sourceTopicNames;
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
         protected String sinkTopicName;
 
-        @Parameter(names = "--input-serde-classname", description = "Input SerDe\n")
-        protected String inputSerdeClassName;
+        @Parameter(names = "--input-serde-classnames", description = "Input SerDe\n")
+        protected String inputSerdeClassNames;
 
         @Parameter(names = "--output-serde-classname", description = "Output SerDe\n")
         protected String outputSerdeClassName;
@@ -130,8 +129,15 @@ public class CmdFunctions extends CmdBase {
             } else {
                 functionConfigBuilder = FunctionConfig.newBuilder();
             }
-            if (null != sourceTopicName) {
-                functionConfigBuilder.setSourceTopic(sourceTopicName);
+            if (null != sourceTopicNames && null != inputSerdeClassNames) {
+                String[] sourceTopicName = sourceTopicNames.split(",");
+                String[] inputSerdeClassName = inputSerdeClassNames.split(",");
+                if (sourceTopicName.length != inputSerdeClassName.length) {
+                    throw new IllegalArgumentException(String.format("SourceTopics and InputSerde should match"));
+                }
+                for (int i = 0; i < sourceTopicName.length; ++i) {
+                    functionConfigBuilder.putInputs(sourceTopicName[i], inputSerdeClassName[i]);
+                }
             }
             if (null != sinkTopicName) {
                 functionConfigBuilder.setSinkTopic(sinkTopicName);
@@ -147,9 +153,6 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != className) {
                 functionConfigBuilder.setClassName(className);
-            }
-            if (null != inputSerdeClassName) {
-                functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
             }
             if (null != outputSerdeClassName) {
                 functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -171,22 +174,24 @@ public class CmdFunctions extends CmdBase {
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
-            if(!Reflections.classExists(functionConfig.getInputSerdeClassName())
-                    && !Reflections.classExistsInJar(new File(jarFile), functionConfig.getInputSerdeClassName())) {
-                throw new IllegalArgumentException(
-                        String.format("Input serialization/deserialization class %s does not exist",
-                                functionConfig.getInputSerdeClassName()));
-            } else if (Reflections.classExists(functionConfig.getInputSerdeClassName())) {
-                if (!Reflections.classImplementsIface(functionConfig.getInputSerdeClassName(), SerDe.class)) {
-                    throw new IllegalArgumentException(String.format("Input serialization/deserialization class %s does not not implement %s",
-                            functionConfig.getInputSerdeClassName(), SerDe.class.getCanonicalName()));
+            functionConfig.getInputsMap().forEach((topicName, inputSerializer) -> {
+                if (!Reflections.classExists(inputSerializer)
+                        && !Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
+                    throw new IllegalArgumentException(
+                            String.format("Input serialization/deserialization class %s does not exist",
+                                    inputSerializer));
+                } else if (Reflections.classExists(inputSerializer)) {
+                    if (!Reflections.classImplementsIface(inputSerializer, SerDe.class)) {
+                        throw new IllegalArgumentException(String.format("Input serialization/deserialization class %s does not not implement %s",
+                                inputSerializer, SerDe.class.getCanonicalName()));
+                    }
+                } else if (Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
+                    if (!Reflections.classInJarImplementsIface(new File(jarFile), inputSerializer, SerDe.class)) {
+                        throw new IllegalArgumentException(String.format("Input serialization/deserialization class %s does not not implement %s",
+                                inputSerializer, SerDe.class.getCanonicalName()));
+                    }
                 }
-            } else if (Reflections.classExistsInJar(new File(jarFile), functionConfig.getInputSerdeClassName())) {
-                if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getInputSerdeClassName(), SerDe.class)) {
-                    throw new IllegalArgumentException(String.format("Input serialization/deserialization class %s does not not implement %s",
-                            functionConfig.getInputSerdeClassName(), SerDe.class.getCanonicalName()));
-                }
-            }
+            });
 
             // Check if the Output serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
@@ -214,7 +219,7 @@ public class CmdFunctions extends CmdBase {
 
         @Override
         void runCmd() throws Exception {
-            if (!Annotations.verifyAllRequiredFieldsSet(functionConfig)) {
+            if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
             LimitsConfig limitsConfig = new LimitsConfig(
@@ -251,7 +256,7 @@ public class CmdFunctions extends CmdBase {
     class CreateFunction extends FunctionConfigCommand {
         @Override
         void runCmd() throws Exception {
-            if (!Annotations.verifyAllRequiredFieldsSet(functionConfig)) {
+            if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
             fnAdmin.functions().createFunction(functionConfig, jarFile);

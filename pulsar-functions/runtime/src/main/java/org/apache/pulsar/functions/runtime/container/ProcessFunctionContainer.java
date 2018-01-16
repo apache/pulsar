@@ -27,6 +27,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
@@ -83,10 +84,24 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(instanceConfig.getFunctionConfig().getName());
         args.add("--function-classname");
         args.add(instanceConfig.getFunctionConfig().getClassName());
-        args.add("--source-topic");
-        args.add(instanceConfig.getFunctionConfig().getSourceTopic());
-        args.add("--input-serde-classname");
-        args.add(instanceConfig.getFunctionConfig().getInputSerdeClassName());
+        String sourceTopicString = "";
+        String inputSerdeClassNameString = "";
+        for (Map.Entry<String, String> entry: instanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
+            if (sourceTopicString.isEmpty()) {
+                sourceTopicString = entry.getKey();
+            } else {
+                sourceTopicString = sourceTopicString + "," + entry.getKey();
+            }
+            if (inputSerdeClassNameString.isEmpty()) {
+                inputSerdeClassNameString = entry.getValue();
+            } else {
+                inputSerdeClassNameString = inputSerdeClassNameString + "," + entry.getValue();
+            }
+        }
+        args.add("--source-topics");
+        args.add(sourceTopicString);
+        args.add("--input-serde-classnames");
+        args.add(inputSerdeClassNameString);
         if (instanceConfig.getFunctionConfig().getSinkTopic() != null) {
             args.add("--sink-topic");
             args.add(instanceConfig.getFunctionConfig().getSinkTopic());

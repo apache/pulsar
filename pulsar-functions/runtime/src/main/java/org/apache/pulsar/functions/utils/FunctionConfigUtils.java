@@ -60,4 +60,14 @@ public class FunctionConfigUtils {
     public static String extractFunctionNameFromFQN(String fullyQualifiedName) {
         return fullyQualifiedName.split("/")[2];
     }
+
+    public static boolean areAllRequiredFieldsPresent(FunctionConfig functionConfig) {
+        if (functionConfig.getTenant() == null || functionConfig.getNamespace() == null
+            || functionConfig.getName() == null || functionConfig.getClassName() == null
+            || functionConfig.getInputsCount() <= 0) {
+            return false;
+        } else {
+            return true;
+        }
+    }
 }

@@ -454,14 +454,11 @@ public class ApiV1Resource extends BaseApiResource {
             if (functionConfig.getClassName() == null || functionConfig.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionConfig.getInputSerdeClassName() == null || functionConfig.getInputSerdeClassName().isEmpty()) {
-                missingFields.add("InputSerdeClassName");
+            if (functionConfig.getInputsCount() == 0) {
+                missingFields.add("Input");
             }
             if (functionConfig.getOutputSerdeClassName() == null || functionConfig.getOutputSerdeClassName().isEmpty()) {
                 missingFields.add("OutputSerdeClassName");
-            }
-            if (functionConfig.getSourceTopic() == null || functionConfig.getSourceTopic().isEmpty()) {
-                missingFields.add("SourceTopic");
             }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");

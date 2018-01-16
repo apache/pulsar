@@ -57,12 +57,12 @@ public class JavaInstanceMain {
     protected String tenant;
     @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
     protected String namespace;
-    @Parameter(names = "--source-topic", description = "Input Topic Name\n", required = true)
+    @Parameter(names = "--source-topics", description = "Input Topic Name\n", required = true)
     protected String sourceTopicName;
     @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
     protected String sinkTopicName;
 
-    @Parameter(names = "--input-serde-classname", description = "Input SerDe\n", required = true)
+    @Parameter(names = "--input-serde-classnames", description = "Input SerDe\n", required = true)
     protected String inputSerdeClassName;
 
     @Parameter(names = "--output-serde-classname", description = "Output SerDe\n")
@@ -110,8 +110,14 @@ public class JavaInstanceMain {
         functionConfigBuilder.setNamespace(namespace);
         functionConfigBuilder.setName(functionName);
         functionConfigBuilder.setClassName(className);
-        functionConfigBuilder.setSourceTopic(sourceTopicName);
-        functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
+        String[] sourceTopics = sourceTopicName.split(",");
+        String[] inputSerdeClassNames = inputSerdeClassName.split(",");
+        if (sourceTopics.length != inputSerdeClassNames.length) {
+            throw new RuntimeException("Error specifying inputs");
+        }
+        for (int i = 0; i < sourceTopics.length; ++i) {
+            functionConfigBuilder.putInputs(sourceTopics[i], inputSerdeClassNames[i]);
+        }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }

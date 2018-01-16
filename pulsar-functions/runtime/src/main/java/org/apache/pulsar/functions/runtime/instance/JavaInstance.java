@@ -70,7 +70,7 @@ public class JavaInstance implements AutoCloseable {
     private ExecutorService executorService;
 
     public JavaInstance(JavaInstanceConfig config, ClassLoader clsLoader,
-                        SerDe inputSerDe, SerDe outputSerDe) {
+                        List<SerDe> inputSerDe, SerDe outputSerDe) {
         this(
             config,
             Reflections.createInstance(
@@ -78,7 +78,7 @@ public class JavaInstance implements AutoCloseable {
                 clsLoader), inputSerDe, outputSerDe);
     }
 
-    JavaInstance(JavaInstanceConfig config, Object object, SerDe inputSerDe, SerDe outputSerDe) {
+    JavaInstance(JavaInstanceConfig config, Object object, List<SerDe> inputSerDe, SerDe outputSerDe) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
 
@@ -100,16 +100,18 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    private void computeInputAndOutputTypesAndVerifySerDe(SerDe inputSerDe, SerDe outputSerDe) {
+    private void computeInputAndOutputTypesAndVerifySerDe(List<SerDe> inputSerDe, SerDe outputSerDe) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(RequestHandler.class, requestHandler.getClass());
         verifySupportedType(typeArgs[0], false);
         verifySupportedType(typeArgs[1], true);
 
-        Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, inputSerDe.getClass());
-        verifySupportedType(inputSerdeTypeArgs[0], false);
-        if (!typeArgs[0].equals(inputSerdeTypeArgs[0])) {
-            throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
-                + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
+        for (SerDe serDe : inputSerDe) {
+            Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+            verifySupportedType(inputSerdeTypeArgs[0], false);
+            if (!typeArgs[0].equals(inputSerdeTypeArgs[0])) {
+                throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
+                        + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
+            }
         }
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
@@ -136,9 +138,7 @@ public class JavaInstance implements AutoCloseable {
         if (executorService == null) {
             return processMessage(executionResult, data, inputSerDe);
         }
-        Future<?> future = executorService.submit(() -> {
-            return processMessage(executionResult, data, inputSerDe);
-        });
+        Future<?> future = executorService.submit(() -> processMessage(executionResult, data, inputSerDe));
         try {
             future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {

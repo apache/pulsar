@@ -227,7 +227,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
-            "SourceTopic");
+            "Input");
     }
 
     @Test
@@ -243,7 +243,7 @@ public class ApiV1ResourceTest {
             null,
             outputSerdeClassName,
             className,
-            "InputSerdeClassName");
+            "Input");
     }
 
     @Test
@@ -288,11 +288,8 @@ public class ApiV1ResourceTest {
         if (sinkTopic != null) {
             functionConfigBuilder.setSinkTopic(sinkTopic);
         }
-        if (sourceTopic != null) {
-            functionConfigBuilder.setSourceTopic(sourceTopic);
-        }
-        if (inputSerdeClassName != null) {
-            functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
+        if (sourceTopic != null && inputSerdeClassName != null) {
+            functionConfigBuilder.putInputs(sourceTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -317,8 +314,8 @@ public class ApiV1ResourceTest {
     private Response registerDefaultFunction() throws InvalidProtocolBufferException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
-                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
+                .setSinkTopic(sinkTopic).putInputs(sourceTopic, inputSerdeClassName)
+                .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className).build();
         return resource.registerFunction(
             tenant,
@@ -515,7 +512,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
-            "SourceTopic");
+            "Input");
     }
 
     @Test
@@ -531,7 +528,7 @@ public class ApiV1ResourceTest {
             null,
             outputSerdeClassName,
             className,
-            "InputSerdeClassName");
+            "Input");
     }
 
     @Test
@@ -576,11 +573,8 @@ public class ApiV1ResourceTest {
         if (sinkTopic != null) {
             functionConfigBuilder.setSinkTopic(sinkTopic);
         }
-        if (sourceTopic != null) {
-            functionConfigBuilder.setSourceTopic(sourceTopic);
-        }
-        if (inputSerdeClassName != null) {
-            functionConfigBuilder.setInputSerdeClassName(inputSerdeClassName);
+        if (sourceTopic != null && inputSerdeClassName != null) {
+            functionConfigBuilder.putInputs(sourceTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -605,8 +599,8 @@ public class ApiV1ResourceTest {
     private Response updateDefaultFunction() throws InvalidProtocolBufferException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSinkTopic(sinkTopic).setSourceTopic(sourceTopic)
-                .setInputSerdeClassName(inputSerdeClassName).setOutputSerdeClassName(outputSerdeClassName)
+                .setSinkTopic(sinkTopic).putInputs(sourceTopic, inputSerdeClassName)
+                .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className).build();
         return resource.updateFunction(
             tenant,
@@ -877,13 +871,12 @@ public class ApiV1ResourceTest {
 
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setClassName(className)
-            .setInputSerdeClassName(inputSerdeClassName)
+            .putInputs(sourceTopic, inputSerdeClassName)
             .setOutputSerdeClassName(outputSerdeClassName)
             .setName(function)
             .setNamespace(namespace)
             .setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE)
             .setSinkTopic(sinkTopic)
-            .setSourceTopic(sourceTopic)
             .setTenant(tenant).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())

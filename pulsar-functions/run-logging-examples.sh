@@ -19,9 +19,9 @@
 
 bin/pulsar-functions functions localrun \
     --function-config conf/example.yml \
-    --source-topic persistent://sample/standalone/ns1/test_src \
+    --source-topics persistent://sample/standalone/ns1/test_src \
     --sink-topic persistent://sample/standalone/ns1/test_result \
-    --input-serde-classname org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
+    --input-serde-classnames org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
     --output-serde-classname org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
     --function-classname org.apache.pulsar.functions.api.examples.LoggingFunction \
     --jar `pwd`/api-examples/target/pulsar-functions-api-examples.jar

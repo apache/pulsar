@@ -73,7 +73,7 @@ public class ThreadFunctionContainerTest {
         functionConfigBuilder.setNamespace(TEST_NAMESPACE);
         functionConfigBuilder.setName(TEST_NAME);
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        functionConfigBuilder.setSourceTopic(TEST_NAME + "-source");
+        functionConfigBuilder.putInputs(TEST_NAME + "-source", "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe");
         functionConfigBuilder.setSinkTopic(TEST_NAME + "-sink");
         return functionConfigBuilder.build();
     }
@@ -100,7 +100,6 @@ public class ThreadFunctionContainerTest {
         ThreadFunctionContainer container = factory.createContainer(config, jarFile);
         assertEquals(TEST_TENANT + "/" + TEST_NAMESPACE + "/" + TEST_NAME,
                 container.getFnThread().getName());
-        container.stop();
         assertFalse(container.getFnThread().isAlive());
     }
 

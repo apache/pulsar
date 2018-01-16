@@ -33,8 +33,7 @@ import org.apache.pulsar.functions.stats.FunctionStats;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -49,25 +48,27 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final JavaInstanceConfig javaInstanceConfig;
     private final FunctionConfig.ProcessingGuarantees processingGuarantees;
     private final FunctionCacheManager fnCache;
-    private final LinkedBlockingQueue<Message> queue;
+    private final LinkedBlockingQueue<InputMessage> queue;
     private final String jarFile;
 
     // source topic consumer & sink topic produder
     private final PulsarClientImpl client;
     private Producer sinkProducer;
-    private Consumer sourceConsumer;
+    private Map<String, Consumer> sourceConsumers;
     @Getter
     private Exception failureException;
     private JavaInstance javaInstance;
 
-    private SerDe inputSerDe;
+    private Map<String, SerDe> inputSerDe;
     private SerDe outputSerDe;
 
     @Getter
     @Setter
     private class InputMessage {
-        private Object object;
-        private String messageId;
+        private Message actualMessage;
+        String topicName;
+        SerDe inputSerDe;
+        Consumer consumer;
     }
 
     // function stats
@@ -104,7 +105,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // start the sink producer
             startSinkProducer();
             // start the source consumer
-            startSourceConsumer();
+            startSourceConsumers();
             // start the function thread
             loadJars();
             // initialize the thread context
@@ -113,17 +114,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
 
             // create the serde
-            this.inputSerDe = initializeSerDe(javaInstanceConfig.getFunctionConfig().getInputSerdeClassName(), clsLoader);
+            this.inputSerDe = new HashMap<>();
+            javaInstanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
             this.outputSerDe = initializeSerDe(javaInstanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
 
-            javaInstance = new JavaInstance(javaInstanceConfig, clsLoader, inputSerDe, outputSerDe);
+            javaInstance = new JavaInstance(javaInstanceConfig, clsLoader, new ArrayList(inputSerDe.values()), outputSerDe);
 
             while (true) {
                 JavaExecutionResult result;
-                Message msg;
+                InputMessage msg;
                 try {
                     msg = queue.take();
-                    log.debug("Received message: {}", msg.getMessageId());
+                    log.debug("Received message: {}", msg.getActualMessage().getMessageId());
                 } catch (InterruptedException ie) {
                     log.info("Function thread {} is interrupted",
                             FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), ie);
@@ -135,12 +137,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 long processAt = System.nanoTime();
                 stats.incrementProcess();
                 result = javaInstance.handleMessage(
-                        convertMessageIdToString(msg.getMessageId()),
-                        javaInstanceConfig.getFunctionConfig().getSourceTopic(),
-                        msg.getData(),
-                        inputSerDe);
+                        convertMessageIdToString(msg.getActualMessage().getMessageId()),
+                        msg.getTopicName(),
+                        msg.getActualMessage().getData(),
+                        msg.getInputSerDe());
                 log.debug("Got result: {}", result.getResult());
-                processResult(msg, result, processAt, outputSerDe);
+                processResult(msg, result, processAt);
             }
 
             javaInstance.close();
@@ -172,6 +174,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private void startSinkProducer() throws Exception {
         if (javaInstanceConfig.getFunctionConfig().getSinkTopic() != null) {
+            log.info("Starting Producer for Sink Topic " + javaInstanceConfig.getFunctionConfig().getSinkTopic());
             ProducerConfiguration conf = new ProducerConfiguration();
             conf.setBlockIfQueueFull(true);
             conf.setBatchingEnabled(true);
@@ -182,26 +185,37 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void startSourceConsumer() throws Exception {
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setMessageListener((consumer, msg) -> {
-            try {
-                queue.put(msg);
-                if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
-                    sourceConsumer.acknowledgeAsync(msg);
+    private void startSourceConsumers() throws Exception {
+        log.info("Consumer map {}", javaInstanceConfig.getFunctionConfig());
+        sourceConsumers = new HashMap<>();
+        for (Map.Entry<String, String> entry : javaInstanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
+            log.info("Starting Consumer for topic " + entry.getKey());
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Shared);
+            SerDe inputSerde = inputSerDe.get(entry.getKey());
+            conf.setMessageListener((consumer, msg) -> {
+                try {
+                    InputMessage message = new InputMessage();
+                    message.setConsumer(consumer);
+                    message.setInputSerDe(inputSerde);
+                    message.setActualMessage(msg);
+                    message.setTopicName(entry.getKey());
+                    queue.put(message);
+                    if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
+                        consumer.acknowledgeAsync(msg);
+                    }
+                } catch (InterruptedException e) {
+                    log.error("Function container {} is interrupted on enqueuing messages",
+                            Thread.currentThread().getId(), e);
                 }
-            } catch (InterruptedException e) {
-                log.error("Function container {} is interrupted on enqueuing messages",
-                        Thread.currentThread().getId(),e);
-            }
-        });
+            });
 
-        this.sourceConsumer = client.subscribe(javaInstanceConfig.getFunctionConfig().getSourceTopic(),
-                FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), conf);
+            this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getValue(),
+                    FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), conf));
+        }
     }
 
-    private void processResult(Message msg, JavaExecutionResult result, long processAt, SerDe serDe) {
+    private void processResult(InputMessage msg, JavaExecutionResult result, long processAt) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserException();
@@ -216,13 +230,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             if (result.getResult() != null && sinkProducer != null) {
                 byte[] output = null;
                 if (result.getResult() != null) {
-                    output = serDe.serialize(result.getResult());
+                    output = outputSerDe.serialize(result.getResult());
                 }
                 if (output != null) {
                     sinkProducer.sendAsync(output)
                             .thenAccept(messageId -> {
                                 if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                                    sourceConsumer.acknowledgeAsync(messageId);
+                                    msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
                                 }
                             })
                             .exceptionally(cause -> {
@@ -231,24 +245,26 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 return null;
                             });
                 } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                    sourceConsumer.acknowledgeAsync(msg);
+                    msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
                 }
             } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                sourceConsumer.acknowledgeAsync(msg);
+                msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
             }
         }
     }
 
     @Override
     public void close() {
-        // stop the consumer first, so no more messages are coming in
-        if (null != sourceConsumer) {
-            try {
-                sourceConsumer.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to close consumer to source topic {}", javaInstanceConfig.getFunctionConfig().getSourceTopic(), e);
-            }
-            sourceConsumer = null;
+        if (sourceConsumers != null) {
+            // stop the consumer first, so no more messages are coming in
+            sourceConsumers.forEach((k, v) -> {
+                try {
+                    v.close();
+                } catch (PulsarClientException e) {
+                    log.warn("Failed to close consumer to source topic {}", k, e);
+                }
+            });
+            sourceConsumers.clear();
         }
 
         // kill the result producer

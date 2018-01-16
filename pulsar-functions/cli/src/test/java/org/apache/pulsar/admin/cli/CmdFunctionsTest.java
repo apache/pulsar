@@ -94,7 +94,7 @@ public class CmdFunctionsTest {
 
         LocalRunner runner = cmd.getLocalRunner();
         assertNull(runner.getFunctionName());
-        assertNull(runner.getSourceTopicName());
+        assertNull(runner.getSourceTopicNames());
         assertNull(runner.getSinkTopicName());
         assertNull(runner.getFnConfigFile());
     }
@@ -107,13 +107,13 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
             "localrun",
             "--function-name", fnName,
-            "--source-topic", sourceTopicName,
+            "--source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName
         });
 
         LocalRunner runner = cmd.getLocalRunner();
         assertEquals(fnName, runner.getFunctionName());
-        assertEquals(sourceTopicName, runner.getSourceTopicName());
+        assertEquals(sourceTopicName, runner.getSourceTopicNames());
         assertEquals(sinkTopicName, runner.getSinkTopicName());
         assertNull(runner.getFnConfigFile());
     }
@@ -129,7 +129,7 @@ public class CmdFunctionsTest {
 
         LocalRunner runner = cmd.getLocalRunner();
         assertNull(runner.getFunctionName());
-        assertNull(runner.getSourceTopicName());
+        assertNull(runner.getSourceTopicNames());
         assertNull(runner.getSinkTopicName());
         assertEquals(configFile, runner.getFnConfigFile());
     }
@@ -142,9 +142,9 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
             "create",
             "--function-name", fnName,
-            "--source-topic", sourceTopicName,
+            "--source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--input-serde-classname", Utf8StringSerDe.class.getName(),
+            "--input-serde-classnames", Utf8StringSerDe.class.getName(),
             "--output-serde-classname", Utf8StringSerDe.class.getName(),
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
@@ -154,7 +154,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals(fnName, creater.getFunctionName());
-        assertEquals(sourceTopicName, creater.getSourceTopicName());
+        assertEquals(sourceTopicName, creater.getSourceTopicNames());
         assertEquals(sinkTopicName, creater.getSinkTopicName());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
@@ -214,9 +214,9 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
             "update",
             "--function-name", fnName,
-            "--source-topic", sourceTopicName,
+            "--source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--input-serde-classname", Utf8StringSerDe.class.getName(),
+            "--input-serde-classnames", Utf8StringSerDe.class.getName(),
             "--output-serde-classname", Utf8StringSerDe.class.getName(),
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
@@ -226,7 +226,7 @@ public class CmdFunctionsTest {
 
         UpdateFunction updater = cmd.getUpdater();
         assertEquals(fnName, updater.getFunctionName());
-        assertEquals(sourceTopicName, updater.getSourceTopicName());
+        assertEquals(sourceTopicName, updater.getSourceTopicNames());
         assertEquals(sinkTopicName, updater.getSinkTopicName());
 
         verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
