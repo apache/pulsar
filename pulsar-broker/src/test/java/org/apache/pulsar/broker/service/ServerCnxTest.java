@@ -1128,7 +1128,7 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationPositive() throws Exception {
         AuthorizationManager authorizationManager = mock(AuthorizationManager.class);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationManager).canConsumeAsync(Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationManager).canConsumeAsync(Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
@@ -1148,7 +1148,7 @@ public class ServerCnxTest {
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationNegative() throws Exception {
         AuthorizationManager authorizationManager = mock(AuthorizationManager.class);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationManager).canConsumeAsync(Mockito.any(), Mockito.any());
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationManager).canConsumeAsync(Mockito.any(), Mockito.any(), Mockito.any());
         doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
