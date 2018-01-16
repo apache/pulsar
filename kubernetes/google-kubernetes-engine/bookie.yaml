@@ -97,6 +97,17 @@ spec:
         prometheus.io/port: "8000"
     spec:
       terminationGracePeriodSeconds: 0
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 1
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - bookkeeper
       containers:
         - name: bookie
           image: apachepulsar/pulsar:latest
