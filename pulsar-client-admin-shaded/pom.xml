@@ -93,6 +93,24 @@
                   </includes>
                 </filter>
                 <filter>
+                  <artifact>org.apache.pulsar:pulsar-common</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-checksum</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
                   <artifact>org.apache.pulsar:pulsar-client-admin-original</artifact>
                   <includes>
                     <include>**</include>
