@@ -19,12 +19,14 @@
 package org.apache.pulsar.functions.worker;
 
 import lombok.*;
+import lombok.experimental.Accessors;
 
 @Data
 @Setter
 @Getter
 @EqualsAndHashCode
 @ToString
+@Accessors(chain = true)
 public class FunctionAction {
 
     public enum Action {
