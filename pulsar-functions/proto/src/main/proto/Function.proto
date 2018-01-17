@@ -32,6 +32,10 @@ message FunctionConfig {
         SHARED = 0;
         EXCLUSIVE = 1;
     }
+    enum Runtime {
+        JAVA = 0;
+        PYTHON = 1;
+    }
     string tenant = 1;
     string namespace = 2;
     string name = 3;
@@ -43,6 +47,7 @@ message FunctionConfig {
     ProcessingGuarantees processingGuarantees = 9;
     map<string,string> userConfig = 10;
     SubscriptionType subscriptionType = 11;
+    Runtime runtime = 12;
 }
 
 message PackageLocationMetaData {
@@ -52,10 +57,9 @@ message PackageLocationMetaData {
 message FunctionMetaData {
     FunctionConfig functionConfig = 1;
     PackageLocationMetaData packageLocation = 2;
-    string runtime = 3;
-    uint64 version = 4;
-    uint64 createTime = 5;
-    string workerId = 6;
+    uint64 version = 3;
+    uint64 createTime = 4;
+    string workerId = 5;
 }
 
 message Snapshot {

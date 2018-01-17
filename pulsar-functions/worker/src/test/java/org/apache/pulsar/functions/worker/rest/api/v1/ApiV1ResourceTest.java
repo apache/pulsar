@@ -881,7 +881,6 @@ public class ApiV1ResourceTest {
             .setCreateTime(System.currentTimeMillis())
             .setFunctionConfig(functionConfig)
             .setPackageLocation(PackageLocationMetaData.newBuilder().setPackagePath("/path/to/package"))
-            .setRuntime("test")
             .setVersion(1234)
             .setWorkerId("test-worker").build();
         FunctionRuntimeInfo functionRuntimeInfo = new FunctionRuntimeInfo()

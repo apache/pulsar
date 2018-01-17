@@ -159,6 +159,7 @@ public class CmdFunctions extends CmdBase {
             if (null != processingGuarantees) {
                 functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
             }
+            functionConfigBuilder.setRuntime(FunctionConfig.Runtime.JAVA);
 
             functionConfig = functionConfigBuilder.build();
 
