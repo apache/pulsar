@@ -115,6 +115,8 @@ groups:
     endpoint: PartitionedTopics
   - title: Retention and expiry
     endpoint: RetentionExpiry
+  - title: Managed ledger
+    endpoint: ManagedLedgers
   - title: Encryption
     endpoint: Encryption
 
