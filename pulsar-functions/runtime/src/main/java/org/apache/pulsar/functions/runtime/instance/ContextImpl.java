@@ -157,8 +157,8 @@ class ContextImpl implements Context {
 
     @Override
     public String getUserConfigValue(String key) {
-        if (config.getFunctionConfig().getUserConfig().containsKey(key)) {
-            return config.getFunctionConfig().getUserConfig().get(key);
+        if (config.getFunctionConfig().containsUserConfig(key)) {
+            return config.getFunctionConfig().getUserConfigOrDefault(key, null);
         } else {
             return null;
         }

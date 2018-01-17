@@ -124,7 +124,7 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(pulsarServiceUrl);
         args.add("--max-buffered-tuples");
         args.add(String.valueOf(maxBufferedTuples));
-        Map<String, String> userConfig = instanceConfig.getFunctionConfig().getUserConfig();
+        Map<String, String> userConfig = instanceConfig.getFunctionConfig().getUserConfigMap();
         String userConfigString = "";
         if (userConfig != null && !userConfig.isEmpty()) {
             for (Map.Entry<String, String> entry : userConfig.entrySet()) {

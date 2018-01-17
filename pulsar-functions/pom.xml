@@ -33,11 +33,11 @@
 
   <modules>
     <module>proto</module>
-    <module>api</module>
+    <module>api-java</module>
     <module>runtime</module>
     <module>worker</module>
     <module>cli</module>
-    <module>api-examples</module>
+    <module>java-examples</module>
     <module>runtime-benchmark</module>
   </modules>
 
