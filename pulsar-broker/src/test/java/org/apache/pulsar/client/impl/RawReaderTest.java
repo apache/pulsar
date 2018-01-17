@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
@@ -332,5 +333,32 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         }
         Assert.assertEquals(ledger.openCursor(subscription).getProperties().get("foobar"),
                 Long.valueOf(0xdeadbeefdecaL));
+    }
+
+    @Test
+    public void testReadCancellationOnClose() throws Exception {
+        int numKeys = 10;
+
+        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+        publishMessages(topic, numKeys/2);
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        List<Future<RawMessage>> futures = new ArrayList<>();
+        for (int i = 0; i < numKeys; i++) {
+            futures.add(reader.readNextAsync());
+        }
+
+        for (int i = 0; i < numKeys/2; i++) {
+            futures.remove(0).get(5, TimeUnit.SECONDS); // complete successfully
+        }
+        reader.closeAsync().get();
+        while (!futures.isEmpty()) {
+            try {
+                futures.remove(0).get(5, TimeUnit.SECONDS);
+                Assert.fail("Should have been cancelled");
+            } catch (CancellationException ee) {
+                // correct behaviour
+            }
+        }
     }
 }

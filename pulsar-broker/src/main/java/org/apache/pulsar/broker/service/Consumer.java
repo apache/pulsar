@@ -96,8 +96,10 @@ public class Consumer {
     private volatile int unackedMessages = 0;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
+    private final Map<String, String> metadata;
+
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId, int priorityLevel, String consumerName,
-            int maxUnackedMessages, ServerCnx cnx, String appId) throws BrokerServiceException {
+            int maxUnackedMessages, ServerCnx cnx, String appId, Map<String, String> metadata) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -114,11 +116,14 @@ public class Consumer {
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
 
+        this.metadata = metadata != null ? metadata : Collections.emptyMap();
+
         stats = new ConsumerStats();
         stats.address = cnx.clientAddress().toString();
         stats.consumerName = consumerName;
         stats.connectedSince = DateFormatter.now();
         stats.clientVersion = cnx.getClientVersion();
+        stats.metadata = this.metadata;
 
         if (subType == SubType.Shared) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
@@ -453,7 +458,7 @@ public class Consumer {
         DestinationName destination = DestinationName.get(subscription.getDestination());
         if (cnx.getBrokerService().getAuthorizationManager() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId)) {
+                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId, subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {

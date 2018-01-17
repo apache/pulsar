@@ -37,6 +37,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
@@ -349,7 +350,8 @@ public class ServerCnx extends PulsarHandler {
         if (service.isAuthorizationEnabled()) {
             authorizationFuture = service.getAuthorizationManager().canConsumeAsync(
                     DestinationName.get(subscribe.getTopic()),
-                    originalPrincipal != null ? originalPrincipal : authRole);
+                    originalPrincipal != null ? originalPrincipal : authRole,
+                    subscribe.getSubscription());
         } else {
             authorizationFuture = CompletableFuture.completedFuture(true);
         }
@@ -367,6 +369,7 @@ public class ServerCnx extends PulsarHandler {
                 : null;
 
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
+        final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
 
         authorizationFuture.thenApply(isAuthorized -> {
             if (isAuthorized) {
@@ -375,6 +378,14 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 log.info("[{}] Subscribing on topic {} / {}", remoteAddress, topicName, subscriptionName);
+
+                try {
+                    Metadata.validateMetadata(metadata);
+                } catch (IllegalArgumentException iae) {
+                    final String msg = iae.getMessage();
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, msg));
+                    return null;
+                }
 
                 CompletableFuture<Consumer> consumerFuture = new CompletableFuture<>();
                 CompletableFuture<Consumer> existingConsumerFuture = consumers.putIfAbsent(consumerId, consumerFuture);
@@ -400,7 +411,7 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 service.getTopic(topicName).thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName,
-                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId))
+                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId, metadata))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -450,6 +461,15 @@ public class ServerCnx extends PulsarHandler {
                 log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
+            return null;
+        }).exceptionally(ex -> {
+            String msg = String.format("[%s] %s with role %s", remoteAddress, ex.getMessage(), authRole);
+            if (ex.getCause() instanceof PulsarServerException) {
+                log.info(msg);
+            } else {
+                log.warn(msg);
+            }
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, ex.getMessage()));
             return null;
         });
     }

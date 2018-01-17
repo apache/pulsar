@@ -18,26 +18,18 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.TopicMetadata;
 
-public class SinglePartitionMessageRouterImpl implements MessageRouter {
+class TopicMetadataImpl implements TopicMetadata {
 
-    private final int partitionIndex;
+    private final int numPartitions;
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex) {
-        this.partitionIndex = partitionIndex;
+    TopicMetadataImpl(int numPartitions) {
+        this.numPartitions = numPartitions;
     }
 
     @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
-        // If the message has a key, it supersedes the single partition routing policy
-        if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % metadata.numPartitions());
-        }
-
-        return partitionIndex;
+    public int numPartitions() {
+        return numPartitions;
     }
-
 }

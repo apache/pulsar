@@ -16,28 +16,16 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.TopicMetadata;
+package org.apache.pulsar.common.policies.data;
 
-public class SinglePartitionMessageRouterImpl implements MessageRouter {
+/**
+ * Subscription authorization for Pulsar policies
+ */
+public enum SubscriptionAuthMode {
+    /** Every subscription name can be used by every role */
+    None,
 
-    private final int partitionIndex;
-
-    public SinglePartitionMessageRouterImpl(int partitionIndex) {
-        this.partitionIndex = partitionIndex;
-    }
-
-    @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
-        // If the message has a key, it supersedes the single partition routing policy
-        if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % metadata.numPartitions());
-        }
-
-        return partitionIndex;
-    }
-
+    /** Subscription name with auth role prefix can be used by the role */
+    Prefix,
 }

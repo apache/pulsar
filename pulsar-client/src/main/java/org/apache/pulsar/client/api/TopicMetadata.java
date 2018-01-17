@@ -18,33 +18,16 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
-
-public interface MessageRouter extends Serializable {
-
-    /**
-     * 
-     * @param msg
-     *            Message object
-     * @return The index of the partition to use for the message
-     * @deprecated since 1.22.0. Please use {@link #choosePartition(Message, TopicMetadata)} instead.
-     */
-    @Deprecated
-    default int choosePartition(Message msg) {
-        throw new UnsupportedOperationException("Use #choosePartition(Message, TopicMetadata) instead");
-    }
+/**
+ * Metadata of a topic that can be used for message routing.
+ */
+public interface TopicMetadata {
 
     /**
-     * Choose a partition based on msg and the topic metadata.
+     * Return the number of partitions per topic.
      *
-     * @param msg message to route
-     * @param metadata topic metadata
-     * @return the partition to route the message.
-     * @since 1.22.0
+     * @return the number of partitions per topic.
      */
-    @SuppressWarnings("deprecation")
-    default int choosePartition(Message msg, TopicMetadata metadata) {
-        return choosePartition(msg);
-    }
+    int numPartitions();
 
 }

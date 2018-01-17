@@ -16,28 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.websocket.proxy;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.TopicMetadata;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 
-public class SinglePartitionMessageRouterImpl implements MessageRouter {
+import javax.naming.AuthenticationException;
 
-    private final int partitionIndex;
+public class MockUnauthenticationProvider extends MockAuthenticationProvider {
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex) {
-        this.partitionIndex = partitionIndex;
+    @Override
+    public String getAuthMethodName() {
+        // method name
+        return "mockunauth";
     }
 
     @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
-        // If the message has a key, it supersedes the single partition routing policy
-        if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % metadata.numPartitions());
-        }
-
-        return partitionIndex;
+    public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
+        throw new AuthenticationException();
     }
 
 }
