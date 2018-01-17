@@ -65,6 +65,11 @@ class ThreadFunctionContainer implements FunctionContainer {
     }
 
     @Override
+    public void join() throws Exception {
+        this.fnThread.join();
+    }
+
+    @Override
     public void stop() {
         javaInstanceRunnable.close();
         try {

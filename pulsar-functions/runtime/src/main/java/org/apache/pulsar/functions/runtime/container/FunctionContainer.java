@@ -30,6 +30,8 @@ public interface FunctionContainer {
 
     void start() throws Exception;
 
+    void join() throws Exception;
+
     void stop();
 
     CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();

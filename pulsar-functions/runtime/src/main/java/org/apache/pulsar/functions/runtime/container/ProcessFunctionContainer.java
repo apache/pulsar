@@ -167,6 +167,11 @@ class ProcessFunctionContainer implements FunctionContainer {
     }
 
     @Override
+    public void join() throws Exception {
+        process.waitFor();
+    }
+
+    @Override
     public void stop() {
         process.destroy();
         channel.shutdown();
