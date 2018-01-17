@@ -241,13 +241,13 @@ public class CmdFunctions extends CmdBase {
                     containerFactory,
                     null,
                     0);
-
-                spawner.start();
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {
                         spawner.close();
                     }
                 });
+                spawner.start();
+                spawner.join();
             }
         }
     }
