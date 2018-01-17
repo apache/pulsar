@@ -107,7 +107,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         // Convert JSON to Map
         try {
             ObjectMapper jsonMapper = ObjectMapperFactory.create();
-            Map<String, String> authParamsMap = jsonMapper.readValue(encodedAuthParamString, new TypeReference<HashMap<String, String>>() {});
+            Map<String, String> authParamsMap = jsonMapper.readValue(encodedAuthParamString,
+                    new TypeReference<HashMap<String, String>>() {
+                    });
             setAuthParams(authParamsMap);
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to parse authParams");
@@ -119,7 +121,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         setAuthParams(authParams);
     }
 
-    private void setAuthParams(Map<String, String> authParams){
+    private void setAuthParams(Map<String, String> authParams) {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
@@ -129,11 +131,11 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         } else {
             this.privateKey = loadPrivateKey(authParams.get("privateKey"));
         }
-        
-        if(this.privateKey == null) {
+
+        if (this.privateKey == null) {
             throw new IllegalArgumentException("Failed to load private key from privateKey or privateKeyPath field");
         }
-        
+
         this.keyId = authParams.getOrDefault("keyId", "0");
         if (authParams.containsKey("athenzConfPath")) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
@@ -172,15 +174,20 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                 privateKey = Crypto.loadPrivateKey(new File(privateKeyURL));
             } else if (uri.getScheme().equals("file")) {
                 privateKey = Crypto.loadPrivateKey(new File(uri.getPath()));
-            } else if(uri.getScheme().equals("data")) {
+            } else if (uri.getScheme().equals("data")) {
                 List<String> dataParts = Splitter.on(",").splitToList(uri.getSchemeSpecificPart());
-                if (dataParts.get(0).equals("application/x-pem-file;base64")) {
+                // Support Urlencode but not decode here because already decoded by URI class.
+                if (dataParts.get(0).equals("application/x-pem-file")) {
+                    privateKey = Crypto.loadPrivateKey(dataParts.get(1));
+                // Support base64
+                } else if (dataParts.get(0).equals("application/x-pem-file;base64")) {
                     privateKey = Crypto.loadPrivateKey(new String(Base64.getDecoder().decode(dataParts.get(1))));
                 } else {
-                    throw new IllegalArgumentException("Unsupported media type or encoding format: " + dataParts.get(0));
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + dataParts.get(0));
                 }
             }
-        } catch(URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid privateKey format");
         }
         return privateKey;
