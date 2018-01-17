@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.protobuf.ByteString;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -57,46 +58,49 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class FunctionRuntimeManager implements AutoCloseable {
 
     // tenant -> namespace -> (function name, FunctionRuntimeInfo)
-    private final Map<String, Map<String, Map<String, FunctionRuntimeInfo>>> functionMap = new ConcurrentHashMap<>();
+    final Map<String, Map<String, Map<String, FunctionRuntimeInfo>>> functionMap = new ConcurrentHashMap<>();
 
     // A map in which the key is the service request id and value is the service request
-    private final Map<String, ServiceRequestInfo> pendingServiceRequests = new ConcurrentHashMap<>();
+    final Map<String, ServiceRequestInfo> pendingServiceRequests = new ConcurrentHashMap<>();
 
-    private final PulsarClient pulsarClient;
+    final PulsarClient pulsarClient;
 
-    private final ServiceRequestManager serviceRequestManager;
+    final ServiceRequestManager serviceRequestManager;
 
-    private final WorkerConfig workerConfig;
+    final WorkerConfig workerConfig;
 
-    private LinkedBlockingQueue<FunctionAction> actionQueue;
+    LinkedBlockingQueue<FunctionAction> actionQueue;
 
-    private boolean initializePhase = true;
-    private final String initializeMarkerRequestId = UUID.randomUUID().toString();
+    boolean initializePhase = true;
+    final String initializeMarkerRequestId = UUID.randomUUID().toString();
 
     // The message id of the last messaged processed by function runtime manager
-    private MessageId lastProcessedMessageId;
+    MessageId lastProcessedMessageId = MessageId.earliest;
 
-    private PulsarAdmin pulsarAdminClient;
+    PulsarAdmin pulsarAdminClient;
 
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
                                   LinkedBlockingQueue<FunctionAction> actionQueue) throws PulsarClientException {
         this.workerConfig = workerConfig;
         this.pulsarClient = pulsarClient;
-        this.serviceRequestManager = new ServiceRequestManager(
-                this.pulsarClient.createProducer(this.workerConfig.getFunctionMetadataTopic()));
+        this.serviceRequestManager = getServiceRequestManager(this.pulsarClient, this.workerConfig.getFunctionMetadataTopic());
         this.actionQueue = actionQueue;
     }
 
-    public boolean isInitializePhase() {
+    ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
+        return new ServiceRequestManager(pulsarClient.createProducer(functionMetadataTopic));
+    }
+
+    boolean isInitializePhase() {
         return initializePhase;
     }
 
-    public void setInitializePhase(boolean initializePhase) {
+    void setInitializePhase(boolean initializePhase) {
         this.initializePhase = initializePhase;
     }
 
-    public void sendIntializationMarker() {
+    void sendIntializationMarker() {
         log.info("Sending Initialize message...");
         this.serviceRequestManager.submitRequest(
                 ServiceRequestUtils.getIntializationRequest(
@@ -129,7 +133,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return getFunction(functionMetaData.getFunctionConfig());
     }
 
-    public List<FunctionRuntimeInfo> getAllFunctions() {
+    List<FunctionRuntimeInfo> getAllFunctions() {
         List<FunctionRuntimeInfo> ret = new LinkedList<>();
         for (Map<String, Map<String, FunctionRuntimeInfo>> i : this.functionMap.values()) {
             for (Map<String, FunctionRuntimeInfo> j : i.values()) {
@@ -204,7 +208,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return containsFunction(functionMetaData.getFunctionConfig());
     }
 
-    private boolean containsFunction(FunctionConfig functionConfig) {
+    boolean containsFunction(FunctionConfig functionConfig) {
         return containsFunction(
                 functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
     }
@@ -220,7 +224,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return false;
     }
 
-    private CompletableFuture<RequestResult> submit(ServiceRequest serviceRequest) {
+    CompletableFuture<RequestResult> submit(ServiceRequest serviceRequest) {
         ServiceRequestInfo serviceRequestInfo = ServiceRequestInfo.of(serviceRequest);
         CompletableFuture<MessageId> messageIdCompletableFuture = this.serviceRequestManager.submitRequest(serviceRequest);
 
@@ -234,7 +238,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return requestResultCompletableFuture;
     }
 
-    public void processRequest(MessageId messageId, ServiceRequest serviceRequest) {
+    void processRequest(MessageId messageId, ServiceRequest serviceRequest) {
         // make sure that snapshotting and processing requests don't happen simultaneously
         synchronized (this) {
             switch (serviceRequest.getServiceRequestType()) {
@@ -272,11 +276,11 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    private void completeRequest(ServiceRequest serviceRequest, boolean isSuccess) {
+    void completeRequest(ServiceRequest serviceRequest, boolean isSuccess) {
         completeRequest(serviceRequest, isSuccess, null);
     }
 
-    public void proccessDeregister(ServiceRequest deregisterRequest) {
+    void proccessDeregister(ServiceRequest deregisterRequest) {
 
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
@@ -307,7 +311,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    public void processUpdate(ServiceRequest updateRequest) {
+    void processUpdate(ServiceRequest updateRequest) {
 
         log.debug("Process update request: {}", updateRequest);
 
@@ -352,7 +356,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
      * Restores the latest snapshot into in memory state
      * @return the message Id associated with the latest snapshot
      */
-    public MessageId restore() {
+     MessageId restore() {
         List<Integer> snapshots = getSnapshotTopics();
         if (snapshots.isEmpty()) {
             // if no snapshot that go to earliest message in fmt
@@ -386,7 +390,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
     /**
      * Snap shots the current state and puts it in a topic.  Only one worker should execute this at a time
      */
-    public void snapshot() {
+    void snapshot() {
         Snapshot.Builder snapshotBuilder = Snapshot.newBuilder();
 
         List<Integer> snapshots = getSnapshotTopics();
@@ -412,12 +416,8 @@ public class FunctionRuntimeManager implements AutoCloseable {
             log.info("Writing snapshot to {} with last message id {}", nextSnapshotTopic, this.lastProcessedMessageId);
             snapshotBuilder.setLastAppliedMessageId(ByteString.copyFrom(this.lastProcessedMessageId.toByteArray()));
         }
-        try (Producer producer = this.pulsarClient.createProducer(nextSnapshotTopic)){
-            producer.send(snapshotBuilder.build().toByteArray());
-        } catch (PulsarClientException e) {
-            log.error("Failed to write snapshot", e);
-            throw new RuntimeException(e);
-        }
+
+        this.writeSnapshot(nextSnapshotTopic, snapshotBuilder.build());
 
         // deleting older snapshots
         for (Integer snapshotIndex : snapshots) {
@@ -430,7 +430,16 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    private void deleteSnapshot(String snapshotTopic) {
+    void writeSnapshot(String topic, Snapshot snapshot) {
+        try (Producer producer = this.pulsarClient.createProducer(topic)){
+            producer.send(snapshot.toByteArray());
+        } catch (PulsarClientException e) {
+            log.error("Failed to write snapshot", e);
+            throw new RuntimeException(e);
+        }
+    }
+
+    void deleteSnapshot(String snapshotTopic) {
         PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
             pulsarAdmin.persistentTopics().delete(snapshotTopic);
@@ -440,7 +449,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    private List<Integer> getSnapshotTopics() {
+    List<Integer> getSnapshotTopics() {
         PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         String namespace = workerConfig.getPulsarFunctionsNamespace();
         String snapshotsTopicPath = workerConfig.getFunctionMetadataSnapshotsTopicPath();
@@ -463,7 +472,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return ret;
     }
 
-    private void addFunctionToFunctionMap(FunctionMetaData functionMetaData) {
+    void addFunctionToFunctionMap(FunctionMetaData functionMetaData) {
         FunctionConfig functionConfig = functionMetaData.getFunctionConfig();
         if (!this.functionMap.containsKey(functionConfig.getTenant())) {
             this.functionMap.put(functionConfig.getTenant(), new ConcurrentHashMap<>());
@@ -493,7 +502,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return this.workerConfig.getWorkerId().equals(serviceRequest.getWorkerId());
     }
 
-    private void insertStopAction(FunctionRuntimeInfo functionRuntimeInfo) {
+    void insertStopAction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase()) {
             FunctionAction functionAction = new FunctionAction();
             functionAction.setAction(FunctionAction.Action.STOP);
@@ -506,7 +515,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    private void insertStartAction(FunctionRuntimeInfo functionRuntimeInfo) {
+    void insertStartAction(FunctionRuntimeInfo functionRuntimeInfo) {
         if (!this.isInitializePhase()) {
             FunctionAction functionAction = new FunctionAction();
             functionAction.setAction(FunctionAction.Action.START);
@@ -523,7 +532,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         return isSendByMe(serviceRequest) && this.initializeMarkerRequestId.equals(serviceRequest.getRequestId());
     }
 
-    public void processInitializeMarker(ServiceRequest serviceRequest) {
+    void processInitializeMarker(ServiceRequest serviceRequest) {
         if (isMyInitializeMarkerRequest(serviceRequest)) {
             this.setInitializePhase(false);
             log.info("Initializing Metadata state done!");
@@ -542,7 +551,7 @@ public class FunctionRuntimeManager implements AutoCloseable {
         }
     }
 
-    public PulsarAdmin getPulsarAdminClient() {
+    private PulsarAdmin getPulsarAdminClient() {
         if (this.pulsarAdminClient == null) {
             this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
         }
