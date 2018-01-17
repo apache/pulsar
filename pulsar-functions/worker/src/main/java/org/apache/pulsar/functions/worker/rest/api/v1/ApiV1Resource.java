@@ -145,6 +145,12 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
+        if (functionConfig.getRuntime() != FunctionConfig.Runtime.JAVA) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Only JAVA runtime supported"))).build();
+        }
+
         // function state
         FunctionMetaData.Builder functionMetaDataBuilder = FunctionMetaData.newBuilder()
                 .setFunctionConfig(functionConfig)

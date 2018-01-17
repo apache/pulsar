@@ -27,6 +27,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
@@ -60,6 +61,9 @@ class ProcessFunctionContainer implements FunctionContainer {
                              String logDirectory,
                              String jarFile,
                              String pulsarServiceUrl) {
+        if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
+            throw new RuntimeException("Only Java runtime supported");
+        }
         List<String> args = new LinkedList<>();
         args.add("java");
         args.add("-cp");

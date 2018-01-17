@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
@@ -49,6 +50,9 @@ class ThreadFunctionContainer implements FunctionContainer {
                             ThreadGroup threadGroup,
                             String jarFile,
                             PulsarClient pulsarClient) {
+        if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
+            throw new RuntimeException("Thread Container only supports Java Runtime");
+        }
         this.javaInstanceRunnable = new JavaInstanceRunnable(instanceConfig, maxBufferedTuples,
                 fnCache, jarFile, pulsarClient);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
