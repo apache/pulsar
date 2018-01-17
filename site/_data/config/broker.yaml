@@ -227,6 +227,9 @@ configs:
 - name: loadBalancerSheddingGracePeriodMinutes
   default: '30'
   description: Prevent the same topics to be shed and moved to other broker more that once within this timeframe
+- name: loadBalancerBrokerMaxTopics
+  default: '50000'
+  description: Usage threshold to allocate max number of topics to broker
 - name: loadBalancerBrokerUnderloadedThresholdPercentage
   default: '1'
   description: Usage threshold to determine a broker as under-loaded

@@ -32,6 +32,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -658,6 +659,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             brokerCandidateCache.clear();
             LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
                     brokerTopicLoadingPredicate);
+            // filter brokers which owns topic higher than threshold
+            LoadManagerShared.filterBrokersWithLargeTopicCount(brokerCandidateCache, loadData,
+                    conf.getLoadBalancerBrokerMaxTopics());
             LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
                     brokerToNamespaceToBundleRange);
             log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
