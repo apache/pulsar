@@ -24,10 +24,13 @@ option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "Function";
 
 message FunctionConfig {
-
     enum ProcessingGuarantees {
         ATMOST_ONCE = 0;
         ATLEAST_ONCE = 1;
+    }
+    enum SubscriptionType {
+        SHARED = 0;
+        EXCLUSIVE = 1;
     }
     string tenant = 1;
     string namespace = 2;
@@ -39,6 +42,7 @@ message FunctionConfig {
     string sinkTopic = 7;
     ProcessingGuarantees processingGuarantees = 9;
     map<string,string> userConfig = 10;
+    SubscriptionType subscriptionType = 11;
 }
 
 message PackageLocationMetaData {
