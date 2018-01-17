@@ -1,6 +1,6 @@
 BUNDLER_VERSION = 1.15.1
-BUNDLE = bundle _${BUNDLER_VERSION}_
-JEKYLL = ${BUNDLE} exec jekyll
+BUNDLE = bundle _$(BUNDLER_VERSION)_
+JEKYLL = $(BUNDLE) exec jekyll
 
 deep_clean:
 	rm -rf \
@@ -24,10 +24,10 @@ clean_local:
 
 ruby_setup:
 	gem install bundler \
-		-v ${BUNDLER_VERSION} \
+		-v $(BUNDLER_VERSION) \
 		--no-rdoc \
 		--no-ri
-	NOKOGIRI_USE_SYSTEM_LIBRARIES=true ${BUNDLE} install \
+	NOKOGIRI_USE_SYSTEM_LIBRARIES=true $(BUNDLE) install \
 		--path vendor/bundle
 
 python_setup:
@@ -50,8 +50,9 @@ build: api_docs
 	scripts/build-all-versions.sh
 
 serve: clean_local
-	${JEKYLL} serve \
+	$(JEKYLL) serve \
 		--incremental \
+		--livereload \
 		--config _config.yml,_config.local.yml
 
 javadoc:

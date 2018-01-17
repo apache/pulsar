@@ -27,9 +27,6 @@ GEM
       pathutil (~> 0.9)
       rouge (>= 1.7, < 4)
       safe_yaml (~> 1.0)
-    jekyll-livereload (0.2.2)
-      em-websocket (~> 0.5)
-      jekyll (~> 3.0)
     jekyll-sass-converter (1.5.1)
       sass (~> 3.4)
     jekyll-watch (2.0.0)
@@ -61,7 +58,6 @@ PLATFORMS
 
 DEPENDENCIES
   jekyll (= 3.7.0)
-  jekyll-livereload
 
 RUBY VERSION
    ruby 2.4.1p111
