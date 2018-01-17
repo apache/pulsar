@@ -22,7 +22,6 @@ package org.apache.pulsar.functions.runtime.container;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -75,8 +74,8 @@ public class ProcessFunctionContainerTest {
         return functionConfigBuilder.build();
     }
 
-    JavaInstanceConfig createJavaInstanceConfig() {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+    InstanceConfig createJavaInstanceConfig() {
+        InstanceConfig config = new InstanceConfig();
 
         config.setFunctionConfig(createFunctionConfig());
         config.setFunctionId(java.util.UUID.randomUUID().toString());
@@ -92,7 +91,7 @@ public class ProcessFunctionContainerTest {
 
     @Test
     public void testConstructor() {
-        JavaInstanceConfig config = createJavaInstanceConfig();
+        InstanceConfig config = createJavaInstanceConfig();
 
         ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();

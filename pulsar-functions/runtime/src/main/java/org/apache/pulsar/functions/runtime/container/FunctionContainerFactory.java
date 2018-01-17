@@ -19,8 +19,6 @@
 
 package org.apache.pulsar.functions.runtime.container;
 
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
-
 /**
  * A factory to create {@link FunctionContainer}s to invoke functions.
  */
@@ -33,7 +31,7 @@ public interface FunctionContainerFactory extends AutoCloseable {
      * @return function container to start/stop instance
      */
     FunctionContainer createContainer(
-        JavaInstanceConfig instanceConfig, String codeFile);
+            InstanceConfig instanceConfig, String codeFile);
 
     @Override
     void close();

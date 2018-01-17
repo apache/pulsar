@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import java.lang.reflect.Type;
@@ -70,7 +71,7 @@ public class JavaInstance implements AutoCloseable {
     private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
 
-    public JavaInstance(JavaInstanceConfig config, ClassLoader clsLoader,
+    public JavaInstance(InstanceConfig config, ClassLoader clsLoader,
                         PulsarClient pulsarClient,
                         List<SerDe> inputSerDe, SerDe outputSerDe) {
         this(
@@ -80,7 +81,7 @@ public class JavaInstance implements AutoCloseable {
                 clsLoader), clsLoader, pulsarClient, inputSerDe, outputSerDe);
     }
 
-    JavaInstance(JavaInstanceConfig config, Object object,
+    JavaInstance(InstanceConfig config, Object object,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
                  List<SerDe> inputSerDe, SerDe outputSerDe) {

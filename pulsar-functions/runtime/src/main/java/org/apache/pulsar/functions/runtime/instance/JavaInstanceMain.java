@@ -28,9 +28,9 @@ import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.stats.FunctionStats;
@@ -101,7 +101,7 @@ public class JavaInstanceMain {
 
 
     public void start() throws Exception {
-        JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
+        InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionId(functionId);
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);

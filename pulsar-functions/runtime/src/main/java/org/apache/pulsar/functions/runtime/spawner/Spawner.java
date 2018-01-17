@@ -33,7 +33,7 @@ import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
@@ -127,13 +127,13 @@ public class Spawner implements AutoCloseable {
         }
     }
 
-    private JavaInstanceConfig createJavaInstanceConfig() {
-        JavaInstanceConfig javaInstanceConfig = new JavaInstanceConfig();
-        javaInstanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
-        javaInstanceConfig.setFunctionId(assignmentInfo.getFunctionId());
-        javaInstanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
-        javaInstanceConfig.setInstanceId(assignmentInfo.getInstanceId());
-        javaInstanceConfig.setLimitsConfig(limitsConfig);
-        return javaInstanceConfig;
+    private InstanceConfig createJavaInstanceConfig() {
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
+        instanceConfig.setFunctionId(assignmentInfo.getFunctionId());
+        instanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
+        instanceConfig.setInstanceId(assignmentInfo.getInstanceId());
+        instanceConfig.setLimitsConfig(limitsConfig);
+        return instanceConfig;
     }
 }

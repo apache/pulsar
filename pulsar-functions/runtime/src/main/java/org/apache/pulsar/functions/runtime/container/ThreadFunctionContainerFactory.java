@@ -24,7 +24,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
 
@@ -56,7 +55,7 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     }
 
     @Override
-    public ThreadFunctionContainer createContainer(JavaInstanceConfig instanceConfig, String jarFile) {
+    public ThreadFunctionContainer createContainer(InstanceConfig instanceConfig, String jarFile) {
         return new ThreadFunctionContainer(
             instanceConfig,
             maxBufferedTuples,

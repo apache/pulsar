@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.stats.FunctionStats;
@@ -45,7 +46,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     // The class loader that used for loading functions
     private ClassLoader fnClassLoader;
-    private final JavaInstanceConfig javaInstanceConfig;
+    private final InstanceConfig instanceConfig;
     private final FunctionConfig.ProcessingGuarantees processingGuarantees;
     private final FunctionCacheManager fnCache;
     private final LinkedBlockingQueue<InputMessage> queue;
@@ -75,12 +76,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Getter
     private final FunctionStats stats;
 
-    public JavaInstanceRunnable(JavaInstanceConfig instanceConfig,
+    public JavaInstanceRunnable(InstanceConfig instanceConfig,
                                 int maxBufferedTuples,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
                                 PulsarClient pulsarClient) {
-        this.javaInstanceConfig = instanceConfig;
+        this.instanceConfig = instanceConfig;
         this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees() == null
                 ? FunctionConfig.ProcessingGuarantees.ATMOST_ONCE
                 : instanceConfig.getFunctionConfig().getProcessingGuarantees();
@@ -100,7 +101,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void run() {
         try {
-            log.info("Starting Java Instance {}", javaInstanceConfig.getFunctionConfig().getName());
+            log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
 
             // start the sink producer
             startSinkProducer();
@@ -109,16 +110,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // start the function thread
             loadJars();
             // initialize the thread context
-            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()));
+            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
 
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
 
             // create the serde
             this.inputSerDe = new HashMap<>();
-            javaInstanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
-            this.outputSerDe = initializeSerDe(javaInstanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
+            instanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
+            this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
 
-            javaInstance = new JavaInstance(javaInstanceConfig, clsLoader, client, new ArrayList(inputSerDe.values()), outputSerDe);
+            javaInstance = new JavaInstance(instanceConfig, clsLoader, client, new ArrayList(inputSerDe.values()), outputSerDe);
 
             while (true) {
                 JavaExecutionResult result;
@@ -128,7 +129,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.debug("Received message: {}", msg.getActualMessage().getMessageId());
                 } catch (InterruptedException ie) {
                     log.info("Function thread {} is interrupted",
-                            FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), ie);
+                            FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), ie);
                     break;
                 }
 
@@ -153,17 +154,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void loadJars() throws Exception {
-        log.info("Loading JAR files for function {}", javaInstanceConfig);
+        log.info("Loading JAR files for function {}", instanceConfig);
         // create the function class loader
         fnCache.registerFunctionInstance(
-            javaInstanceConfig.getFunctionId(),
-            javaInstanceConfig.getInstanceId(),
+            instanceConfig.getFunctionId(),
+            instanceConfig.getInstanceId(),
             Arrays.asList(jarFile),
             Collections.emptyList());
         log.info("Initialize function class loader for function {} at function cache manager",
-            javaInstanceConfig.getFunctionConfig().getName());
+            instanceConfig.getFunctionConfig().getName());
 
-        this.fnClassLoader = fnCache.getClassLoader(javaInstanceConfig.getFunctionId());
+        this.fnClassLoader = fnCache.getClassLoader(instanceConfig.getFunctionId());
         if (null == fnClassLoader) {
             throw new Exception("No function class loader available.");
         }
@@ -173,22 +174,22 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void startSinkProducer() throws Exception {
-        if (javaInstanceConfig.getFunctionConfig().getSinkTopic() != null) {
-            log.info("Starting Producer for Sink Topic " + javaInstanceConfig.getFunctionConfig().getSinkTopic());
+        if (instanceConfig.getFunctionConfig().getSinkTopic() != null) {
+            log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getSinkTopic());
             ProducerConfiguration conf = new ProducerConfiguration();
             conf.setBlockIfQueueFull(true);
             conf.setBatchingEnabled(true);
             conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
             conf.setMaxPendingMessages(1000000);
 
-            this.sinkProducer = client.createProducer(javaInstanceConfig.getFunctionConfig().getSinkTopic(), conf);
+            this.sinkProducer = client.createProducer(instanceConfig.getFunctionConfig().getSinkTopic(), conf);
         }
     }
 
     private void startSourceConsumers() throws Exception {
-        log.info("Consumer map {}", javaInstanceConfig.getFunctionConfig());
+        log.info("Consumer map {}", instanceConfig.getFunctionConfig());
         sourceConsumers = new HashMap<>();
-        for (Map.Entry<String, String> entry : javaInstanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
+        for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
             log.info("Starting Consumer for topic " + entry.getKey());
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setSubscriptionType(SubscriptionType.Shared);
@@ -211,7 +212,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             });
 
             this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getValue(),
-                    FunctionConfigUtils.getFullyQualifiedName(javaInstanceConfig.getFunctionConfig()), conf));
+                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
         }
     }
 
@@ -241,7 +242,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                             })
                             .exceptionally(cause -> {
                                 log.error("Failed to send the process result {} of message {} to sink topic {}",
-                                        result, msg, javaInstanceConfig.getFunctionConfig().getSinkTopic(), cause);
+                                        result, msg, instanceConfig.getFunctionConfig().getSinkTopic(), cause);
                                 return null;
                             });
                 } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
@@ -272,16 +273,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             try {
                 sinkProducer.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close producer to sink topic {}", javaInstanceConfig.getFunctionConfig().getSinkTopic(), e);
+                log.warn("Failed to close producer to sink topic {}", instanceConfig.getFunctionConfig().getSinkTopic(), e);
             }
             sinkProducer = null;
         }
 
         // once the thread quits, clean up the instance
         fnCache.unregisterFunctionInstance(
-            javaInstanceConfig.getFunctionId(),
-            javaInstanceConfig.getInstanceId());
-        log.info("Unloading JAR files for function {}", javaInstanceConfig);
+            instanceConfig.getFunctionId(),
+            instanceConfig.getInstanceId());
+        log.info("Unloading JAR files for function {}", instanceConfig);
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
