@@ -31,8 +31,8 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.runtime.serde.JavaSerDe;
-import org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe;
+import org.apache.pulsar.functions.api.utils.JavaSerDe;
+import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;

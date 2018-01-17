@@ -18,26 +18,40 @@
  */
 package org.apache.pulsar.functions.runtime.serde;
 
-import static com.google.common.base.Charsets.UTF_8;
+import static org.testng.Assert.assertEquals;
+
+import java.io.Serializable;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
+import org.apache.pulsar.functions.api.utils.JavaSerDe;
+import org.testng.annotations.Test;
 
 /**
- * A simple Serde that treats the bytes as Java String
+ * Unit test of {@link JavaSerDeTest}.
  */
-public class Utf8StringSerDe implements SerDe<String> {
+public class JavaSerDeTest {
 
-    public static Utf8StringSerDe of() {
-        return INSTANCE;
+    @Data
+    @AllArgsConstructor
+    @EqualsAndHashCode
+    @ToString
+    private static class TestObject implements Serializable {
+
+        private int intField;
+        private String stringField;
+
     }
 
-    private static final Utf8StringSerDe INSTANCE = new Utf8StringSerDe();
+    @Test
+    public void testSerDe() {
+        TestObject to = new TestObject(1234, "test-serde-java-object");
 
-    @Override
-    public byte[] serialize(String string) {
-        return string.getBytes(UTF_8);
+        byte[] data = JavaSerDe.of().serialize(to);
+        TestObject deserializeTo = (TestObject) JavaSerDe.of().deserialize(data);
+
+        assertEquals(to, deserializeTo);
     }
 
-    @Override
-    public String deserialize(byte[] data) {
-        return new String(data, UTF_8);
-    }
 }

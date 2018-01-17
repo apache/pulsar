@@ -16,25 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.serde;
+package org.apache.pulsar.functions.api.utils;
 
-import static org.testng.Assert.assertEquals;
+import org.apache.pulsar.functions.api.SerDe;
 
-import org.testng.annotations.Test;
+import java.nio.charset.StandardCharsets;
 
 /**
- * Unit test of {@link Utf8StringSerDe}.
+ * A simple Serde that treats the bytes as Java String
  */
-public class Utf8StringSerDeTest {
+public class Utf8StringSerDe implements SerDe<String> {
 
-    @Test
-    public void testSerDe() {
-        String message = "test-serde-utf8-string";
-
-        byte[] data = Utf8StringSerDe.of().serialize(message);
-        String deserializedMsg = (String) Utf8StringSerDe.of().deserialize(data);
-
-        assertEquals(message, deserializedMsg);
+    public static Utf8StringSerDe of() {
+        return INSTANCE;
     }
 
+    private static final Utf8StringSerDe INSTANCE = new Utf8StringSerDe();
+
+    @Override
+    public byte[] serialize(String string) {
+        return string.getBytes(StandardCharsets.UTF_8);
+    }
+
+    @Override
+    public String deserialize(byte[] data) {
+        return new String(data, StandardCharsets.UTF_8);
+    }
 }
