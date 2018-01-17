@@ -20,37 +20,22 @@ package org.apache.pulsar.functions.runtime.serde;
 
 import static org.testng.Assert.assertEquals;
 
-import java.io.Serializable;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.ToString;
+import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link JavaSerDeTest}.
+ * Unit test of {@link Utf8StringSerDe}.
  */
-public class JavaSerDeTest {
-
-    @Data
-    @AllArgsConstructor
-    @EqualsAndHashCode
-    @ToString
-    private static class TestObject implements Serializable {
-
-        private int intField;
-        private String stringField;
-
-    }
+public class Utf8StringSerDeTest {
 
     @Test
     public void testSerDe() {
-        TestObject to = new TestObject(1234, "test-serde-java-object");
+        String message = "test-serde-utf8-string";
 
-        byte[] data = JavaSerDe.of().serialize(to);
-        TestObject deserializeTo = (TestObject) JavaSerDe.of().deserialize(data);
+        byte[] data = Utf8StringSerDe.of().serialize(message);
+        String deserializedMsg = (String) Utf8StringSerDe.of().deserialize(data);
 
-        assertEquals(to, deserializeTo);
+        assertEquals(message, deserializedMsg);
     }
 
 }

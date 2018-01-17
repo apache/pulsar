@@ -21,7 +21,7 @@ bin/pulsar-functions functions localrun \
     --function-config conf/example.yml \
     --source-topics persistent://sample/standalone/ns1/test_src \
     --sink-topic persistent://sample/standalone/ns1/test_result \
-    --input-serde-classnames org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
-    --output-serde-classname org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe \
+    --input-serde-classnames org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
+    --output-serde-classname org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
     --function-classname org.apache.pulsar.functions.api.examples.ExclamationFunction \
     --jar `pwd`/api-examples/target/pulsar-functions-api-examples.jar

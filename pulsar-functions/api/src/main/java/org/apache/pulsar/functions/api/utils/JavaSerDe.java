@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.serde;
+package org.apache.pulsar.functions.api.utils;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -25,6 +25,7 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutput;
 import java.io.ObjectOutputStream;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.api.SerDe;
 
 /**
  * Java Serialization based SerDe

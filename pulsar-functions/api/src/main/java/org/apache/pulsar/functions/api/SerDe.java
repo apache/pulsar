@@ -16,7 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.api;
+
 /**
- * SerDe used at functions runtime.
+ * An interface for serializer/deserializer.
  */
-package org.apache.pulsar.functions.runtime.serde;
+public interface SerDe<T> {
+    T deserialize(byte[] input);
+    byte[] serialize(T input);
+}

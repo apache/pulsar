@@ -28,7 +28,7 @@ import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.runtime.serde.SerDe;
+import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.stats.FunctionStats;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
