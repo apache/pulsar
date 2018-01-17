@@ -1536,5 +1536,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return messageDeduplication.getLastPublishedSequenceId(producerName);
     }
 
+    @Override
+    public Position getLastMessageId() {
+        return ledger.getLastConfirmedEntry();
+    }
+
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 }

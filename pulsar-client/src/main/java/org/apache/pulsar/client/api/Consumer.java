@@ -21,7 +21,6 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.impl.ConsumerStats;
 
 /**
@@ -278,4 +277,19 @@ public interface Consumer extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
+
+    /**
+     * Gets last message id of Topic.
+     *
+     * @return the last message id
+     */
+    MessageId getLastMessageId() throws PulsarClientException;
+
+    /**
+     * Gets last message id of Topic async.
+     *
+     * @return the last message id
+     */
+    CompletableFuture<MessageId> getLastMessageIdAsync();
+
 }

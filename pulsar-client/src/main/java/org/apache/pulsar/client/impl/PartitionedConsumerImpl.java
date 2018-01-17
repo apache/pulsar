@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -45,8 +46,6 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
 
 public class PartitionedConsumerImpl extends ConsumerBase {
 
@@ -540,6 +539,22 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             stats.updateCumulativeStats(consumers.get(i).getStats());
         }
         return stats;
+    }
+
+    @Override
+    public MessageId getLastMessageId() throws PulsarClientException {
+        try {
+            return getLastMessageIdAsync().get();
+        } catch (ExecutionException e) {
+            throw new PulsarClientException(e.getCause());
+        } catch (InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageIdAsync() {
+        return FutureUtil.failedFuture(new PulsarClientException("GetLastMessageId operation not supported on partitioned topics"));
     }
 
     public UnAckedMessageTracker getUnAckedMessageTracker() {

@@ -2173,7 +2173,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return pendingAddEntries.size();
     }
 
-    public PositionImpl getLastConfirmedEntry() {
+    @Override
+    public Position getLastConfirmedEntry() {
         return lastConfirmedEntry;
     }
 

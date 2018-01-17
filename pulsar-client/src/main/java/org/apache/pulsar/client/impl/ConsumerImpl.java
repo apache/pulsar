@@ -25,8 +25,21 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.common.collect.Iterables;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Timeout;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 import java.io.IOException;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.BitSet;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.NavigableMap;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -37,7 +50,6 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -59,13 +71,6 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Iterables;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Timeout;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 
 public class ConsumerImpl extends ConsumerBase {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
@@ -1246,6 +1251,48 @@ public class ConsumerImpl extends ConsumerBase {
             return null;
         });
         return seekFuture;
+    }
+
+
+    @Override
+    public MessageId getLastMessageId() throws PulsarClientException {
+        try {
+            return getLastMessageIdAsync().get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<MessageId> getLastMessageIdAsync() {
+        if (getState() == State.Closing || getState() == State.Closed) {
+            return FutureUtil
+                .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+        }
+
+        if (!isConnected()) {
+            return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
+        }
+
+        final CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
+
+        long requestId = client.newRequestId();
+        ByteBuf getLastIdCmd = Commands.newGetLastMessageId(consumerId, requestId);
+        ClientCnx cnx = cnx();
+
+        log.info("[{}][{}] Get topic last message Id", topic, subscription);
+
+        cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept((result) -> {
+            log.info("[{}][{}] Successfully getLastMessageId", topic, subscription);
+            getLastMessageIdFuture.complete(new MessageIdImpl(result.getLedgerId(),
+                result.getEntryId(), result.getPartition()));
+        }).exceptionally(e -> {
+            log.error("[{}][{}] Failed send getLastMessageId command", topic, subscription);
+            getLastMessageIdFuture.completeExceptionally(e.getCause());
+            return null;
+        });
+
+        return getLastMessageIdFuture;
     }
 
     private MessageIdImpl getMessageIdImpl(Message msg) {

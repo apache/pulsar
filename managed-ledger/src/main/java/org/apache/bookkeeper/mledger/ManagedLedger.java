@@ -334,4 +334,6 @@ public interface ManagedLedger {
      * @param config
      */
     void setConfig(ManagedLedgerConfig config);
+
+    Position getLastConfirmedEntry();
 }
