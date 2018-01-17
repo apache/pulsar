@@ -27,10 +27,13 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
+import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
+import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -265,5 +268,32 @@ public class LoadManagerShared {
         boolean isEnablePersistentTopics(String brokerUrl);
 
         boolean isEnableNonPersistentTopics(String brokerUrl);
+    }
+
+    /**
+     * It filters out brokers which owns topic higher than configured threshold at
+     * {@link ServiceConfiguration.loadBalancerBrokerMaxTopics}. <br/>
+     * if all the brokers own topic higher than threshold then it resets the list with original broker candidates
+     * 
+     * @param brokerCandidateCache
+     * @param loadData
+     * @param loadBalancerBrokerMaxTopics
+     */
+    public static void filterBrokersWithLargeTopicCount(Set<String> brokerCandidateCache, LoadData loadData,
+            int loadBalancerBrokerMaxTopics) {
+        Set<String> filteredBrokerCandidates = brokerCandidateCache.stream().filter((broker) -> {
+            BrokerData brokerData = loadData.getBrokerData().get(broker);
+            long totalTopics = brokerData != null && brokerData.getPreallocatedBundleData() != null
+                    ? brokerData.getPreallocatedBundleData().values().stream()
+                            .mapToLong((preAllocatedBundle) -> preAllocatedBundle.getTopics()).sum()
+                            + brokerData.getLocalData().getNumTopics()
+                    : 0;
+            return totalTopics <= loadBalancerBrokerMaxTopics;
+        }).collect(Collectors.toSet());
+
+        if (!filteredBrokerCandidates.isEmpty()) {
+            brokerCandidateCache.clear();
+            brokerCandidateCache.addAll(filteredBrokerCandidates);
+        }
     }
 }
