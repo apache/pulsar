@@ -31,6 +31,7 @@ import java.util.concurrent.TimeoutException;
 
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -70,19 +71,23 @@ public class JavaInstance implements AutoCloseable {
     private ExecutorService executorService;
 
     public JavaInstance(JavaInstanceConfig config, ClassLoader clsLoader,
+                        PulsarClient pulsarClient,
                         List<SerDe> inputSerDe, SerDe outputSerDe) {
         this(
             config,
             Reflections.createInstance(
                 config.getFunctionConfig().getClassName(),
-                clsLoader), inputSerDe, outputSerDe);
+                clsLoader), clsLoader, pulsarClient, inputSerDe, outputSerDe);
     }
 
-    JavaInstance(JavaInstanceConfig config, Object object, List<SerDe> inputSerDe, SerDe outputSerDe) {
+    JavaInstance(JavaInstanceConfig config, Object object,
+                 ClassLoader clsLoader,
+                 PulsarClient pulsarClient,
+                 List<SerDe> inputSerDe, SerDe outputSerDe) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
 
-        this.context = new ContextImpl(config, instanceLog);
+        this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader);
 
         // create the functions
         if (object instanceof RequestHandler) {

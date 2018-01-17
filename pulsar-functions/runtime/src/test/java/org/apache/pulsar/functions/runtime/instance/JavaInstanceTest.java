@@ -103,7 +103,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new LongRunningHandler(), Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+            config, new LongRunningHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
                 Utf8StringSerDe.of());
@@ -123,7 +123,8 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config,
             (RequestHandler<String, String>) (input, context) -> input + "-lambda",
-                Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+            null, null,
+            Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
                 Utf8StringSerDe.of());
@@ -140,7 +141,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new UnsupportedHandler(), Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+                config, new UnsupportedHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -157,7 +158,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new VoidInputHandler(), Arrays.asList(Utf8StringSerDe.of()), null);
+                config, new VoidInputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), null);
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -174,7 +175,7 @@ public class JavaInstanceTest {
         JavaInstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new VoidOutputHandler(), Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+            config, new VoidOutputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString),
                 Utf8StringSerDe.of());
@@ -197,6 +198,7 @@ public class JavaInstanceTest {
             new JavaInstance(
                 config,
                 (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+                    null, null,
                     Arrays.asList(JavaSerDe.of()), Utf8StringSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
@@ -218,6 +220,7 @@ public class JavaInstanceTest {
             new JavaInstance(
                 config,
                 (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+                    null, null,
                     Arrays.asList(Utf8StringSerDe.of()), JavaSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
