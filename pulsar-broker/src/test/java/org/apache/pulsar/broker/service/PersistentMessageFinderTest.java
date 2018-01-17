@@ -68,7 +68,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
         headers.writeInt(msgMetadataSize);
         messageMetadata.writeTo(outStream);
-        ByteBuf headersAndPayload = DoubleByteBuf.get(headers, data);
+        ByteBuf headersAndPayload = DoubleByteBuf.get(headers, data).coalesce();
         byte[] byteMessage = headersAndPayload.nioBuffer().array();
         headersAndPayload.release();
         return byteMessage;

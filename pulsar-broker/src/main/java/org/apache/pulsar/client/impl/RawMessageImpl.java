@@ -20,19 +20,17 @@ package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
-
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.common.api.DoubleByteBuf;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.PooledByteBufAllocator;
 
 public class RawMessageImpl implements RawMessage {
     private static final Logger log = LoggerFactory.getLogger(RawMessageImpl.class);
@@ -67,7 +65,7 @@ public class RawMessageImpl implements RawMessage {
     }
 
     @Override
-    public ByteBuf serialize() {
+    public DoubleByteBuf serialize() {
         // Format: [IdSize][Id][PayloadAndMetadataSize][PayloadAndMetadata]
         int idSize = id.getSerializedSize();
         int headerSize = 4 /* IdSize */ + idSize + 4 /* PayloadAndMetadataSize */;

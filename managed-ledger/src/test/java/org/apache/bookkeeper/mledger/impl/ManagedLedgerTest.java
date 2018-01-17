@@ -2133,7 +2133,7 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         headers.writeInt(msgMetadataSize);
         messageData.writeTo(outStream);
         outStream.recycle();
-        return DoubleByteBuf.get(headers, payload);
+        return DoubleByteBuf.get(headers, payload).coalesce();
     }
 
 }
