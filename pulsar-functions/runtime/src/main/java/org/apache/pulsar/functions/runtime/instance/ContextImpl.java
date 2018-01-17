@@ -27,6 +27,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
@@ -41,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * This class implements the Context interface exposed to the user.
  */
 class ContextImpl implements Context {
-    private JavaInstanceConfig config;
+    private InstanceConfig config;
     private Logger logger;
 
     // Per Message related
@@ -82,7 +83,7 @@ class ContextImpl implements Context {
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
 
-    public ContextImpl(JavaInstanceConfig config, Logger logger, PulsarClient client,
+    public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        ClassLoader classLoader) {
         this.config = config;
         this.logger = logger;

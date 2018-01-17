@@ -33,6 +33,7 @@ import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.api.utils.JavaSerDe;
 import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
@@ -83,12 +84,12 @@ public class JavaInstanceTest {
         }
     }
 
-    private static JavaInstanceConfig createInstanceConfig() {
+    private static InstanceConfig createInstanceConfig() {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         LimitsConfig limitsConfig = new LimitsConfig();
         functionConfigBuilder.putInputs("TEST", Utf8StringSerDe.class.getName());
         functionConfigBuilder.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
-        JavaInstanceConfig instanceConfig = new JavaInstanceConfig();
+        InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());
         instanceConfig.setLimitsConfig(limitsConfig);
         return instanceConfig;
@@ -100,7 +101,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testLongRunningFunction() throws Exception {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config, new LongRunningHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
@@ -118,7 +119,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testLambda() {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config,
@@ -138,7 +139,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testUnsupportedClasses() {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
                 config, new UnsupportedHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
@@ -155,7 +156,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testVoidInputClasses() {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
                 config, new VoidInputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), null);
@@ -172,7 +173,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testVoidOutputClasses() {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config, new VoidOutputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
@@ -189,7 +190,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testInconsistentInputType() {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
                 .putInputs("TEST", JavaSerDe.class.getName()).build());
@@ -211,7 +212,7 @@ public class JavaInstanceTest {
      */
     @Test
     public void testInconsistentOutputType() {
-        JavaInstanceConfig config = createInstanceConfig();
+        InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
                 .setOutputSerdeClassName(JavaSerDe.class.getName()).build());

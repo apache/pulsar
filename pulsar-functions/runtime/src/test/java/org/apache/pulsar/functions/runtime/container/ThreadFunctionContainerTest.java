@@ -31,7 +31,6 @@ import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
 
@@ -78,8 +77,8 @@ public class ThreadFunctionContainerTest {
         return functionConfigBuilder.build();
     }
 
-    JavaInstanceConfig createJavaInstanceConfig() {
-        JavaInstanceConfig config = new JavaInstanceConfig();
+    InstanceConfig createJavaInstanceConfig() {
+        InstanceConfig config = new InstanceConfig();
 
         config.setFunctionConfig(createFunctionConfig());
         config.setFunctionId(java.util.UUID.randomUUID().toString());
@@ -95,7 +94,7 @@ public class ThreadFunctionContainerTest {
 
     @Test
     public void testConstructor() {
-        JavaInstanceConfig config = createJavaInstanceConfig();
+        InstanceConfig config = createJavaInstanceConfig();
 
         ThreadFunctionContainer container = factory.createContainer(config, jarFile);
         assertEquals(TEST_TENANT + "/" + TEST_NAMESPACE + "/" + TEST_NAME,

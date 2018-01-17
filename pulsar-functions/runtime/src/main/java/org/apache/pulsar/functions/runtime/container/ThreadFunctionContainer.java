@@ -26,7 +26,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceRunnable;
 import org.apache.pulsar.functions.stats.FunctionStats;
@@ -44,7 +43,7 @@ class ThreadFunctionContainer implements FunctionContainer {
     
     private JavaInstanceRunnable javaInstanceRunnable;
 
-    ThreadFunctionContainer(JavaInstanceConfig instanceConfig,
+    ThreadFunctionContainer(InstanceConfig instanceConfig,
                             int maxBufferedTuples,
                             FunctionCacheManager fnCache,
                             ThreadGroup threadGroup,

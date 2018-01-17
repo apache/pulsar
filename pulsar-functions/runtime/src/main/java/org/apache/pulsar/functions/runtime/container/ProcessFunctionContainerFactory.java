@@ -21,12 +21,6 @@ package org.apache.pulsar.functions.runtime.container;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 
 /**
  * Thread based function container factory implementation.
@@ -52,7 +46,7 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
     }
 
     @Override
-    public ProcessFunctionContainer createContainer(JavaInstanceConfig instanceConfig, String jarFile) {
+    public ProcessFunctionContainer createContainer(InstanceConfig instanceConfig, String jarFile) {
         return new ProcessFunctionContainer(
             instanceConfig,
             maxBufferedTuples,

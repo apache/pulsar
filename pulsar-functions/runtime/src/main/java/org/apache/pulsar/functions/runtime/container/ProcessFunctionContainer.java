@@ -27,11 +27,9 @@ import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.runtime.instance.JavaInstanceConfig;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -56,7 +54,7 @@ class ProcessFunctionContainer implements FunctionContainer {
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
 
-    ProcessFunctionContainer(JavaInstanceConfig instanceConfig,
+    ProcessFunctionContainer(InstanceConfig instanceConfig,
                              int maxBufferedTuples,
                              String javaInstanceJarFile,
                              String logDirectory,

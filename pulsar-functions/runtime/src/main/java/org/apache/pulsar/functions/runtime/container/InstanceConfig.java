@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.instance;
+package org.apache.pulsar.functions.runtime.container;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -35,7 +35,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 @Setter
 @EqualsAndHashCode
 @ToString
-public class JavaInstanceConfig {
+public class InstanceConfig {
     private String instanceId;
     private String functionId;
     private String functionVersion;
