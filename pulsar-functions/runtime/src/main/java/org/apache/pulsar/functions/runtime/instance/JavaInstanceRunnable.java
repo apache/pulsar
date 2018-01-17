@@ -118,7 +118,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             javaInstanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
             this.outputSerDe = initializeSerDe(javaInstanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
 
-            javaInstance = new JavaInstance(javaInstanceConfig, clsLoader, new ArrayList(inputSerDe.values()), outputSerDe);
+            javaInstance = new JavaInstance(javaInstanceConfig, clsLoader, client, new ArrayList(inputSerDe.values()), outputSerDe);
 
             while (true) {
                 JavaExecutionResult result;

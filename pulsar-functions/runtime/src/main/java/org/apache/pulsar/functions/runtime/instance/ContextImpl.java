@@ -20,12 +20,22 @@ package org.apache.pulsar.functions.runtime.instance;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class implements the Context interface exposed to the user.
@@ -66,10 +76,26 @@ class ContextImpl implements Context {
 
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
-    public ContextImpl(JavaInstanceConfig config, Logger logger) {
+    private Map<String, Producer> publishProducers;
+    private Map<Class<? extends SerDe>, SerDe> publishSerializers;
+    private ProducerConfiguration producerConfiguration;
+    private PulsarClient pulsarClient;
+    private ClassLoader classLoader;
+
+    public ContextImpl(JavaInstanceConfig config, Logger logger, PulsarClient client,
+                       ClassLoader classLoader) {
         this.config = config;
         this.logger = logger;
+        this.pulsarClient = client;
+        this.classLoader = classLoader;
         this.accumulatedMetrics = new ConcurrentHashMap<>();
+        this.publishProducers = new HashMap<>();
+        this.publishSerializers = new HashMap<>();
+        producerConfiguration = new ProducerConfiguration();
+        producerConfiguration.setBlockIfQueueFull(true);
+        producerConfiguration.setBatchingEnabled(true);
+        producerConfiguration.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
+        producerConfiguration.setMaxPendingMessages(1000000);
     }
 
     public void setCurrentMessageContext(String messageId, String topicName) {
@@ -135,6 +161,30 @@ class ContextImpl implements Context {
         } else {
             return null;
         }
+    }
+
+    @Override
+    public CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass) {
+        if (!publishProducers.containsKey(topicName)) {
+            try {
+                publishProducers.put(topicName, pulsarClient.createProducer(topicName, producerConfiguration));
+            } catch (PulsarClientException ex) {
+                CompletableFuture<Void> retval = new CompletableFuture<>();
+                retval.completeExceptionally(ex);
+                return retval;
+            }
+        }
+
+        if (!publishSerializers.containsKey(serDeClass)) {
+            publishSerializers.put(serDeClass, Reflections.createInstance(
+                    serDeClass.getName(),
+                    serDeClass,
+                    classLoader));
+        }
+
+        byte[] bytes = publishSerializers.get(serDeClass).serialize(object);
+        return publishProducers.get(topicName).sendAsync(bytes)
+                .thenApply(msgId -> null);
     }
 
     @Override

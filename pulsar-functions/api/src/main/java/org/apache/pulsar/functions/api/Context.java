@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.api;
 
 import org.slf4j.Logger;
 
+import java.util.concurrent.CompletableFuture;
+
 /**
  * Context provides contextual information to the executing function.
  * Features like which message id we are handling, whats the topic name of the
@@ -103,4 +105,13 @@ public interface Context {
      * @param value The value of the metric
      */
     void recordMetric(String metricName, double value);
+
+    /**
+     * Publish an object using serDe for serializing to the topic
+     * @param topicName The name of the topic for publishing
+     * @param object The object that needs to be published
+     * @param serDeClass The class that needs to be used to serialize the object before publishing
+     * @return
+     */
+    CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass);
 }

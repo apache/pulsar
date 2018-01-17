@@ -17,11 +17,9 @@
 # under the License.
 #
 
-tenant: "test"
-namespace: "test-namespace"
-name: "example"
-className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
-inputs:
-  "persistent://sample/standalone/ns1/test_src" : "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe"
-userConfig:
-  "PublishTopic" : "persistent://sample/standalone/ns1/test_result"
+bin/pulsar-functions functions localrun \
+    --function-config conf/example.yml \
+    --source-topics persistent://sample/standalone/ns1/test_src \
+    --input-serde-classnames org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
+    --function-classname org.apache.pulsar.functions.api.examples.LoggingFunction \
+    --jar `pwd`/api-examples/target/pulsar-functions-api-examples.jar
