@@ -192,7 +192,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
             log.info("Starting Consumer for topic " + entry.getKey());
             ConsumerConfiguration conf = new ConsumerConfiguration();
-            conf.setSubscriptionType(SubscriptionType.Shared);
+            if (instanceConfig.getFunctionConfig().getSubscriptionType() == null
+                    || instanceConfig.getFunctionConfig().getSubscriptionType() == FunctionConfig.SubscriptionType.SHARED) {
+                conf.setSubscriptionType(SubscriptionType.Shared);
+            } else {
+                conf.setSubscriptionType(SubscriptionType.Exclusive);
+            }
             SerDe inputSerde = inputSerDe.get(entry.getKey());
             conf.setMessageListener((consumer, msg) -> {
                 try {
