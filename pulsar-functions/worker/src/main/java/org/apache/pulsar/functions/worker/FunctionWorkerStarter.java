@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import static org.apache.commons.lang.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
