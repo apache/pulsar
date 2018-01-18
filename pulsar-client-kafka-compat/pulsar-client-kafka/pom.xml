@@ -44,7 +44,7 @@
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
+      <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -105,8 +105,26 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.kafka:kafka-clients</include>
-                  <include>org.apache.pulsar:pulsar-client</include>
+                  <include>org.apache.pulsar:pulsar-client-original</include>
+                  <include>org.apache.commons:commons-lang3</include>
+                  <include>commons-codec:commons-codec</include>
+                  <include>commons-collections:commons-collections</include>
+                  <include>org.asynchttpclient:*</include>
+                  <include>io.netty:netty-codec-http</include>
+                  <include>io.netty:netty-transport-native-epoll</include>
+                  <include>org.reactivestreams:reactive-streams</include>
+                  <include>com.typesafe.netty:netty-reactive-streams</include>
+                  <include>org.javassist:javassist</include>
+                  <include>com.google.protobuf:protobuf-java</include>
+                  <include>com.google.guava:guava</include>
+                  <include>com.google.code.gson:gson</include>
+                  <include>com.fasterxml.jackson.core</include>
+                  <include>io.netty:netty</include>
+                  <include>io.netty:netty-all</include>
                   <include>org.apache.pulsar:pulsar-common</include>
+                  <include>org.apache.pulsar:pulsar-checksum</include>
+                  <include>net.jpountz.lz4:lz4</include>
+                  <include>com.yahoo.datasketches:sketches-core</include>
                 </includes>
               </artifactSet>
               <relocations>
@@ -126,6 +144,29 @@
                   <pattern>org.apache.kafka.clients.consumer.PulsarKafkaConsumer</pattern>
                   <shadedPattern>org.apache.kafka.clients.consumer.KafkaConsumer</shadedPattern>
                 </relocation>
+
+                <!-- General relocation rules for Pulsar client dependencies -->
+
+                <relocation>
+                  <pattern>org.asynchttpclient</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.asynchttpclient</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.commons</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.commons</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.google</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.google</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.fasterxml.jackson</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.fasterxml.jackson</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.netty</shadedPattern>
+                </relocation>
                 <relocation>
                   <pattern>org.apache.pulsar.common</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.common</shadedPattern>
@@ -134,7 +175,41 @@
                   <pattern>org.apache.pulsar.policies</pattern>
                   <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.policies</shadedPattern>
                 </relocation>
+                <relocation>
+                  <pattern>org.apache.pulsar.checksum</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.pulsar.checksum</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.scurrilous.circe</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.scurrilous.circe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>net.jpountz</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.net.jpountz</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.datasketches</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.datasketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.yahoo.sketches</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
+                </relocation>
               </relocations>
+              <filters>
+                <filter>
+                  <artifact>net.jpountz.lz4:lz4</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+              </filters>
             </configuration>
           </execution>
         </executions>
