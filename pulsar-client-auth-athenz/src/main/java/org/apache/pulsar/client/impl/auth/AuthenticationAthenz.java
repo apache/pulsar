@@ -52,6 +52,9 @@ import com.yahoo.athenz.auth.util.Crypto;
 
 public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
 
+    private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
+    private static final String APPLICATION_X_PEM_FILE_BASE64 = "application/x-pem-file;base64";
+
     private transient ZTSClient ztsClient = null;
     private String tenantDomain;
     private String tenantService;
@@ -177,10 +180,10 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             } else if (uri.getScheme().equals("data")) {
                 List<String> dataParts = Splitter.on(",").splitToList(uri.getSchemeSpecificPart());
                 // Support Urlencode but not decode here because already decoded by URI class.
-                if (dataParts.get(0).equals("application/x-pem-file")) {
+                if (dataParts.get(0).equals(APPLICATION_X_PEM_FILE)) {
                     privateKey = Crypto.loadPrivateKey(dataParts.get(1));
                 // Support base64
-                } else if (dataParts.get(0).equals("application/x-pem-file;base64")) {
+                } else if (dataParts.get(0).equals(APPLICATION_X_PEM_FILE_BASE64)) {
                     privateKey = Crypto.loadPrivateKey(new String(Base64.getDecoder().decode(dataParts.get(1))));
                 } else {
                     throw new IllegalArgumentException(
