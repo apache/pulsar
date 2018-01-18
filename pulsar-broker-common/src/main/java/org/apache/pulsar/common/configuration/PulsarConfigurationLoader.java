@@ -125,8 +125,10 @@ public class PulsarConfigurationLoader {
                 boolean isRequired = ((FieldContext) field.getAnnotation(FieldContext.class)).required();
                 long minValue = ((FieldContext) field.getAnnotation(FieldContext.class)).minValue();
                 long maxValue = ((FieldContext) field.getAnnotation(FieldContext.class)).maxValue();
-                if (isRequired && isEmpty(obj))
+                if (isRequired && isEmpty(value)) {
                     error.append(String.format("Required %s is null,", field.getName()));
+                }
+
                 if (value != null && Number.class.isAssignableFrom(value.getClass())) {
                     long fieldVal = ((Number) value).longValue();
                     boolean valid = fieldVal >= minValue && fieldVal <= maxValue;
@@ -145,11 +147,11 @@ public class PulsarConfigurationLoader {
 
     private static boolean isEmpty(Object obj) {
         if (obj == null) {
-            return false;
+            return true;
         } else if (obj instanceof String) {
             return StringUtils.isBlank((String) obj);
         } else {
-            return true;
+            return false;
         }
     }
 
