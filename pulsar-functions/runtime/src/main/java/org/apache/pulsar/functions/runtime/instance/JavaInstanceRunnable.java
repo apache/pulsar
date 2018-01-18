@@ -137,11 +137,11 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
                 long processAt = System.nanoTime();
                 stats.incrementProcess();
+                Object input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
                 result = javaInstance.handleMessage(
                         convertMessageIdToString(msg.getActualMessage().getMessageId()),
                         msg.getTopicName(),
-                        msg.getActualMessage().getData(),
-                        msg.getInputSerDe());
+                        input);
                 log.debug("Got result: {}", result.getResult());
                 processResult(msg, result, processAt);
             }
