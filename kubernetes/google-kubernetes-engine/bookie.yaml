@@ -51,26 +51,6 @@ data:
   zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
   statsProviderClass: org.apache.bookkeeper.stats.PrometheusMetricsProvider
 ---
-# A headless service to create DNS records
-apiVersion: v1
-kind: Service
-metadata:
-  name: bookkeeper
-  labels:
-    app: pulsar
-    component: bookkeeper
-  annotations:
-    service.alpha.kubernetes.io/tolerate-unready-endpoints: "true"
-spec:
-  ports:
-    - name: bookie
-      port: 3181
-      protocol: TCP
-  clusterIP: None
-  selector:
-    app: pulsar
-    component: bookkeeper
----
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
