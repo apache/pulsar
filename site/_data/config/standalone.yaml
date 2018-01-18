@@ -169,6 +169,8 @@ configs:
   default: '30'
 - name: loadBalancerSheddingGracePeriodMinutes
   default: '30'
+- name: loadBalancerBrokerMaxTopics
+  default: '50000'
 - name: loadBalancerBrokerUnderloadedThresholdPercentage
   default: '1'
 - name: loadBalancerBrokerOverloadedThresholdPercentage

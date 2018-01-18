@@ -44,6 +44,12 @@ public interface RawMessage extends AutoCloseable {
      */
     ByteBuf getHeadersAndPayload();
 
+    /**
+     * Serialize a raw message to a ByteBuf. The caller is responsible for releasing
+     * the returned ByteBuf.
+     */
+    ByteBuf serialize();
+
     @Override
     void close();
 }
