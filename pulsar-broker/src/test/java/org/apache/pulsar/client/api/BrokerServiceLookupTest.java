@@ -612,6 +612,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ClientConfiguration clientConfig = new ClientConfiguration();
         // set authentication data
         clientConfig.setAuthentication(new Authentication() {
+            private static final long serialVersionUID = 1L;
+
             @Override
             public void close() throws IOException {
             }
@@ -622,6 +624,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             @Override
             public AuthenticationDataProvider getAuthData() throws PulsarClientException {
                 return new AuthenticationDataProvider() {
+                    private static final long serialVersionUID = 1L;
                 };
             }
             @Override
@@ -677,6 +680,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ClientConfiguration clientConfig = new ClientConfiguration();
         // set authentication data
         clientConfig.setAuthentication(new Authentication() {
+            private static final long serialVersionUID = 1L;
+
             @Override
             public void close() throws IOException {
             }
@@ -687,6 +692,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             @Override
             public AuthenticationDataProvider getAuthData() throws PulsarClientException {
                 return new AuthenticationDataProvider() {
+                    private static final long serialVersionUID = 1L;
                 };
             }
             @Override
@@ -727,6 +733,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ClientConfiguration clientConfig = new ClientConfiguration();
         // set authentication data
         clientConfig.setAuthentication(new Authentication() {
+            private static final long serialVersionUID = 1L;
+
             @Override
             public void close() throws IOException {
             }
@@ -737,6 +745,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             @Override
             public AuthenticationDataProvider getAuthData() throws PulsarClientException {
                 return new AuthenticationDataProvider() {
+                    private static final long serialVersionUID = 1L;
                 };
             }
             @Override
@@ -856,13 +865,13 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         pulsar2.close();
 
     }
-    
+
     /**
-     * 
+     *
      * <pre>
      * When broker-1's Modular-load-manager splits the bundle and update local-policies, broker-2 should get watch of
      * local-policies and update bundleCache so, new lookup can be redirected properly.
-     * 
+     *
      * (1) Start broker-1 and broker-2
      * (2) Make sure broker-2 always assign bundle to broker1
      * (3) Broker-2 receives topic-1 request, creates local-policies and sets the watch
@@ -870,9 +879,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
      * (5) Broker-2 will be a leader and trigger Split the bundle for topic-1
      * (6) Broker-2 should get the watch and update bundle cache
      * (7) Make lookup request again to Broker-2 which should succeed.
-     * 
+     *
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 5000)
@@ -1094,7 +1103,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
                     log.warn("[{}] Error during HTTP get request: {}", requestUrl, e.getMessage());
                     future.completeExceptionally(new PulsarClientException(e));
                 }
-            }, MoreExecutors.sameThreadExecutor());
+            }, MoreExecutors.directExecutor());
 
         } catch (Exception e) {
             log.warn("[{}] Failed to get authentication data for lookup: {}", path, e.getMessage());
@@ -1115,7 +1124,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             @Override
             public boolean keepAlive(Request ahcRequest, HttpRequest request, HttpResponse response) {
                 // Close connection upon a server error or per HTTP spec
-                return (response.getStatus().code() / 100 != 5) && super.keepAlive(ahcRequest, request, response);
+                return (response.status().code() / 100 != 5) && super.keepAlive(ahcRequest, request, response);
             }
         });
         AsyncHttpClientConfig config = confBuilder.build();
