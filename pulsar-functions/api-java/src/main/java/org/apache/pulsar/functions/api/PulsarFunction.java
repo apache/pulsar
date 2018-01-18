@@ -19,17 +19,17 @@
 package org.apache.pulsar.functions.api;
 
 /**
- * This is the core interface of the function api. The handleRequest is called
+ * This is the core interface of the function api. The process is called
  * for every message of the input topic of the function. The incoming input bytes
  * are converted to the input type I for simple Java types(String, Integer, Boolean,
  * Map, and List types) and for org.Json type. If this serialization approach does not
  * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
  */
 @FunctionalInterface
-public interface RequestHandler<I, O> {
+public interface PulsarFunction<I, O> {
     /**
      * Process the input.
      * @return the output
      */
-    O handleRequest(I input, Context context) throws Exception;
+    O process(I input, Context context) throws Exception;
 }

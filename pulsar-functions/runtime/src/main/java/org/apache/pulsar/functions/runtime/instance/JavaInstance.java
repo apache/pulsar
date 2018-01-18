@@ -19,8 +19,7 @@
 package org.apache.pulsar.functions.runtime.instance;
 
 import com.google.common.collect.Sets;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
+
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -32,7 +31,7 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
@@ -66,7 +65,7 @@ public class JavaInstance implements AutoCloseable {
     );
 
     private ContextImpl context;
-    private RequestHandler requestHandler;
+    private PulsarFunction pulsarFunction;
     private ExecutorService executorService;
 
     public JavaInstance(InstanceConfig config, ClassLoader clsLoader,
@@ -89,8 +88,8 @@ public class JavaInstance implements AutoCloseable {
         this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader);
 
         // create the functions
-        if (object instanceof RequestHandler) {
-            requestHandler = (RequestHandler) object;
+        if (object instanceof PulsarFunction) {
+            pulsarFunction = (PulsarFunction) object;
             computeInputAndOutputTypesAndVerifySerDe(inputSerDe, outputSerDe);
         } else {
             throw new RuntimeException("User class must be either a Request or Raw Request Handler");
@@ -103,7 +102,7 @@ public class JavaInstance implements AutoCloseable {
     }
 
     private void computeInputAndOutputTypesAndVerifySerDe(List<SerDe> inputSerDe, SerDe outputSerDe) {
-        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(RequestHandler.class, requestHandler.getClass());
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
         verifySupportedType(typeArgs[0], false);
         verifySupportedType(typeArgs[1], true);
 
@@ -161,7 +160,7 @@ public class JavaInstance implements AutoCloseable {
     private JavaExecutionResult processMessage(JavaExecutionResult executionResult, Object input) {
 
         try {
-            Object output = requestHandler.handleRequest(input, context);
+            Object output = pulsarFunction.process(input, context);
             executionResult.setResult(output);
         } catch (Exception ex) {
             executionResult.setUserException(ex);

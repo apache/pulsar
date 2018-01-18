@@ -19,11 +19,11 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 
-public class VoidFunction implements RequestHandler<String, Void> {
+public class VoidFunction implements PulsarFunction<String, Void> {
     @Override
-    public Void handleRequest(String input, Context context) {
+    public Void process(String input, Context context) {
         return null;
     }
 }

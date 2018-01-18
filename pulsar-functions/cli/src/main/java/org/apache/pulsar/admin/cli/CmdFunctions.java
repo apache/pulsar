@@ -29,7 +29,7 @@ import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.api.SerDe;
@@ -163,12 +163,12 @@ public class CmdFunctions extends CmdBase {
 
             functionConfig = functionConfigBuilder.build();
 
-            // check if the function class exists in Jar and it implements RequestHandler class
+            // check if the function class exists in Jar and it implements PulsarFunction class
             if (!Reflections.classExistsInJar(new File(jarFile), functionConfig.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfig.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getClassName(), RequestHandler.class)) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s does not implemement RequestHandler.class",
+            } else if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getClassName(), PulsarFunction.class)) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s does not implemement PulsarFunction.class",
                         functionConfig.getClassName(), jarFile));
             }
 
