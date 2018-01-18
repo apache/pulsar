@@ -28,7 +28,7 @@ import static org.testng.AssertJUnit.fail;
 import lombok.Getter;
 import lombok.Setter;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.api.utils.JavaSerDe;
@@ -40,9 +40,9 @@ import java.util.Arrays;
 
 public class JavaInstanceTest {
 
-    private class LongRunningHandler implements RequestHandler<String, String> {
+    private class LongRunningHandler implements PulsarFunction<String, String> {
         @Override
-        public String handleRequest(String input, Context context) throws Exception {
+        public String process(String input, Context context) throws Exception {
             try {
                 Thread.sleep(10000);
             } catch (InterruptedException ex) {
@@ -63,23 +63,23 @@ public class JavaInstanceTest {
         private Integer age;
     }
 
-    private class UnsupportedHandler implements RequestHandler<String, UnSupportedClass> {
+    private class UnsupportedHandler implements PulsarFunction<String, UnSupportedClass> {
         @Override
-        public UnSupportedClass handleRequest(String input, Context context) throws Exception {
+        public UnSupportedClass process(String input, Context context) throws Exception {
             return new UnSupportedClass();
         }
     }
 
-    private class VoidInputHandler implements RequestHandler<Void, String> {
+    private class VoidInputHandler implements PulsarFunction<Void, String> {
         @Override
-        public String handleRequest(Void input, Context context) throws Exception {
+        public String process(Void input, Context context) throws Exception {
             return new String("Interesting");
         }
     }
 
-    private class VoidOutputHandler implements RequestHandler<String, Void> {
+    private class VoidOutputHandler implements PulsarFunction<String, Void> {
         @Override
-        public Void handleRequest(String input, Context context) throws Exception {
+        public Void process(String input, Context context) throws Exception {
             return null;
         }
     }
@@ -122,7 +122,7 @@ public class JavaInstanceTest {
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
             config,
-            (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+            (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
             null, null,
             Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
@@ -195,7 +195,7 @@ public class JavaInstanceTest {
         try {
             new JavaInstance(
                 config,
-                (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+                (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
                     null, null,
                     Arrays.asList(JavaSerDe.of()), Utf8StringSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
@@ -217,7 +217,7 @@ public class JavaInstanceTest {
         try {
             new JavaInstance(
                 config,
-                (RequestHandler<String, String>) (input, context) -> input + "-lambda",
+                (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
                     null, null,
                     Arrays.asList(Utf8StringSerDe.of()), JavaSerDe.of());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");

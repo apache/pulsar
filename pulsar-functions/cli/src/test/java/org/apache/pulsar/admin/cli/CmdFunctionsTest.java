@@ -41,7 +41,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -83,7 +83,7 @@ public class CmdFunctionsTest {
         mockStatic(Reflections.class);
         when(Reflections.classExistsInJar(any(File.class), anyString())).thenReturn(true);
         when(Reflections.classExists(anyString())).thenReturn(true);
-        when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(RequestHandler.class)))
+        when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(PulsarFunction.class)))
             .thenReturn(true);
         when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
     }

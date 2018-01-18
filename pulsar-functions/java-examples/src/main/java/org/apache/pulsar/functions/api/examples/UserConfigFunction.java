@@ -19,11 +19,11 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 
-public class UserConfigFunction implements RequestHandler<String, String> {
+public class UserConfigFunction implements PulsarFunction<String, String> {
     @Override
-    public String handleRequest(String input, Context context) {
+    public String process(String input, Context context) {
         context.getLogger().info("My Config is " + context.getUserConfigValue("MyOwnConfig"));
         return input + context.getUserConfigValue("MyOwnConfig");
     }

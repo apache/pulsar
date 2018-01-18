@@ -47,7 +47,7 @@ import org.apache.logging.log4j.core.config.Configurator;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.RequestHandler;
+import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
@@ -79,9 +79,9 @@ public class ApiV1ResourceTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static final class TestFunction implements RequestHandler<String, String> {
+    private static final class TestFunction implements PulsarFunction<String, String> {
 
-        public String handleRequest(String input, Context context) throws Exception {
+        public String process(String input, Context context) throws Exception {
             return input;
         }
     }
