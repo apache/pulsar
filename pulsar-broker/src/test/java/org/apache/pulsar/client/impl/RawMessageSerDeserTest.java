@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,7 +44,7 @@ public class RawMessageSerDeserTest {
             .setPartition(10).setBatchIndex(20).build();
 
         RawMessage m = new RawMessageImpl(id, headersAndPayload);
-        ByteBuf serialized = m.serialize().coalesce();
+        ByteBuf serialized = ByteBufPair.coalesce(m.serialize());
         byte[] bytes = new byte[serialized.readableBytes()];
         serialized.readBytes(bytes);
 

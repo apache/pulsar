@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.io.File;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
 
 import io.netty.channel.ChannelInitializer;
@@ -72,7 +72,7 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
 
-        ch.pipeline().addLast("DoubleByteBufEncoder", DoubleByteBuf.ENCODER);
+        ch.pipeline().addLast("ByteBufPairEncoder", ByteBufPair.ENCODER);
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ServerCnx(brokerService));
     }

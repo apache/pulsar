@@ -47,7 +47,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -312,7 +312,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                     }
                 } else {
                     ByteBuf encryptedPayload = encryptMessage(msgMetadata, compressedPayload);
-                    DoubleByteBuf cmd = sendMessage(producerId, sequenceId, 1, msgMetadata.build(), encryptedPayload);
+                    ByteBufPair cmd = sendMessage(producerId, sequenceId, 1, msgMetadata.build(), encryptedPayload);
                     msgMetadata.recycle();
 
                     final OpSendMsg op = OpSendMsg.create(msg, cmd, sequenceId, callback);
@@ -373,7 +373,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         return encryptedPayload;
     }
 
-    private DoubleByteBuf sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
+    private ByteBufPair sendMessage(long producerId, long sequenceId, int numMessages, MessageMetadata msgMetadata,
             ByteBuf compressedPayload) throws IOException {
         ChecksumType checksumType;
 
@@ -699,7 +699,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
      *         return false that means that message is corrupted. Returns true if checksum is not present.
      */
     protected boolean verifyLocalBufferIsNotCorrupted(OpSendMsg op) {
-        DoubleByteBuf msg = op.cmd;
+        ByteBufPair msg = op.cmd;
 
         if (msg != null) {
             ByteBuf headerFrame = msg.getFirst();
@@ -725,7 +725,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             }
             return true;
         } else {
-            log.warn("[{}] Failed while casting {} into DoubleByteBuf", producerName, op.cmd.getClass().getName());
+            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, op.cmd.getClass().getName());
             return false;
         }
     }
@@ -733,14 +733,14 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     protected static final class OpSendMsg {
         MessageImpl msg;
         List<MessageImpl> msgs;
-        DoubleByteBuf cmd;
+        ByteBufPair cmd;
         SendCallback callback;
         long sequenceId;
         long createdAt;
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
 
-        static OpSendMsg create(MessageImpl msg, DoubleByteBuf cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(MessageImpl msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.msg = msg;
             op.cmd = cmd;
@@ -750,7 +750,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl> msgs, DoubleByteBuf cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(List<MessageImpl> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.msgs = msgs;
             op.cmd = cmd;
@@ -973,7 +973,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
      */
     private void stripChecksum(OpSendMsg op) {
         int totalMsgBufSize = op.cmd.readableBytes();
-        DoubleByteBuf msg = op.cmd;
+        ByteBufPair msg = op.cmd;
         if (msg != null) {
             ByteBuf headerFrame = msg.getFirst();
             headerFrame.markReaderIndex();
@@ -1006,7 +1006,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 headerFrame.resetReaderIndex();
             }
         } else {
-            log.warn("[{}] Failed while casting {} into DoubleByteBuf", producerName, op.cmd.getClass().getName());
+            log.warn("[{}] Failed while casting {} into ByteBufPair", producerName, op.cmd.getClass().getName());
         }
     }
 
@@ -1153,7 +1153,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 ByteBuf compressedPayload = batchMessageContainer.getCompressedBatchMetadataAndPayload();
                 long sequenceId = batchMessageContainer.sequenceId;
                 ByteBuf encryptedPayload = encryptMessage(batchMessageContainer.messageMetadata, compressedPayload);
-                DoubleByteBuf cmd = sendMessage(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
+                ByteBufPair cmd = sendMessage(producerId, sequenceId, batchMessageContainer.numMessagesInBatch,
                         batchMessageContainer.setBatchAndBuild(), encryptedPayload);
 
                 op = OpSendMsg.create(batchMessageContainer.messages, cmd, sequenceId,

@@ -276,7 +276,7 @@ public class Commands {
         }
     }
 
-    public static DoubleByteBuf newMessage(long consumerId, MessageIdData messageId, ByteBuf metadataAndPayload) {
+    public static ByteBufPair newMessage(long consumerId, MessageIdData messageId, ByteBuf metadataAndPayload) {
         CommandMessage.Builder msgBuilder = CommandMessage.newBuilder();
         msgBuilder.setConsumerId(consumerId);
         msgBuilder.setMessageId(messageId);
@@ -284,7 +284,7 @@ public class Commands {
         BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
         BaseCommand cmd = cmdBuilder.setType(Type.MESSAGE).setMessage(msg).build();
 
-        DoubleByteBuf res = serializeCommandMessageWithSize(cmd, metadataAndPayload);
+        ByteBufPair res = serializeCommandMessageWithSize(cmd, metadataAndPayload);
         cmd.recycle();
         cmdBuilder.recycle();
         msg.recycle();
@@ -292,7 +292,7 @@ public class Commands {
         return res;
     }
 
-    public static DoubleByteBuf newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
+    public static ByteBufPair newSend(long producerId, long sequenceId, int numMessages, ChecksumType checksumType,
             MessageMetadata messageData, ByteBuf payload) {
         CommandSend.Builder sendBuilder = CommandSend.newBuilder();
         sendBuilder.setProducerId(producerId);
@@ -302,7 +302,7 @@ public class Commands {
         }
         CommandSend send = sendBuilder.build();
 
-        DoubleByteBuf res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
+        ByteBufPair res = serializeCommandSendWithSize(BaseCommand.newBuilder().setType(Type.SEND).setSend(send),
                 checksumType, messageData, payload);
         send.recycle();
         sendBuilder.recycle();
@@ -674,7 +674,7 @@ public class Commands {
         return buf;
     }
 
-    private static DoubleByteBuf serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, ChecksumType checksumType,
+    private static ByteBufPair serializeCommandSendWithSize(BaseCommand.Builder cmdBuilder, ChecksumType checksumType,
             MessageMetadata msgMetadata, ByteBuf payload) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
@@ -720,7 +720,7 @@ public class Commands {
             throw new RuntimeException(e);
         }
 
-        DoubleByteBuf command = DoubleByteBuf.get(headers, payload);
+        ByteBufPair command = ByteBufPair.get(headers, payload);
 
         // write checksum at created checksum-placeholder
         if (includeChecksum) {
@@ -853,7 +853,7 @@ public class Commands {
         return singleMessagePayload;
     }
 
-    private static DoubleByteBuf serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload) {
+    private static ByteBufPair serializeCommandMessageWithSize(BaseCommand cmd, ByteBuf metadataAndPayload) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD] [MAGIC_NUMBER][CHECKSUM] [METADATA_SIZE][METADATA] [PAYLOAD]
         //
@@ -879,7 +879,7 @@ public class Commands {
             throw new RuntimeException(e);
         }
 
-        return (DoubleByteBuf) DoubleByteBuf.get(headers, metadataAndPayload);
+        return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
     }
 
     private static int getCurrentProtocolVersion() {

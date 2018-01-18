@@ -22,7 +22,7 @@ import java.io.IOException;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -65,7 +65,7 @@ public class RawMessageImpl implements RawMessage {
     }
 
     @Override
-    public DoubleByteBuf serialize() {
+    public ByteBufPair serialize() {
         // Format: [IdSize][Id][PayloadAndMetadataSize][PayloadAndMetadata]
         int idSize = id.getSerializedSize();
         int headerSize = 4 /* IdSize */ + idSize + 4 /* PayloadAndMetadataSize */;
@@ -83,7 +83,7 @@ public class RawMessageImpl implements RawMessage {
         }
         headers.writeInt(headersAndPayload.readableBytes());
 
-        return DoubleByteBuf.get(headers, headersAndPayload);
+        return ByteBufPair.get(headers, headersAndPayload);
     }
 
     static public RawMessage deserializeFrom(ByteBuf buffer) {

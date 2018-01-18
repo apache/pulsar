@@ -20,21 +20,20 @@ package org.apache.pulsar.common.api;
 
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.testng.annotations.Test;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 
-public class DoubleByteBufTest {
+public class ByteBufPairTest {
 
     @Test
     public void testDoubleByteBuf() throws Exception {
-
         ByteBuf b1 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b1.writerIndex(b1.capacity());
         ByteBuf b2 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b2.writerIndex(b2.capacity());
-        DoubleByteBuf buf = DoubleByteBuf.get(b1, b2);
+        ByteBufPair buf = ByteBufPair.get(b1, b2);
 
         assertEquals(buf.readableBytes(), 256);
         assertEquals(buf.getFirst(), b1);

@@ -26,7 +26,7 @@ import java.io.IOException;
 import org.apache.pulsar.checksum.utils.Crc32cChecksum;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
@@ -47,9 +47,9 @@ public class CommandsTest {
         MessageMetadata messageMetadata = MessageMetadata.newBuilder().setPublishTime(System.currentTimeMillis())
                 .setProducerName(producerName).setSequenceId(sequenceId).build();
         int expectedChecksum = computeChecksum(messageMetadata, data);
-        DoubleByteBuf clientCommand = Commands.newSend(1, 0, 1, ChecksumType.Crc32c, messageMetadata, data);
+        ByteBufPair clientCommand = Commands.newSend(1, 0, 1, ChecksumType.Crc32c, messageMetadata, data);
         clientCommand.retain();
-        ByteBuf receivedBuf = clientCommand.coalesce();
+        ByteBuf receivedBuf = ByteBufPair.coalesce(clientCommand);
         receivedBuf.skipBytes(4); //skip [total-size]
         int cmdSize = (int) receivedBuf.readUnsignedInt();
         receivedBuf.readerIndex(8 + cmdSize);
@@ -84,8 +84,8 @@ public class CommandsTest {
         metaPayloadFrame.writeInt(metadataSize);
         msgMetadata.writeTo(outStream);
         ByteBuf payload = compressedPayload.copy();
-        DoubleByteBuf metaPayloadBuf = DoubleByteBuf.get(metaPayloadFrame, payload);
-        int computedChecksum = Crc32cChecksum.computeChecksum(metaPayloadBuf.coalesce());
+        ByteBufPair metaPayloadBuf = ByteBufPair.get(metaPayloadFrame, payload);
+        int computedChecksum = Crc32cChecksum.computeChecksum(ByteBufPair.coalesce(metaPayloadBuf));
         outStream.recycle();
         metaPayloadBuf.release();
         return computedChecksum;

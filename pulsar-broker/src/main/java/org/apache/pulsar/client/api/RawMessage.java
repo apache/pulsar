@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 
 import io.netty.buffer.ByteBuf;
@@ -46,10 +46,10 @@ public interface RawMessage extends AutoCloseable {
     ByteBuf getHeadersAndPayload();
 
     /**
-     * Serialize a raw message to a ByteBuf. The caller is responsible for releasing
-     * the returned ByteBuf.
+     * Serialize a raw message to a ByteBufPair. The caller is responsible for releasing
+     * the returned ByteBufPair.
      */
-    DoubleByteBuf serialize();
+    ByteBufPair serialize();
 
     @Override
     void close();

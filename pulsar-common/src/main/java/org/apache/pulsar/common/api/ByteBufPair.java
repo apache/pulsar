@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.api;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.ChannelHandler.Sharable;
@@ -30,27 +32,37 @@ import io.netty.util.Recycler.Handle;
 import io.netty.util.ReferenceCounted;
 
 /**
- * ByteBuf that holds 2 buffers. Similar to {@see CompositeByteBuf} but doesn't allocate list to hold them.
+ * ByteBuf holder that contains 2 buffers.
  */
-public final class DoubleByteBuf extends AbstractReferenceCounted {
+public final class ByteBufPair extends AbstractReferenceCounted {
 
     private ByteBuf b1;
     private ByteBuf b2;
-    private final Handle<DoubleByteBuf> recyclerHandle;
+    private final Handle<ByteBufPair> recyclerHandle;
 
-    private static final Recycler<DoubleByteBuf> RECYCLER = new Recycler<DoubleByteBuf>() {
+    private static final Recycler<ByteBufPair> RECYCLER = new Recycler<ByteBufPair>() {
         @Override
-        protected DoubleByteBuf newObject(Recycler.Handle<DoubleByteBuf> handle) {
-            return new DoubleByteBuf(handle);
+        protected ByteBufPair newObject(Recycler.Handle<ByteBufPair> handle) {
+            return new ByteBufPair(handle);
         }
     };
 
-    private DoubleByteBuf(Handle<DoubleByteBuf> recyclerHandle) {
+    private ByteBufPair(Handle<ByteBufPair> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
-    public static DoubleByteBuf get(ByteBuf b1, ByteBuf b2) {
-        DoubleByteBuf buf = RECYCLER.get();
+    /**
+     * Get a new {@link ByteBufPair} from the pool and assign 2 buffers to it.
+     * <p>
+     * The buffers b1 and b2 lifecycles are now managed by the ByteBufPair: when the {@link ByteBufPair} is deallocated,
+     * b1 and b2 will be released as well.
+     *
+     * @param b1
+     * @param b2
+     * @return
+     */
+    public static ByteBufPair get(ByteBuf b1, ByteBuf b2) {
+        ByteBufPair buf = RECYCLER.get();
         buf.setRefCnt(1);
         buf.b1 = b1;
         buf.b2 = b2;
@@ -72,10 +84,11 @@ public final class DoubleByteBuf extends AbstractReferenceCounted {
     /**
      * @return a single buffer with the content of both individual buffers
      */
-    public ByteBuf coalesce() {
-        ByteBuf b = Unpooled.buffer(readableBytes());
-        b1.getBytes(0, b);
-        b2.getBytes(0, b);
+    @VisibleForTesting
+    public static ByteBuf coalesce(ByteBufPair pair) {
+        ByteBuf b = Unpooled.buffer(pair.readableBytes());
+        b.writeBytes(pair.b1, pair.b1.readerIndex(), pair.b1.readableBytes());
+        b.writeBytes(pair.b2, pair.b2.readerIndex(), pair.b2.readableBytes());
         return b;
     }
 
@@ -100,11 +113,14 @@ public final class DoubleByteBuf extends AbstractReferenceCounted {
     public static class Encoder extends ChannelOutboundHandlerAdapter {
         @Override
         public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-            if (msg instanceof DoubleByteBuf) {
-                DoubleByteBuf b = (DoubleByteBuf) msg;
+            if (msg instanceof ByteBufPair) {
+                ByteBufPair b = (ByteBufPair) msg;
 
-                ctx.write(b.getFirst(), ctx.voidPromise());
-                ctx.write(b.getSecond(), promise);
+                // Write each buffer individually on the socket. The retain() here is needed to preserve the fact that
+                // ByteBuf are automatically released after a write. If the ByteBufPair ref count is increased and it
+                // gets written multiple times, the individual buffers refcount should be reflected as well.
+                ctx.write(b.getFirst().retain(), ctx.voidPromise());
+                ctx.write(b.getSecond().retain(), promise);
             } else {
                 ctx.write(msg, promise);
             }
