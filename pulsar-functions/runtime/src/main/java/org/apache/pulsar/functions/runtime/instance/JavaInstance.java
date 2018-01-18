@@ -32,7 +32,6 @@ import java.util.concurrent.TimeoutException;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.api.RawRequestHandler;
 import org.apache.pulsar.functions.api.RequestHandler;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.api.SerDe;
@@ -68,7 +67,6 @@ public class JavaInstance implements AutoCloseable {
 
     private ContextImpl context;
     private RequestHandler requestHandler;
-    private RawRequestHandler rawRequestHandler;
     private ExecutorService executorService;
 
     public JavaInstance(InstanceConfig config, ClassLoader clsLoader,
@@ -94,8 +92,6 @@ public class JavaInstance implements AutoCloseable {
         if (object instanceof RequestHandler) {
             requestHandler = (RequestHandler) object;
             computeInputAndOutputTypesAndVerifySerDe(inputSerDe, outputSerDe);
-        } else if (object instanceof RawRequestHandler) {
-            rawRequestHandler = (RawRequestHandler) object;
         } else {
             throw new RuntimeException("User class must be either a Request or Raw Request Handler");
         }
@@ -138,13 +134,13 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(String messageId, String topicName, byte[] data, SerDe inputSerDe) {
+    public JavaExecutionResult handleMessage(String messageId, String topicName, Object input) {
         context.setCurrentMessageContext(messageId, topicName);
         JavaExecutionResult executionResult = new JavaExecutionResult();
         if (executorService == null) {
-            return processMessage(executionResult, data, inputSerDe);
+            return processMessage(executionResult, input);
         }
-        Future<?> future = executorService.submit(() -> processMessage(executionResult, data, inputSerDe));
+        Future<?> future = executorService.submit(() -> processMessage(executionResult, input));
         try {
             future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
         } catch (InterruptedException e) {
@@ -162,25 +158,13 @@ public class JavaInstance implements AutoCloseable {
         return executionResult;
     }
 
-    private JavaExecutionResult processMessage(JavaExecutionResult executionResult, byte[] data,
-                                               SerDe inputSerDe) {
-        if (requestHandler != null) {
-            try {
-                Object input = inputSerDe.deserialize(data);
-                Object output = requestHandler.handleRequest(input, context);
-                executionResult.setResult(output);
-            } catch (Exception ex) {
-                executionResult.setUserException(ex);
-            }
-        } else if (rawRequestHandler != null) {
-            try {
-                ByteArrayInputStream inputStream = new ByteArrayInputStream(data);
-                ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-                rawRequestHandler.handleRequest(inputStream, outputStream, context);
-                executionResult.setResult(outputStream.toByteArray());
-            } catch (Exception ex) {
-                executionResult.setUserException(ex);
-            }
+    private JavaExecutionResult processMessage(JavaExecutionResult executionResult, Object input) {
+
+        try {
+            Object output = requestHandler.handleRequest(input, context);
+            executionResult.setResult(output);
+        } catch (Exception ex) {
+            executionResult.setUserException(ex);
         }
         return executionResult;
     }

@@ -106,8 +106,7 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config, new LongRunningHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
-                Utf8StringSerDe.of());
+        JavaExecutionResult result = instance.handleMessage("1", "random", testString);
 
         assertNull(result.getUserException());
         assertNotNull(result.getTimeoutException());
@@ -127,8 +126,7 @@ public class JavaInstanceTest {
             null, null,
             Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "random", serialize(testString),
-                Utf8StringSerDe.of());
+        JavaExecutionResult result = instance.handleMessage("1", "random", testString);
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
     }
@@ -178,8 +176,7 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config, new VoidOutputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "r", serialize(testString),
-                Utf8StringSerDe.of());
+        JavaExecutionResult result = instance.handleMessage("1", "r", testString);
         assertNull(result.getUserException());
         assertNull(result.getTimeoutException());
         assertNull(result.getResult());
