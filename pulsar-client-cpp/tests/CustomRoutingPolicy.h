@@ -21,9 +21,16 @@
 
 #include <cstdlib> // rand()
 #include <boost/algorithm/string.hpp>
+#include <pulsar/DeprecatedException.h>
+
 namespace pulsar {
 class CustomRoutingPolicy : public MessageRoutingPolicy {
+    /** @deprecated */
     int getPartition(const Message& msg) {
+        throw DeprecatedException("Use getPartition(const Message&, const TopicMetadata&) instead.");
+    }
+
+    int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
         return 0;
     }
 };

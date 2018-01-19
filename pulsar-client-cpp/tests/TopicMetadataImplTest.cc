@@ -16,25 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
+#include <pulsar/Client.h>
+#include <gtest/gtest.h>
 
-#include <pulsar/MessageRoutingPolicy.h>
-#include <pulsar/TopicMetadata.h>
-#include <boost/functional/hash.hpp>
-#include <boost/thread/mutex.hpp>
+#include "../lib/TopicMetadataImpl.h"
 
-namespace pulsar {
-    class RoundRobinMessageRouter : public MessageRoutingPolicy {
-    public:
-        RoundRobinMessageRouter ();
-        virtual ~RoundRobinMessageRouter();
-        virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
-    private:
-        boost::mutex mutex_;
-        unsigned int prevPartition_;
-    };
-    typedef boost::hash<std::string> StringHash;
-    typedef boost::unique_lock<boost::mutex> Lock;
+using namespace pulsar;
+
+TEST(TopicMetadataImplTest, numPartitions) {
+    TopicMetadataImpl topicMetadata(1234);
+    ASSERT_EQ(1234, topicMetadata.getNumPartitions());
 }
-#endif // PULSAR_RR_MESSAGE_ROUTER_HEADER_

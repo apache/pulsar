@@ -39,6 +39,7 @@ class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
+// TODO: When releasing 2.0.0, make all methods virtual and create the virtual destructor for Google Mock tests
 class Message {
  public:
     typedef std::map<std::string, std::string> StringMap;
