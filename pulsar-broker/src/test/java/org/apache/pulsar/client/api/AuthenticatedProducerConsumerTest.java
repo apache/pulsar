@@ -54,7 +54,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
 
-    private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/basic.json";
+    private final String BASIC_CONF_FILE_PATH = "./src/test/resources/authentication/basic/.htpasswd";
 
     @BeforeMethod
     @Override
@@ -75,6 +75,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Set<String> superUserRoles = new HashSet<>();
         superUserRoles.add("localhost");
         superUserRoles.add("superUser");
+        superUserRoles.add("superUser2");
         conf.setSuperUserRoles(superUserRoles);
 
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
@@ -174,10 +175,29 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "batch")
-    public void testBasicSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
+    public void testBasicCryptSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
         AuthenticationBasic authPassword = new AuthenticationBasic();
-        authPassword.configure("{\"userId\":\"super\",\"password\":\"superPassword\"}");
+        authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
+        internalSetup(authPassword);
+
+        admin.clusters().createCluster("use",
+                new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,
+                        "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+        admin.properties()
+                .createProperty("my-property", new PropertyAdmin(Lists.newArrayList(), Sets.newHashSet("use")));
+        admin.namespaces().createNamespace("my-property/use/my-ns");
+
+        testSyncProducerAndConsumer(batchMessageDelayMs);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider = "batch")
+    public void testBasicArp1SyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        AuthenticationBasic authPassword = new AuthenticationBasic();
+        authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
         admin.clusters().createCluster("use",

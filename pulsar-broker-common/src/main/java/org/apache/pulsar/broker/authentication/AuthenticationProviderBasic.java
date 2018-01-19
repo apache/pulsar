@@ -19,6 +19,8 @@
 
 package org.apache.pulsar.broker.authentication;
 
+import org.apache.commons.codec.digest.Crypt;
+import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
@@ -27,16 +29,12 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
-import java.util.Base64;
-import java.util.stream.Collectors;
-
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
+import java.util.*;
 
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private final static String HTTP_HEADER_NAME = "Authorization";
-    private final static String SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
-    private JsonObject roles;
+    private final static String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
+    private Map<String, String> users;
 
     @Override
     public void close() throws IOException {
@@ -45,16 +43,22 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
     @Override
     public void initialize(ServiceConfiguration config) throws IOException {
-        File confFile = new File(System.getProperty(SYSTEM_PROPERTY_KEY));
+        File confFile = new File(System.getProperty(CONF_SYSTEM_PROPERTY_KEY));
         if (!confFile.exists()) {
             throw new IOException("The password auth conf file does not exist");
         } else if (!confFile.isFile()) {
             throw new IOException("The path is not a file");
         }
         BufferedReader reader = new BufferedReader(new FileReader(confFile));
-        String jsonString = reader.lines().collect(Collectors.joining());
+        users = new HashMap<>();
+        for (String line : reader.lines().toArray(s -> new String[s])) {
+            List<String> splitLine = Arrays.asList(line.split(":"));
+            if (splitLine.size() != 2) {
+                throw new IOException("The format of the password auth conf file is invalid");
+            }
+            users.put(splitLine.get(0), splitLine.get(1));
+        }
         reader.close();
-        roles = (new Gson()).fromJson(jsonString, JsonObject.class);
     }
 
     @Override
@@ -75,17 +79,27 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
         String userId = authParams.getUserId();
         String password = authParams.getPassword();
-        if (roles.get(userId) == null || !roles.get(userId).getAsJsonObject().get("password").getAsString()
-                .equals(password)) {
-            throw new AuthenticationException("Unknown user or invalid password");
+        String msg = "Unknown user or invalid password";
+
+        if (users.get(userId) == null) {
+            throw new AuthenticationException(msg);
         }
 
-        if (roles.get(userId).getAsJsonObject().get("role") == null || StringUtils
-                .isBlank(roles.get(userId).getAsJsonObject().get("role").getAsString())) {
-            throw new AuthenticationException("Invalid role definition");
+        String encryptedPassword = users.get(userId);
+
+        // For md5 algorithm
+        if ((users.get(userId).startsWith("$apr1"))) {
+            List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
+            if (splitEncryptedPassword.size() != 4 || !encryptedPassword
+                    .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
+                throw new AuthenticationException(msg);
+            }
+        // For crypt algorithm
+        } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
+            throw new AuthenticationException(msg);
         }
 
-        return roles.get(userId).getAsJsonObject().get("role").getAsString();
+        return userId;
     }
 
     private class AuthParams {
@@ -97,14 +111,14 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
                 throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
             }
-            String[] splittedRawAuthToken = rawAuthToken.split(" ");
-            if (splittedRawAuthToken.length != 2) {
+            String[] splitRawAuthToken = rawAuthToken.split(" ");
+            if (splitRawAuthToken.length != 2) {
                 throw new AuthenticationException("Base64 encoded token is not found");
             }
 
             String decodedAuthToken;
             try {
-                decodedAuthToken = new String(Base64.getDecoder().decode(splittedRawAuthToken[1]));
+                decodedAuthToken = new String(Base64.getDecoder().decode(splitRawAuthToken[1]));
             } catch (Exception e) {
                 throw new AuthenticationException("Base64 decoding is failure: " + e.getMessage());
             }
