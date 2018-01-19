@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.PrivateKey;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -38,19 +39,18 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-import java.security.PrivateKey;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
-
-import com.yahoo.athenz.zts.RoleToken;
-import com.yahoo.athenz.zts.ZTSClient;
 import com.yahoo.athenz.auth.ServiceIdentityProvider;
 import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
 import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.zts.RoleToken;
+import com.yahoo.athenz.zts.ZTSClient;
 
 public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
+
+    private static final long serialVersionUID = 1L;
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
     private static final String APPLICATION_X_PEM_FILE_BASE64 = "application/x-pem-file;base64";
@@ -78,7 +78,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     @Override
     synchronized public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         if (cachedRoleTokenIsValid()) {
-            return new AuthenticationDataAthenz(roleToken, getZtsClient().getHeader());
+            return new AuthenticationDataAthenz(roleToken, ZTSClient.getHeader());
         }
         try {
             // the following would set up the API call that requests tokens from the server
@@ -86,7 +86,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
             roleToken = token.getToken();
             cachedRoleTokenTimestamp = System.nanoTime();
-            return new AuthenticationDataAthenz(roleToken, getZtsClient().getHeader());
+            return new AuthenticationDataAthenz(roleToken, ZTSClient.getHeader());
         } catch (Throwable t) {
             throw new GettingAuthenticationDataException(t);
         }
@@ -120,6 +120,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     }
 
     @Override
+    @Deprecated
     public void configure(Map<String, String> authParams) {
         setAuthParams(authParams);
     }

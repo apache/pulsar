@@ -111,7 +111,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
 
     private MockedPulsarService mockPulsarSetup;
-    
+
     private PulsarService otherPulsar;
 
     private PulsarAdmin otheradmin;
@@ -161,7 +161,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     public Object[][] topicNamesProvider() {
         return new Object[][] { { "topic_+&*%{}() \\/$@#^%" }, { "simple-topicName" } };
     }
-    
+
     @DataProvider(name = "topicType")
     public Object[][] topicTypeProvider() {
         return new Object[][] { { DestinationDomain.persistent.value() },
@@ -361,7 +361,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         List<String> list = admin.brokers().getActiveBrokers("use");
         Assert.assertNotNull(list);
         Assert.assertEquals(list.size(), 1);
-        
+
         List<String> list2 = otheradmin.brokers().getActiveBrokers("test");
         Assert.assertNotNull(list2);
         Assert.assertEquals(list2.size(), 1);
@@ -393,7 +393,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * 3. update the configuration with new value
      * 4. wait and verify that new value has been updated
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -1214,7 +1214,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testJacksonWithTypeDifferencies() throws Exception {
         String expectedJson = "{\"adminRoles\":[\"role1\",\"role2\"],\"allowedClusters\":[\"usw\",\"use\"]}";
-        IncompatiblePropertyAdmin r1 = ObjectMapperFactory.getThreadLocal().reader(IncompatiblePropertyAdmin.class)
+        IncompatiblePropertyAdmin r1 = ObjectMapperFactory.getThreadLocal().readerFor(IncompatiblePropertyAdmin.class)
                 .readValue(expectedJson);
         assertEquals(r1.allowedClusters, Sets.newHashSet("use", "usw"));
         assertEquals(r1.someNewIntField, 0);
@@ -1606,7 +1606,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
      * This test-case verifies that broker should support both url/uri encoding for topic-name. It calls below api with
      * url-encoded and also uri-encoded topic-name in http request: a. PartitionedMetadataLookup b. TopicLookup c. Topic
      * Stats
-     * 
+     *
      * @param topicName
      * @throws Exception
      */
@@ -1619,7 +1619,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final int numOfPartitions = 4;
         admin.persistentTopics().createPartitionedTopic(dn1, numOfPartitions);
         // Create a consumer to get stats on this topic
-        Consumer consumer1 = pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration());
+        pulsarClient.subscribe(dn1, "my-subscriber-name", new ConsumerConfiguration());
 
         PersistentTopicsImpl persistent = (PersistentTopicsImpl) admin.persistentTopics();
         Field field = PersistentTopicsImpl.class.getDeclaredField("persistentTopics");
@@ -1708,14 +1708,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     static class MockedPulsarService extends MockedPulsarServiceBaseTest {
-        
+
         private ServiceConfiguration conf;
-        
+
         public MockedPulsarService(ServiceConfiguration conf) {
             super();
             this.conf = conf;
         }
-        
+
         @Override
         protected void setup() throws Exception {
             super.conf.setLoadManagerClassName(conf.getLoadManagerClassName());
@@ -1735,7 +1735,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
             return admin;
         }
     }
-    
+
     @Test
     public void testDestinationBundleRangeLookup() throws PulsarAdminException, PulsarServerException, Exception {
         admin.clusters().createCluster("usw", new ClusterData());
