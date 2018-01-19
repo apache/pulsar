@@ -20,6 +20,8 @@ package org.apache.pulsar.functions.runtime.instance;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -31,6 +33,7 @@ import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -46,7 +49,7 @@ class ContextImpl implements Context {
     private Logger logger;
 
     // Per Message related
-    private String messageId;
+    private MessageId messageId;
     private String currentTopicName;
     private long startTime;
 
@@ -82,9 +85,10 @@ class ContextImpl implements Context {
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
+    private Map<String, Consumer> sourceConsumers;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader) {
+                       ClassLoader classLoader, Map<String, Consumer> sourceConsumers) {
         this.config = config;
         this.logger = logger;
         this.pulsarClient = client;
@@ -92,6 +96,7 @@ class ContextImpl implements Context {
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
+        this.sourceConsumers = sourceConsumers;
         producerConfiguration = new ProducerConfiguration();
         producerConfiguration.setBlockIfQueueFull(true);
         producerConfiguration.setBatchingEnabled(true);
@@ -99,15 +104,15 @@ class ContextImpl implements Context {
         producerConfiguration.setMaxPendingMessages(1000000);
     }
 
-    public void setCurrentMessageContext(String messageId, String topicName) {
+    public void setCurrentMessageContext(MessageId messageId, String topicName) {
         this.messageId = messageId;
         this.currentTopicName = topicName;
         this.startTime = System.currentTimeMillis();
     }
 
     @Override
-    public String getMessageId() {
-        return messageId;
+    public byte[] getMessageId() {
+        return messageId.toByteArray();
     }
 
     @Override
@@ -186,6 +191,21 @@ class ContextImpl implements Context {
         byte[] bytes = publishSerializers.get(serDeClass).serialize(object);
         return publishProducers.get(topicName).sendAsync(bytes)
                 .thenApply(msgId -> null);
+    }
+
+    @Override
+    public CompletableFuture<Void> ack(byte[] messageId, String topic) {
+        if (!sourceConsumers.containsKey(topic)) {
+            throw new RuntimeException("No such input topic " + topic);
+        }
+
+        MessageId actualMessageId = null;
+        try {
+            actualMessageId = MessageId.fromByteArray(messageId);
+        } catch (IOException e) {
+            throw new RuntimeException("Invalid message id to ack", e);
+        }
+        return sourceConsumers.get(topic).acknowledgeAsync(actualMessageId);
     }
 
     @Override

@@ -457,9 +457,6 @@ public class ApiV1Resource extends BaseApiResource {
             if (functionConfig.getInputsCount() == 0) {
                 missingFields.add("Input");
             }
-            if (functionConfig.getOutputSerdeClassName() == null || functionConfig.getOutputSerdeClassName().isEmpty()) {
-                missingFields.add("OutputSerdeClassName");
-            }
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
                 throw new IllegalArgumentException(errorMessage + " is not provided");
