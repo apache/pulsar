@@ -53,6 +53,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata.Builder;
 import org.slf4j.Logger;
@@ -471,7 +472,7 @@ public class MessageIdTest extends BrokerTestBase {
         Builder metadataBuilder = ((MessageImpl) msg).getMessageBuilder();
         MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
                 .build();
-        ByteBuf cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
+        ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         // (a) create OpSendMsg with message-data : "message-1"
         OpSendMsg op = OpSendMsg.create(((MessageImpl) msg), cmd, 1, null);
         // a.verify: as message is not corrupt: no need to update checksum
