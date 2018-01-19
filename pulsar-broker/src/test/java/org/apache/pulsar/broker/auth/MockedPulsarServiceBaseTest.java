@@ -95,6 +95,8 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setManagedLedgerCacheSizeMB(8);
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
+        this.conf.setZookeeperServers("localhost:2181");
+        this.conf.setClusterName("mock");
     }
 
     protected final void internalSetup() throws Exception {
@@ -255,6 +257,6 @@ public abstract class MockedPulsarServiceBaseTest {
             Thread.sleep(intSleepTime + (intSleepTime * i));
         }
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(MockedPulsarServiceBaseTest.class);
 }
