@@ -19,8 +19,8 @@
 package org.apache.pulsar.zookeeper;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 import static org.testng.AssertJUnit.assertNotNull;
 import static org.testng.AssertJUnit.assertNull;
@@ -34,19 +34,9 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.pulsar.zookeeper.Deserializers;
-import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
-import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.pulsar.zookeeper.ZooKeeperCacheListener;
-import org.apache.pulsar.zookeeper.ZooKeeperChildrenCache;
-import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.MockZooKeeper;
 import org.apache.zookeeper.WatchedEvent;
@@ -70,7 +60,7 @@ public class ZookeeperCacheTest {
 
     @BeforeMethod
     void setup() throws Exception {
-        zkClient = MockZooKeeper.newInstance(MoreExecutors.sameThreadExecutor());
+        zkClient = MockZooKeeper.newInstance(MoreExecutors.newDirectExecutorService());
     }
 
     @AfterMethod
@@ -124,7 +114,7 @@ public class ZookeeperCacheTest {
     void testChildrenCache() throws Exception {
         OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        
+
         zkClient.create("/test", new byte[0], null, null);
 
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
@@ -181,7 +171,7 @@ public class ZookeeperCacheTest {
     void testExistsCache() throws Exception {
         OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        
+
         // Check existence after creation of the node
         zkClient.create("/test", new byte[0], null, null);
         Thread.sleep(20);
@@ -202,7 +192,7 @@ public class ZookeeperCacheTest {
     void testInvalidateCache() throws Exception {
         OrderedSafeExecutor executor = new OrderedSafeExecutor(1, "test");
         ScheduledExecutorService scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        
+
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/c1", new byte[0], null, null);
         zkClient.create("/test/c2", new byte[0], null, null);
@@ -340,11 +330,11 @@ public class ZookeeperCacheTest {
         // Update shouldn't happen after the last check
         assertEquals(notificationCount.get(), 1);
     }
-    
+
     /**
      * Verifies that blocking call on zkCache-callback will not introduce deadlock because zkCache completes
      * future-result with different thread than zookeeper-client thread.
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 2000)
@@ -387,14 +377,14 @@ public class ZookeeperCacheTest {
         zkExecutor.shutdown();
         scheduledExecutor.shutdown();
     }
-    
+
     /**
      * <pre>
-     * Verifies that if {@link ZooKeeperCache} fails to fetch data into the cache then 
+     * Verifies that if {@link ZooKeeperCache} fails to fetch data into the cache then
      * (1) it invalidates failed future so, next time it helps to get fresh data from zk
      * (2) handles zk.getData() unexpected exception if zkSession is lost
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
