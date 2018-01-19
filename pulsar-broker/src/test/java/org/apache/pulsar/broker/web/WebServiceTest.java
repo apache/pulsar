@@ -257,6 +257,7 @@ public class WebServiceTest {
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
+        config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
         pulsar.start();
