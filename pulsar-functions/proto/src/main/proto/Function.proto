@@ -48,6 +48,7 @@ message FunctionConfig {
     map<string,string> userConfig = 10;
     SubscriptionType subscriptionType = 11;
     Runtime runtime = 12;
+    bool autoAck = 13;
 }
 
 message PackageLocationMetaData {

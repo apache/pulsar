@@ -103,23 +103,27 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         try {
             log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
 
-            // start the sink producer
-            startSinkProducer();
-            // start the source consumer
-            startSourceConsumers();
             // start the function thread
             loadJars();
-            // initialize the thread context
-            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
 
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
 
             // create the serde
             this.inputSerDe = new HashMap<>();
             instanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
+
+            // start the sink producer
+            startSinkProducer();
+            // start the source consumer
+            startSourceConsumers();
+
+            // initialize the thread context
+            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+
             this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
 
-            javaInstance = new JavaInstance(instanceConfig, clsLoader, client, new ArrayList(inputSerDe.values()), outputSerDe);
+            javaInstance = new JavaInstance(instanceConfig, clsLoader, client,
+                    new ArrayList(inputSerDe.values()), outputSerDe, sourceConsumers);
 
             while (true) {
                 JavaExecutionResult result;
@@ -139,7 +143,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 stats.incrementProcess();
                 Object input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
                 result = javaInstance.handleMessage(
-                        convertMessageIdToString(msg.getActualMessage().getMessageId()),
+                        msg.getActualMessage().getMessageId(),
                         msg.getTopicName(),
                         input);
                 log.debug("Got result: {}", result.getResult());
@@ -174,7 +178,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void startSinkProducer() throws Exception {
-        if (instanceConfig.getFunctionConfig().getSinkTopic() != null) {
+        if (instanceConfig.getFunctionConfig().getSinkTopic() != null && !instanceConfig.getFunctionConfig().getSinkTopic().isEmpty()) {
             log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getSinkTopic());
             ProducerConfiguration conf = new ProducerConfiguration();
             conf.setBlockIfQueueFull(true);
@@ -208,7 +212,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     message.setTopicName(entry.getKey());
                     queue.put(message);
                     if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
-                        consumer.acknowledgeAsync(msg);
+                        if (instanceConfig.getFunctionConfig().getAutoAck()) {
+                            consumer.acknowledgeAsync(msg);
+                        }
                     }
                 } catch (InterruptedException e) {
                     log.error("Function container {} is interrupted on enqueuing messages",
@@ -216,7 +222,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
             });
 
-            this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getValue(),
+            this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
                     FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
         }
     }
@@ -241,8 +247,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 if (output != null) {
                     sinkProducer.sendAsync(output)
                             .thenAccept(messageId -> {
-                                if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                                    msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                                if (instanceConfig.getFunctionConfig().getAutoAck()) {
+                                    if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
+                                        msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                                    }
                                 }
                             })
                             .exceptionally(cause -> {
@@ -251,10 +259,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 return null;
                             });
                 } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                    msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                    if (instanceConfig.getFunctionConfig().getAutoAck()) {
+                        msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                    }
                 }
             } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                if (instanceConfig.getFunctionConfig().getAutoAck()) {
+                    msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                }
             }
         }
     }
@@ -313,12 +325,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.putMetrics(metricName, digest);
     }
 
-    private static String convertMessageIdToString(MessageId messageId) {
-        return messageId.toByteArray().toString();
-    }
-
     private static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader) {
-        if (null == serdeClassName) {
+        if (null == serdeClassName || serdeClassName.isEmpty()) {
             return null;
         } else {
             return Reflections.createInstance(

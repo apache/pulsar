@@ -22,6 +22,10 @@ namespace: "test-namespace"
 name: "example"
 className: "org.apache.pulsar.functions.api.examples.ExclamationFunction"
 inputs:
-  "persistent://sample/standalone/ns1/test_src" : "org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe"
+  "persistent://sample/standalone/ns1/test_src" : "org.apache.pulsar.functions.api.utils.Utf8StringSerDe"
 userConfig:
   "PublishTopic" : "persistent://sample/standalone/ns1/test_result"
+
+sinkTopic: "persistent://sample/standalone/ns1/test_result"
+outputSerdeClassName: "org.apache.pulsar.functions.api.utils.Utf8StringSerDe"
+autoAck: true

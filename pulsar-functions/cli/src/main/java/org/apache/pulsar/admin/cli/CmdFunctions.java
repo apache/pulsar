@@ -205,25 +205,6 @@ public class CmdFunctions extends CmdBase {
                     }
                 }
             });
-
-            // Check if the Output serialization/deserialization class exists in jar or already loaded and that it
-            // implements SerDe class
-            if(!Reflections.classExists(functionConfigBuilder.getOutputSerdeClassName())
-                    && !Reflections.classExistsInJar(new File(jarFile), functionConfigBuilder.getOutputSerdeClassName())) {
-                throw new IllegalArgumentException(
-                        String.format("Input serialization/deserialization class %s does not exist",
-                                functionConfigBuilder.getOutputSerdeClassName()));
-            } else if (Reflections.classExists(functionConfigBuilder.getOutputSerdeClassName())) {
-                if (!Reflections.classImplementsIface(functionConfigBuilder.getOutputSerdeClassName(), SerDe.class)) {
-                    throw new IllegalArgumentException(String.format("Output serialization/deserialization class %s does not not implement %s",
-                            functionConfigBuilder.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
-                }
-            } else if (Reflections.classExistsInJar(new File(jarFile), functionConfigBuilder.getOutputSerdeClassName())) {
-                if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfigBuilder.getOutputSerdeClassName(), SerDe.class)) {
-                    throw new IllegalArgumentException(String.format("Output serialization/deserialization class %s does not not implement %s",
-                            functionConfigBuilder.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
-                }
-            }
         }
     }
 

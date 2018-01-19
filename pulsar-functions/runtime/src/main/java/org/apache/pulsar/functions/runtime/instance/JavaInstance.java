@@ -30,6 +30,8 @@ import java.util.concurrent.TimeoutException;
 
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -70,22 +72,22 @@ public class JavaInstance implements AutoCloseable {
 
     public JavaInstance(InstanceConfig config, ClassLoader clsLoader,
                         PulsarClient pulsarClient,
-                        List<SerDe> inputSerDe, SerDe outputSerDe) {
+                        List<SerDe> inputSerDe, SerDe outputSerDe, Map<String, Consumer> sourceConsumers) {
         this(
             config,
             Reflections.createInstance(
                 config.getFunctionConfig().getClassName(),
-                clsLoader), clsLoader, pulsarClient, inputSerDe, outputSerDe);
+                clsLoader), clsLoader, pulsarClient, inputSerDe, outputSerDe, sourceConsumers);
     }
 
     JavaInstance(InstanceConfig config, Object object,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
-                 List<SerDe> inputSerDe, SerDe outputSerDe) {
+                 List<SerDe> inputSerDe, SerDe outputSerDe, Map<String, Consumer> sourceConsumers) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
 
-        this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader);
+        this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, sourceConsumers);
 
         // create the functions
         if (object instanceof PulsarFunction) {
@@ -116,6 +118,9 @@ public class JavaInstance implements AutoCloseable {
         }
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
+            if (outputSerDe == null) {
+                throw new RuntimeException("Output serde class is null even though return type is not Void!");
+            }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             verifySupportedType(outputSerdeTypeArgs[0], false);
             if (!typeArgs[1].equals(outputSerdeTypeArgs[0])) {
@@ -133,7 +138,7 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    public JavaExecutionResult handleMessage(String messageId, String topicName, Object input) {
+    public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
         context.setCurrentMessageContext(messageId, topicName);
         JavaExecutionResult executionResult = new JavaExecutionResult();
         if (executorService == null) {

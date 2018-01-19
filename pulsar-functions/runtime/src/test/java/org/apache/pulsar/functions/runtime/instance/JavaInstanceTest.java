@@ -27,6 +27,7 @@ import static org.testng.AssertJUnit.fail;
 
 import lombok.Getter;
 import lombok.Setter;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.fs.LimitsConfig;
@@ -37,6 +38,7 @@ import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.testng.annotations.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
 
 public class JavaInstanceTest {
 
@@ -104,9 +106,9 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new LongRunningHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+            config, new LongRunningHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "random", testString);
+        JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
 
         assertNull(result.getUserException());
         assertNotNull(result.getTimeoutException());
@@ -124,9 +126,9 @@ public class JavaInstanceTest {
             config,
             (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
             null, null,
-            Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+            Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "random", testString);
+        JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
     }
@@ -140,7 +142,7 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new UnsupportedHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+                config, new UnsupportedHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -157,7 +159,7 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new VoidInputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), null);
+                config, new VoidInputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), null, new HashMap<>());
             assertFalse(true);
         } catch (RuntimeException ex) {
             // Good
@@ -174,9 +176,9 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new VoidOutputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of());
+            config, new VoidOutputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
         String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage("1", "r", testString);
+        JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "r", testString);
         assertNull(result.getUserException());
         assertNull(result.getTimeoutException());
         assertNull(result.getResult());
@@ -197,7 +199,7 @@ public class JavaInstanceTest {
                 config,
                 (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
                     null, null,
-                    Arrays.asList(JavaSerDe.of()), Utf8StringSerDe.of());
+                    Arrays.asList(JavaSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
@@ -219,7 +221,7 @@ public class JavaInstanceTest {
                 config,
                 (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
                     null, null,
-                    Arrays.asList(Utf8StringSerDe.of()), JavaSerDe.of());
+                    Arrays.asList(Utf8StringSerDe.of()), JavaSerDe.of(), new HashMap<>());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));

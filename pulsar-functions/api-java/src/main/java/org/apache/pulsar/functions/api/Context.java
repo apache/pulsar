@@ -34,7 +34,7 @@ public interface Context {
      * This messageId is a stringified version of the actual MessageId
      * @return the messageId
      */
-    String getMessageId();
+    byte[] getMessageId();
 
     /**
      * The topic that this message belongs to
@@ -114,4 +114,6 @@ public interface Context {
      * @return
      */
     CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass);
+
+    CompletableFuture<Void> ack(byte[] messageId, String topic);
 }
