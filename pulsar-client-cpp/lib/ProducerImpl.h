@@ -27,6 +27,7 @@
 #include "HandlerBase.h"
 #include "SharedBuffer.h"
 #include "CompressionCodec.h"
+#include "MessageCrypto.h"
 #include "stats/ProducerStatsDisabled.h"
 #include "stats/ProducerStatsImpl.h"
 
@@ -37,6 +38,7 @@ namespace pulsar {
 class BatchMessageContainer;
 
 typedef boost::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
+typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
 
@@ -120,6 +122,10 @@ class ProducerImpl : public HandlerBase,
 
     void resendMessages(ClientConnectionPtr cnx);
 
+    void refreshEncryptionKey(const boost::system::error_code& ec);
+    bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
+                        SharedBuffer& encryptedPayload);
+
     typedef boost::unique_lock<boost::mutex> Lock;
 
     ProducerConfiguration conf_;
@@ -144,6 +150,10 @@ class ProducerImpl : public HandlerBase,
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
 
     void failPendingMessages(Result result);
+
+    MessageCryptoPtr msgCrypto_;
+    DeadlineTimerPtr dataKeyGenTImer_;
+    uint32_t dataKeyGenIntervalSec_;
 };
 
 struct ProducerImplCmp {
