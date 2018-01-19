@@ -74,6 +74,7 @@ public class WorkerConfig implements Serializable {
     @ToString
     class ProcessContainerFactory {
         private String javaInstanceJarLocation;
+        private String pythonInstanceLocation;
         private String logDirectory;
     }
     private ProcessContainerFactory processContainerFactory;

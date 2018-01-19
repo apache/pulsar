@@ -101,6 +101,11 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to Jar\n",
                 listConverter = StringConverter.class)
         protected String jarFile;
+        @Parameter(
+                names = "--py",
+                description = "Path to Python\n",
+                listConverter = StringConverter.class)
+        protected String pyFile;
         @Parameter(names = "--source-topics", description = "Input Topic Name\n")
         protected String sourceTopicNames;
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
@@ -159,22 +164,30 @@ public class CmdFunctions extends CmdBase {
             if (null != processingGuarantees) {
                 functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
             }
-            functionConfigBuilder.setRuntime(FunctionConfig.Runtime.JAVA);
+            if (null != jarFile) {
+                doJavaSubmitChecks(functionConfigBuilder);
+                functionConfigBuilder.setRuntime(FunctionConfig.Runtime.JAVA);
+            } else if (null != pyFile) {
+                // Can we do any checks here?
+                functionConfigBuilder.setRuntime(FunctionConfig.Runtime.PYTHON);
+            }
 
             functionConfig = functionConfigBuilder.build();
+        }
 
+        private void doJavaSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
             // check if the function class exists in Jar and it implements PulsarFunction class
-            if (!Reflections.classExistsInJar(new File(jarFile), functionConfig.getClassName())) {
+            if (!Reflections.classExistsInJar(new File(jarFile), functionConfigBuilder.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
-                        functionConfig.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getClassName(), PulsarFunction.class)) {
+                        functionConfigBuilder.getClassName(), jarFile));
+            } else if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfigBuilder.getClassName(), PulsarFunction.class)) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s does not implemement PulsarFunction.class",
-                        functionConfig.getClassName(), jarFile));
+                        functionConfigBuilder.getClassName(), jarFile));
             }
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
-            functionConfig.getInputsMap().forEach((topicName, inputSerializer) -> {
+            functionConfigBuilder.getInputsMap().forEach((topicName, inputSerializer) -> {
                 if (!Reflections.classExists(inputSerializer)
                         && !Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
                     throw new IllegalArgumentException(
@@ -195,20 +208,20 @@ public class CmdFunctions extends CmdBase {
 
             // Check if the Output serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
-            if(!Reflections.classExists(functionConfig.getOutputSerdeClassName())
-                    && !Reflections.classExistsInJar(new File(jarFile), functionConfig.getOutputSerdeClassName())) {
+            if(!Reflections.classExists(functionConfigBuilder.getOutputSerdeClassName())
+                    && !Reflections.classExistsInJar(new File(jarFile), functionConfigBuilder.getOutputSerdeClassName())) {
                 throw new IllegalArgumentException(
                         String.format("Input serialization/deserialization class %s does not exist",
-                                functionConfig.getOutputSerdeClassName()));
-            } else if (Reflections.classExists(functionConfig.getOutputSerdeClassName())) {
-                if (!Reflections.classImplementsIface(functionConfig.getOutputSerdeClassName(), SerDe.class)) {
+                                functionConfigBuilder.getOutputSerdeClassName()));
+            } else if (Reflections.classExists(functionConfigBuilder.getOutputSerdeClassName())) {
+                if (!Reflections.classImplementsIface(functionConfigBuilder.getOutputSerdeClassName(), SerDe.class)) {
                     throw new IllegalArgumentException(String.format("Output serialization/deserialization class %s does not not implement %s",
-                            functionConfig.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
+                            functionConfigBuilder.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
                 }
-            } else if (Reflections.classExistsInJar(new File(jarFile), functionConfig.getOutputSerdeClassName())) {
-                if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfig.getOutputSerdeClassName(), SerDe.class)) {
+            } else if (Reflections.classExistsInJar(new File(jarFile), functionConfigBuilder.getOutputSerdeClassName())) {
+                if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfigBuilder.getOutputSerdeClassName(), SerDe.class)) {
                     throw new IllegalArgumentException(String.format("Output serialization/deserialization class %s does not not implement %s",
-                            functionConfig.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
+                            functionConfigBuilder.getOutputSerdeClassName(), SerDe.class.getCanonicalName()));
                 }
             }
         }

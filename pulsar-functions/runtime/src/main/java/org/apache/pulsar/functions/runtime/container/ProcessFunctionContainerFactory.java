@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.container;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
 
 /**
  * Thread based function container factory implementation.
@@ -31,28 +32,42 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
     private int maxBufferedTuples;
     private String pulsarServiceUrl;
     private String javaInstanceJarFile;
+    private String pythonInstanceFile;
     private String logDirectory;
 
     @VisibleForTesting
     public ProcessFunctionContainerFactory(int maxBufferedTuples,
                                            String pulsarServiceUrl,
                                            String javaInstanceJarFile,
+                                           String pythonInstanceFile,
                                            String logDirectory) {
 
         this.maxBufferedTuples = maxBufferedTuples;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.javaInstanceJarFile = javaInstanceJarFile;
+        this.pythonInstanceFile = pythonInstanceFile;
         this.logDirectory = logDirectory;
     }
 
     @Override
-    public ProcessFunctionContainer createContainer(InstanceConfig instanceConfig, String jarFile) {
+    public ProcessFunctionContainer createContainer(InstanceConfig instanceConfig, String codeFile) {
+        String instanceFile;
+        switch (instanceConfig.getFunctionConfig().getRuntime()) {
+            case JAVA:
+                instanceFile = javaInstanceJarFile;
+                break;
+            case PYTHON:
+                instanceFile = pythonInstanceFile;
+                break;
+            default:
+                throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionConfig().getRuntime());
+        }
         return new ProcessFunctionContainer(
             instanceConfig,
             maxBufferedTuples,
-            javaInstanceJarFile,
+            instanceFile,
             logDirectory,
-            jarFile,
+            codeFile,
             pulsarServiceUrl);
     }
 
