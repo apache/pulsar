@@ -42,6 +42,7 @@ metricsConfig:
     port: 9099
 threadContainerFactory:
   threadGroupName: "Thread Function Container Group"
-# processContainerFactory:
-#   javaInstanceJarLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/java-instance.jar"
-#   logDirectory: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/logs"
+processContainerFactory:
+  javaInstanceJarLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/java-instance.jar"
+  pythonInstanceLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/src/main/python/python_instance.py"
+  logDirectory: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/logs"

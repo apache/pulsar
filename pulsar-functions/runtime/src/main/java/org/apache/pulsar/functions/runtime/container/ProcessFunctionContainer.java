@@ -34,6 +34,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -61,6 +62,7 @@ class ProcessFunctionContainer implements FunctionContainer {
                              String logDirectory,
                              String codeFile,
                              String pulsarServiceUrl) {
+        Map<String, String> environment = new HashMap<>();
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
             args.add("java");
@@ -73,16 +75,18 @@ class ProcessFunctionContainer implements FunctionContainer {
             args.add("--jar");
             args.add(codeFile);
         } else if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.PYTHON) {
+            environment.put("LOGGING_DIRECTORY", logDirectory);
+            environment.put("LOGGING_FILE", instanceConfig.getFunctionId());
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
             args.add(codeFile);
         }
-        args.add("--instance-id");
+        args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());
-        args.add("--function-id");
+        args.add("--function_id");
         args.add(instanceConfig.getFunctionId());
-        args.add("--function-version");
+        args.add("--function_version");
         args.add(instanceConfig.getFunctionVersion());
         args.add("--tenant");
         args.add(instanceConfig.getFunctionConfig().getTenant());
@@ -90,7 +94,7 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(instanceConfig.getFunctionConfig().getNamespace());
         args.add("--name");
         args.add(instanceConfig.getFunctionConfig().getName());
-        args.add("--function-classname");
+        args.add("--function_classname");
         args.add(instanceConfig.getFunctionConfig().getClassName());
         String sourceTopicString = "";
         String inputSerdeClassNameString = "";
@@ -106,27 +110,27 @@ class ProcessFunctionContainer implements FunctionContainer {
                 inputSerdeClassNameString = inputSerdeClassNameString + "," + entry.getValue();
             }
         }
-        args.add("--source-topics");
+        args.add("--source_topics");
         args.add(sourceTopicString);
-        args.add("--input-serde-classnames");
+        args.add("--input_serde_classnames");
         args.add(inputSerdeClassNameString);
         if (instanceConfig.getFunctionConfig().getSinkTopic() != null) {
-            args.add("--sink-topic");
+            args.add("--sink_topic");
             args.add(instanceConfig.getFunctionConfig().getSinkTopic());
         }
         if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
-            args.add("--output-serde-classname");
+            args.add("--output_serde_classname");
             args.add(instanceConfig.getFunctionConfig().getOutputSerdeClassName());
         }
-        args.add("--processing-guarantees");
+        args.add("--processing_guarantees");
         if (instanceConfig.getFunctionConfig().getProcessingGuarantees() != null) {
             args.add(String.valueOf(instanceConfig.getFunctionConfig().getProcessingGuarantees()));
         } else {
             args.add("ATMOST_ONCE");
         }
-        args.add("--pulsar-serviceurl");
+        args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
-        args.add("--max-buffered-tuples");
+        args.add("--max_buffered_tuples");
         args.add(String.valueOf(maxBufferedTuples));
         Map<String, String> userConfig = instanceConfig.getFunctionConfig().getUserConfigMap();
         String userConfigString = "";
@@ -137,7 +141,7 @@ class ProcessFunctionContainer implements FunctionContainer {
                 }
                 userConfigString = userConfigString + entry.getKey() + ":" + entry.getValue();
             }
-            args.add("--user-config");
+            args.add("--user_config");
             args.add(userConfigString);
         }
         instancePort = findAvailablePort();
@@ -145,6 +149,9 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(String.valueOf(instancePort));
 
         processBuilder = new ProcessBuilder(args);
+        if (!environment.isEmpty()) {
+            processBuilder.environment().putAll(environment);
+        }
     }
 
     /**

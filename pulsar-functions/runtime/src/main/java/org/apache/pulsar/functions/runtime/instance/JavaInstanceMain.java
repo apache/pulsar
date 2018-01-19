@@ -44,7 +44,7 @@ import java.util.Map;
  */
 @Slf4j
 public class JavaInstanceMain {
-    @Parameter(names = "--function-classname", description = "Function Class Name\n", required = true)
+    @Parameter(names = "--function_classname", description = "Function Class Name\n", required = true)
     protected String className;
     @Parameter(
             names = "--jar",
@@ -57,39 +57,39 @@ public class JavaInstanceMain {
     protected String tenant;
     @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
     protected String namespace;
-    @Parameter(names = "--source-topics", description = "Input Topic Name\n", required = true)
+    @Parameter(names = "--source_topics", description = "Input Topic Name\n", required = true)
     protected String sourceTopicName;
-    @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
+    @Parameter(names = "--sink_topic", description = "Output Topic Name\n")
     protected String sinkTopicName;
 
-    @Parameter(names = "--input-serde-classnames", description = "Input SerDe\n", required = true)
+    @Parameter(names = "--input_serde_classnames", description = "Input SerDe\n", required = true)
     protected String inputSerdeClassName;
 
-    @Parameter(names = "--output-serde-classname", description = "Output SerDe\n")
+    @Parameter(names = "--output_serde_classname", description = "Output SerDe\n")
     protected String outputSerdeClassName;
 
-    @Parameter(names = "--processing-guarantees", description = "Processing Guarantees\n", required = true)
+    @Parameter(names = "--processing_guarantees", description = "Processing Guarantees\n", required = true)
     protected FunctionConfig.ProcessingGuarantees processingGuarantees;
 
-    @Parameter(names = "--instance-id", description = "Instance Id\n", required = true)
+    @Parameter(names = "--instance_id", description = "Instance Id\n", required = true)
     protected String instanceId;
 
-    @Parameter(names = "--function-id", description = "Function Id\n", required = true)
+    @Parameter(names = "--function_id", description = "Function Id\n", required = true)
     protected String functionId;
 
-    @Parameter(names = "--function-version", description = "Function Version\n", required = true)
+    @Parameter(names = "--function_version", description = "Function Version\n", required = true)
     protected String functionVersion;
 
-    @Parameter(names = "--pulsar-serviceurl", description = "Pulsar Service Url\n", required = true)
+    @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
     protected String pulsarServiceUrl;
 
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
     protected int port;
 
-    @Parameter(names = "--max-buffered-tuples", description = "Maximum number of tuples to buffer\n", required = true)
+    @Parameter(names = "--max_buffered_tuples", description = "Maximum number of tuples to buffer\n", required = true)
     protected int maxBufferedTuples;
 
-    @Parameter(names = "--user-config", description = "UserConfig\n")
+    @Parameter(names = "--user_config", description = "UserConfig\n")
     protected String userConfig;
 
     private Thread fnThread;
