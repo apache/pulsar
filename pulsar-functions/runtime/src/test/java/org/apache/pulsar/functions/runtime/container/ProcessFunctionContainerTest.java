@@ -108,19 +108,19 @@ public class ProcessFunctionContainerTest {
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionId()
                 + " org.apache.pulsar.functions.runtime.instance.JavaInstanceMain"
-                + " --jar " + userJarFile + " --instance-id "
-                + config.getInstanceId() + " --function-id " + config.getFunctionId()
-                + " --function-version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
+                + " --jar " + userJarFile + " --instance_id "
+                + config.getInstanceId() + " --function_id " + config.getFunctionId()
+                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
                 + " --namespace " + config.getFunctionConfig().getNamespace()
                 + " --name " + config.getFunctionConfig().getName()
-                + " --function-classname " + config.getFunctionConfig().getClassName()
-                + " --source-topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
-                + " --input-serde-classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
-                + " --sink-topic " + config.getFunctionConfig().getSinkTopic()
-                + " --output-serde-classname " + config.getFunctionConfig().getOutputSerdeClassName()
-                + " --processing-guarantees ATMOST_ONCE"
-                + " --pulsar-serviceurl " + pulsarServiceUrl
-                + " --max-buffered-tuples 1024 --port";
+                + " --function_classname " + config.getFunctionConfig().getClassName()
+                + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
+                + " --input_serde_classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
+                + " --sink_topic " + config.getFunctionConfig().getSinkTopic()
+                + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
+                + " --processing_guarantees ATMOST_ONCE"
+                + " --pulsar_serviceurl " + pulsarServiceUrl
+                + " --max_buffered_tuples 1024 --port";
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
@@ -133,19 +133,19 @@ public class ProcessFunctionContainerTest {
         assertEquals(args.size(), 34);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
-                + " --py " + userJarFile + " --instance-id "
-                + config.getInstanceId() + " --function-id " + config.getFunctionId()
-                + " --function-version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
+                + " --py " + userJarFile + " --instance_id "
+                + config.getInstanceId() + " --function_id " + config.getFunctionId()
+                + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
                 + " --namespace " + config.getFunctionConfig().getNamespace()
                 + " --name " + config.getFunctionConfig().getName()
-                + " --function-classname " + config.getFunctionConfig().getClassName()
-                + " --source-topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
-                + " --input-serde-classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
-                + " --sink-topic " + config.getFunctionConfig().getSinkTopic()
-                + " --output-serde-classname " + config.getFunctionConfig().getOutputSerdeClassName()
-                + " --processing-guarantees ATMOST_ONCE"
-                + " --pulsar-serviceurl " + pulsarServiceUrl
-                + " --max-buffered-tuples 1024 --port";
+                + " --function_classname " + config.getFunctionConfig().getClassName()
+                + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
+                + " --input_serde_classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
+                + " --sink_topic " + config.getFunctionConfig().getSinkTopic()
+                + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
+                + " --processing_guarantees ATMOST_ONCE"
+                + " --pulsar_serviceurl " + pulsarServiceUrl
+                + " --max_buffered_tuples 1024 --port";
         assertEquals(expectedArgs, String.join(" ", args));
     }
 
