@@ -16,25 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
+#ifndef DEPRECATED_EXCEPTION_HPP_
+#define DEPRECATED_EXCEPTION_HPP_
 
-#include <pulsar/MessageRoutingPolicy.h>
-#include <pulsar/TopicMetadata.h>
-#include <boost/functional/hash.hpp>
-#include <boost/thread/mutex.hpp>
+#include <stdexcept>
+#include <string>
 
 namespace pulsar {
-    class RoundRobinMessageRouter : public MessageRoutingPolicy {
+    class DeprecatedException: public std::runtime_error {
     public:
-        RoundRobinMessageRouter ();
-        virtual ~RoundRobinMessageRouter();
-        virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
+        explicit DeprecatedException(const std::string& __arg);
+
     private:
-        boost::mutex mutex_;
-        unsigned int prevPartition_;
+        static const std::string message_prefix;
     };
-    typedef boost::hash<std::string> StringHash;
-    typedef boost::unique_lock<boost::mutex> Lock;
 }
-#endif // PULSAR_RR_MESSAGE_ROUTER_HEADER_
+
+#endif //DEPRECATED_EXCEPTION_HPP_

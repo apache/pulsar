@@ -16,25 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
 
-#include <pulsar/MessageRoutingPolicy.h>
-#include <pulsar/TopicMetadata.h>
-#include <boost/functional/hash.hpp>
-#include <boost/thread/mutex.hpp>
+#ifndef MOCK_MESSAGE_HPP_
+#define MOCK_MESSAGE_HPP_
+
+#include <gmock/gmock.h>
+#include <pulsar/Message.h>
 
 namespace pulsar {
-    class RoundRobinMessageRouter : public MessageRoutingPolicy {
+    // TODO: For the mock tests, we need to make all methods and destructor virtual in Message class
+    class GMockMessage : public Message {
     public:
-        RoundRobinMessageRouter ();
-        virtual ~RoundRobinMessageRouter();
-        virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
-    private:
-        boost::mutex mutex_;
-        unsigned int prevPartition_;
+        MOCK_CONST_METHOD0(hasPartitionKey, bool());
+
+        MOCK_CONST_METHOD0(getPartitionKey, const std::string&());
     };
-    typedef boost::hash<std::string> StringHash;
-    typedef boost::unique_lock<boost::mutex> Lock;
 }
-#endif // PULSAR_RR_MESSAGE_ROUTER_HEADER_
+
+#endif // MOCK_MESSAGE_HPP_
