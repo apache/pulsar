@@ -147,6 +147,7 @@ public class Worker extends AbstractService {
                         workerConfig.getLimitsConfig().getMaxBufferedTuples(),
                         workerConfig.getPulsarServiceUrl(),
                         workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
+                        workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
                         workerConfig.getProcessContainerFactory().getLogDirectory());
             } else {
                 throw new RuntimeException("Either Thread or Process Container Factory need to be set");

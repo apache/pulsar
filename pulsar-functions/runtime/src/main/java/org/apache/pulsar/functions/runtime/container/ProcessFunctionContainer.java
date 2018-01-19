@@ -57,21 +57,27 @@ class ProcessFunctionContainer implements FunctionContainer {
 
     ProcessFunctionContainer(InstanceConfig instanceConfig,
                              int maxBufferedTuples,
-                             String javaInstanceJarFile,
+                             String instanceFile,
                              String logDirectory,
-                             String jarFile,
+                             String codeFile,
                              String pulsarServiceUrl) {
-        if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
-            throw new RuntimeException("Only Java runtime supported");
-        }
         List<String> args = new LinkedList<>();
-        args.add("java");
-        args.add("-cp");
-        args.add(javaInstanceJarFile);
-        args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
-        args.add("-Dpulsar.log.dir=" + logDirectory);
-        args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionId());
-        args.add("org.apache.pulsar.functions.runtime.instance.JavaInstanceMain");
+        if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
+            args.add("java");
+            args.add("-cp");
+            args.add(instanceFile);
+            args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
+            args.add("-Dpulsar.log.dir=" + logDirectory);
+            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionId());
+            args.add("org.apache.pulsar.functions.runtime.instance.JavaInstanceMain");
+            args.add("--jar");
+            args.add(codeFile);
+        } else if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.PYTHON) {
+            args.add("python");
+            args.add(instanceFile);
+            args.add("--py");
+            args.add(codeFile);
+        }
         args.add("--instance-id");
         args.add(instanceConfig.getInstanceId());
         args.add("--function-id");
@@ -118,8 +124,6 @@ class ProcessFunctionContainer implements FunctionContainer {
         } else {
             args.add("ATMOST_ONCE");
         }
-        args.add("--jar");
-        args.add(jarFile);
         args.add("--pulsar-serviceurl");
         args.add(pulsarServiceUrl);
         args.add("--max-buffered-tuples");
