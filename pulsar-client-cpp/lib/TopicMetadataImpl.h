@@ -23,11 +23,11 @@
 
 namespace pulsar {
 class TopicMetadataImpl : public TopicMetadata {
-public:
+   public:
     TopicMetadataImpl(const int numPartitions);
     virtual int getNumPartitions() const;
 
-private:
+   private:
     int numPartitions_;
 };
 }

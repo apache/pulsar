@@ -32,13 +32,12 @@ struct ConsumerConfigurationImpl {
     std::string consumerName;
     long brokerConsumerStatsCacheTimeInMs;
     ConsumerConfigurationImpl()
-            : unAckedMessagesTimeoutMs(0),
-              consumerType(ConsumerExclusive),
-              messageListener(),
-              hasMessageListener(false),
-              brokerConsumerStatsCacheTimeInMs(30 * 1000), // 30 seconds
-              receiverQueueSize(1000) {
-    }
+        : unAckedMessagesTimeoutMs(0),
+          consumerType(ConsumerExclusive),
+          messageListener(),
+          hasMessageListener(false),
+          brokerConsumerStatsCacheTimeInMs(30 * 1000),  // 30 seconds
+          receiverQueueSize(1000) {}
 };
 }
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

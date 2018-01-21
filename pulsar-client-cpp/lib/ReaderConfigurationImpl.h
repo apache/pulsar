@@ -28,11 +28,7 @@ struct ReaderConfigurationImpl {
     bool hasReaderListener;
     int receiverQueueSize;
     std::string readerName;
-    ReaderConfigurationImpl()
-            : hasReaderListener(false),
-              receiverQueueSize(1000),
-              readerName() {
-    }
+    ReaderConfigurationImpl() : hasReaderListener(false), receiverQueueSize(1000), readerName() {}
 };
 }
 #endif /* LIB_READERCONFIGURATIONIMPL_H_ */

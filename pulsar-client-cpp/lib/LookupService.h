@@ -27,7 +27,7 @@
 
 namespace pulsar {
 class LookupService {
-public:
+   public:
     /*
      * @param    destinationName - topic name
      *
@@ -44,4 +44,4 @@ public:
 };
 typedef boost::shared_ptr<LookupService> LookupServicePtr;
 }
-#endif //PULSAR_CPP_LOOKUPSERVICE_H
+#endif  // PULSAR_CPP_LOOKUPSERVICE_H

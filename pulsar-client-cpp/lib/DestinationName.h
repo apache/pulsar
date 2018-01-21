@@ -30,47 +30,44 @@
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-    class DestinationName : public ServiceUnitId {
-    private:
-        std::string destination_;
-        std::string domain_;
-        std::string property_;
-        std::string cluster_;
-        std::string namespacePortion_;
-        std::string localName_;
-        boost::shared_ptr<NamespaceName> namespaceName_;
+class DestinationName : public ServiceUnitId {
+   private:
+    std::string destination_;
+    std::string domain_;
+    std::string property_;
+    std::string cluster_;
+    std::string namespacePortion_;
+    std::string localName_;
+    boost::shared_ptr<NamespaceName> namespaceName_;
 
-    public:
-        std::string getLookupName();
-        std::string getDomain();
-        std::string getProperty();
-        std::string getCluster();
-        std::string getNamespacePortion();
-        std::string getLocalName();
-        std::string getEncodedLocalName();
-        std::string toString();
-        static boost::shared_ptr<DestinationName> get(const std::string& destination);
-        bool operator ==(const DestinationName& other);
-        static std::string getEncodedName(const std::string& nameBeforeEncoding);
-        const std::string getTopicPartitionName(unsigned int partition);
-    private:
-        static CURL* getCurlHandle();
-        static CURL* curl;
-        static boost::mutex curlHandleMutex;
-        static void parse(const std::string& destinationName,
-                          std::string& domain,
-                          std::string& property,
-                          std::string& cluster,
-                          std::string& namespacePortion,
-                          std::string& localName);
-        DestinationName();
-        bool validateDestination();
-        bool init(const std::string& destinationName);
-    };
-    typedef  boost::shared_ptr<DestinationName> DestinationNamePtr;
+   public:
+    std::string getLookupName();
+    std::string getDomain();
+    std::string getProperty();
+    std::string getCluster();
+    std::string getNamespacePortion();
+    std::string getLocalName();
+    std::string getEncodedLocalName();
+    std::string toString();
+    static boost::shared_ptr<DestinationName> get(const std::string& destination);
+    bool operator==(const DestinationName& other);
+    static std::string getEncodedName(const std::string& nameBeforeEncoding);
+    const std::string getTopicPartitionName(unsigned int partition);
+
+   private:
+    static CURL* getCurlHandle();
+    static CURL* curl;
+    static boost::mutex curlHandleMutex;
+    static void parse(const std::string& destinationName, std::string& domain, std::string& property,
+                      std::string& cluster, std::string& namespacePortion, std::string& localName);
+    DestinationName();
+    bool validateDestination();
+    bool init(const std::string& destinationName);
+};
+typedef boost::shared_ptr<DestinationName> DestinationNamePtr;
 }
 // end of namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif //_PULSAR_DESTINATION_NAME_HEADER_
+#endif  //_PULSAR_DESTINATION_NAME_HEADER_

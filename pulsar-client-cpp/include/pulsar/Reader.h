@@ -24,7 +24,6 @@
 
 #pragma GCC visibility push(default)
 
-
 namespace pulsar {
 class PulsarWrapper;
 class PulsarFriend;
@@ -34,7 +33,7 @@ class ReaderImpl;
  * A Reader can be used to scan through all the messages currently available in a topic.
  */
 class Reader {
- public:
+   public:
     /**
      * Construct an uninitialized reader object
      */
@@ -72,7 +71,7 @@ class Reader {
 
     void closeAsync(ResultCallback callback);
 
-private:
+   private:
     typedef boost::shared_ptr<ReaderImpl> ReaderImplPtr;
     ReaderImplPtr impl_;
     explicit Reader(ReaderImplPtr);
@@ -82,7 +81,6 @@ private:
     friend class ReaderImpl;
     friend class ReaderTest;
 };
-
 }
 
 #pragma GCC visibility pop

@@ -34,15 +34,16 @@ struct ClientConfigurationImpl {
     std::string tlsTrustCertsFilePath;
     bool tlsAllowInsecureConnection;
     unsigned int statsIntervalInSeconds;
-    ClientConfigurationImpl() : authenticationPtr(AuthFactory::Disabled()),
-             ioThreads(1),
-             operationTimeoutSeconds(30),
-             messageListenerThreads(1),
-             concurrentLookupRequest(5000),
-             logConfFilePath(),
-             useTls(false),
-             tlsAllowInsecureConnection(true),
-             statsIntervalInSeconds(600) { // 10 minutes
+    ClientConfigurationImpl()
+        : authenticationPtr(AuthFactory::Disabled()),
+          ioThreads(1),
+          operationTimeoutSeconds(30),
+          messageListenerThreads(1),
+          concurrentLookupRequest(5000),
+          logConfFilePath(),
+          useTls(false),
+          tlsAllowInsecureConnection(true),
+          statsIntervalInSeconds(600) {  // 10 minutes
     }
 };
 }

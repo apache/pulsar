@@ -24,13 +24,13 @@
 #include <pulsar/Message.h>
 
 namespace pulsar {
-    // TODO: For the mock tests, we need to make all methods and destructor virtual in Message class
-    class GMockMessage : public Message {
-    public:
-        MOCK_CONST_METHOD0(hasPartitionKey, bool());
+// TODO: For the mock tests, we need to make all methods and destructor virtual in Message class
+class GMockMessage : public Message {
+   public:
+    MOCK_CONST_METHOD0(hasPartitionKey, bool());
 
-        MOCK_CONST_METHOD0(getPartitionKey, const std::string&());
-    };
+    MOCK_CONST_METHOD0(getPartitionKey, const std::string&());
+};
 }
 
-#endif // MOCK_MESSAGE_HPP_
+#endif  // MOCK_MESSAGE_HPP_

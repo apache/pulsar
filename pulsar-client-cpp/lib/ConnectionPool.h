@@ -17,7 +17,7 @@
  * under the License.
  */
 #ifndef _PULSAR_CONNECTION_POOL_HEADER_
-#define  _PULSAR_CONNECTION_POOL_HEADER_
+#define _PULSAR_CONNECTION_POOL_HEADER_
 
 #include <pulsar/Result.h>
 
@@ -32,13 +32,13 @@ namespace pulsar {
 class ExecutorService;
 
 class ConnectionPool {
- public:
+   public:
     ConnectionPool(const ClientConfiguration& conf, ExecutorServiceProviderPtr executorProvider,
                    const AuthenticationPtr& authentication, bool poolConnections = true);
 
     Future<Result, ClientConnectionWeakPtr> getConnectionAsync(const std::string& endpoint);
 
- private:
+   private:
     ClientConfiguration clientConfiguration_;
     ExecutorServiceProviderPtr executorProvider_;
     AuthenticationPtr authentication_;
@@ -49,7 +49,6 @@ class ConnectionPool {
 
     friend class ConnectionPoolTest;
 };
-
 }
 #pragma GCC visibility pop
-#endif //_PULSAR_CONNECTION_POOL_HEADER_
+#endif  //_PULSAR_CONNECTION_POOL_HEADER_

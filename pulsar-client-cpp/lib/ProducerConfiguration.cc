@@ -18,18 +18,12 @@
  */
 #include <lib/ProducerConfigurationImpl.h>
 
-
 namespace pulsar {
-ProducerConfiguration::ProducerConfiguration()
-        : impl_(boost::make_shared<ProducerConfigurationImpl>()) {
-}
+ProducerConfiguration::ProducerConfiguration() : impl_(boost::make_shared<ProducerConfigurationImpl>()) {}
 
-ProducerConfiguration::~ProducerConfiguration() {
-}
+ProducerConfiguration::~ProducerConfiguration() {}
 
-ProducerConfiguration::ProducerConfiguration(const ProducerConfiguration& x)
-        : impl_(x.impl_) {
-}
+ProducerConfiguration::ProducerConfiguration(const ProducerConfiguration& x) : impl_(x.impl_) {}
 
 ProducerConfiguration& ProducerConfiguration::operator=(const ProducerConfiguration& x) {
     impl_ = x.impl_;
@@ -60,18 +54,14 @@ ProducerConfiguration& ProducerConfiguration::setSendTimeout(int sendTimeoutMs) 
     return *this;
 }
 
-int ProducerConfiguration::getSendTimeout() const {
-    return impl_->sendTimeoutMs;
-}
+int ProducerConfiguration::getSendTimeout() const { return impl_->sendTimeoutMs; }
 
 ProducerConfiguration& ProducerConfiguration::setCompressionType(CompressionType compressionType) {
     impl_->compressionType = compressionType;
     return *this;
 }
 
-CompressionType ProducerConfiguration::getCompressionType() const {
-    return impl_->compressionType;
-}
+CompressionType ProducerConfiguration::getCompressionType() const { return impl_->compressionType; }
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendingMessages) {
     if (maxPendingMessages <= 0) {
@@ -81,12 +71,9 @@ ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendi
     return *this;
 }
 
-int ProducerConfiguration::getMaxPendingMessages() const {
-    return impl_->maxPendingMessages;
-}
+int ProducerConfiguration::getMaxPendingMessages() const { return impl_->maxPendingMessages; }
 
-ProducerConfiguration& ProducerConfiguration::setPartitionsRoutingMode(
-        const PartitionsRoutingMode& mode) {
+ProducerConfiguration& ProducerConfiguration::setPartitionsRoutingMode(const PartitionsRoutingMode& mode) {
     impl_->routingMode = mode;
     return *this;
 }
@@ -95,8 +82,7 @@ ProducerConfiguration::PartitionsRoutingMode ProducerConfiguration::getPartition
     return impl_->routingMode;
 }
 
-ProducerConfiguration& ProducerConfiguration::setMessageRouter(
-        const MessageRoutingPolicyPtr& router) {
+ProducerConfiguration& ProducerConfiguration::setMessageRouter(const MessageRoutingPolicyPtr& router) {
     impl_->routingMode = ProducerConfiguration::CustomPartition;
     impl_->messageRouter = router;
     return *this;
@@ -111,20 +97,16 @@ ProducerConfiguration& ProducerConfiguration::setBlockIfQueueFull(bool flag) {
     return *this;
 }
 
-bool ProducerConfiguration::getBlockIfQueueFull() const {
-    return impl_->blockIfQueueFull;
-}
+bool ProducerConfiguration::getBlockIfQueueFull() const { return impl_->blockIfQueueFull; }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingEnabled(const bool& batchingEnabled) {
     impl_->batchingEnabled = batchingEnabled;
     return *this;
 }
-const bool& ProducerConfiguration::getBatchingEnabled() const {
-    return impl_->batchingEnabled;
-}
+const bool& ProducerConfiguration::getBatchingEnabled() const { return impl_->batchingEnabled; }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxMessages(
-        const unsigned int& batchingMaxMessages) {
+    const unsigned int& batchingMaxMessages) {
     if (batchingMaxMessages <= 1) {
         throw "batchingMaxMessages needs to be greater than 1";
     }
@@ -137,7 +119,7 @@ const unsigned int& ProducerConfiguration::getBatchingMaxMessages() const {
 }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxAllowedSizeInBytes(
-        const unsigned long& batchingMaxAllowedSizeInBytes) {
+    const unsigned long& batchingMaxAllowedSizeInBytes) {
     impl_->batchingMaxAllowedSizeInBytes = batchingMaxAllowedSizeInBytes;
     return *this;
 }
@@ -146,7 +128,7 @@ const unsigned long& ProducerConfiguration::getBatchingMaxAllowedSizeInBytes() c
 }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxPublishDelayMs(
-        const unsigned long& batchingMaxPublishDelayMs) {
+    const unsigned long& batchingMaxPublishDelayMs) {
     impl_->batchingMaxPublishDelayMs = batchingMaxPublishDelayMs;
     return *this;
 }

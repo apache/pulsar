@@ -19,10 +19,8 @@
 #include <pulsar/DeprecatedException.h>
 
 namespace pulsar {
-    const std::string DeprecatedException::message_prefix = "Deprecated: ";
+const std::string DeprecatedException::message_prefix = "Deprecated: ";
 
-    DeprecatedException::DeprecatedException(const std::string& __arg)
-            : std::runtime_error(message_prefix + __arg) {
-
-    }
+DeprecatedException::DeprecatedException(const std::string& __arg)
+    : std::runtime_error(message_prefix + __arg) {}
 }

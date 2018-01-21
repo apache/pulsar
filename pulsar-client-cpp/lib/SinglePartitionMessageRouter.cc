@@ -19,20 +19,20 @@
 #include "SinglePartitionMessageRouter.h"
 
 namespace pulsar {
-    SinglePartitionMessageRouter::~SinglePartitionMessageRouter(){}
-    SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex) {
-        selectedSinglePartition_ = partitionIndex;
-    }
+SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex) {
+    selectedSinglePartition_ = partitionIndex;
+}
 
-    //override
-    int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-        //if message has a key, hash the key and return the partition
-        if (msg.hasPartitionKey()) {
-            StringHash hash;
-            return hash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-        } else {
-            //else pick the next partition
-            return selectedSinglePartition_;
-        }
+// override
+int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
+    // if message has a key, hash the key and return the partition
+    if (msg.hasPartitionKey()) {
+        StringHash hash;
+        return hash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
+    } else {
+        // else pick the next partition
+        return selectedSinglePartition_;
     }
+}
 }

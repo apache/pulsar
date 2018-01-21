@@ -20,11 +20,7 @@
 #include "TopicMetadataImpl.h"
 
 namespace pulsar {
-    TopicMetadataImpl::TopicMetadataImpl(const int numPartitions) : numPartitions_(numPartitions) {
+TopicMetadataImpl::TopicMetadataImpl(const int numPartitions) : numPartitions_(numPartitions) {}
 
-    }
-
-    int TopicMetadataImpl::getNumPartitions() const {
-        return numPartitions_;
-    }
+int TopicMetadataImpl::getNumPartitions() const { return numPartitions_; }
 }

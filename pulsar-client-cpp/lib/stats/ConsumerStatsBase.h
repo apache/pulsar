@@ -26,7 +26,7 @@
 
 namespace pulsar {
 class ConsumerStatsBase {
- public:
+   public:
     virtual void receivedMessage(Message&, Result) = 0;
     virtual void messageAcknowledged(Result, proto::CommandAck_AckType) = 0;
     virtual ~ConsumerStatsBase() {}
@@ -35,4 +35,4 @@ class ConsumerStatsBase {
 typedef boost::shared_ptr<ConsumerStatsBase> ConsumerStatsBasePtr;
 }
 
-#endif // PULSAR_CONSUMER_STATS_BASE_HEADER
+#endif  // PULSAR_CONSUMER_STATS_BASE_HEADER

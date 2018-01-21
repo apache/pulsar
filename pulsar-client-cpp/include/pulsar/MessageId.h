@@ -32,7 +32,7 @@ class UnAckedMessageTrackerEnabled;
 class PulsarWrapper;
 
 class MessageId {
- public:
+   public:
     MessageId& operator=(const MessageId&);
     MessageId();
     virtual ~MessageId() {}
@@ -61,8 +61,7 @@ class MessageId {
     bool operator<(const MessageId& other) const;
     bool operator==(const MessageId& other) const;
 
- protected:
-
+   protected:
     virtual int64_t getBatchIndex() const;
     friend class ConsumerImpl;
     friend class Message;
@@ -77,13 +76,11 @@ class MessageId {
     MessageId(int64_t, int64_t);
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
     int64_t ledgerId_;
-    int64_t entryId_ :48;
-    short partition_ :16;
+    int64_t entryId_ : 48;
+    short partition_ : 16;
 };
-
-
 }
 
 #pragma GCC visibility pop
 
-#endif //MESSAGE_ID_H
+#endif  // MESSAGE_ID_H

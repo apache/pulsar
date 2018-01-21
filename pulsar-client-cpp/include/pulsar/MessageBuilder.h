@@ -28,8 +28,7 @@ namespace pulsar {
 class PulsarWrapper;
 
 class MessageBuilder {
- public:
-
+   public:
     MessageBuilder();
 
     typedef std::map<std::string, std::string> StringMap;
@@ -117,7 +116,8 @@ class MessageBuilder {
      *
      */
     MessageBuilder& create();
- private:
+
+   private:
     MessageBuilder(const MessageBuilder&);
     void checkMetadata();
     static boost::shared_ptr<MessageImpl> createMessageImpl();
@@ -125,7 +125,6 @@ class MessageBuilder {
 
     friend class PulsarWrapper;
 };
-
 }
 
 #pragma GCC visibility pop

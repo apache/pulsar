@@ -28,24 +28,23 @@
 
 namespace pulsar {
 
-  class PartitionedProducerImpl: public ProducerImplBase, public boost::enable_shared_from_this<PartitionedProducerImpl> {
-
- public:
-    enum PartitionedProducerState {
-      Pending,
-      Ready,
-      Closing,
-      Closed,
-      Failed
+class PartitionedProducerImpl : public ProducerImplBase,
+                                public boost::enable_shared_from_this<PartitionedProducerImpl> {
+   public:
+    enum PartitionedProducerState
+    {
+        Pending,
+        Ready,
+        Closing,
+        Closed,
+        Failed
     };
     const static std::string PARTITION_NAME_SUFFIX;
 
     typedef boost::unique_lock<boost::mutex> Lock;
 
-    PartitionedProducerImpl(ClientImplPtr ptr,
-                            const DestinationNamePtr destinationName,
-                            const unsigned int numPartitions,
-                            const ProducerConfiguration& config);
+    PartitionedProducerImpl(ClientImplPtr ptr, const DestinationNamePtr destinationName,
+                            const unsigned int numPartitions, const ProducerConfiguration& config);
     virtual ~PartitionedProducerImpl();
 
     virtual void sendAsync(const Message& msg, SendCallback callback);
@@ -70,12 +69,10 @@ namespace pulsar {
 
     virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture();
 
-    void handleSinglePartitionProducerCreated(Result result,
-                                              ProducerImplBaseWeakPtr producerBaseWeakPtr,
+    void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
 
-    void handleSinglePartitionProducerClose(Result result,
-                                            const unsigned int partitionIndex,
+    void handleSinglePartitionProducerClose(Result result, const unsigned int partitionIndex,
                                             CloseCallback callback);
 
     void notifyResult(CloseCallback closeCallback);
@@ -84,7 +81,7 @@ namespace pulsar {
 
     friend class PulsarFriend;
 
- private:
+   private:
     const ClientImplPtr client_;
 
     const DestinationNamePtr destinationName_;
@@ -115,7 +112,7 @@ namespace pulsar {
     // only set this promise to value, when producers on all partitions are created.
     Promise<Result, ProducerImplBaseWeakPtr> partitionedProducerCreatedPromise_;
 
-      MessageRoutingPolicyPtr getMessageRouter();
-  };
+    MessageRoutingPolicyPtr getMessageRouter();
+};
 
-} //ends namespace Pulsar
+}  // ends namespace Pulsar

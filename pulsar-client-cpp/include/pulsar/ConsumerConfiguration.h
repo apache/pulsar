@@ -43,7 +43,7 @@ class ConsumerConfigurationImpl;
  * Class specifying the configuration of a consumer.
  */
 class ConsumerConfiguration {
- public:
+   public:
     ConsumerConfiguration();
     ~ConsumerConfiguration();
     ConsumerConfiguration(const ConsumerConfiguration&);
@@ -80,9 +80,12 @@ class ConsumerConfiguration {
      * application calls receive(). Using a higher value could potentially increase the consumer throughput
      * at the expense of bigger memory utilization.
      *
-     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling pre-fetching of
-     * messages. This approach improves the message distribution on shared subscription, by pushing messages only to
-     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can be
+     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling
+     * pre-fetching of
+     * messages. This approach improves the message distribution on shared subscription, by pushing messages
+     * only to
+     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can
+     * be
      * used if the consumer queue size is zero. The receive() function call should not be interrupted when
      * the consumer queue size is zero.
      *
@@ -123,11 +126,9 @@ class ConsumerConfiguration {
     long getBrokerConsumerStatsCacheTimeInMs() const;
     friend class PulsarWrapper;
 
- private:
+   private:
     boost::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
-
 }
 #pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */
-

@@ -29,45 +29,25 @@ typedef Promise<Result, LookupDataResultPtr> LookupDataResultPromise;
 typedef boost::shared_ptr<LookupDataResultPromise> LookupDataResultPromisePtr;
 
 class LookupDataResult {
- public:
-    void setBrokerUrl(const std::string& brokerUrl) {
-        brokerUrl_ = brokerUrl;
-    }
-    void setBrokerUrlSsl(const std::string& brokerUrlSsl) {
-        brokerUrlSsl_ = brokerUrlSsl;
-    }
-    std::string getBrokerUrl() {
-        return brokerUrl_;
-    }
-    std::string getBrokerUrlSsl() {
-        return brokerUrlSsl_;
-    }
+   public:
+    void setBrokerUrl(const std::string& brokerUrl) { brokerUrl_ = brokerUrl; }
+    void setBrokerUrlSsl(const std::string& brokerUrlSsl) { brokerUrlSsl_ = brokerUrlSsl; }
+    std::string getBrokerUrl() { return brokerUrl_; }
+    std::string getBrokerUrlSsl() { return brokerUrlSsl_; }
 
-    bool isAuthoritative() const {
-        return authoritative;
-    }
+    bool isAuthoritative() const { return authoritative; }
 
-    void setAuthoritative(bool authoritative) {
-        this->authoritative = authoritative;
-    }
+    void setAuthoritative(bool authoritative) { this->authoritative = authoritative; }
 
-    int getPartitions() const {
-        return partitions;
-    }
+    int getPartitions() const { return partitions; }
 
-    void setPartitions(int partitions) {
-        this->partitions = partitions;
-    }
+    void setPartitions(int partitions) { this->partitions = partitions; }
 
-    bool isRedirect() const {
-        return redirect;
-    }
+    bool isRedirect() const { return redirect; }
 
-    void setRedirect(bool redirect) {
-        this->redirect = redirect;
-    }
+    void setRedirect(bool redirect) { this->redirect = redirect; }
 
- private:
+   private:
     friend inline std::ostream& operator<<(std::ostream& os, const LookupDataResult& b);
     std::string brokerUrl_;
     std::string brokerUrlSsl_;
@@ -77,14 +57,11 @@ class LookupDataResult {
 };
 
 std::ostream& operator<<(std::ostream& os, const LookupDataResult& b) {
-    os << "{ LookupDataResult [brokerUrl_ = " << b.brokerUrl_ << "] [brokerUrlSsl_ = "
-            << b.brokerUrlSsl_ << "] [partitions = "
-            << b.partitions << "] [authoritative = "
-            << b.authoritative << "] [redirect = " << b.redirect
-            << "]";
+    os << "{ LookupDataResult [brokerUrl_ = " << b.brokerUrl_ << "] [brokerUrlSsl_ = " << b.brokerUrlSsl_
+       << "] [partitions = " << b.partitions << "] [authoritative = " << b.authoritative
+       << "] [redirect = " << b.redirect << "]";
     return os;
 }
-
 }
 
-#endif // _PULSAR_LOOKUP_DATA_RESULT_HEADER_
+#endif  // _PULSAR_LOOKUP_DATA_RESULT_HEADER_

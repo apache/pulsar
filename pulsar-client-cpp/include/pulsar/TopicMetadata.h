@@ -24,7 +24,7 @@ namespace pulsar {
  * Metadata of a topic that can be used for message routing.
  */
 class TopicMetadata {
-public:
+   public:
     virtual int getNumPartitions() const = 0;
 };
 }
