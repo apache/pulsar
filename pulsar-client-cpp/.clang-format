@@ -17,4 +17,9 @@
 
 
 BasedOnStyle: Google
-ColumnLimit: 90
+IndentWidth: 4
+ColumnLimit: 110
+SortIncludes: false
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterEnum: true
