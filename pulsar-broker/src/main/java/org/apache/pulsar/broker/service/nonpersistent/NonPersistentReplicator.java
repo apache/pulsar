@@ -52,7 +52,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             BrokerService brokerService) {
         super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
 
-        producerConfiguration.setBlockIfQueueFull(false);
+        producerBuilder.blockIfQueueFull(false);
 
         startProducer();
     }

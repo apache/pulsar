@@ -1149,17 +1149,17 @@ public class PersistentTopicTest {
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
 
-        doReturn(new CompletableFuture<Producer>()).when(clientImpl).createProducerAsync(globalTopicName, replicator.getProducerConfiguration());
+        doReturn(new CompletableFuture<Producer>()).when(clientImpl).createProducerAsync(matches(globalTopicName), any());
 
         replicator.startProducer();
-        verify(clientImpl).createProducerAsync(globalTopicName, replicator.getProducerConfiguration());
+        verify(clientImpl).createProducerAsync(matches(globalTopicName), any());
 
         replicator.disconnect(false);
         replicator.disconnect(false);
 
         replicator.startProducer();
 
-        verify(clientImpl, Mockito.times(2)).createProducerAsync(globalTopicName, replicator.getProducerConfiguration());
+        verify(clientImpl, Mockito.times(2)).createProducerAsync(matches(globalTopicName), any());
     }
 
     @Test
