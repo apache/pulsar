@@ -27,8 +27,6 @@ import java.util.Map;
 
 class TopicStats {
 
-    private static final String TOPIC_REGEX = ".*://";
-
     int subscriptionsCount;
     int producersCount;
     int consumersCount;
@@ -69,8 +67,6 @@ class TopicStats {
     static void printNamespaceStats(SimpleTextOutputStream stream, String cluster, String namespace, String topic,
         TopicStats stats) {
 
-        topic = cleanTopicName(topic);
-
         metric(stream, cluster, namespace, topic,"pulsar_subscriptions_count", stats.subscriptionsCount);
         metric(stream, cluster, namespace, topic,"pulsar_producers_count", stats.producersCount);
         metric(stream, cluster, namespace, topic,"pulsar_consumers_count", stats.consumersCount);
@@ -89,9 +85,5 @@ class TopicStats {
         stream.write(name).write("{cluster=\"").write(cluster).write("\", namespace=\"").write(namespace)
                 .write("\", topic=\"").write(topic).write("\"} ");
         stream.write(value).write(' ').write(System.currentTimeMillis()).write('\n');
-    }
-
-    private static String cleanTopicName(String topic) {
-        return topic.replaceFirst(TOPIC_REGEX, "");
     }
 }

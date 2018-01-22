@@ -275,7 +275,7 @@ public class PulsarService implements AutoCloseable {
             this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true);
 
             this.webService.addServlet("/metrics",
-                    new ServletHolder(new PrometheusMetricsServlet(this, config.isTopicMetricsEnabled())), false);
+                    new ServletHolder(new PrometheusMetricsServlet(this, config.exposeTopicLevelMetricsInPrometheus())), false);
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery

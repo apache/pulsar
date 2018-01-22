@@ -375,7 +375,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
-    private boolean topicMetricsEnabled = false;
+    private boolean exposeTopicLevelMetricsInPrometheus = true;
 
 
     public String getZookeeperServers() {
@@ -1304,11 +1304,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
 
-    public boolean isTopicMetricsEnabled() {
-        return topicMetricsEnabled;
+    public boolean exposeTopicLevelMetricsInPrometheus() {
+        return exposeTopicLevelMetricsInPrometheus;
     }
 
-    public void setTopicMetricsEnabled(boolean topicMetricsEnabled) {
-        this.topicMetricsEnabled = topicMetricsEnabled;
+    public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
+        this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
     }
 }
