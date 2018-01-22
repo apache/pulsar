@@ -89,3 +89,13 @@ class Context(object):
   def publish(self, topic_name, message, serde_class_name):
     """Publishes message to topic_name by first serializing the message using serde_class_name serde"""
     pass
+
+  @abstractmethod
+  def get_sink_topic(self):
+    '''Returns the sink topic of function'''
+    pass
+
+  @abstractmethod
+  def get_output_serde_class(self):
+    '''return output Serde class'''
+    pass

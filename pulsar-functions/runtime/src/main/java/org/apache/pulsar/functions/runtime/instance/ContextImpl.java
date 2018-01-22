@@ -121,6 +121,20 @@ class ContextImpl implements Context {
     }
 
     @Override
+    public String getSinkTopic() {
+        return config.getFunctionConfig().getSinkTopic();
+    }
+
+    @Override
+    public Class<? extends SerDe> getOutputSerdeClass() {
+        try {
+            return (Class<? extends SerDe>) Class.forName(config.getFunctionConfig().getOutputSerdeClassName());
+        } catch (ClassNotFoundException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    @Override
     public String getFunctionName() {
         return config.getFunctionConfig().getName();
     }
