@@ -21,6 +21,8 @@ package org.apache.pulsar.broker.authorization;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
@@ -73,19 +75,6 @@ public class AuthorizationManager {
     }
 
     /**
-     * Check if the specified role has permission to access the destination via a proxy
-     *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
-     * @param role
-     *            the app id used to receive messages from the destination.
-     */
-    public CompletableFuture<Boolean> canProxyAsync(DestinationName destination, String role) {
-        return checkAuthorization(destination, role, AuthAction.proxy);
-    }
-
-    
-    /**
      * Check if the specified role has permission to receive messages from the specified fully qualified destination
      * name.
      *
@@ -109,8 +98,9 @@ public class AuthorizationManager {
                         switch (policies.get().subscription_auth_mode) {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
-                                PulsarServerException ex = new PulsarServerException(
-                                        String.format("Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for destination: %s", role, destination));
+                                PulsarServerException ex = new PulsarServerException(String.format(
+                                        "Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for destination: %s",
+                                        role, destination));
                                 permissionFuture.completeExceptionally(ex);
                                 return;
                             }
@@ -124,8 +114,7 @@ public class AuthorizationManager {
                     permissionFuture.complete(isAuthorized);
                 });
             }).exceptionally(ex -> {
-                log.warn("Client with Role - {} failed to get permissions for destination - {}", role, destination,
-                        ex);
+                log.warn("Client with Role - {} failed to get permissions for destination - {}", role, destination, ex);
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
@@ -163,8 +152,50 @@ public class AuthorizationManager {
         return canProduce(destination, role) || canConsume(destination, role, null);
     }
 
-    private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role,
-            AuthAction action) {
+    /**
+     * Check whether the specified role can perform a lookup for the specified destination.
+     *
+     * For that the caller needs to have producer or consumer permission.
+     *
+     * @param destination
+     * @param role
+     * @return
+     * @throws Exception
+     */
+    public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role) {
+        CompletableFuture<Boolean> produceFuture = canProduceAsync(destination, role);
+        CompletableFuture<Boolean> consumeFuture = canConsumeAsync(destination, role, null);
+        CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
+        CountDownLatch latch = new CountDownLatch(2);
+        produceFuture.whenComplete((authorized, ex) -> {
+            latch.countDown();
+            if (ex == null) {
+                if (authorized) {
+                    finalResult.complete(authorized);
+                } else if(latch.getCount() == 0) {
+                    finalResult.complete(false);
+                }
+            } else {
+                log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions", destination.toString(), role, ex);
+            }
+        });
+        
+        consumeFuture.whenComplete((authorized, ex) -> {
+            latch.countDown();
+            if (ex == null) {
+                if (authorized) {
+                    finalResult.complete(authorized);
+                } else if(latch.getCount() == 0) {
+                    finalResult.complete(false);
+                }
+            } else {
+                log.debug("Destination [{}] Role [{}] exception occured while trying to check Consume permissions", destination.toString(), role, ex);
+            }
+        });
+        return finalResult;
+    }
+
+    private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role, AuthAction action) {
         if (isSuperUser(role)) {
             return CompletableFuture.completedFuture(true);
         } else {
@@ -257,8 +288,7 @@ public class AuthorizationManager {
             }
 
             // Suffix match
-            if (permittedRole.charAt(0) == '*'
-                    && checkedRole.endsWith(permittedRole.substring(1))
+            if (permittedRole.charAt(0) == '*' && checkedRole.endsWith(permittedRole.substring(1))
                     && permittedActions.contains(checkedAction)) {
                 return true;
             }

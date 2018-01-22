@@ -184,8 +184,14 @@ public class ServerCnx extends PulsarHandler {
         if (lookupSemaphore.tryAcquire()) {
             final String proxyClientAuthRole = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
                     : this.proxyClientAuthRole;
-            CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
-
+            CompletableFuture<Boolean> isProxyAuthorizedFuture;
+            if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+                isProxyAuthorizedFuture = service.getAuthorizationManager()
+                        .canLookupAsync(DestinationName.get(topicName), authRole);
+            } else {
+                isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+            }
+            
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
                     lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topicName),
@@ -232,8 +238,13 @@ public class ServerCnx extends PulsarHandler {
 
             final String proxyClientAuthRole = partitionMetadata.hasOriginalPrincipal()
                     ? partitionMetadata.getOriginalPrincipal() : this.proxyClientAuthRole;
-            CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName, proxyClientAuthRole);
-
+            CompletableFuture<Boolean> isProxyAuthorizedFuture;
+            if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+                isProxyAuthorizedFuture = service.getAuthorizationManager()
+                        .canLookupAsync(DestinationName.get(topicName), authRole);
+            } else {
+                isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+            }
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
                         getPartitionedTopicMetadata(getBrokerService().pulsar(),
@@ -278,17 +289,6 @@ public class ServerCnx extends PulsarHandler {
             ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.TooManyRequests,
                     "Failed due to too many pending lookup requests", requestId));
         }
-    }
-
-    private CompletableFuture<Boolean> isProxyAuthorized(String topicName, String proxyClientAuthRole) {
-        CompletableFuture<Boolean> authorizationFuture;
-        if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
-            authorizationFuture = service.getAuthorizationManager().canProxyAsync(DestinationName.get(topicName),
-                    authRole);
-        } else {
-            authorizationFuture = CompletableFuture.completedFuture(true);
-        }
-        return authorizationFuture;
     }
 
     @Override
@@ -394,8 +394,13 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
 
-        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName);
-
+        CompletableFuture<Boolean> isProxyAuthorizedFuture;
+        if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+            isProxyAuthorizedFuture = service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topicName),
+                    authRole, subscribe.getSubscription());
+        } else {
+            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+        }
         isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
@@ -541,8 +546,13 @@ public class ServerCnx extends PulsarHandler {
         final long producerId = cmdProducer.getProducerId();
         final long requestId = cmdProducer.getRequestId();
 
-        CompletableFuture<Boolean> isProxyAuthorizedFuture = isProxyAuthorized(topicName);
-
+        CompletableFuture<Boolean> isProxyAuthorizedFuture;
+        if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+            isProxyAuthorizedFuture = service.getAuthorizationManager().canProduceAsync(DestinationName.get(topicName),
+                    authRole);
+        } else {
+            isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
+        }
         isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
@@ -693,17 +703,6 @@ public class ServerCnx extends PulsarHandler {
             }
             return null;
         });
-    }
-
-    private CompletableFuture<Boolean> isProxyAuthorized(String topicName) {
-        CompletableFuture<Boolean> authorizationFuture;
-        if (service.isAuthorizationEnabled() && isRequestViaProxy()) {
-            authorizationFuture = service.getAuthorizationManager().canProxyAsync(DestinationName.get(topicName),
-                    authRole);
-        } else {
-            authorizationFuture = CompletableFuture.completedFuture(true);
-        }
-        return authorizationFuture;
     }
 
     private boolean isRequestViaProxy() {

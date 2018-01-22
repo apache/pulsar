@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -56,8 +54,8 @@ import org.testng.collections.Maps;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyWithProxyAuthorizationTest.class);
+public class ProxyWithProxyAuthorizationNegTest extends ProducerConsumerBase {
+    private static final Logger log = LoggerFactory.getLogger(ProxyWithProxyAuthorizationNegTest.class);
 
     private final String TLS_PROXY_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithProxyAuthorizationTest/cacert.pem";
     private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/ProxyWithProxyAuthorizationTest/proxy-cert.pem";
@@ -155,7 +153,7 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
-    public void textProxyAuthorization() throws Exception {
+    public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         createAdminClient();
@@ -171,18 +169,31 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespaceName);
         
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
 
         
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
-                conf);
-
+        Consumer consumer;
+        try {
+            consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                    conf);
+        } catch (Exception ex) {
+            // expected
+            admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.consume));
+            consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                    conf);
+        }
         ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer producer;
+        try {
+            producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        } catch(Exception ex) {
+            // expected
+            admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce, AuthAction.consume));
+            producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        }
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;

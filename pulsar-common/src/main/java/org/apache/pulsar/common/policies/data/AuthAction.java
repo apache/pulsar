@@ -27,7 +27,4 @@ public enum AuthAction {
 
     /** Permission to consume messages */
     consume,
-    
-    /** Permission to use the topic through a proxy */
-    proxy,
 }
