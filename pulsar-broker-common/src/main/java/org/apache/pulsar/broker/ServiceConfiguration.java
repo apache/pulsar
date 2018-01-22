@@ -312,8 +312,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Usage threshold to determine a broker as under-loaded (only used by SimpleLoadManagerImpl)
     @Deprecated
     private int loadBalancerBrokerUnderloadedThresholdPercentage = 50;
-    // Usage threshold to determine a broker as over-loaded (only used by SimpleLoadManagerImpl)
-    @Deprecated
+    // Usage threshold to allocate max number of topics to broker
+    @FieldContext(dynamic = true)
+    private int loadBalancerBrokerMaxTopics = 50000;
+    // Usage threshold to determine a broker as over-loaded
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
     // Interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
@@ -1109,6 +1111,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getLoadBalancerBrokerOverloadedThresholdPercentage() {
         return loadBalancerBrokerOverloadedThresholdPercentage;
+    }
+
+    public int getLoadBalancerBrokerMaxTopics() {
+        return loadBalancerBrokerMaxTopics;
+    }
+
+    public void setLoadBalancerBrokerMaxTopics(int loadBalancerBrokerMaxTopics) {
+        this.loadBalancerBrokerMaxTopics = loadBalancerBrokerMaxTopics;
     }
 
     public void setLoadBalancerNamespaceBundleMaxTopics(int topics) {
