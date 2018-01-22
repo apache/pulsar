@@ -68,15 +68,7 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
 
     @Override
     public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-        AuthParams authParams;
-        if (authData.hasDataFromCommand()) {
-            authParams = new AuthParams(authData.getCommandData());
-        } else if (authData.hasDataFromHttp()) {
-            authParams = new AuthParams(authData.getHttpHeader(HTTP_HEADER_NAME));
-        } else {
-            throw new AuthenticationException("Authentication data source does not have data");
-        }
-
+        AuthParams authParams = new AuthParams(authData);
         String userId = authParams.getUserId();
         String password = authParams.getPassword();
         String msg = "Unknown user or invalid password";
@@ -106,25 +98,31 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         private String userId;
         private String password;
 
-        public AuthParams(String rawAuthToken) throws AuthenticationException {
-            // parsing and validation
-            if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
-                throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
-            }
-            String[] splitRawAuthToken = rawAuthToken.split(" ");
-            if (splitRawAuthToken.length != 2) {
-                throw new AuthenticationException("Base64 encoded token is not found");
+        public AuthParams(AuthenticationDataSource authData) throws AuthenticationException {
+            String authParams;
+            if (authData.hasDataFromCommand()) {
+                authParams = authData.getCommandData();
+            } else if (authData.hasDataFromHttp()) {
+                String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
+                // parsing and validation
+                if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
+                    throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
+                }
+                String[] splitRawAuthToken = rawAuthToken.split(" ");
+                if (splitRawAuthToken.length != 2) {
+                    throw new AuthenticationException("Base64 encoded token is not found");
+                }
+
+                try {
+                    authParams = new String(Base64.getDecoder().decode(splitRawAuthToken[1]));
+                } catch (Exception e) {
+                    throw new AuthenticationException("Base64 decoding is failure: " + e.getMessage());
+                }
+            } else {
+                throw new AuthenticationException("Authentication data source does not have data");
             }
 
-            String decodedAuthToken;
-            try {
-                decodedAuthToken = new String(Base64.getDecoder().decode(splitRawAuthToken[1]));
-            } catch (Exception e) {
-                throw new AuthenticationException("Base64 decoding is failure: " + e.getMessage());
-            }
-
-            String[] parsedAuthParams = decodedAuthToken.split(":");
-
+            String[] parsedAuthParams = authParams.split(":");
             if (parsedAuthParams.length != 2) {
                 throw new AuthenticationException("Base64 decoded params are invalid");
             }

@@ -29,10 +29,12 @@ import java.util.Base64;
 
 public class AuthenticationDataBasic implements AuthenticationDataProvider {
     private final static String HTTP_HEADER_NAME = "Authorization";
-    private String authToken;
+    private String httpAuthToken;
+    private String commandAuthToken;
 
     public AuthenticationDataBasic(String userId, String password) {
-        authToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
+        httpAuthToken = "Basic " + Base64.getEncoder().encodeToString((userId + ":" + password).getBytes());
+        commandAuthToken = userId+":"+password;
     }
 
     @Override
@@ -43,7 +45,7 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
     @Override
     public Set<Map.Entry<String, String>> getHttpHeaders() {
         Map<String, String> headers = new HashMap<>();
-        headers.put(HTTP_HEADER_NAME, authToken);
+        headers.put(HTTP_HEADER_NAME, httpAuthToken);
         return headers.entrySet();
     }
 
@@ -54,6 +56,6 @@ public class AuthenticationDataBasic implements AuthenticationDataProvider {
 
     @Override
     public String getCommandData() {
-        return authToken;
+        return commandAuthToken;
     }
 }

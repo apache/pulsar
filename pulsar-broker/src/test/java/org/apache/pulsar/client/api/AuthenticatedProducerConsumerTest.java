@@ -102,7 +102,13 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         clientConf.setUseTls(true);
 
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        String lookupUrl = new URI("pulsar+ssl://localhost:" + BROKER_PORT_TLS).toString();
+        String lookupUrl;
+        // For http basic authentication test
+        if (methodName.equals("testBasicCryptSyncProducerAndConsumer")) {
+            lookupUrl = new URI("https://localhost:" + BROKER_WEBSERVICE_PORT_TLS).toString();
+        } else {
+            lookupUrl = new URI("pulsar+ssl://localhost:" + BROKER_PORT_TLS).toString();
+        }
         pulsarClient = PulsarClient.create(lookupUrl, clientConf);
     }
 
