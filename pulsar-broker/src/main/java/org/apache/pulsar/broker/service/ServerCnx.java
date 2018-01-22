@@ -1113,14 +1113,17 @@ public class ServerCnx extends PulsarHandler {
             Consumer consumer = consumerFuture.getNow(null);
             long requestId = getLastMessageId.getRequestId();
 
-            Position position = consumer.getSubscription().getTopic().getLastMessageId();
+            Topic topic = consumer.getSubscription().getTopic();
+            Position position = topic.getLastMessageId();
+            int partitionIndex = DestinationName.getPartitionIndex(topic.getName());
             if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}][{}] Get LastMessageId {}", remoteAddress,
-                    consumer.getSubscription().getTopic().getName(), consumer.getSubscription().getName(), position);
+                log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
+                    topic.getName(), consumer.getSubscription().getName(), position, partitionIndex);
             }
             MessageIdData messageId = MessageIdData.newBuilder()
                 .setLedgerId(((PositionImpl)position).getLedgerId())
                 .setEntryId(((PositionImpl)position).getEntryId())
+                .setPartition(partitionIndex)
                 .build();
 
             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
