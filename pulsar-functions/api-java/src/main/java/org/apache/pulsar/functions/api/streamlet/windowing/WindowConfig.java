@@ -17,46 +17,27 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.ToString;
+import lombok.experimental.Accessors;
 
+@Data
+@Setter
+@Getter
+@Accessors(chain = true)
 @ToString
-public class EventImpl<T> implements Event<T> {
-  private final T event;
-  private final long ts;
-  private final byte[] messageId;
-  private final String topic;
+public class WindowConfig {
 
-  EventImpl(T event, long ts, byte[] messageId, String topic) {
-    this.event = event;
-    this.ts = ts;
-    this.messageId = messageId;
-    this.topic = topic;
-  }
+    private Integer windowLengthCount;
 
-  @Override
-  public long getTimestamp() {
-    return ts;
-  }
+    private Long windowLengthDurationMs;
 
-  @Override
-  public T get() {
-    return event;
-  }
+    private Integer slidingIntervalCount;
 
-  @Override
-  public boolean isWatermark() {
-    return false;
-  }
+    private Long slidingDurationMs;
 
-  @Override
-  public byte[] getMessageId() {
-    return messageId;
-  }
-
-  @Override
-  public String getTopic() {
-    return topic;
-  }
 }

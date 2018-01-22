@@ -16,18 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
-package org.apache.pulsar.functions.api.dsl.windowing;
+import java.io.Serializable;
 
 /**
- * The callback fired by {@link TriggerPolicy} when the trigger
- * condition is satisfied.
+ * Interface to be implemented for extracting timestamp from a tuple.
  */
-public interface TriggerHandler {
+public interface TimestampExtractor<I> extends Serializable {
   /**
-   * The code to execute when the {@link TriggerPolicy} condition is satisfied.
+   * Return the tuple timestamp indicating the time when the event happened.
    *
-   * @return true if the window was evaluated with at least one event in the window, false otherwise
+   * @param input
+   * @return the timestamp
    */
-  boolean onTrigger();
+  long extractTimestamp(I input);
 }

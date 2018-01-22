@@ -17,11 +17,11 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing.evictors;
+package org.apache.pulsar.functions.api.streamlet.windowing.evictors;
 
-import org.apache.pulsar.functions.api.dsl.windowing.Event;
-import org.apache.pulsar.functions.api.dsl.windowing.EvictionContext;
-import org.apache.pulsar.functions.api.dsl.windowing.EvictionPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.Event;
+import org.apache.pulsar.functions.api.streamlet.windowing.EvictionContext;
+import org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy;
 
 import java.util.concurrent.atomic.AtomicLong;
 

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
 /**
  * Triggers the window calculations based on the policy.

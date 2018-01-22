@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -28,9 +28,9 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.apache.pulsar.functions.api.dsl.windowing.EvictionPolicy.Action.EXPIRE;
-import static org.apache.pulsar.functions.api.dsl.windowing.EvictionPolicy.Action.PROCESS;
-import static org.apache.pulsar.functions.api.dsl.windowing.EvictionPolicy.Action.STOP;
+import static org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy.Action.EXPIRE;
+import static org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy.Action.PROCESS;
+import static org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy.Action.STOP;
 
 /**
  * Tracks a window of events and fires {@link WindowLifecycleListener} callbacks

@@ -17,12 +17,12 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing.evictors;
+package org.apache.pulsar.functions.api.streamlet.windowing.evictors;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.dsl.windowing.Event;
-import org.apache.pulsar.functions.api.dsl.windowing.EvictionContext;
-import org.apache.pulsar.functions.api.dsl.windowing.EvictionPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.Event;
+import org.apache.pulsar.functions.api.streamlet.windowing.EvictionContext;
+import org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy;
 
 /**
  * Eviction policy that evicts events based on time duration.

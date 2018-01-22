@@ -17,13 +17,13 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing.triggers;
+package org.apache.pulsar.functions.api.streamlet.windowing.triggers;
 
-import org.apache.pulsar.functions.api.dsl.windowing.DefaultEvictionContext;
-import org.apache.pulsar.functions.api.dsl.windowing.Event;
-import org.apache.pulsar.functions.api.dsl.windowing.EvictionPolicy;
-import org.apache.pulsar.functions.api.dsl.windowing.TriggerHandler;
-import org.apache.pulsar.functions.api.dsl.windowing.TriggerPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.DefaultEvictionContext;
+import org.apache.pulsar.functions.api.streamlet.windowing.Event;
+import org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.TriggerHandler;
+import org.apache.pulsar.functions.api.streamlet.windowing.TriggerPolicy;
 
 import java.util.concurrent.atomic.AtomicInteger;
 

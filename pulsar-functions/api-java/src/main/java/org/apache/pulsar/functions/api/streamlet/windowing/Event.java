@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
 /**
  * An event is a wrapper object that gets stored in the window.
