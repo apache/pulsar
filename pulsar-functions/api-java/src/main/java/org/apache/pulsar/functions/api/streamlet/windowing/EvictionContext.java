@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
 /**
  * Context information that can be used by the eviction policy

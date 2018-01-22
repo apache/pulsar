@@ -1,9 +1,9 @@
 package org.apache.pulsar.functions.api.examples;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.dsl.windowing.Window;
-import org.apache.pulsar.functions.api.dsl.windowing.WindowContext;
-import org.apache.pulsar.functions.api.dsl.windowing.WindowedPulsarFunction;
+import org.apache.pulsar.functions.api.streamlet.windowing.Window;
+import org.apache.pulsar.functions.api.streamlet.windowing.WindowContext;
+import org.apache.pulsar.functions.api.streamlet.windowing.WindowedPulsarFunction;
 
 @Slf4j
 public class WindowedFunction extends WindowedPulsarFunction<String, String> {

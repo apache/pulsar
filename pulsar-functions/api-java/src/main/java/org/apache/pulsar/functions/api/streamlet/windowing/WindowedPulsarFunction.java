@@ -1,12 +1,12 @@
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
-import org.apache.pulsar.functions.api.dsl.windowing.evictors.CountEvictionPolicy;
-import org.apache.pulsar.functions.api.dsl.windowing.evictors.TimeEvictionPolicy;
-import org.apache.pulsar.functions.api.dsl.windowing.triggers.CountTriggerPolicy;
-import org.apache.pulsar.functions.api.dsl.windowing.triggers.TimeTriggerPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.evictors.CountEvictionPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.evictors.TimeEvictionPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.triggers.CountTriggerPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.triggers.TimeTriggerPolicy;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;

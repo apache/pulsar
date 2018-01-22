@@ -17,27 +17,17 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.experimental.Accessors;
-
-@Data
-@Setter
-@Getter
-@Accessors(chain = true)
-@ToString
-public class WindowConfig {
-
-    private Integer windowLengthCount;
-
-    private Long windowLengthDurationMs;
-
-    private Integer slidingIntervalCount;
-
-    private Long slidingDurationMs;
-
+/**
+ * The callback fired by {@link TriggerPolicy} when the trigger
+ * condition is satisfied.
+ */
+public interface TriggerHandler {
+  /**
+   * The code to execute when the {@link TriggerPolicy} condition is satisfied.
+   *
+   * @return true if the window was evaluated with at least one event in the window, false otherwise
+   */
+  boolean onTrigger();
 }

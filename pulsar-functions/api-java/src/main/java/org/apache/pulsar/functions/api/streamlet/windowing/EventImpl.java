@@ -16,19 +16,47 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.dsl.windowing;
 
-import java.io.Serializable;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
-/**
- * Interface to be implemented for extracting timestamp from a tuple.
- */
-public interface TimestampExtractor<I> extends Serializable {
-  /**
-   * Return the tuple timestamp indicating the time when the event happened.
-   *
-   * @param input
-   * @return the timestamp
-   */
-  long extractTimestamp(I input);
+import lombok.ToString;
+
+@ToString
+public class EventImpl<T> implements Event<T> {
+  private final T event;
+  private final long ts;
+  private final byte[] messageId;
+  private final String topic;
+
+  EventImpl(T event, long ts, byte[] messageId, String topic) {
+    this.event = event;
+    this.ts = ts;
+    this.messageId = messageId;
+    this.topic = topic;
+  }
+
+  @Override
+  public long getTimestamp() {
+    return ts;
+  }
+
+  @Override
+  public T get() {
+    return event;
+  }
+
+  @Override
+  public boolean isWatermark() {
+    return false;
+  }
+
+  @Override
+  public byte[] getMessageId() {
+    return messageId;
+  }
+
+  @Override
+  public String getTopic() {
+    return topic;
+  }
 }

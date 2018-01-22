@@ -1,4 +1,4 @@
-package org.apache.pulsar.functions.api.dsl.windowing;
+package org.apache.pulsar.functions.api.streamlet.windowing;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
