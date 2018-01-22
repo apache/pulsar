@@ -16,45 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api;
 
+package org.apache.pulsar.functions.api.dsl.windowing;
+
+import org.apache.pulsar.functions.api.SerDe;
 import org.slf4j.Logger;
 
 import java.util.concurrent.CompletableFuture;
 
-/**
- * Context provides contextual information to the executing function.
- * Features like which message id we are handling, whats the topic name of the
- * message, what are our operating constraints, etc can be accessed by the
- * executing function
- */
-public interface Context {
-    /**
-     * Returns the messageId of the message that we are processing
-     * This messageId is a stringified version of the actual MessageId
-     * @return the messageId
-     */
-    byte[] getMessageId();
-
-    /**
-     * The topic that this message belongs to
-     * @return The topic name
-     */
-    String getTopicName();
-
-    /**
-     * Get sink topic of function
-     * @return sink topic name
-     */
-    String getSinkTopic();
-
-
-    /**
-     * Get output Serde class
-     * @return output serde class
-     */
-    Class<? extends SerDe> getOutputSerdeClass();
-
+public interface WindowContext {
     /**
      * The name of the function that we are executing
      * @return The Function name
@@ -127,6 +97,4 @@ public interface Context {
      * @return
      */
     CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass);
-
-    CompletableFuture<Void> ack(byte[] messageId, String topic);
 }
