@@ -200,11 +200,11 @@ public class Commands {
         CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
         successBuilder.setRequestId(requestId);
         PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schema != null && !schema.isDeleted()) {
+        if (schema != null && !schema.isDeleted) {
             schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setFormat(getSchemaFormat(schema.getType()));
-            schemaBuilder.setVersion(schema.getVersion());
-            schemaBuilder.setSchemaData(copyFromUtf8(schema.getSchemaInfo()));
+            schemaBuilder.setFormat(getSchemaFormat(schema.type));
+            schemaBuilder.setVersion(schema.version);
+            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
             successBuilder.setSchema(schemaBuilder.build());
         }
         CommandSuccess success = successBuilder.build();
@@ -230,11 +230,11 @@ public class Commands {
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
         PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schema != null && !schema.isDeleted()) {
+        if (schema != null && !schema.isDeleted) {
             schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setFormat(getSchemaFormat(schema.getType()));
-            schemaBuilder.setVersion(schema.getVersion());
-            schemaBuilder.setSchemaData(copyFromUtf8(schema.getSchemaInfo()));
+            schemaBuilder.setFormat(getSchemaFormat(schema.type));
+            schemaBuilder.setVersion(schema.version);
+            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
             producerSuccessBuilder.setSchema(schemaBuilder.build());
         }
         producerSuccess.recycle();

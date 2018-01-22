@@ -124,5 +124,5 @@ public interface Topic {
 
     PersistentTopicInternalStats getInternalStats();
 
-    Schema getSchema();
+    CompletableFuture<Schema> getSchema();
 }

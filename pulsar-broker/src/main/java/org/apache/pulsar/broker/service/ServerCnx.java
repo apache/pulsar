@@ -344,9 +344,9 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    static class TopicAndConsumer {
-        Topic topic;
+    static class ConsumerAndSchema {
         Consumer consumer;
+        Schema schema;
     }
 
     @Override
@@ -416,22 +416,34 @@ public class ServerCnx extends PulsarHandler {
                     }
                 }
 
-                service.getTopic(topicName).thenCompose(topic ->
-                        topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, priorityLevel,
-                                consumerName, isDurable, startMessageId, metadata)
-                                .thenApply(consumer -> {
-                                    TopicAndConsumer tac = new TopicAndConsumer();
-                                    tac.topic = topic;
-                                    tac.consumer = consumer;
-                                    return tac;
-                                })
-                ).thenAccept(topicAndConsumer -> {
-                    Consumer consumer = topicAndConsumer.consumer;
-                    Topic topic = topicAndConsumer.topic;
+                service.getTopic(topicName).thenCompose(topic -> {
+                    CompletableFuture<Consumer> subscribe1 = topic.subscribe(
+                            ServerCnx.this,
+                            subscriptionName,
+                            consumerId,
+                            subType,
+                            priorityLevel,
+                            consumerName,
+                            isDurable,
+                            startMessageId,
+                            metadata
+                    );
+
+                    CompletableFuture<Schema> schema = topic.getSchema();
+
+                    return subscribe1.thenCombine(schema, (consumer, schema1) -> {
+                        ConsumerAndSchema tac = new ConsumerAndSchema();
+                        tac.consumer = consumer;
+                        tac.schema = schema1;
+                        return tac;
+                    });
+                }).thenAccept(consumerAndSchema -> {
+                    Consumer consumer = consumerAndSchema.consumer;
+                    Schema schema = consumerAndSchema.schema;
                     if (consumerFuture.complete(consumer)) {
                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
                                 subscriptionName);
-                        ctx.writeAndFlush(Commands.newSuccess(requestId, topic.getSchema()), ctx.voidPromise());
+                        ctx.writeAndFlush(Commands.newSuccess(requestId, schema), ctx.voidPromise());
                     } else {
                         // The consumer future was completed before by a close command
                         try {
@@ -485,6 +497,11 @@ public class ServerCnx extends PulsarHandler {
             ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, ex.getMessage()));
             return null;
         });
+    }
+
+    static class TopicAndSchema {
+        Topic topic;
+        Schema schema;
     }
 
     @Override
@@ -550,7 +567,14 @@ public class ServerCnx extends PulsarHandler {
 
                 log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                service.getTopic(topicName).thenAccept((Topic topic) -> {
+                service.getTopic(topicName).thenCompose((topic) ->
+                        topic.getSchema().thenApply((schema) -> {
+                            TopicAndSchema tac = new TopicAndSchema();
+                            tac.topic = topic;
+                            tac.schema = schema;
+                            return tac;
+                })).thenAccept((TopicAndSchema tac) -> {
+                    final Topic topic = tac.topic;
                     // Before creating producer, check if backlog quota exceeded
                     // on topic
                     if (topic.isBacklogQuotaExceeded(producerName)) {
@@ -590,7 +614,7 @@ public class ServerCnx extends PulsarHandler {
                             if (producerFuture.complete(producer)) {
                                 log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                 ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                        producer.getLastSequenceId(), topic.getSchema()));
+                                        producer.getLastSequenceId(), tac.schema));
                                 return;
                             } else {
                                 // The producer's future was completed before by

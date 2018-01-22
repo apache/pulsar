@@ -252,8 +252,6 @@ public class PulsarService implements AutoCloseable {
                 throw new PulsarServerException("Cannot start the service once it was stopped");
             }
 
-            schemaRegistryService = new DefaultSchemaRegistryService(this);
-
             // Now we are ready to start services
             localZooKeeperConnectionProvider = new LocalZooKeeperConnectionService(getZooKeeperClientFactory(),
                     config.getZookeeperServers(), config.getZooKeeperSessionTimeoutMillis());
@@ -342,6 +340,9 @@ public class PulsarService implements AutoCloseable {
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            schemaRegistryService = DefaultSchemaRegistryService.create(this);
+            schemaRegistryService.start();
 
             state = State.Started;
 

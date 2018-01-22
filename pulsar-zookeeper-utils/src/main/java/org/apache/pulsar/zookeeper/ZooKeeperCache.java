@@ -235,6 +235,27 @@ public abstract class ZooKeeperCache implements Watcher {
         return getData(path, this, deserializer).map(e -> e.getKey());
     }
 
+    public <T> Optional<Entry<T, Stat>> getEntry(final String path, final Deserializer<T> deserializer) throws Exception {
+        return getData(path, this, deserializer);
+    }
+
+    public <T> CompletableFuture<Optional<Entry<T, Stat>>> getEntryAsync(final String path, final Deserializer<T> deserializer) {
+        CompletableFuture<Optional<Entry<T, Stat>>> future = new CompletableFuture<>();
+        getDataAsync(path, this, deserializer)
+            .thenAccept(future::complete)
+            .exceptionally(ex -> {
+                asyncInvalidate(path);
+                if (ex.getCause() instanceof NoNodeException) {
+                    future.complete(Optional.empty());
+                } else {
+                    future.completeExceptionally(ex.getCause());
+                }
+
+                return null;
+            });
+        return future;
+    }
+
     public <T> CompletableFuture<Optional<T>> getDataAsync(final String path, final Deserializer<T> deserializer) {
         CompletableFuture<Optional<T>> future = new CompletableFuture<>();
         getDataAsync(path, this, deserializer).thenAccept(data -> {

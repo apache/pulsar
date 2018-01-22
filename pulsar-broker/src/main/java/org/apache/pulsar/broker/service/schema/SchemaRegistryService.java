@@ -1,16 +1,19 @@
 package org.apache.pulsar.broker.service.schema;
 
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.apache.pulsar.common.schema.Schema;
-import org.apache.pulsar.common.schema.SchemaType;
+
+import java.io.IOException;
+import java.util.concurrent.CompletableFuture;
 
 public interface SchemaRegistryService extends SchemaRegistry {
-    Schema getSchema(String schemaId);
+    void start() throws IOException;
 
-    Schema getSchema(String schemaId, long version);
+    CompletableFuture<Schema> getSchema(String schemaId);
 
-    long putSchema(String schemaId, SchemaType type, String schema);
+    CompletableFuture<Schema> getSchema(String schemaId, long version);
+
+    CompletableFuture<Long> putSchema(Schema schema);
 
     void close() throws Exception;
 }

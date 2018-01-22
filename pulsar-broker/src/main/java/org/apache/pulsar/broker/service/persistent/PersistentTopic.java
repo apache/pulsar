@@ -1501,7 +1501,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public Schema getSchema() {
-        return brokerService.pulsar().getSchemaRegistryService().getSchema(topic);
+    public CompletableFuture<Schema> getSchema() {
+        String namespace = DestinationName.get(topic).getNamespace();
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(namespace);
     }
 }

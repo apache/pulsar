@@ -911,8 +911,9 @@ public class NonPersistentTopic implements Topic {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
-    public Schema getSchema() {
-        return brokerService.pulsar().getSchemaRegistryService().getSchema(topic);
+    public CompletableFuture<Schema> getSchema() {
+        String namespace = DestinationName.get(topic).getNamespace();
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(namespace);
     }
 
 }
