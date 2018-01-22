@@ -63,5 +63,13 @@ public interface Reader extends Closeable {
      */
     boolean hasReachedEndOfTopic();
 
-    MessageId getLastMessageId() throws PulsarClientException;
+    /**
+     * Check if there is message that has been published successfully to the broker in the topic.
+     */
+    Boolean hasMessageAvailable() throws PulsarClientException;
+
+    /**
+     * Asynchronously Check if there is message that has been published successfully to the broker in the topic.
+     */
+    CompletableFuture<Boolean> hasMessageAvailableAsync();
 }

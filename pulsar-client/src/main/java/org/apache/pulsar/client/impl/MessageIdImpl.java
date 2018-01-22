@@ -39,10 +39,11 @@ public class MessageIdImpl implements MessageId {
     protected final long entryId;
     protected final int partitionIndex;
 
-    // Private constructor used only for json deserialization
-    @SuppressWarnings("unused")
-    private MessageIdImpl() {
-        this(-1, -1, -1);
+    // create MessageIdImpl use value of MessageId.earliest
+    public MessageIdImpl() {
+        this(((MessageIdImpl) MessageId.earliest).getLedgerId(),
+            ((MessageIdImpl) MessageId.earliest).getEntryId(),
+            ((MessageIdImpl) MessageId.earliest).getPartitionIndex());
     }
 
     public MessageIdImpl(long ledgerId, long entryId, int partitionIndex) {

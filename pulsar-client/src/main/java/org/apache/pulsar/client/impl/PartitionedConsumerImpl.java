@@ -542,9 +542,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    public MessageId getLastMessageId() throws PulsarClientException {
+    public Boolean hasMessageAvailable() throws PulsarClientException {
         try {
-            return getLastMessageIdAsync().get();
+            return hasMessageAvailableAsync().get();
         } catch (ExecutionException e) {
             throw new PulsarClientException(e.getCause());
         } catch (InterruptedException e) {
@@ -553,8 +553,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    public CompletableFuture<MessageId> getLastMessageIdAsync() {
-        return FutureUtil.failedFuture(new PulsarClientException("GetLastMessageId operation not supported on partitioned topics"));
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return FutureUtil.failedFuture(new PulsarClientException("hasMessageAvailableAsync operation not supported on partitioned topics"));
     }
 
     public UnAckedMessageTracker getUnAckedMessageTracker() {

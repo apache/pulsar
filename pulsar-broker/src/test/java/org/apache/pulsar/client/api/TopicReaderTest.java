@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNull;
 
 import com.google.common.collect.Sets;
@@ -30,6 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import javax.validation.constraints.AssertFalse;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
@@ -363,7 +365,7 @@ public class TopicReaderTest extends ProducerConsumerBase {
 
 
     @Test
-    public void testSimpleReaderGetLastMessageId() throws Exception {
+    public void testSimpleReaderReachEndofTopic() throws Exception {
         ReaderConfiguration conf = new ReaderConfiguration();
         Reader reader = pulsarClient.createReader("persistent://my-property/use/my-ns/my-topic1", MessageId.earliest,
             conf);
@@ -371,29 +373,31 @@ public class TopicReaderTest extends ProducerConsumerBase {
         ProducerConfiguration producerConf = new ProducerConfiguration();
 
         Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+
+        // no data write, should return false
+        assertFalse(reader.hasMessageAvailable());
+
         // produce message 0 -- 99
         for (int i = 0; i < 100; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        MessageIdImpl lastId = (MessageIdImpl)reader.getLastMessageId();
-        assertEquals(99, lastId.getEntryId());
-
-        MessageImpl msg = (MessageImpl) reader.readNext(1, TimeUnit.SECONDS);
-        MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+        MessageImpl msg = null;
         Set<String> messageSet = Sets.newHashSet();
         int index = 0;
 
         // read message till end.
-        while (msgId.compareTo(lastId) < 0) {
+        while (reader.hasMessageAvailable()) {
+            msg = (MessageImpl) reader.readNext(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + (index ++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-            msg = (MessageImpl) reader.readNext(1, TimeUnit.SECONDS);
-            msgId = (MessageIdImpl) msg.getMessageId();
         }
+
+        // readNext should return null, after reach the end of topic.
+        assertNull(reader.readNext(1, TimeUnit.SECONDS));
 
         // produce message again.
         for (int i = 100; i < 200; i++) {
@@ -401,17 +405,13 @@ public class TopicReaderTest extends ProducerConsumerBase {
             producer.send(message.getBytes());
         }
 
-        lastId = (MessageIdImpl)reader.getLastMessageId();
-        assertEquals(199, lastId.getEntryId());
-
         // read message till end again.
-        while (msgId.compareTo(lastId) < 0) {
+        while (reader.hasMessageAvailable()) {
+            msg = (MessageImpl) reader.readNext(1, TimeUnit.SECONDS);
             String receivedMessage = new String(msg.getData());
-            log.info("Received message: [{}]", receivedMessage);
+            log.debug("Received message: [{}]", receivedMessage);
             String expectedMessage = "my-message-" + (index ++);
             testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
-            msg = (MessageImpl) reader.readNext(1, TimeUnit.SECONDS);
-            msgId = (MessageIdImpl) msg.getMessageId();
         }
 
         // readNext should return null, after reach the end of topic.

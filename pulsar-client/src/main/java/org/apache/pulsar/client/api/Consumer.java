@@ -279,17 +279,16 @@ public interface Consumer extends Closeable {
     CompletableFuture<Void> seekAsync(MessageId messageId);
 
     /**
-     * Gets last message id of Topic.
+     * Check if there is message that has been published successfully to the broker in the topic.
      *
-     * @return the last message id
+     * Note: this operation can only be done on non-partitioned persistent topics.
+     * For partitioned topics, one can rather perform the hasMessageAvailable on the individual partitions.
      */
-    MessageId getLastMessageId() throws PulsarClientException;
+    Boolean hasMessageAvailable() throws PulsarClientException;
 
     /**
-     * Gets last message id of Topic async.
-     *
-     * @return the last message id
+     * Asynchronously Check if there is message that has been published successfully to the broker in the topic.
      */
-    CompletableFuture<MessageId> getLastMessageIdAsync();
+    CompletableFuture<Boolean> hasMessageAvailableAsync();
 
 }

@@ -133,8 +133,13 @@ public class ReaderImpl implements Reader {
     }
 
     @Override
-    public MessageId getLastMessageId() throws PulsarClientException {
-        return consumer.getLastMessageId();
+    public Boolean hasMessageAvailable() throws PulsarClientException {
+        return consumer.hasMessageAvailable();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return consumer.hasMessageAvailableAsync();
     }
 
 }

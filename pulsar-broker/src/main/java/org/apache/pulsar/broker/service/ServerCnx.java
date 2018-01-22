@@ -1114,9 +1114,10 @@ public class ServerCnx extends PulsarHandler {
             long requestId = getLastMessageId.getRequestId();
 
             Position position = consumer.getSubscription().getTopic().getLastMessageId();
-
-            log.info("[{}] [{}][{}] Get LastMessageId {}", remoteAddress,
-                consumer.getSubscription().getTopic().getName(), consumer.getSubscription().getName(), position);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}][{}] Get LastMessageId {}", remoteAddress,
+                    consumer.getSubscription().getTopic().getName(), consumer.getSubscription().getName(), position);
+            }
             MessageIdData messageId = MessageIdData.newBuilder()
                 .setLedgerId(((PositionImpl)position).getLedgerId())
                 .setEntryId(((PositionImpl)position).getEntryId())

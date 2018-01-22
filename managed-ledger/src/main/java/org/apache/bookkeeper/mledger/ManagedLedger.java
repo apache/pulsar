@@ -335,5 +335,10 @@ public interface ManagedLedger {
      */
     void setConfig(ManagedLedgerConfig config);
 
+    /**
+     * Gets last confirmed entry of the managed ledger.
+     *
+     * @return the last confirmed entry id
+     */
     Position getLastConfirmedEntry();
 }

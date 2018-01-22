@@ -83,7 +83,8 @@ public class ConsumerImpl extends ConsumerBase {
             .newUpdater(ConsumerImpl.class, "availablePermits");
     private volatile int availablePermits = 0;
 
-    private MessageIdImpl lastDequeuedMessage;
+    private MessageId lastDequeuedMessage = new MessageIdImpl();
+    private MessageId lastMessageIdInBroker = new MessageIdImpl();
 
     private long subscribeTimeout;
     private final int partitionIndex;
@@ -283,7 +284,7 @@ public class ConsumerImpl extends ConsumerBase {
             }
             do {
                 message = incomingMessages.take();
-                lastDequeuedMessage = (MessageIdImpl) message.getMessageId();
+                lastDequeuedMessage = message.getMessageId();
                 ClientCnx msgCnx = ((MessageImpl) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (ConsumerImpl.this) {
@@ -644,10 +645,10 @@ public class ConsumerImpl extends ConsumerBase {
             }
 
             return previousMessage;
-        } else if (lastDequeuedMessage != null) {
+        } else if (!lastDequeuedMessage.equals(MessageId.earliest)) {
             // If the queue was empty we need to restart from the message just after the last one that has been dequeued
             // in the past
-            return new BatchMessageIdImpl(lastDequeuedMessage);
+            return new BatchMessageIdImpl((MessageIdImpl) lastDequeuedMessage);
         } else {
             // No message was received or dequeued by this consumer. Next message would still be the startMessageId
             return startMessageId;
@@ -969,7 +970,7 @@ public class ConsumerImpl extends ConsumerBase {
     protected synchronized void messageProcessed(Message msg) {
         ClientCnx currentCnx = cnx();
         ClientCnx msgCnx = ((MessageImpl) msg).getCnx();
-        lastDequeuedMessage = (MessageIdImpl) msg.getMessageId();
+        lastDequeuedMessage = msg.getMessageId();
 
         if (msgCnx != currentCnx) {
             // The processed message did belong to the old queue that was cleared after reconnection.
@@ -1255,16 +1256,40 @@ public class ConsumerImpl extends ConsumerBase {
 
 
     @Override
-    public MessageId getLastMessageId() throws PulsarClientException {
+    public Boolean hasMessageAvailable() throws PulsarClientException {
         try {
-            return getLastMessageIdAsync().get();
+            return hasMessageAvailableAsync().get();
         } catch (ExecutionException | InterruptedException e) {
             throw new PulsarClientException(e);
         }
     }
 
     @Override
-    public CompletableFuture<MessageId> getLastMessageIdAsync() {
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
+
+        if (lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0 &&
+            ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
+            booleanFuture.complete(true);
+        } else {
+            getLastMessageIdAsync().thenAccept(messageId -> {
+                lastMessageIdInBroker = messageId;
+                if (lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0 &&
+                    ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
+                    booleanFuture.complete(true);
+                } else {
+                    booleanFuture.complete(false);
+                }
+            }).exceptionally(e -> {
+                log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
+                booleanFuture.completeExceptionally(e.getCause());
+                return null;
+            });
+        }
+        return booleanFuture;
+    }
+
+    private CompletableFuture<MessageId> getLastMessageIdAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
@@ -1283,11 +1308,12 @@ public class ConsumerImpl extends ConsumerBase {
         log.info("[{}][{}] Get topic last message Id", topic, subscription);
 
         cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept((result) -> {
-            log.info("[{}][{}] Successfully getLastMessageId", topic, subscription);
+            log.info("[{}][{}] Successfully getLastMessageId {}:{}",
+                topic, subscription, result.getLedgerId(), result.getEntryId());
             getLastMessageIdFuture.complete(new MessageIdImpl(result.getLedgerId(),
                 result.getEntryId(), result.getPartition()));
         }).exceptionally(e -> {
-            log.error("[{}][{}] Failed send getLastMessageId command", topic, subscription);
+            log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
             getLastMessageIdFuture.completeExceptionally(e.getCause());
             return null;
         });
