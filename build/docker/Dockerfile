@@ -25,12 +25,15 @@ ADD protobuf.patch /pulsar
 
 RUN apt-get update
 RUN apt-get install -y maven tig g++ cmake libssl-dev libcurl4-openssl-dev \
-                liblog4cxx-dev libprotobuf-dev libboost-all-dev  libgtest-dev \
+                liblog4cxx-dev libprotobuf-dev libboost-all-dev google-mock libgtest-dev \
                 libjsoncpp-dev libxml2-utils protobuf-compiler wget \
-                curl doxygen openjdk-8-jdk-headless
+                curl doxygen openjdk-8-jdk-headless clang-format-4.0
 
 # Compile and install gtest
 RUN cd /usr/src/gtest && cmake . && make && cp libgtest.a /usr/lib
+
+# Compile and install google-mock
+RUN cd /usr/src/gmock && cmake . && make && cp libgmock.a /usr/lib
 
 # Include gtest parallel to speed up unit tests
 RUN git clone https://github.com/google/gtest-parallel.git

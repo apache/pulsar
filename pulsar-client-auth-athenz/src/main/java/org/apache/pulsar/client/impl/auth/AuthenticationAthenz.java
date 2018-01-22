@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar.client.impl.auth;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.security.PrivateKey;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -38,19 +39,21 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-import java.security.PrivateKey;
-
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
-
-import com.yahoo.athenz.zts.RoleToken;
-import com.yahoo.athenz.zts.ZTSClient;
 import com.yahoo.athenz.auth.ServiceIdentityProvider;
 import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
 import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.zts.RoleToken;
+import com.yahoo.athenz.zts.ZTSClient;
 
 public class AuthenticationAthenz implements Authentication, EncodedAuthenticationParameterSupport {
+
+    private static final long serialVersionUID = 1L;
+
+    private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
+    private static final String APPLICATION_X_PEM_FILE_BASE64 = "application/x-pem-file;base64";
 
     private transient ZTSClient ztsClient = null;
     private String tenantDomain;
@@ -75,7 +78,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     @Override
     synchronized public AuthenticationDataProvider getAuthData() throws PulsarClientException {
         if (cachedRoleTokenIsValid()) {
-            return new AuthenticationDataAthenz(roleToken, getZtsClient().getHeader());
+            return new AuthenticationDataAthenz(roleToken, ZTSClient.getHeader());
         }
         try {
             // the following would set up the API call that requests tokens from the server
@@ -83,7 +86,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
             roleToken = token.getToken();
             cachedRoleTokenTimestamp = System.nanoTime();
-            return new AuthenticationDataAthenz(roleToken, getZtsClient().getHeader());
+            return new AuthenticationDataAthenz(roleToken, ZTSClient.getHeader());
         } catch (Throwable t) {
             throw new GettingAuthenticationDataException(t);
         }
@@ -107,7 +110,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         // Convert JSON to Map
         try {
             ObjectMapper jsonMapper = ObjectMapperFactory.create();
-            Map<String, String> authParamsMap = jsonMapper.readValue(encodedAuthParamString, new TypeReference<HashMap<String, String>>() {});
+            Map<String, String> authParamsMap = jsonMapper.readValue(encodedAuthParamString,
+                    new TypeReference<HashMap<String, String>>() {
+                    });
             setAuthParams(authParamsMap);
         } catch (IOException e) {
             throw new IllegalArgumentException("Failed to parse authParams");
@@ -115,11 +120,12 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     }
 
     @Override
+    @Deprecated
     public void configure(Map<String, String> authParams) {
         setAuthParams(authParams);
     }
 
-    private void setAuthParams(Map<String, String> authParams){
+    private void setAuthParams(Map<String, String> authParams) {
         this.tenantDomain = authParams.get("tenantDomain");
         this.tenantService = authParams.get("tenantService");
         this.providerDomain = authParams.get("providerDomain");
@@ -129,11 +135,11 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         } else {
             this.privateKey = loadPrivateKey(authParams.get("privateKey"));
         }
-        
-        if(this.privateKey == null) {
+
+        if (this.privateKey == null) {
             throw new IllegalArgumentException("Failed to load private key from privateKey or privateKeyPath field");
         }
-        
+
         this.keyId = authParams.getOrDefault("keyId", "0");
         if (authParams.containsKey("athenzConfPath")) {
             System.setProperty("athenz.athenz_conf", authParams.get("athenzConfPath"));
@@ -172,15 +178,20 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
                 privateKey = Crypto.loadPrivateKey(new File(privateKeyURL));
             } else if (uri.getScheme().equals("file")) {
                 privateKey = Crypto.loadPrivateKey(new File(uri.getPath()));
-            } else if(uri.getScheme().equals("data")) {
+            } else if (uri.getScheme().equals("data")) {
                 List<String> dataParts = Splitter.on(",").splitToList(uri.getSchemeSpecificPart());
-                if (dataParts.get(0).equals("application/x-pem-file;base64")) {
+                // Support Urlencode but not decode here because already decoded by URI class.
+                if (dataParts.get(0).equals(APPLICATION_X_PEM_FILE)) {
+                    privateKey = Crypto.loadPrivateKey(dataParts.get(1));
+                // Support base64
+                } else if (dataParts.get(0).equals(APPLICATION_X_PEM_FILE_BASE64)) {
                     privateKey = Crypto.loadPrivateKey(new String(Base64.getDecoder().decode(dataParts.get(1))));
                 } else {
-                    throw new IllegalArgumentException("Unsupported media type or encoding format: " + dataParts.get(0));
+                    throw new IllegalArgumentException(
+                            "Unsupported media type or encoding format: " + dataParts.get(0));
                 }
             }
-        } catch(URISyntaxException e) {
+        } catch (URISyntaxException e) {
             throw new IllegalArgumentException("Invalid privateKey format");
         }
         return privateKey;

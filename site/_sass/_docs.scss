@@ -19,9 +19,8 @@
 @media screen and (min-width: 769px) {
   .rest-api-container, .docs-container {
     article {
-      @include shadow($shadow-size);
-      padding: 2% 3%;
-      margin-bottom: 50px;
+      padding: 0 2%;
+      margin-bottom: 2rem;
     }
   }
 }
@@ -33,8 +32,6 @@
     background-color: lighten($sx-light-gray, 20%);
     padding: 0.75rem;
   }
-
-  margin-top: $top-margin;
 
   h4 + ul {
     margin-top: 1rem;
@@ -128,23 +125,27 @@
 
       .highlighter-rouge {
         font-family: $font-family-monospace;
-      
-        & + h2 {
-          margin-top: 40px;
-        }
 
         .highlight {
-          padding: 15px;
+          margin: 0;
+          padding: 1rem;
 
-          code {
-            font-size: $code-font-size;
+          pre.highlight {
+            margin: 0;
+            padding: 0;
+
+            code {
+              margin: 0;
+              padding: 0;
+              font-size: $code-font-size;
+            }
           }
         }
       }
 
       code.highlighter-rouge {
         color: $pulsar-blue;
-        padding: .2rem .3rem;
+        //padding: .2rem .3rem;
         background-color: lighten($sx-light-gray, 22%);
         border-radius: 0;
       }
@@ -172,10 +173,6 @@
 
       p {
         font-size: $docs-font-size;
-
-        & + .highlighter-rouge {
-          margin-top: 15px;
-        }
       }
 
       h2, h3 {
@@ -264,14 +261,6 @@
             }
           }
         }
-      }
-
-      p + table, table + p, table + h4, h4 + .highlighter-rouge {
-        margin-top: 15px;
-      }
-
-      .highlighter-rouge + table, .highlighter-rouge + h4 {
-        margin-top: 20px;
       }
     }
   }
