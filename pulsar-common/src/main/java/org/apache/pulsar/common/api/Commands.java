@@ -70,8 +70,6 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
-import com.google.protobuf.ByteString;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -204,7 +202,6 @@ public class Commands {
             schemaBuilder = PulsarApi.Schema.newBuilder();
             schemaBuilder.setFormat(getSchemaFormat(schema.type));
             schemaBuilder.setVersion(schema.version);
-            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
             successBuilder.setSchema(schemaBuilder.build());
         }
         CommandSuccess success = successBuilder.build();
@@ -234,7 +231,6 @@ public class Commands {
             schemaBuilder = PulsarApi.Schema.newBuilder();
             schemaBuilder.setFormat(getSchemaFormat(schema.type));
             schemaBuilder.setVersion(schema.version);
-            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
             producerSuccessBuilder.setSchema(schemaBuilder.build());
         }
         producerSuccess.recycle();
