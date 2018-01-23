@@ -57,6 +57,7 @@ Log = log.Log
 InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_config limits')
 # This is the message that the consumers put on the queue for the function thread to process
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
+InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 
 # We keep track of the following metrics
 class Stats(object):
@@ -129,6 +130,8 @@ class PythonInstance(object):
     Log.info("Started Thread for executing the function")
     while True:
       msg = self.queue.get(True)
+      if isinstance(msg, InternalQuitMessage):
+        break
       user_exception = False
       system_exception = False
       Log.debug("Got a message from topic %s" % msg.topic)
@@ -196,3 +199,7 @@ class PythonInstance(object):
     status.numUserExceptions = self.stats.nuserexceptions
     status.numSystemExceptions = self.stats.nsystemexceptions
     return status
+
+  def join(self):
+    self.queue.put(InternalQuitMessage(True), True)
+    self.exeuction_thread.join()
