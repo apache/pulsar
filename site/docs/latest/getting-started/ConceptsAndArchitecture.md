@@ -311,3 +311,10 @@ Whenever the TCP connection breaks, the client will immediately re-initiate this
 [Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the [Deploying a Pulsar instance](../../deployment/InstanceSetup#service-discovery-setup) guide.
 
 You can use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired {% popover cluster %}, whether via DNS, an HTTP or IP redirect, or some other means.
+
+## Reader API
+
+The "standard" Pulsar API involves using {% popover producers %} to publish messages to Pulsar {% popover topics %} and {% popover consumers %} that listen on topics, process those messages, and {% popover acknowledge %} that those messages have been processed. This model is largely---though not exclusively---oriented toward real-time use cases.
+
+For some use cases, though, applications may need to access messages on a Pulsar topic *without*
+The Reader API enables clients to read messages from Pulsar topics without needing to establish a {% popover subscription %}
