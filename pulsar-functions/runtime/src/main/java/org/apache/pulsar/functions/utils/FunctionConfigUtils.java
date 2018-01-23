@@ -26,6 +26,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.FileNameMap;
 
 public class FunctionConfigUtils {
 
@@ -68,6 +69,26 @@ public class FunctionConfigUtils {
             return false;
         } else {
             return true;
+        }
+    }
+
+    public static String getDownloadFileName(FunctionConfig functionConfig) {
+        String[] hierarchy = functionConfig.getClassName().split("\\.");
+        String fileName;
+        if (hierarchy.length <= 0) {
+            fileName = functionConfig.getClassName();
+        } else if (hierarchy.length == 1) {
+            fileName =  hierarchy[0];
+        } else {
+            fileName = hierarchy[hierarchy.length - 2];
+        }
+        switch (functionConfig.getRuntime()) {
+            case JAVA:
+                return fileName + ".jar";
+            case PYTHON:
+                return fileName + ".py";
+            default:
+                throw new RuntimeException("Unknown runtime " + functionConfig.getRuntime());
         }
     }
 }

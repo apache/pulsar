@@ -66,3 +66,11 @@ class PickleSerDe(SerDe):
 
   def deserialize(self, input_bytes):
       return pickle.loads(input_bytes)
+
+class IdentitySerDe(SerDe):
+  """Pickle based serializer"""
+  def serialize(self, input):
+    return input
+
+  def deserialize(self, input_bytes):
+    return input_bytes

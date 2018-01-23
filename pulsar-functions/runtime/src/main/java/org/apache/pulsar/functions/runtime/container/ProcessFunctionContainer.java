@@ -62,7 +62,6 @@ class ProcessFunctionContainer implements FunctionContainer {
                              String logDirectory,
                              String codeFile,
                              String pulsarServiceUrl) {
-        Map<String, String> environment = new HashMap<>();
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
             args.add("java");
@@ -75,12 +74,14 @@ class ProcessFunctionContainer implements FunctionContainer {
             args.add("--jar");
             args.add(codeFile);
         } else if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.PYTHON) {
-            environment.put("LOGGING_DIRECTORY", logDirectory);
-            environment.put("LOGGING_FILE", instanceConfig.getFunctionId());
             args.add("python");
             args.add(instanceFile);
             args.add("--py");
             args.add(codeFile);
+            args.add("--logging_directory");
+            args.add(logDirectory);
+            args.add("--logging_file");
+            args.add(instanceConfig.getFunctionId());
         }
         args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());
@@ -149,9 +150,6 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(String.valueOf(instancePort));
 
         processBuilder = new ProcessBuilder(args);
-        if (!environment.isEmpty()) {
-            processBuilder.environment().putAll(environment);
-        }
     }
 
     /**

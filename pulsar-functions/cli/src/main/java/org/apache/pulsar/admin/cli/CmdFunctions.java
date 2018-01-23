@@ -123,6 +123,7 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--processing-guarantees", description = "Processing Guarantees\n")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
         protected FunctionConfig functionConfig;
+        protected String userCodeFile;
 
         @Override
         void processArguments() throws Exception {
@@ -167,9 +168,11 @@ public class CmdFunctions extends CmdBase {
             if (null != jarFile) {
                 doJavaSubmitChecks(functionConfigBuilder);
                 functionConfigBuilder.setRuntime(FunctionConfig.Runtime.JAVA);
+                userCodeFile = jarFile;
             } else if (null != pyFile) {
                 // Can we do any checks here?
                 functionConfigBuilder.setRuntime(FunctionConfig.Runtime.PYTHON);
+                userCodeFile = pyFile;
             }
 
             functionConfig = functionConfigBuilder.build();
@@ -231,7 +234,7 @@ public class CmdFunctions extends CmdBase {
                 Spawner spawner = Spawner.createSpawner(
                     functionConfig,
                     limitsConfig,
-                    jarFile,
+                    userCodeFile,
                     containerFactory,
                     null,
                     0);
@@ -253,7 +256,7 @@ public class CmdFunctions extends CmdBase {
             if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            fnAdmin.functions().createFunction(functionConfig, jarFile);
+            fnAdmin.functions().createFunction(functionConfig, userCodeFile);
             print("Created successfully");
         }
     }
@@ -301,7 +304,7 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionConfigCommand {
         @Override
         void runCmd() throws Exception {
-            fnAdmin.functions().updateFunction(functionConfig, jarFile);
+            fnAdmin.functions().updateFunction(functionConfig, userCodeFile);
             print("Updated successfully");
         }
     }

@@ -44,5 +44,5 @@ threadContainerFactory:
   threadGroupName: "Thread Function Container Group"
 processContainerFactory:
   javaInstanceJarLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/java-instance.jar"
-  pythonInstanceLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/src/main/python/python_instance.py"
+  pythonInstanceLocation: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/python-instance/python_instance_main.py"
   logDirectory: "/Users/sanjeevkulkarni/workspace/srkukarni/pulsar_private/pulsar-functions/runtime/target/logs"

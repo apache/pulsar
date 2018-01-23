@@ -240,10 +240,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else {
             stats.incrementProcessSuccess(System.nanoTime() - processAt);
             if (result.getResult() != null && sinkProducer != null) {
-                byte[] output = null;
-                if (result.getResult() != null) {
-                    output = outputSerDe.serialize(result.getResult());
-                }
+                byte[] output = outputSerDe.serialize(result.getResult());
                 if (output != null) {
                     sinkProducer.sendAsync(output)
                             .thenAccept(messageId -> {
