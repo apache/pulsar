@@ -66,4 +66,6 @@ def serve(port, pyinstance):
   InstanceCommunication_pb2_grpc.add_InstanceControlServicer_to_server(
     InstanceCommunicationServicer(pyinstance), server)
   server.add_insecure_port('[::]:%d' % port)
+  Log.info("Serving InstanceCommunication on port %d" % int(port))
   server.start()
+  return server

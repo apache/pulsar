@@ -92,6 +92,9 @@ public class JavaInstanceMain {
     @Parameter(names = "--user_config", description = "UserConfig\n")
     protected String userConfig;
 
+    @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
+    protected String autoAck;
+
     private Thread fnThread;
     private JavaInstanceRunnable javaInstanceRunnable;
 
@@ -125,6 +128,11 @@ public class JavaInstanceMain {
             functionConfigBuilder.setSinkTopic(sinkTopicName);
         }
         functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
+        if (autoAck.equals("true")) {
+            functionConfigBuilder.setAutoAck(true);
+        } else {
+            functionConfigBuilder.setAutoAck(false);
+        }
         Map<String, String> userConfigMap = new HashMap<>();
 
         if (userConfig != null && !userConfig.isEmpty()) {

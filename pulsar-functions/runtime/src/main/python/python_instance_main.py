@@ -70,6 +70,7 @@ def main():
   parser.add_argument('--user_config', required=False, help='User Config')
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
+  parser.add_argument('--auto_ack', required=True, help='Enable Autoacking?')
 
   args = parser.parse_args()
   log_file = os.path.join(args.logging_directory, args.logging_file + ".log.0")
@@ -95,6 +96,10 @@ def main():
   if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
     function_config.outputSerdeClassName = args.output_serde_classname
   function_config.processingGuarantees = Function_pb2.FunctionConfig.ProcessingGuarantees.Value(args.processing_guarantees)
+  if args.auto_ack == "true":
+    function_config.autoAck = True
+  else:
+    function_config.autoAck = False
   if args.user_config != None and len(args.user_config) != 0:
     user_config = args.user_config.split(",")
     for config in user_config:
@@ -109,7 +114,7 @@ def main():
                                               str(args.function_version), function_config,
                                               limits, str(args.py), pulsar_client)
   pyinstance.run()
-  server.serve(args.port, pyinstance)
+  server_instance = server.serve(args.port, pyinstance)
 
   global to_run
   while to_run:
