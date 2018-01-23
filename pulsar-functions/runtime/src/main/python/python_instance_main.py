@@ -24,6 +24,8 @@ import argparse
 import logging
 import os
 import sys
+import signal
+import time
 from collections import namedtuple
 
 import pulsar
@@ -33,10 +35,21 @@ import log
 import server
 import python_instance
 
+to_run = True
 Log = log.Log
 LimitsConfig = namedtuple('LimitsConfig', 'max_time_ms max_memory_mb max_cpu max_buffered_tuples')
 
+def atexit_function(signo, _frame):
+  global to_run
+  Log.info("Interrupted by %d, shutting down" % signo)
+  to_run = False
+
 def main():
+  # Setup signal handlers
+  signal.signal(signal.SIGTERM, atexit_function)
+  signal.signal(signal.SIGHUP, atexit_function)
+  signal.signal(signal.SIGINT, atexit_function)
+
   parser = argparse.ArgumentParser(description='Heron Python Instance')
   parser.add_argument('--function_classname', required=True, help='Function Class Name')
   parser.add_argument('--py', required=True, help='Full Path of Function Code File')
@@ -97,6 +110,12 @@ def main():
                                               limits, str(args.py), pulsar_client)
   pyinstance.run()
   server.serve(args.port, pyinstance)
+
+  global to_run
+  while to_run:
+    time.sleep(1)
+
+  pyinstance.join()
   sys.exit(1)
 
 if __name__ == '__main__':

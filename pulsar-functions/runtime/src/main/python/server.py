@@ -40,7 +40,6 @@
 """python_instance.py: Python Instance for running python functions
 """
 from concurrent import futures
-import time
 from log import Log
 import grpc
 
@@ -68,5 +67,3 @@ def serve(port, pyinstance):
     InstanceCommunicationServicer(pyinstance), server)
   server.add_insecure_port('[::]:%d' % port)
   server.start()
-  while True:
-    time.sleep(300)
