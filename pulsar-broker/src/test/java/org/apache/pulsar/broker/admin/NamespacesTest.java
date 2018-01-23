@@ -83,7 +83,7 @@ import com.google.common.collect.Sets;
 @Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
-    private Namespaces namespaces;
+    private NamespacesLegacy namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
     private List<NamespaceName> testGlobalNamespaces;
@@ -121,7 +121,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        namespaces = spy(new Namespaces());
+        namespaces = spy(new NamespacesLegacy());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(namespaces).globalZk();
@@ -1066,13 +1066,15 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             mockWebUrl(localWebServiceUrl, testNs);
 
             try {
-                topics.validateAdminOperationOnDestination(topicName, false);
+                topics.validateDestinationName(topicName.getProperty(), topicName.getCluster(),
+                        topicName.getNamespace(), topicName.getEncodedLocalName());
+                topics.validateAdminOperationOnDestination(false);
             } catch (RestException e) {
                 fail("validateAdminAccessOnProperty failed");
             }
 
             try {
-                topics.validateAdminOperationOnDestination(DestinationName.get(""), false);
+                topics.validateAdminOperationOnDestination(false);
                 fail("validateAdminAccessOnProperty failed");
             } catch (Exception e) {
                 // OK

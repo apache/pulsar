@@ -462,8 +462,7 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfDestinations(nsName.getProperty(), nsName.getCluster(),
-                    nsName.getLocalName())) {
+            for (String topic : getNamespaceService().getListOfDestinations(nsName)) {
                 try {
                     DestinationName dn = DestinationName.get(topic);
                     if (bundle.includes(dn)) {
