@@ -103,7 +103,7 @@ public class ProcessFunctionContainerTest {
 
         ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
-        assertEquals(args.size(), 39);
+        assertEquals(args.size(), 41);
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionId()
@@ -116,6 +116,7 @@ public class ProcessFunctionContainerTest {
                 + " --function_classname " + config.getFunctionConfig().getClassName()
                 + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
                 + " --input_serde_classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
+                + " --auto_ack false"
                 + " --sink_topic " + config.getFunctionConfig().getSinkTopic()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
                 + " --processing_guarantees ATMOST_ONCE"
@@ -130,7 +131,7 @@ public class ProcessFunctionContainerTest {
 
         ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
-        assertEquals(args.size(), 38);
+        assertEquals(args.size(), 40);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
@@ -142,6 +143,7 @@ public class ProcessFunctionContainerTest {
                 + " --function_classname " + config.getFunctionConfig().getClassName()
                 + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
                 + " --input_serde_classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
+                + " --auto_ack false"
                 + " --sink_topic " + config.getFunctionConfig().getSinkTopic()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
                 + " --processing_guarantees ATMOST_ONCE"

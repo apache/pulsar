@@ -115,6 +115,12 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(sourceTopicString);
         args.add("--input_serde_classnames");
         args.add(inputSerdeClassNameString);
+        args.add("--auto_ack");
+        if (instanceConfig.getFunctionConfig().getAutoAck()) {
+            args.add("true");
+        } else {
+            args.add("false");
+        }
         if (instanceConfig.getFunctionConfig().getSinkTopic() != null) {
             args.add("--sink_topic");
             args.add(instanceConfig.getFunctionConfig().getSinkTopic());

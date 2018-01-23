@@ -175,6 +175,7 @@ public class CmdFunctions extends CmdBase {
                 userCodeFile = pyFile;
             }
 
+            functionConfigBuilder.setAutoAck(true);
             functionConfig = functionConfigBuilder.build();
         }
 
