@@ -37,36 +37,36 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-"""python_instance.py: Python Instance for running python functions
+"""util.py: Some misc utility functions
 """
-from concurrent import futures
-import time
-from log import Log
-import grpc
+import os
+import inspect
+import sys
 
-import InstanceCommunication_pb2
-import InstanceCommunication_pb2_grpc
+import log
 
-class InstanceCommunicationServicer(InstanceCommunication_pb2_grpc.InstanceControlServicer):
-  """Provides methods that implement functionality of route guide server."""
+Log = log.Log
 
-  def __init__(self, pyinstance):
-    self.pyinstance = pyinstance
+def import_class(from_path, full_class_name, try_internal=True):
+  kclass = import_class_from_path(from_path, full_class_name)
+  if kclass is None and try_internal:
+    our_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
+    kclass = import_class_from_path(our_dir, full_class_name)
+  return kclass
 
-  def GetFunctionStatus(self, request, context):
-    Log.info("Came in GetFunctionStatus")
-    return self.pyinstance.get_function_status()
-
-  def GetAndResetMetrics(self, request, context):
-    Log.info("Came in GetAndResetMetrics")
-    return self.pyinstance.get_and_reset_metrics()
-
-
-def serve(port, pyinstance):
-  server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
-  InstanceCommunication_pb2_grpc.add_InstanceControlServicer_to_server(
-    InstanceCommunicationServicer(pyinstance), server)
-  server.add_insecure_port('[::]:%d' % port)
-  server.start()
-  while True:
-    time.sleep(300)
+def import_class_from_path(from_path, full_class_name):
+  Log.info('Trying to import %s from path %s' % (full_class_name, from_path))
+  split = full_class_name.split('.')
+  classname_path = '.'.join(split[:-1])
+  class_name = full_class_name.split('.')[-1]
+  if from_path not in sys.path:
+    Log.info("Add a new dependency to the path: %s" % from_path)
+    sys.path.insert(0, from_path)
+  try:
+    mod = __import__(classname_path, fromlist=[class_name], level=-1)
+    retval = getattr(mod, class_name)
+    return retval
+  except Exception as e:
+    Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
+    Log.info(e, exc_info=True)
+    return None

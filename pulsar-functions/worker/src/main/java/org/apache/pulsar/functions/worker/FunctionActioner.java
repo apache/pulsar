@@ -26,6 +26,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -112,7 +113,7 @@ public class FunctionActioner implements AutoCloseable {
                         File.separatorChar));
         pkgDir.mkdirs();
 
-        File pkgFile = new File(pkgDir, new File(functionMetaData.getPackageLocation().getPackagePath()).getName());
+        File pkgFile = new File(pkgDir, new File(FunctionConfigUtils.getDownloadFileName(functionMetaData.getFunctionConfig())).getName());
         if (!pkgFile.exists()) {
             log.info("Function package file {} doesn't exist, downloading from {}",
                     pkgFile, functionMetaData.getPackageLocation());

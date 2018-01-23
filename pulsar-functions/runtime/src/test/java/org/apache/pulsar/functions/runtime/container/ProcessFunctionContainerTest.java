@@ -130,10 +130,11 @@ public class ProcessFunctionContainerTest {
 
         ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
-        assertEquals(args.size(), 34);
+        assertEquals(args.size(), 38);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
-                + " --py " + userJarFile + " --instance_id "
+                + " --py " + userJarFile + " --logging_directory "
+                + logDirectory + " --logging_file " + config.getFunctionId() + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
                 + " --namespace " + config.getFunctionConfig().getNamespace()
