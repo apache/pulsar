@@ -36,7 +36,7 @@ public class NamespaceStatsAggregator {
         }
     };
 
-    public static void generate(PulsarService pulsar, boolean includedTopicMetrics, SimpleTextOutputStream stream) {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
         TopicStats topicStats = new TopicStats();
@@ -48,7 +48,7 @@ public class NamespaceStatsAggregator {
                 topicsMap.forEach((name, topic) -> {
                     getTopicStats(topic, topicStats);
                     namespaceStats.updateStats(topicStats);
-                    if (includedTopicMetrics) {
+                    if (includeTopicMetrics) {
                         TopicStats.printNamespaceStats(stream, cluster, namespace, name, topicStats);
                     }
                 });
