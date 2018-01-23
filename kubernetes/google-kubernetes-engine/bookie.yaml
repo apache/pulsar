@@ -50,16 +50,17 @@ data:
   dbStorage_readAheadCacheMaxSizeMb: "1024"
   zkServers: zk-0.zookeeper,zk-1.zookeeper,zk-2.zookeeper
   statsProviderClass: org.apache.bookkeeper.stats.PrometheusMetricsProvider
+  useHostNameAsBookieID: "true"
 ---
 apiVersion: apps/v1beta1
 kind: StatefulSet
 metadata:
-  name: bookie
+  name: bookkeeper
   labels:
     app: pulsar
     component: bookkeeper
 spec:
-  serviceName: "bookkeeper"
+  serviceName: bookkeeper
   replicas: 3
   selector:
     matchLabels:
@@ -104,11 +105,6 @@ spec:
           envFrom:
             - configMapRef:
                 name: bookie-config
-          env:
-            - name: advertisedAddress
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.hostIP
           volumeMounts:
             - name: journal-disk
               mountPath: /pulsar/data/bookkeeper/journal
