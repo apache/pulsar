@@ -157,6 +157,7 @@ class ProcessFunctionContainer implements FunctionContainer {
      */
     @Override
     public void start() throws Exception {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
         try {
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
