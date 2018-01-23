@@ -6,26 +6,28 @@ import org.apache.pulsar.common.schema.Schema;
 import java.io.IOException;
 import java.util.concurrent.CompletableFuture;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+
 public class MockSchemaRegistryService implements SchemaRegistryService {
     @Override
     public CompletableFuture<Schema> getSchema(String schemaId) {
-        CompletableFuture<Schema> future = new CompletableFuture<>();
-        future.complete(null);
-        return future;
+        return completedFuture(null);
     }
 
     @Override
     public CompletableFuture<Schema> getSchema(String schemaId, long version) {
-        CompletableFuture<Schema> future = new CompletableFuture<>();
-        future.complete(null);
-        return future;
+        return completedFuture(null);
     }
 
     @Override
     public CompletableFuture<Long> putSchema(Schema schema) {
-        CompletableFuture<Long> future = new CompletableFuture<>();
-        future.complete(-1L);
-        return future;    }
+        return completedFuture(null);
+    }
+
+    @Override
+    public CompletableFuture<Void> deleteSchema(String schemaId) {
+        return completedFuture(null);
+    }
 
     @Override
     public void start() throws IOException {
