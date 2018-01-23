@@ -119,6 +119,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
+    public CompletableFuture<Void> deleteSchema(String schemaId) {
+        return null;
+    }
+
+    @Override
     public void close() throws Exception {
         if (nonNull(bookKeeper)) {
             bookKeeper.close();
