@@ -220,4 +220,4 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
     LOG_INFO("parseLookupData = " << *lookupDataResultPtr);
     return lookupDataResultPtr;
 }
-}
+}  // namespace pulsar

@@ -29,5 +29,5 @@ class UnAckedMessageTrackerDisabled : public UnAckedMessageTrackerInterface {
 
     void clear() {}
 };
-}
+}  // namespace pulsar
 #endif /* LIB_UNACKEDMESSAGETRACKERDISABLED_H_ */

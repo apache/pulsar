@@ -32,6 +32,6 @@ class CustomRoutingPolicy : public MessageRoutingPolicy {
 
     int getPartition(const Message& msg, const TopicMetadata& topicMetadata) { return 0; }
 };
-}
+}  // namespace pulsar
 
 #endif  // CUSTOM_ROUTER_POLICY_HEADER_

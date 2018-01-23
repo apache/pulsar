@@ -32,6 +32,6 @@ class ProducerStatsBase {
 };
 
 typedef boost::shared_ptr<ProducerStatsBase> ProducerStatsBasePtr;
-}
+}  // namespace pulsar
 
 #endif  // PULSAR_PRODUCER_STATS_BASE_HEADER

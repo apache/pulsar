@@ -116,4 +116,4 @@ Result Client::close() {
 void Client::closeAsync(CloseCallback callback) { impl_->closeAsync(callback); }
 
 void Client::shutdown() { impl_->shutdown(); }
-}
+}  // namespace pulsar

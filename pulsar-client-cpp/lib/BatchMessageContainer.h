@@ -135,5 +135,5 @@ std::ostream& operator<<(std::ostream& os, const BatchMessageContainer& b) {
        << "] [averageBatchSize = " << b.averageBatchSize_ << "]}";
     return os;
 }
-}
+}  // namespace pulsar
 #endif /* LIB_BATCHMESSAGECONTAINER_H_ */

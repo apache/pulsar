@@ -160,4 +160,4 @@ const BatchMessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(
 
     return pos->first;
 }
-}
+}  // namespace pulsar

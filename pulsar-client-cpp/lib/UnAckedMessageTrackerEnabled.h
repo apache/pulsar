@@ -45,6 +45,6 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     ClientImplPtr client_;
     long timeoutMs_;
 };
-}
+}  // namespace pulsar
 
 #endif /* LIB_UNACKEDMESSAGETRACKERENABLED_H_ */

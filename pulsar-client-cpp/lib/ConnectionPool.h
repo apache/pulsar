@@ -49,6 +49,6 @@ class ConnectionPool {
 
     friend class ConnectionPoolTest;
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif  //_PULSAR_CONNECTION_POOL_HEADER_

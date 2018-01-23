@@ -27,6 +27,6 @@ class TopicMetadata {
    public:
     virtual int getNumPartitions() const = 0;
 };
-}
+}  // namespace pulsar
 
 #endif /* TOPIC_METADATA_HPP_ */

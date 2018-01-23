@@ -69,4 +69,4 @@ bool CompressionCodecNone::decode(const SharedBuffer& encoded, uint32_t uncompre
     decoded = encoded;
     return true;
 }
-}
+}  // namespace pulsar

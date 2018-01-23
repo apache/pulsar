@@ -32,7 +32,7 @@ namespace proto {
 class CommandMessage;
 class MessageMetadata;
 class SingleMessageMetadata;
-}
+}  // namespace proto
 
 class SharedBuffer;
 class MessageBuilder;
@@ -145,7 +145,7 @@ class Message {
     friend std::ostream& operator<<(std::ostream& s, const StringMap& map);
     friend std::ostream& operator<<(std::ostream& s, const Message& msg);
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 #endif /* MESSAGE_HPP_ */

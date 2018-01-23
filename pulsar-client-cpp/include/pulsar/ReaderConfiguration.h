@@ -86,6 +86,6 @@ class ReaderConfiguration {
    private:
     boost::shared_ptr<ReaderConfigurationImpl> impl_;
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif /* PULSAR_READER_CONFIGURATION_H_ */

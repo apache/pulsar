@@ -401,4 +401,4 @@ void PartitionedConsumerImpl::handleGetConsumerStats(Result res, BrokerConsumerS
         callback(ResultOk, BrokerConsumerStats(statsPtr));
     }
 }
-}
+}  // namespace pulsar

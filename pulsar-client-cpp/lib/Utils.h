@@ -96,6 +96,6 @@ class Optional {
     T value_;
     bool present_;
 };
-}
+}  // namespace pulsar
 
 #endif /* UTILS_HPP_ */

@@ -99,4 +99,4 @@ ConsumerType BrokerConsumerStatsImpl::convertStringToConsumerType(const std::str
         return ConsumerExclusive;
     }
 }
-}
+}  // namespace pulsar

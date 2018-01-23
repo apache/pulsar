@@ -45,7 +45,7 @@ class Backoff {
     unsigned int randomSeed_;
     friend class PulsarFriend;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

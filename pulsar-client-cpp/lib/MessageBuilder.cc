@@ -125,4 +125,4 @@ MessageBuilder& MessageBuilder::disableReplication(bool flag) {
     r.Swap(impl_->metadata.mutable_replicate_to());
     return *this;
 }
-}
+}  // namespace pulsar

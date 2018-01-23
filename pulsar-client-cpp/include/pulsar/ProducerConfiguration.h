@@ -93,6 +93,6 @@ class ProducerConfiguration {
     struct Impl;
     boost::shared_ptr<ProducerConfigurationImpl> impl_;
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif /* PULSAR_PRODUCERCONFIGURATION_H_ */

@@ -70,4 +70,4 @@ const ConsumerType BrokerConsumerStats::getType() const { return impl_->getType(
 double BrokerConsumerStats::getMsgRateExpired() const { return impl_->getMsgRateExpired(); }
 
 uint64_t BrokerConsumerStats::getMsgBacklog() const { return impl_->getMsgBacklog(); }
-}
+}  // namespace pulsar

@@ -152,7 +152,7 @@ void mockZTS() {
         }
     }
 }
-}
+}  // namespace testAthenz
 
 TEST(AuthPluginTest, testAthenz) {
     boost::thread zts(&testAthenz::mockZTS);

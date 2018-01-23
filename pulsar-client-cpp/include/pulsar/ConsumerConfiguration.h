@@ -129,6 +129,6 @@ class ConsumerConfiguration {
    private:
     boost::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */

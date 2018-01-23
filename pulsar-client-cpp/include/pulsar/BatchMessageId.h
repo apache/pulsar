@@ -61,7 +61,7 @@ class BatchMessageId : public MessageId {
 
     friend std::ostream& operator<<(std::ostream& s, const BatchMessageId& messageId);
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 
 #endif /* LIB_BATCHMESSAGEID_H_ */

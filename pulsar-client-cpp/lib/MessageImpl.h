@@ -62,6 +62,6 @@ class MessageImpl {
     void setEventTimestamp(uint64_t eventTimestamp);
     Message::StringMap properties_;
 };
-}
+}  // namespace pulsar
 
 #endif /* LIB_MESSAGEIMPL_H_ */

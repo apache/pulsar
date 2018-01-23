@@ -125,7 +125,7 @@ class MessageBuilder {
 
     friend class PulsarWrapper;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

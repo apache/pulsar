@@ -51,6 +51,6 @@ struct ProducerConfigurationImpl {
           batchingMaxPublishDelayMs(10) {             // 10 milli seconds
     }
 };
-}
+}  // namespace pulsar
 
 #endif /* LIB_PRODUCERCONFIGURATIONIMPL_H_ */

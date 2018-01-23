@@ -63,6 +63,6 @@ class ReaderImpl : public boost::enable_shared_from_this<ReaderImpl> {
     ReaderCallback readerCreatedCallback_;
     ReaderListener readerListener_;
 };
-}
+}  // namespace pulsar
 
 #endif /* LIB_READERIMPL_H_ */

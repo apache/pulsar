@@ -73,4 +73,4 @@ std::ostream& operator<<(std::ostream& s, const BatchMessageId& messageId) {
 }
 
 #pragma GCC visibility pop
-}
+}  // namespace pulsar

@@ -61,4 +61,4 @@ bool CompressionCodecZLib::decode(const SharedBuffer& encoded, uint32_t uncompre
         return false;
     }
 }
-}
+}  // namespace pulsar

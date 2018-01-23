@@ -90,4 +90,4 @@ void ExecutorServiceProvider::close() {
         it->reset();
     }
 }
-}
+}  // namespace pulsar

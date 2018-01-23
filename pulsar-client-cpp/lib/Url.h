@@ -51,7 +51,7 @@ class Url {
     std::string parameter_;
 };
 
-}  // pulsar
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

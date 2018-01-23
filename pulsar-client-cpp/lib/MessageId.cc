@@ -109,4 +109,4 @@ bool MessageId::operator==(const MessageId& other) const {
 }
 
 #pragma GCC visibility pop
-}
+}  // namespace pulsar

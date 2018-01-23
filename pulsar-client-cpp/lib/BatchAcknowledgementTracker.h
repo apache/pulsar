@@ -100,6 +100,6 @@ std::ostream& operator<<(std::ostream& os, const BatchAcknowledgementTracker& ba
        << "] [trackerMap size = " << batchAcknowledgementTracker.trackerMap_.size() << " ]}";
     return os;
 }
-}
+}  // namespace pulsar
 
 #endif /* LIB_BATCHACKNOWLEDGEMENTTRACKER_H_ */

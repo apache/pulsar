@@ -189,4 +189,4 @@ void Consumer::getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback)
     }
     impl_->getBrokerConsumerStatsAsync(callback);
 }
-}
+}  // namespace pulsar

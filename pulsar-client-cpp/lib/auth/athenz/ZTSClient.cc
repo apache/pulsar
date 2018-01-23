@@ -339,4 +339,4 @@ PrivateKeyUri ZTSClient::parseUri(const char *uri) {
     }
     return uriSt;
 }
-}
+}  // namespace pulsar

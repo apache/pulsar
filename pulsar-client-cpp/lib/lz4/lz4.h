@@ -42,11 +42,11 @@ extern "C" {
  * lz4.h provides block compression functions, and gives full buffer control to programmer.
  * If you need to generate inter-operable compressed data (respecting LZ4 frame specification),
  * and can let the library handle its own memory, please use lz4frame.h instead.
-*/
+ */
 
 /**************************************
-*  Version
-**************************************/
+ *  Version
+ **************************************/
 #define LZ4_VERSION_MAJOR 1   /* for breaking interface changes  */
 #define LZ4_VERSION_MINOR 7   /* for new (non-breaking) interface capabilities */
 #define LZ4_VERSION_RELEASE 1 /* for tweaks, bug-fixes, or development */
@@ -54,8 +54,8 @@ extern "C" {
 int LZ4_versionNumber(void);
 
 /**************************************
-*  Tuning parameter
-**************************************/
+ *  Tuning parameter
+ **************************************/
 /*
  * LZ4_MEMORY_USAGE :
  * Memory usage formula : N->2^N Bytes (examples : 10 -> 1KB; 12 -> 4KB ; 16 -> 64KB; 20 -> 1MB; etc.)
@@ -66,8 +66,8 @@ int LZ4_versionNumber(void);
 #define LZ4_MEMORY_USAGE 14
 
 /**************************************
-*  Simple Functions
-**************************************/
+ *  Simple Functions
+ **************************************/
 
 int LZ4_compress_default(const char* source, char* dest, int sourceSize, int maxDestSize);
 int LZ4_decompress_safe(const char* source, char* dest, int compressedSize, int maxDecompressedSize);
@@ -99,8 +99,8 @@ result.
 */
 
 /**************************************
-*  Advanced Functions
-**************************************/
+ *  Advanced Functions
+ **************************************/
 #define LZ4_MAX_INPUT_SIZE 0x7E000000 /* 2 113 929 216 bytes */
 #define LZ4_COMPRESSBOUND(isize) \
     ((unsigned)(isize) > (unsigned)LZ4_MAX_INPUT_SIZE ? 0 : (isize) + ((isize) / 255) + 16)
@@ -186,8 +186,8 @@ int LZ4_decompress_safe_partial(const char* source, char* dest, int compressedSi
                                 int maxDecompressedSize);
 
 /***********************************************
-*  Streaming Compression Functions
-***********************************************/
+ *  Streaming Compression Functions
+ ***********************************************/
 #define LZ4_STREAMSIZE_U64 ((1 << (LZ4_MEMORY_USAGE - 3)) + 4)
 #define LZ4_STREAMSIZE (LZ4_STREAMSIZE_U64 * sizeof(long long))
 /*
@@ -197,7 +197,9 @@ int LZ4_decompress_safe_partial(const char* source, char* dest, int compressedSi
  * note : only allocated directly the structure if you are statically linking LZ4
  *        If you are using liblz4 as a DLL, please use below construction methods instead.
  */
-typedef struct { long long table[LZ4_STREAMSIZE_U64]; } LZ4_stream_t;
+typedef struct {
+    long long table[LZ4_STREAMSIZE_U64];
+} LZ4_stream_t;
 
 /*
  * LZ4_resetStream
@@ -247,12 +249,14 @@ int LZ4_compress_fast_continue(LZ4_stream_t* streamPtr, const char* src, char* d
 int LZ4_saveDict(LZ4_stream_t* streamPtr, char* safeBuffer, int dictSize);
 
 /************************************************
-*  Streaming Decompression Functions
-************************************************/
+ *  Streaming Decompression Functions
+ ************************************************/
 
 #define LZ4_STREAMDECODESIZE_U64 4
 #define LZ4_STREAMDECODESIZE (LZ4_STREAMDECODESIZE_U64 * sizeof(unsigned long long))
-typedef struct { unsigned long long table[LZ4_STREAMDECODESIZE_U64]; } LZ4_streamDecode_t;
+typedef struct {
+    unsigned long long table[LZ4_STREAMDECODESIZE_U64];
+} LZ4_streamDecode_t;
 /*
  * LZ4_streamDecode_t
  * information structure to track an LZ4 stream.
@@ -312,8 +316,8 @@ int LZ4_decompress_fast_usingDict(const char* source, char* dest, int originalSi
                                   int dictSize);
 
 /**************************************
-*  Obsolete Functions
-**************************************/
+ *  Obsolete Functions
+ **************************************/
 /* Deprecate Warnings */
 /* Should these warnings messages be a problem,
    it is generally possible to disable them,

@@ -76,7 +76,7 @@ enum Result
 
 // Return string representation of result code
 const char* strResult(Result result);
-}
+}  // namespace pulsar
 
 std::ostream& operator<<(std::ostream& s, pulsar::Result result);
 

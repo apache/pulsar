@@ -64,6 +64,6 @@ class BrokerConsumerStatsImplBase {
     virtual uint64_t getMsgBacklog() const = 0;
 };
 typedef boost::shared_ptr<BrokerConsumerStatsImplBase> BrokerConsumerStatsImplBasePtr;
-}
+}  // namespace pulsar
 
 #endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPLBASE_H

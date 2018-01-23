@@ -140,7 +140,7 @@ class ClientConfiguration {
     const AuthenticationPtr& getAuthPtr() const;
     boost::shared_ptr<ClientConfigurationImpl> impl_;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 #endif /* PULSAR_CLIENTCONFIGURATION_H_ */

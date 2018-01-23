@@ -50,5 +50,5 @@ class AuthTls : public Authentication {
    private:
     AuthenticationDataPtr authDataTls_;
 };
-}
+}  // namespace pulsar
 #endif /* PULSAR_AUTH_TLS_H_ */

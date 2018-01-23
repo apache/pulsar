@@ -230,5 +230,5 @@ class ObjectPool {
     ObjectPool<Type, MaxSize>(const ObjectPool<Type, MaxSize>&);
     ObjectPool<Type, MaxSize>& operator=(const ObjectPool<Type, MaxSize>&);
 };
-}
+}  // namespace pulsar
 #endif /* LIB_OBJECTPOOL_H_ */

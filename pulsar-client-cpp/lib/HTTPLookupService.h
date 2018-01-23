@@ -61,6 +61,6 @@ class HTTPLookupService : public LookupService, public boost::enable_shared_from
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr&);
 };
-}
+}  // namespace pulsar
 
 #endif  // PULSAR_CPP_HTTPLOOKUPSERVICE_H

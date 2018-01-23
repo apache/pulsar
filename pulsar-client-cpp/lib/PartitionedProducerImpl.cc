@@ -232,4 +232,4 @@ Future<Result, ProducerImplBaseWeakPtr> PartitionedProducerImpl::getProducerCrea
 
 // override
 bool PartitionedProducerImpl::isClosed() { return state_ == Closed; }
-}
+}  // namespace pulsar

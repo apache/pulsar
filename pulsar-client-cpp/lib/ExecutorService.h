@@ -92,7 +92,7 @@ class ExecutorServiceProvider {
 };
 
 typedef boost::shared_ptr<ExecutorServiceProvider> ExecutorServiceProviderPtr;
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

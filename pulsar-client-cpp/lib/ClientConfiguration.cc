@@ -105,4 +105,4 @@ ClientConfiguration& ClientConfiguration::setStatsIntervalInSeconds(
 const unsigned int& ClientConfiguration::getStatsIntervalInSeconds() const {
     return impl_->statsIntervalInSeconds;
 }
-}
+}  // namespace pulsar

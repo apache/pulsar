@@ -151,4 +151,4 @@ int64_t currentTimeMillis() {
     time_duration diff = now() - time_t_epoch;
     return diff.total_milliseconds();
 }
-}
+}  // namespace pulsar

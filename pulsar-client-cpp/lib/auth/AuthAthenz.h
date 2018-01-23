@@ -52,5 +52,5 @@ class AuthAthenz : public Authentication {
    private:
     AuthenticationDataPtr authDataAthenz_;
 };
-}
+}  // namespace pulsar
 #endif /* PULSAR_AUTH_ATHENZ_H_ */

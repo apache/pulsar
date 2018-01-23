@@ -35,4 +35,4 @@ int RoundRobinMessageRouter::getPartition(const Message& msg, const TopicMetadat
         return prevPartition_++ % topicMetadata.getNumPartitions();
     }
 }
-}
+}  // namespace pulsar

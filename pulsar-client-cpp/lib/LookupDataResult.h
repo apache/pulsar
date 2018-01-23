@@ -62,6 +62,6 @@ std::ostream& operator<<(std::ostream& os, const LookupDataResult& b) {
        << "] [redirect = " << b.redirect << "]";
     return os;
 }
-}
+}  // namespace pulsar
 
 #endif  // _PULSAR_LOOKUP_DATA_RESULT_HEADER_

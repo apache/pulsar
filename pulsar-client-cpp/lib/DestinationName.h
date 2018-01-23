@@ -65,7 +65,7 @@ class DestinationName : public ServiceUnitId {
     bool init(const std::string& destinationName);
 };
 typedef boost::shared_ptr<DestinationName> DestinationNamePtr;
-}
+}  // namespace pulsar
 // end of namespace pulsar
 
 #pragma GCC visibility pop

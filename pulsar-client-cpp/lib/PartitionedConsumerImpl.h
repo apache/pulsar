@@ -103,5 +103,5 @@ class PartitionedConsumerImpl : public ConsumerImplBase,
 };
 typedef boost::weak_ptr<PartitionedConsumerImpl> PartitionedConsumerImplWeakPtr;
 typedef boost::shared_ptr<PartitionedConsumerImpl> PartitionedConsumerImplPtr;
-}
+}  // namespace pulsar
 #endif  // PULSAR_PARTITIONED_CONSUMER_HEADER

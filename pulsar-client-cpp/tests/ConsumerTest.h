@@ -28,4 +28,4 @@ class ConsumerTest {
         return consumer.impl_->getNumOfPrefetchedMessages();
     }
 };
-}
+}  // namespace pulsar

@@ -447,5 +447,5 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage) {
 
     return singleMessage;
 }
-}
+}  // namespace pulsar
 /* namespace pulsar */

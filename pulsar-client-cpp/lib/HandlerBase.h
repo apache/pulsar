@@ -113,5 +113,5 @@ class HandlerBase {
     friend class ClientConnection;
     friend class PulsarFriend;
 };
-}
+}  // namespace pulsar
 #endif  //_PULSAR_HANDLER_BASE_HEADER_

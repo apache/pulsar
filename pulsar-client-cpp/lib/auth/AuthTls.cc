@@ -52,4 +52,4 @@ extern "C" Authentication* createFromMap(ParamMap& params) {
     AuthenticationDataPtr authDataTls = AuthenticationDataPtr(new AuthDataTls(params));
     return new AuthTls(authDataTls);
 }
-}
+}  // namespace pulsar

@@ -158,4 +158,4 @@ AuthenticationPtr AuthFactory::create(const std::string& dynamicLibPath, ParamMa
     }
     return AuthenticationPtr(auth);
 }
-}
+}  // namespace pulsar

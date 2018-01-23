@@ -35,5 +35,5 @@ class SinglePartitionMessageRouter : public MessageRoutingPolicy {
    private:
     int selectedSinglePartition_;
 };
-}
+}  // namespace pulsar
 #endif  // PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_

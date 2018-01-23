@@ -88,7 +88,7 @@ class BrokerConsumerStats {
 };
 typedef boost::function<void(Result result, BrokerConsumerStats brokerConsumerStats)>
     BrokerConsumerStatsCallback;
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

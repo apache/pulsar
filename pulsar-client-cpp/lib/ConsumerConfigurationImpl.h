@@ -39,5 +39,5 @@ struct ConsumerConfigurationImpl {
           brokerConsumerStatsCacheTimeInMs(30 * 1000),  // 30 seconds
           receiverQueueSize(1000) {}
 };
-}
+}  // namespace pulsar
 #endif /* LIB_CONSUMERCONFIGURATIONIMPL_H_ */

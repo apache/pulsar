@@ -51,7 +51,7 @@ class MessageRoutingPolicy {
 };
 
 typedef boost::shared_ptr<MessageRoutingPolicy> MessageRoutingPolicyPtr;
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

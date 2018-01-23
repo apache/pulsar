@@ -39,7 +39,7 @@ class SharedBufferInternal : public std::vector<char> {
 
     int capacity() const { return std::vector<char>::capacity(); }
 };
-}
+}  // namespace detail
 
 class SharedBuffer {
    public:
@@ -230,6 +230,6 @@ class CompositeSharedBuffer {
 };
 
 typedef CompositeSharedBuffer<2> PairSharedBuffer;
-}
+}  // namespace pulsar
 
 #endif /* LIB_SHARED_BUFFER_H_ */

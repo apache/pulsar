@@ -27,7 +27,7 @@ class ZTSClientWrapper {
    public:
     static PrivateKeyUri parseUri(const char* uri) { return ZTSClient::parseUri(uri); }
 };
-}
+}  // namespace pulsar
 
 TEST(ZTSClientTest, testZTSClient) {
     {

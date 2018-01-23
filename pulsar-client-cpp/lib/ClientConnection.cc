@@ -1187,4 +1187,4 @@ int ClientConnection::getServerProtocolVersion() const { return serverProtocolVe
 Commands::ChecksumType ClientConnection::getChecksumType() const {
     return getServerProtocolVersion() >= proto::v6 ? Commands::Crc32c : Commands::None;
 }
-}
+}  // namespace pulsar

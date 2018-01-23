@@ -287,6 +287,6 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
 
     bool isTlsAllowInsecureConnection_;
 };
-}
+}  // namespace pulsar
 
 #endif  //_PULSAR_CLIENT_CONNECTION_HEADER_

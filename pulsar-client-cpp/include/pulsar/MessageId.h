@@ -79,7 +79,7 @@ class MessageId {
     int64_t entryId_ : 48;
     short partition_ : 16;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

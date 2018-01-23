@@ -64,7 +64,7 @@ class BinaryProtoLookupService : public LookupService {
     uint64_t newRequestId();
 };
 typedef boost::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

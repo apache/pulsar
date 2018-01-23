@@ -128,4 +128,4 @@ std::ostream& operator<<(std::ostream& os, const ProducerStatsImpl& obj) {
        << ")";
     return os;
 }
-}
+}  // namespace pulsar

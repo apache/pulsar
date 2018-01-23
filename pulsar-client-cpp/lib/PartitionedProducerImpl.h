@@ -115,4 +115,4 @@ class PartitionedProducerImpl : public ProducerImplBase,
     MessageRoutingPolicyPtr getMessageRouter();
 };
 
-}  // ends namespace Pulsar
+}  // namespace pulsar

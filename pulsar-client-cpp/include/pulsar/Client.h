@@ -153,7 +153,7 @@ class Client {
     friend class PulsarWrapper;
     boost::shared_ptr<ClientImpl> impl_;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

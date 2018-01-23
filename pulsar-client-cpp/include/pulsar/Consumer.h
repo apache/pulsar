@@ -199,16 +199,16 @@ class Consumer {
     Result getBrokerConsumerStats(BrokerConsumerStats& brokerConsumerStats);
 
     /**
-    * Asynchronous call to gets Consumer Stats from broker.
-    * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call
-    * expires
-    * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the
-    * stats are
-    * still valid.
-    *
-    * @param callback - callback function to get the brokerConsumerStats,
-    *                   if result is ResultOk then the brokerConsumerStats will be populated
-    */
+     * Asynchronous call to gets Consumer Stats from broker.
+     * The stats are cached for 30 seconds, if a call is made before the stats returned by the previous call
+     * expires
+     * then cached data will be returned. BrokerConsumerStats::isValid() function can be used to check if the
+     * stats are
+     * still valid.
+     *
+     * @param callback - callback function to get the brokerConsumerStats,
+     *                   if result is ResultOk then the brokerConsumerStats will be populated
+     */
     void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback);
 
    private:
@@ -223,7 +223,7 @@ class Consumer {
     friend class ClientImpl;
     friend class ConsumerTest;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

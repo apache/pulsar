@@ -69,4 +69,4 @@ Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(const
     cnx->tcpConnectAsync();
     return future;
 }
-}
+}  // namespace pulsar

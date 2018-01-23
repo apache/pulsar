@@ -124,7 +124,7 @@ class Producer {
 
     ProducerImplBasePtr impl_;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

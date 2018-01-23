@@ -160,4 +160,4 @@ void PartitionedBrokerConsumerStatsImpl::add(BrokerConsumerStats stats, int inde
 }
 
 void PartitionedBrokerConsumerStatsImpl::clear() { statsList_.clear(); }
-}
+}  // namespace pulsar

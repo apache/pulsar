@@ -62,5 +62,5 @@ class ZTSClient {
 
     friend class ZTSClientWrapper;
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop

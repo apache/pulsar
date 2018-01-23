@@ -46,6 +46,6 @@ struct ClientConfigurationImpl {
           statsIntervalInSeconds(600) {  // 10 minutes
     }
 };
-}
+}  // namespace pulsar
 
 #endif /* LIB_CLIENTCONFIGURATIONIMPL_H_ */

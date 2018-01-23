@@ -63,4 +63,4 @@ class PulsarFriend {
         return backoff.firstBackoffTime_;
     }
 };
-}
+}  // namespace pulsar

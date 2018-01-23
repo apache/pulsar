@@ -74,4 +74,4 @@ void ConsumerConfiguration::setUnAckedMessagesTimeoutMs(const uint64_t milliSeco
     }
     impl_->unAckedMessagesTimeoutMs = milliSeconds;
 }
-}
+}  // namespace pulsar

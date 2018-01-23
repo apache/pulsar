@@ -31,6 +31,6 @@ class GMockMessage : public Message {
 
     MOCK_CONST_METHOD0(getPartitionKey, const std::string&());
 };
-}
+}  // namespace pulsar
 
 #endif  // MOCK_MESSAGE_HPP_

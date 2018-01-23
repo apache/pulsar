@@ -72,4 +72,4 @@ void Producer::closeAsync(CloseCallback callback) {
 
     impl_->closeAsync(callback);
 }
-}
+}  // namespace pulsar

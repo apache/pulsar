@@ -123,6 +123,6 @@ class BrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
 
     static ConsumerType convertStringToConsumerType(const std::string& str);
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H

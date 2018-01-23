@@ -146,4 +146,4 @@ BatchMessageContainer::~BatchMessageContainer() {
     LOG_INFO("[numberOfBatchesSent = " << numberOfBatchesSent_
                                        << "] [averageBatchSize = " << averageBatchSize_ << "]");
 }
-}
+}  // namespace pulsar

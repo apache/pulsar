@@ -37,5 +37,5 @@ class RoundRobinMessageRouter : public MessageRoutingPolicy {
 };
 typedef boost::hash<std::string> StringHash;
 typedef boost::unique_lock<boost::mutex> Lock;
-}
+}  // namespace pulsar
 #endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_

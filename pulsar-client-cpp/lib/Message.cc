@@ -140,4 +140,4 @@ std::ostream& operator<<(std::ostream& s, const Message& msg) {
 }
 
 #pragma GCC visibility pop
-}
+}  // namespace pulsar

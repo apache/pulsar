@@ -80,7 +80,7 @@ class AuthFactory {
     static std::vector<void*> loadedLibrariesHandles_;
     static void release_handles();
 };
-}
+}  // namespace pulsar
 // namespace pulsar
 
 #pragma GCC visibility pop

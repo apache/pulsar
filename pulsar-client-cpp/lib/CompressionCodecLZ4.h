@@ -29,5 +29,5 @@ class CompressionCodecLZ4 : public CompressionCodec {
 
     bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
 };
-}
+}  // namespace pulsar
 #endif /* LIB_COMPRESSIONCODECLZ4_H_ */

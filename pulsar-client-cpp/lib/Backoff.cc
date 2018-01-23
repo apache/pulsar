@@ -56,4 +56,4 @@ void Backoff::reset() {
     mandatoryStopMade_ = false;
 }
 
-}  // pulsar - namespace end
+}  // namespace pulsar

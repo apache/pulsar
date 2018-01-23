@@ -33,6 +33,6 @@ class ConsumerStatsBase {
 };
 
 typedef boost::shared_ptr<ConsumerStatsBase> ConsumerStatsBasePtr;
-}
+}  // namespace pulsar
 
 #endif  // PULSAR_CONSUMER_STATS_BASE_HEADER

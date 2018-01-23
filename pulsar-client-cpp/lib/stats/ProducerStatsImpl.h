@@ -102,6 +102,6 @@ class ProducerStatsImpl : public boost::enable_shared_from_this<ProducerStatsImp
     inline LatencyAccumulator getTotalLatencyAccumulator() { return totalLatencyAccumulator_; }
 };
 typedef boost::shared_ptr<ProducerStatsImpl> ProducerStatsImplPtr;
-}
+}  // namespace pulsar
 
 #endif  // PULSAR_PRODUCER_STATS_IMPL_HEADER

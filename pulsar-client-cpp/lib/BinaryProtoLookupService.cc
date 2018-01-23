@@ -151,4 +151,4 @@ uint64_t BinaryProtoLookupService::newRequestId() {
     Lock lock(mutex_);
     return ++requestIdGenerator_;
 }
-}
+}  // namespace pulsar

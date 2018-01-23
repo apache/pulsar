@@ -94,4 +94,4 @@ std::ostream& operator<<(std::ostream& os, const Url& obj) {
     return os;
 }
 
-}  // pulsar
+}  // namespace pulsar

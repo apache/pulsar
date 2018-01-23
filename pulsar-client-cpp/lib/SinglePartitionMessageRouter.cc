@@ -35,4 +35,4 @@ int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMe
         return selectedSinglePartition_;
     }
 }
-}
+}  // namespace pulsar

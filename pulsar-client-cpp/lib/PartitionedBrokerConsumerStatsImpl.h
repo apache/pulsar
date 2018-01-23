@@ -87,6 +87,6 @@ class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
     friend std::ostream &operator<<(std::ostream &os, const PartitionedBrokerConsumerStatsImpl &obj);
 };
 typedef boost::shared_ptr<PartitionedBrokerConsumerStatsImpl> PartitionedBrokerConsumerStatsPtr;
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H

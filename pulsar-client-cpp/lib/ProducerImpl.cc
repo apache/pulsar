@@ -40,8 +40,9 @@ OpSendMsg::OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& ms
       timeout_(now() + milliseconds(conf.getSendTimeout())) {}
 
 ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const ProducerConfiguration& conf)
-    : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60),
-                                         milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
+    : HandlerBase(
+          client, topic,
+          Backoff(milliseconds(100), seconds(60), milliseconds(std::max(100, conf.getSendTimeout() - 100)))),
       conf_(conf),
       executor_(client->getIOExecutorProvider()->get()),
       pendingMessagesQueue_(conf_.getMaxPendingMessages()),
@@ -585,5 +586,5 @@ bool ProducerImpl::isClosed() {
     Lock lock(mutex_);
     return state_ == Closed;
 }
-}
+}  // namespace pulsar
 /* namespace pulsar */

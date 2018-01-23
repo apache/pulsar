@@ -136,4 +136,4 @@ ProducerConfiguration& ProducerConfiguration::setBatchingMaxPublishDelayMs(
 const unsigned long& ProducerConfiguration::getBatchingMaxPublishDelayMs() const {
     return impl_->batchingMaxPublishDelayMs;
 }
-}
+}  // namespace pulsar

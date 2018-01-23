@@ -30,6 +30,6 @@ class DeprecatedException : public std::runtime_error {
    private:
     static const std::string message_prefix;
 };
-}
+}  // namespace pulsar
 
 #endif  // DEPRECATED_EXCEPTION_HPP_

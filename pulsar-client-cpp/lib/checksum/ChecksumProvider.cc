@@ -58,4 +58,4 @@ uint32_t crc32cHw(uint32_t previousChecksum, const void* data, int length) {
 uint32_t crc32cSw(uint32_t previousChecksum, const void* data, int length) {
     return crc32c_sw(previousChecksum, data, length);
 }
-}
+}  // namespace pulsar

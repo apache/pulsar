@@ -30,5 +30,5 @@ struct ReaderConfigurationImpl {
     std::string readerName;
     ReaderConfigurationImpl() : hasReaderListener(false), receiverQueueSize(1000), readerName() {}
 };
-}
+}  // namespace pulsar
 #endif /* LIB_READERCONFIGURATIONIMPL_H_ */

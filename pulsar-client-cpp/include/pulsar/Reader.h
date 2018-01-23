@@ -81,7 +81,7 @@ class Reader {
     friend class ReaderImpl;
     friend class ReaderTest;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

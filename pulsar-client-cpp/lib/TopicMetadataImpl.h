@@ -30,6 +30,6 @@ class TopicMetadataImpl : public TopicMetadata {
    private:
     int numPartitions_;
 };
-}
+}  // namespace pulsar
 
 #endif /* TOPIC_METADATA_IMPL_HPP_ */

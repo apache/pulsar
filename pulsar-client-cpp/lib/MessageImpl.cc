@@ -78,4 +78,4 @@ void MessageImpl::setPartitionKey(const std::string& partitionKey) {
 }
 
 void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
-}
+}  // namespace pulsar

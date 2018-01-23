@@ -66,4 +66,4 @@ void Reader::closeAsync(ResultCallback callback) {
 
     impl_->closeAsync(callback);
 }
-}
+}  // namespace pulsar

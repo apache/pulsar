@@ -47,5 +47,5 @@ class UnAckedMessageTrackerInterface {
 };
 
 typedef boost::scoped_ptr<UnAckedMessageTrackerInterface> UnAckedMessageTrackerScopedPtr;
-}
+}  // namespace pulsar
 #endif /* LIB_UNACKEDMESSAGETRACKERINTERFACE_H_ */
