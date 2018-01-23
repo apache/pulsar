@@ -185,6 +185,10 @@ class Authentication:
         * `authParamsString`: Comma-separated list of provider-specific
           configuration params
         """
+        if type(dynamicLibPath) is not str:
+            raise ValueError("dynamicLibPath is expected to be a string")
+        if type(authParamsString) is not str:
+            raise ValueError("authParamsString is expected to be a string")
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
 
@@ -243,6 +247,27 @@ class Client:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
         """
+        if type(service_url) is not str:
+            raise ValueError("service_url is expected to be a string")
+        if authentication is not None and not isinstance(authentication, Authentication):
+            raise ValueError("authentication is expected to be of type Authentication")
+        if type(operation_timeout_seconds) is not int:
+            raise ValueError("operation_timeout_seconds is expected to be an int")
+        if type(io_threads) is not int:
+            raise ValueError("io_threads is expected to be an int")
+        if type(message_listener_threads) is not int:
+            raise ValueError("message_listener_threads is expected to be an int")
+        if type(concurrent_lookup_requests) is not int:
+            raise ValueError("concurrent_lookup_requests is expected to be an int")
+        if log_conf_file_path is not None and type(log_conf_file_path) is not str:
+            raise ValueError("log_conf_file_path is expected to be a string")
+        if type(use_tls) is not bool:
+            raise ValueError("use_tls is expected to be a boolean")
+        if tls_trust_certs_file_path is not None and type(tls_trust_certs_file_path) is not str:
+            raise ValueError("tls_trust_certs_file_path is expected to be a string")
+        if type(tls_allow_insecure_connection) is not bool:
+            raise ValueError("tls_allow_insecure_connection is expected to be a boolean")
+
         conf = _pulsar.ClientConfiguration()
         if authentication:
             conf.authentication(authentication.auth)
@@ -306,6 +331,29 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer.
         """
+        if type(topic) is not str:
+            raise ValueError("topic is expected to be a string")
+        if producer_name is not None and type(producer_name) is not str:
+            raise ValueError("producer_name is expected to be a string")
+        if initial_sequence_id is not None and type(initial_sequence_id) is not int:
+            raise ValueError("initial_sequence_id is expected to be an integer")
+        if type(send_timeout_millis) is not int:
+            raise ValueError("send_timeout_millis is expected to be an integer")
+        if not isinstance(compression_type, CompressionType):
+            raise ValueError("compression_type is expected to be a enum")
+        if type(max_pending_messages) is not int:
+            raise ValueError("max_pending_messages is expected to be an integer")
+        if type(block_if_queue_full) is not bool:
+            raise ValueError("block_if_queue_full is expected to be a boolean")
+        if type(batching_enabled) is not bool:
+            raise ValueError("batching_enabled is expected to be a boolean")
+        if type(batching_max_messages) is not int:
+            raise ValueError("batching_max_messages is expected to be an integer")
+        if type(batching_max_allowed_size_in_bytes) is not int:
+            raise ValueError("batching_max_allowed_size_in_bytes is expected to be an integer")
+        if type(batching_max_publish_delay_ms) is not int:
+            raise ValueError("batching_max_publish_delay_ms is expected to be an integer")
+
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
         conf.compression_type(compression_type)
@@ -380,6 +428,21 @@ class Client:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
         """
+        if type(topic) is not str:
+            raise ValueError("topic is expected to be a string")
+        if type(subscription_name) is not str:
+            raise ValueError("subscription_name is expected to be a string")
+        if not isinstance(consumer_type, ConsumerType):
+            raise ValueError("consumer_type is expected to be an enum")
+        if type(receiver_queue_size) is not int:
+            raise ValueError("receiver_queue_size is expected to be an integer")
+        if consumer_name is not None and type(consumer_name) is not str:
+            raise ValueError("consumer_name is expected to be a string")
+        if unacked_messages_timeout_ms is not None and type(unacked_messages_timeout_ms) is not int:
+            raise ValueError("unacked_messages_timeout_ms is expected to be an integer")
+        if type(broker_consumer_stats_cache_time_ms) is not int:
+            raise ValueError("broker_consumer_stats_cache_time_ms is expected to be an integer")
+
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
         if message_listener:
@@ -444,6 +507,15 @@ class Client:
         * `reader_name`:
           Sets the reader name.
         """
+        if type(topic) is not str:
+            raise ValueError("topic is expected to be a string")
+        if not isinstance(start_message_id, _pulsar.MessageId):
+            raise ValueError("start_message_id is expected to be a MessageId")
+        if type(receiver_queue_size) is not int:
+            raise ValueError("receiver_queue_size is expected to be an integer")
+        if reader_name is not None and type(reader_name) is not str:
+            raise ValueError("reader_name is expected to be a string")
+
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
             conf.reader_listener(reader_listener)
@@ -588,6 +660,19 @@ class Producer:
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
+        if type(content) is not bytes:
+            raise ValueError("content is expected to be of type bytes")
+        if properties is not None and type(properties) is not dict:
+            raise ValueError("properties is expected to be a dict")
+        if partition_key is not None and type(partition_key) is not str:
+            raise ValueError("partition_key is expected to be a string")
+        if sequence_id is not None and type(sequence_id) is not int:
+            raise ValueError("sequence_id is expected to be an integer")
+        if replication_clusters is not None and type(replication_clusters) is not list:
+            raise ValueError("replication_clusters is expected to be a list")
+        if type(disable_replication) is not bool:
+            raise ValueError("disable_replication is expected to be a boolean")
+
         mb = _pulsar.MessageBuilder()
         mb.content(content)
         if properties:
@@ -648,6 +733,8 @@ class Consumer:
         """
         if timeout_millis is None:
             return self._consumer.receive()
+        elif type(timeout_millis) is not int:
+            raise ValueError("timeout_millis is expected to be an integer")
         else:
             return self._consumer.receive(timeout_millis)
 
@@ -740,6 +827,8 @@ class Reader:
         """
         if timeout_millis is None:
             return self._reader.read_next()
+        elif type(timeout_millis) is not int:
+            raise ValueError("timeout_millis is expected to be an integer")
         else:
             return self._reader.read_next(timeout_millis)
 

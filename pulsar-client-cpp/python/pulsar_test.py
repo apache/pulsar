@@ -320,6 +320,268 @@ class PulsarTest(TestCase):
             # Exception is expected
             pass
 
+    def test_message_argument_errors(self):
+        client = Client(self.serviceUrl)
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        producer = client.create_producer(topic)
+
+        content = 'test'.encode('utf-8')
+
+        try:
+            producer.send(5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            producer.send(content, properties='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            producer.send(content, partition_key=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            producer.send(content, sequence_id='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            producer.send(content, replication_clusters=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            producer.send(content, disable_replication='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        client.close()
+
+    def test_client_argument_errors(self):
+        try:
+            Client(None)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, authentication="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, operation_timeout_seconds="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, io_threads="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, message_listener_threads="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, concurrent_lookup_requests="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, log_conf_file_path=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, use_tls="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, tls_trust_certs_file_path=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            Client(self.serviceUrl, tls_allow_insecure_connection="test")
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+    def test_producer_argument_errors(self):
+        client = Client(self.serviceUrl)
+
+        try:
+            client.create_producer(None)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+
+        try:
+            client.create_producer(topic, producer_name=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, initial_sequence_id='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, send_timeout_millis='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, compression_type=None)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, max_pending_messages='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, block_if_queue_full='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, batching_enabled='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, batching_enabled='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, batching_max_allowed_size_in_bytes='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_producer(topic, batching_max_publish_delay_ms='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        client.close()
+
+    def test_consumer_argument_errors(self):
+        client = Client(self.serviceUrl)
+
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        sub_name = 'my-sub-name'
+
+        try:
+            client.subscribe(None, sub_name)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.subscribe(topic, None)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.subscribe(topic, sub_name, consumer_type=None)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.subscribe(topic, sub_name, receiver_queue_size='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.subscribe(topic, sub_name, consumer_name=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.subscribe(topic, sub_name, unacked_messages_timeout_ms='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.subscribe(topic, sub_name, broker_consumer_stats_cache_time_ms='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        client.close()
+
+    def test_reader_argument_errors(self):
+        client = Client(self.serviceUrl)
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+
+        # This should not raise exception
+        client.create_reader(topic, MessageId.earliest)
+
+        try:
+            client.create_reader(None, MessageId.earliest)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_reader(topic, None)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_reader(topic, MessageId.earliest, receiver_queue_size='test')
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        try:
+            client.create_reader(topic, MessageId.earliest, reader_name=5)
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
+
+        client.close()
+
 
 if __name__ == '__main__':
     main()
