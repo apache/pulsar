@@ -97,7 +97,6 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
-        this.conf.setClusterName("mock");
     }
 
     protected final void internalSetup() throws Exception {
