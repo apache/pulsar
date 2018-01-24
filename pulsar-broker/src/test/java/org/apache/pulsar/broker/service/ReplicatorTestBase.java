@@ -117,6 +117,7 @@ public class ReplicatorTestBase {
         // completely
         // independent config objects instead of referring to the same properties object
         config1.setClusterName("r1");
+        config1.setAdvertisedAddress("localhost");
         config1.setWebServicePort(webServicePort1);
         config1.setWebServicePortTls(webServicePortTls1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
@@ -149,6 +150,7 @@ public class ReplicatorTestBase {
         int webServicePort2 = PortManager.nextFreePort();
         int webServicePortTls2 = PortManager.nextFreePort();
         config2.setClusterName("r2");
+        config2.setAdvertisedAddress("localhost");
         config2.setWebServicePort(webServicePort2);
         config2.setWebServicePortTls(webServicePortTls2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
@@ -181,6 +183,7 @@ public class ReplicatorTestBase {
         int webServicePort3 = PortManager.nextFreePort();
         int webServicePortTls3 = PortManager.nextFreePort();
         config3.setClusterName("r3");
+        config3.setAdvertisedAddress("localhost");
         config3.setWebServicePort(webServicePort3);
         config3.setWebServicePortTls(webServicePortTls3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
