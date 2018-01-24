@@ -184,7 +184,8 @@ public class WebSocketService implements Closeable {
         clientConf.setIoThreads(config.getWebSocketNumIoThreads());
         clientConf.setConnectionsPerBroker(config.getWebSocketConnectionsPerBroker());
 
-        if (config.isAuthenticationEnabled()) {
+        if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
+                && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
             clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters());
         }
