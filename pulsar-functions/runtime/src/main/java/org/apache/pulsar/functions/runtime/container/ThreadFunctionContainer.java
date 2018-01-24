@@ -29,7 +29,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.runtime.instance.JavaInstanceRunnable;
-import org.apache.pulsar.functions.stats.FunctionStats;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 /**
@@ -84,19 +83,13 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        FunctionStats stats = javaInstanceRunnable.getStats();
-        FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+        FunctionStatus.Builder functionStatusBuilder = javaInstanceRunnable.getFunctionStatus();
         if (javaInstanceRunnable.getFailureException() != null) {
             functionStatusBuilder.setRunning(false);
             functionStatusBuilder.setFailureException(javaInstanceRunnable.getFailureException().getMessage());
         } else {
             functionStatusBuilder.setRunning(true);
         }
-        functionStatusBuilder.setNumProcessed(stats.getTotalProcessed());
-        functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed());
-        functionStatusBuilder.setNumUserExceptions(stats.getTotalUserExceptions());
-        functionStatusBuilder.setNumSystemExceptions(stats.getTotalSystemExceptions());
-        functionStatusBuilder.setNumTimeouts(stats.getTotalTimeoutExceptions());
         return CompletableFuture.completedFuture(functionStatusBuilder.build());
     }
 

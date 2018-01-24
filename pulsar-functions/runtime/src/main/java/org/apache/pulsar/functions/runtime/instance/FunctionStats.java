@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.stats;
+package org.apache.pulsar.functions.runtime.instance;
 
 import com.yahoo.sketches.quantiles.DoublesSketch;
 import org.apache.pulsar.shade.io.netty.util.Timeout;
@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
  * Function stats.
  */
 @Slf4j
-public class FunctionStats implements AutoCloseable {
+public class FunctionStats {
 
     private static final long serialVersionUID = 1L;
 
@@ -158,7 +158,6 @@ public class FunctionStats implements AutoCloseable {
         }
     }
 
-    @Override
     public void close() {
         cancelStatsTimeout();
     }

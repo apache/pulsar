@@ -30,7 +30,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.stats.FunctionStats;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
@@ -73,7 +72,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     // function stats
-    @Getter
     private final FunctionStats stats;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
@@ -315,6 +313,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         return bldr.build();
     }
 
+    public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
+        InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
+        functionStatusBuilder.setNumProcessed(stats.getTotalProcessed());
+        functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed());
+        functionStatusBuilder.setNumUserExceptions(stats.getTotalUserExceptions());
+        functionStatusBuilder.setNumSystemExceptions(stats.getTotalSystemExceptions());
+        functionStatusBuilder.setNumTimeouts(stats.getTotalTimeoutExceptions());
+        return functionStatusBuilder;
+    }
+
     private static void addSystemMetrics(String metricName, double value, InstanceCommunication.MetricsData.Builder bldr) {
         InstanceCommunication.MetricsData.DataDigest digest =
                 InstanceCommunication.MetricsData.DataDigest.newBuilder()
@@ -332,5 +340,4 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     clsLoader);
         }
     }
-
 }

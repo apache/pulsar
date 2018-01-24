@@ -33,7 +33,6 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.stats.FunctionStats;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 import java.util.HashMap;
@@ -205,17 +204,12 @@ public class JavaInstanceMain {
 
         @Override
         public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
-            FunctionStats stats = javaInstanceRunnable.getStats();
+            InstanceCommunication.FunctionStatus.Builder builder = javaInstanceRunnable.getFunctionStatus();
             String failureException = javaInstanceRunnable.getFailureException() != null
                     ? javaInstanceRunnable.getFailureException().getMessage() : "";
-            InstanceCommunication.FunctionStatus response = InstanceCommunication.FunctionStatus.newBuilder()
+            InstanceCommunication.FunctionStatus response = builder
                     .setRunning(true)
                     .setFailureException(failureException)
-                    .setNumProcessed(stats.getTotalProcessed())
-                    .setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed())
-                    .setNumTimeouts(stats.getTotalTimeoutExceptions())
-                    .setNumSystemExceptions(stats.getTotalSystemExceptions())
-                    .setNumUserExceptions(stats.getTotalUserExceptions())
                     .build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
