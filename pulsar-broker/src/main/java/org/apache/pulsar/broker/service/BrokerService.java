@@ -123,6 +123,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
@@ -289,7 +290,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
             tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort)).sync();
-            log.info("Started Pulsar Broker TLS service on port {}", tlsPort);
+            log.info("Started Pulsar Broker TLS service on port {} - TLS provider: {}", tlsPort,
+                    SslContext.defaultServerProvider());
         }
 
         // start other housekeeping functions
