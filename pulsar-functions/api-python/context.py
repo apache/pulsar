@@ -118,3 +118,8 @@ class Context(object):
   def get_output_serde_class(self):
     '''return output Serde class'''
     pass
+
+  @abstractmethod
+  def ack(self, msgid, topic):
+    '''ack this message id'''
+    pass
