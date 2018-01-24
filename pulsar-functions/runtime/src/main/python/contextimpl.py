@@ -64,11 +64,12 @@ class AccumulatedMetricDatum(object):
       self.min = value
 
 class ContextImpl(context.Context):
-  def __init__(self, instance_config, logger, pulsar_client, user_code):
+  def __init__(self, instance_config, logger, pulsar_client, user_code, consumers):
     self.instance_config = instance_config
     self.log = logger
     self.pulsar_client = pulsar_client
     self.user_code_dir = os.path.dirname(user_code)
+    self.consumers = consumers
     self.accumulated_metrics = {}
     self.publish_producers = {}
     self.publish_serializers = {}
@@ -144,6 +145,11 @@ class ContextImpl(context.Context):
 
     output_bytes = self.publish_serializers[serde_class_name].serialize(message)
     self.publish_producers[topic_name].send_async(output_bytes, None)
+
+  def ack(self, msgid, topic):
+    if topic not in self.consumers:
+      raise ValueError('Invalid topicname %s' % topic)
+    self.consumers[topic].acknowledge(msgid)
 
   def get_and_reset_metrics(self):
     metrics = InstanceCommunication_pb2.MetricsData()

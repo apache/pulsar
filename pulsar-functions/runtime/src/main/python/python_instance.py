@@ -121,7 +121,7 @@ class PythonInstance(object):
         batching_max_publish_delay_ms=1,
         max_pending_messages=100000)
 
-    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code)
+    self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers)
     # Now launch a thread that does execution
     self.exeuction_thread = threading.Thread(target=self.actual_execution)
     self.exeuction_thread.start()
