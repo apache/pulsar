@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api;
 
 import org.slf4j.Logger;
 
+import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -43,6 +44,12 @@ public interface Context {
     String getTopicName();
 
     /**
+     * Get a list of all source topics
+     * @return a list of all source topics
+     */
+    Collection<String> getSourceTopics();
+
+    /**
      * Get sink topic of function
      * @return sink topic name
      */
@@ -54,6 +61,18 @@ public interface Context {
      * @return output serde class
      */
     Class<? extends SerDe> getOutputSerdeClass();
+
+    /**
+     * The tenant this function belongs to
+     * @return the tenant this function belongs to
+     */
+    String getTenant();
+
+    /**
+     * The namespace this function belongs to
+     * @return the namespace this function belongs to
+     */
+    String getNamespace();
 
     /**
      * The name of the function that we are executing

@@ -34,6 +34,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -86,6 +87,7 @@ class ContextImpl implements Context {
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
     private Map<String, Consumer> sourceConsumers;
+    private Class<? extends SerDe> outputSerdeClass;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        ClassLoader classLoader, Map<String, Consumer> sourceConsumers) {
@@ -121,17 +123,36 @@ class ContextImpl implements Context {
     }
 
     @Override
+    public Collection<String> getSourceTopics() {
+        return sourceConsumers.keySet();
+    }
+
+    @Override
     public String getSinkTopic() {
         return config.getFunctionConfig().getSinkTopic();
     }
 
     @Override
     public Class<? extends SerDe> getOutputSerdeClass() {
-        try {
-            return (Class<? extends SerDe>) Class.forName(config.getFunctionConfig().getOutputSerdeClassName());
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
+        if (outputSerdeClass == null) {
+            try {
+                outputSerdeClass
+                        =  (Class<? extends SerDe>) Class.forName(config.getFunctionConfig().getOutputSerdeClassName());
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
         }
+        return outputSerdeClass;
+    }
+
+    @Override
+    public String getTenant() {
+        return config.getFunctionConfig().getTenant();
+    }
+
+    @Override
+    public String getNamespace() {
+        return config.getFunctionConfig().getNamespace();
     }
 
     @Override
