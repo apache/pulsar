@@ -40,6 +40,7 @@
 """python_instance.py: Python Instance for running python functions
 """
 import os
+import time
 import Queue
 import threading
 from functools import partial
@@ -62,11 +63,32 @@ InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
 # We keep track of the following metrics
 class Stats(object):
   def __init__(self):
+    self.reset()
+
+  def reset(self):
     self.nprocessed = 0
     self.nsuccessfullyprocessed = 0
     self.nuserexceptions = 0
     self.ntimeoutexceptions = 0
     self.nsystemexceptions = 0
+    self.ndeserialization_exceptions = {}
+    self.nserialization_exceptions = 0
+    self.latency = 0
+
+  def increment_deser_errors(self, topic):
+    if topic not in self.ndeserialization_exceptions:
+      self.ndeserialization_exceptions[topic] = 0
+    self.ndeserialization_exceptions[topic] += 1
+
+  def increment_successfully_processed(self, latency):
+    self.nsuccessfullyprocessed += 1
+    self.latency += latency
+
+  def compute_latency(self):
+    if self.nsuccessfullyprocessed <= 0:
+      return 0
+    else:
+      return self.latency / self.nsuccessfullyprocessed
 
 class PythonInstance(object):
   def __init__(self, instance_id, function_id, function_version, function_config, limits, user_code, pulsar_client):
@@ -84,7 +106,8 @@ class PythonInstance(object):
     self.atleast_once = self.instance_config.function_config.processingGuarantees == Function_pb2.FunctionConfig.ProcessingGuarantees.Value('ATLEAST_ONCE')
     self.auto_ack = self.instance_config.function_config.autoAck
     self.contextimpl = None
-    self.stats = Stats()
+    self.total_stats = Stats()
+    self.current_stats = Stats()
 
   def run(self):
     # Setup consumers and input deserializers
@@ -135,25 +158,29 @@ class PythonInstance(object):
       user_exception = False
       system_exception = False
       Log.debug("Got a message from topic %s" % msg.topic)
+      self.current_stats.nprocessed += 1
+      self.total_stats.nprocessed += 1
+      input_object = None
       try:
         input_object = msg.serde.deserialize(msg.message.data())
-        self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
-        try:
-          output_object = self.function_class.process(input_object, self.contextimpl)
-          self.process_result(output_object, msg)
-        except Exception as e:
-          Log.exception("Exception while executing user method")
-          user_exception = True
+      except:
+        self.current_stats.increment_deser_errors(msg.topic)
+        self.total_stats.increment_deser_errors(msg.topic)
+        continue
+      self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
+      output_object = None
+      try:
+        start_time = time.time()
+        output_object = self.function_class.process(input_object, self.contextimpl)
+        end_time = time.time()
+        latency = (end_time - start_time) * 1000
+        self.total_stats.increment_successfully_processed(latency)
+        self.current_stats.increment_successfully_processed(latency)
+        self.process_result(output_object, msg)
       except Exception as e:
-        Log.exception("System exception while executing method")
-        system_exception = True
-      self.stats.nprocessed += 1
-      if user_exception:
-        self.stats.nuserexceptions += 1
-      elif system_exception:
-        self.stats.nsystemexceptions +=1
-      else:
-        self.stats.nsuccessfullyprocessed +=1
+        Log.exception("Exception while executing user method")
+        self.total_stats.nuserexceptions += 1
+        self.current_stats.nuserexceptions += 1
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
@@ -161,8 +188,18 @@ class PythonInstance(object):
 
   def process_result(self, output, msg):
     if output is not None and self.producer is not None:
-      output_bytes = self.output_serde.serialize(output)
-      self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message))
+      output_bytes = None
+      try:
+        output_bytes = self.output_serde.serialize(output)
+      except:
+        self.current_stats.nserialization_exceptions += 1
+        self.total_stats.nserialization_exceptions += 1
+      if output_bytes is not None:
+        try:
+          self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message))
+        except:
+          self.current_stats.nsystemexceptions += 1
+          self.total_stats.nsystemexceptions += 1
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
 
@@ -176,11 +213,16 @@ class PythonInstance(object):
     # First get any user metrics
     metrics = self.contextimpl.get_and_reset_metrics()
     # Now add system metrics as well
-    self.add_system_metrics("__total_processed__", self.stats.nprocessed, metrics)
-    self.add_system_metrics("__total_successfully_processed__", self.stats.nsuccessfullyprocessed, metrics)
-    self.add_system_metrics("__total_system_exceptions__", self.stats.nsystemexceptions, metrics)
-    self.add_system_metrics("__total_timeout_exceptions__", self.stats.ntimeoutexceptions, metrics)
-    self.add_system_metrics("__total_user_exceptions__", self.stats.nuserexceptions, metrics)
+    self.add_system_metrics("__total_processed__", self.current_stats.nprocessed, metrics)
+    self.add_system_metrics("__total_successfully_processed__", self.current_stats.nsuccessfullyprocessed, metrics)
+    self.add_system_metrics("__total_system_exceptions__", self.current_stats.nsystemexceptions, metrics)
+    self.add_system_metrics("__total_timeout_exceptions__", self.current_stats.ntimeoutexceptions, metrics)
+    self.add_system_metrics("__total_user_exceptions__", self.current_stats.nuserexceptions, metrics)
+    for (topic, metric) in self.current_stats.ndeserialization_exceptions.items():
+      self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
+    self.add_system_metrics("__total_serialization_exceptions__", self.current_stats.nserialization_exceptions, metrics)
+    self.add_system_metrics("__avg_latency_ms__", self.current_stats.compute_latency(), metrics)
+    self.current_stats.reset()
     return metrics
 
   def add_system_metrics(self, metric_name, value, metrics):
@@ -189,15 +231,18 @@ class PythonInstance(object):
     metrics.metrics[metric_name].min = 0
     metrics.metrics[metric_name].max = value
 
-
   def get_function_status(self):
     status = InstanceCommunication_pb2.FunctionStatus()
     status.running = True
-    status.numProcessed = self.stats.nprocessed
-    status.numSuccessfullyProcessed = self.stats.nsuccessfullyprocessed
-    status.numTimeouts = self.stats.ntimeoutexceptions
-    status.numUserExceptions = self.stats.nuserexceptions
-    status.numSystemExceptions = self.stats.nsystemexceptions
+    status.numProcessed = self.total_stats.nprocessed
+    status.numSuccessfullyProcessed = self.total_stats.nsuccessfullyprocessed
+    status.numTimeouts = self.total_stats.ntimeoutexceptions
+    status.numUserExceptions = self.total_stats.nuserexceptions
+    status.numSystemExceptions = self.total_stats.nsystemexceptions
+    for (topic, metric) in self.total_stats.ndeserialization_exceptions.items():
+      status.deserializationExceptions[topic] = metric
+    status.serializationExceptions = self.total_stats.nserialization_exceptions
+    status.averageLatency = self.total_stats.compute_latency()
     return status
 
   def join(self):
