@@ -33,15 +33,16 @@
 namespace pulsar {
 
 class MessageRoutingPolicy {
- public:
+   public:
     virtual ~MessageRoutingPolicy() {}
 
     /** @deprecated
        Use int getPartition(const Message& msg, const TopicMetadata& topicMetadata)
     */
     virtual int getPartition(const Message& msg) {
-        throw DeprecatedException("Use int getPartition(const Message& msg,"
-                                          " const TopicMetadata& topicMetadata)");
+        throw DeprecatedException(
+            "Use int getPartition(const Message& msg,"
+            " const TopicMetadata& topicMetadata)");
     }
 
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
@@ -50,8 +51,8 @@ class MessageRoutingPolicy {
 };
 
 typedef boost::shared_ptr<MessageRoutingPolicy> MessageRoutingPolicyPtr;
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif // PULSAR_MESSAGE_ROUTING_POLICY_HEADER_
+#endif  // PULSAR_MESSAGE_ROUTING_POLICY_HEADER_

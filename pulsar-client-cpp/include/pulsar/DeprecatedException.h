@@ -23,13 +23,13 @@
 #include <string>
 
 namespace pulsar {
-    class DeprecatedException: public std::runtime_error {
-    public:
-        explicit DeprecatedException(const std::string& __arg);
+class DeprecatedException : public std::runtime_error {
+   public:
+    explicit DeprecatedException(const std::string& __arg);
 
-    private:
-        static const std::string message_prefix;
-    };
-}
+   private:
+    static const std::string message_prefix;
+};
+}  // namespace pulsar
 
-#endif //DEPRECATED_EXCEPTION_HPP_
+#endif  // DEPRECATED_EXCEPTION_HPP_

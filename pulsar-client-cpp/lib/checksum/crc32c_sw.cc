@@ -76,21 +76,21 @@ static void crc32c_init_sw(void) {
  than using the hardware instructions.  This assumes little-endian integers,
  as is the case on Intel processors that the assembler code here is for. */
 uint32_t crc32c_sw(uint32_t crci, const void *buf, int len) {
-    const char* next = (const char*) buf;
+    const char *next = (const char *)buf;
     uint64_t crc;
 
     pthread_once(&crc32c_once_sw, crc32c_init_sw);
     crc = crci ^ 0xffffffff;
-    while (len && ((uintptr_t) next & 7) != 0) {
+    while (len && ((uintptr_t)next & 7) != 0) {
         crc = crc32c_table[0][(crc ^ *next++) & 0xff] ^ (crc >> 8);
         len--;
     }
     while (len >= 8) {
-        crc ^= *(uint64_t *) next;
-        crc = crc32c_table[7][crc & 0xff] ^ crc32c_table[6][(crc >> 8) & 0xff]
-                ^ crc32c_table[5][(crc >> 16) & 0xff] ^ crc32c_table[4][(crc >> 24) & 0xff]
-                ^ crc32c_table[3][(crc >> 32) & 0xff] ^ crc32c_table[2][(crc >> 40) & 0xff]
-                ^ crc32c_table[1][(crc >> 48) & 0xff] ^ crc32c_table[0][crc >> 56];
+        crc ^= *(uint64_t *)next;
+        crc = crc32c_table[7][crc & 0xff] ^ crc32c_table[6][(crc >> 8) & 0xff] ^
+              crc32c_table[5][(crc >> 16) & 0xff] ^ crc32c_table[4][(crc >> 24) & 0xff] ^
+              crc32c_table[3][(crc >> 32) & 0xff] ^ crc32c_table[2][(crc >> 40) & 0xff] ^
+              crc32c_table[1][(crc >> 48) & 0xff] ^ crc32c_table[0][crc >> 56];
         next += 8;
         len -= 8;
     }
@@ -98,5 +98,5 @@ uint32_t crc32c_sw(uint32_t crci, const void *buf, int len) {
         crc = crc32c_table[0][(crc ^ *next++) & 0xff] ^ (crc >> 8);
         len--;
     }
-    return (uint32_t) crc ^ 0xffffffff;
+    return (uint32_t)crc ^ 0xffffffff;
 }
