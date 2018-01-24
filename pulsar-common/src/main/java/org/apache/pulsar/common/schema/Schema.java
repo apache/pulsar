@@ -1,5 +1,7 @@
 package org.apache.pulsar.common.schema;
 
+import com.google.common.base.MoreObjects;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -24,11 +26,25 @@ public class Schema {
         this.data = builder.data;
     }
 
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(Schema.class)
+            .add("type", type)
+            .add("version", version)
+            .add("isDeleted", isDeleted)
+            .add("schemaInfo", schemaInfo)
+            .add("id", id)
+            .add("timestamp", timestamp)
+            .add("user", user)
+            .add("data", data)
+            .toString();
+    }
+
     public static class Builder {
         private SchemaType type;
         private long version;
         private boolean isDeleted;
-        private String schemaInfo;
+        private String schemaInfo = "";
         private String id;
         private long timestamp;
         private String user;
@@ -79,7 +95,6 @@ public class Schema {
             checkArgument(version > 0);
             checkNotNull(schemaInfo);
             checkNotNull(id);
-            checkArgument(timestamp > 0);
             checkNotNull(user);
             checkNotNull(data);
             return new Schema(this);

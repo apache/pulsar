@@ -1,50 +1,64 @@
 package org.apache.pulsar.broker.service.schema;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.*;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
-import org.apache.bookkeeper.client.LedgerEntry;
-import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
+import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooKeeper;
-import org.apache.zookeeper.data.Stat;
 
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map.Entry;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 import static com.google.protobuf.ByteString.copyFrom;
 import static java.util.Comparator.comparingLong;
+import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService.Functions.newSchemaEntry;
 import static org.apache.pulsar.client.util.FutureUtil.completedFuture;
 
 public class DefaultSchemaRegistryService implements SchemaRegistryService {
-    private static final String SCHEMA_PATH = "/schemas/";
+    private static final String SCHEMA_PATH = "/schemas";
     private static final HashFunction HASH_FUNCTION = Hashing.sha1();
 
     private final PulsarService pulsar;
     private final ZooKeeperCache localZkCache;
+    private final Clock clock;
     private BookKeeper bookKeeper;
-    private Clock clock = Clock.systemUTC();
 
-    public static DefaultSchemaRegistryService create(PulsarService pulsar) {
-        return new DefaultSchemaRegistryService(pulsar);
+    public static DefaultSchemaRegistryService create(PulsarService pulsar) throws KeeperException, InterruptedException {
+        DefaultSchemaRegistryService service = new DefaultSchemaRegistryService(pulsar);
+        service.init();
+        return service;
+    }
+
+    @VisibleForTesting
+    DefaultSchemaRegistryService(PulsarService pulsar, Clock clock) {
+        this.pulsar = pulsar;
+        this.localZkCache = pulsar.getLocalZkCache();
+        this.clock = clock;
     }
 
     private DefaultSchemaRegistryService(PulsarService pulsar) {
-        this.pulsar = pulsar;
-        this.localZkCache = pulsar.getLocalZkCache();
+        this(pulsar, Clock.systemUTC());
+    }
+
+    void init() throws KeeperException, InterruptedException {
+        localZkCache.getZooKeeper().create(SCHEMA_PATH, new byte[]{}, Collections.emptyList(), CreateMode.PERSISTENT);
     }
 
     @Override
@@ -58,13 +72,13 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<Schema> getSchema(String schemaId) {
-        return getSchemaLocator(schemaId).thenCompose(locator -> {
+        return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
 
             if (!locator.isPresent()) {
                 return completedFuture(null);
             }
 
-            SchemaRegistryFormat.SchemaLocator schemaLocator = locator.get().getKey();
+            SchemaRegistryFormat.SchemaLocator schemaLocator = locator.get().locator;
             return readSchemaEntry(schemaLocator.getPosition())
                 .thenApply(Functions::schemaEntryToSchema);
         });
@@ -73,13 +87,13 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<Schema> getSchema(String schemaId, long version) {
-        return getSchemaLocator(schemaId).thenCompose(locator -> {
+        return getSchemaLocator(getSchemaPath(schemaId)).thenCompose(locator -> {
 
             if (!locator.isPresent()) {
                 return completedFuture(null);
             }
 
-            SchemaRegistryFormat.SchemaLocator schemaLocator = locator.get().getKey();
+            SchemaRegistryFormat.SchemaLocator schemaLocator = locator.get().locator;
             if (version > schemaLocator.getInfo().getVersion()) {
                 return completedFuture(null);
             }
@@ -92,30 +106,29 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<Long> putSchema(Schema schema) {
-        return getSchemaLocator(schema.id).thenCompose(optionalSchemaLocator -> {
-            if (!optionalSchemaLocator.isPresent()) {
-                return completedFuture(-1L);
-            }
-
-            Entry<SchemaRegistryFormat.SchemaLocator, Stat> locatorEntry = optionalSchemaLocator.get();
-            SchemaRegistryFormat.SchemaLocator locator = locatorEntry.getKey();
+        return getOrCreateSchemaLocator(getSchemaPath(schema.id)).thenCompose(locatorEntry -> {
+            SchemaRegistryFormat.SchemaLocator locator = locatorEntry.locator;
 
             return createLedger()
-                .thenCompose(ledgerHandle -> addEntry(ledgerHandle, newSchemaEntry(locator, schema))
-                    .thenCompose(position -> {
-                            SchemaRegistryFormat.PositionInfo positionInfo =
-                                Functions.buildPositionInfo(ledgerHandle, position);
-                            long latestVersion = locator.getInfo().getVersion();
-                            long nextVersion = latestVersion + 1;
-                            return putSchemaLocator(schema.id,
-                                SchemaRegistryFormat.SchemaLocator.newBuilder()
-                                    .setInfo(Functions.buildSchemaInfo(schema))
-                                    .setPosition(positionInfo)
-                                    .addAllIndex(Functions.buildIndex(locator, positionInfo, nextVersion))
-                                    .build(), locatorEntry.getValue().getVersion()
-                            ).thenApply(ignore -> nextVersion);
-                        }
-                    )
+                .thenCompose(ledgerHandle ->
+                    addEntry(ledgerHandle, newSchemaEntry(locator.getIndexList(), schema))
+                        .thenCompose(position -> {
+                                SchemaRegistryFormat.PositionInfo positionInfo =
+                                    Functions.buildPositionInfo(ledgerHandle, position);
+                                long latestVersion = locator.getInfo().getVersion();
+                                long nextVersion = latestVersion + 1;
+                                return putSchemaLocator(getSchemaPath(schema.id),
+                                    SchemaRegistryFormat.SchemaLocator.newBuilder()
+                                        .setInfo(Functions.buildSchemaInfo(schema))
+                                        .setPosition(positionInfo)
+                                        .addAllIndex(Functions.buildIndex(
+                                            locator.getIndexList(),
+                                            positionInfo,
+                                            nextVersion)
+                                        ).build(), locatorEntry.version
+                                ).thenApply(ignore -> nextVersion);
+                            }
+                        )
                 );
         });
     }
@@ -123,19 +136,23 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<Void> deleteSchema(String schemaId, String user) {
-        return getSchema(schemaId).thenCompose(schema ->
-            putSchema(
-                Schema.newBuilder()
-                    .isDeleted(true)
-                    .id(schema.id)
-                    .data(new byte[]{})
-                    .timestamp(clock.millis())
-                    .type(null)
-                    .user(user)
-                    .version(schema.version + 1)
-                    .build()
-            )
-        ).thenApply(ignore -> null);
+        return getSchema(schemaId).thenCompose(schema -> {
+            if (isNull(schema)) {
+                return completedFuture(null);
+            } else {
+                return putSchema(
+                    Schema.newBuilder()
+                        .isDeleted(true)
+                        .id(schema.id)
+                        .data(new byte[]{})
+                        .timestamp(clock.millis())
+                        .type(SchemaType.NONE)
+                        .user(user)
+                        .version(schema.version + 1)
+                        .build()
+                );
+            }
+        }).thenApply(ignore -> null);
     }
 
     @Override
@@ -143,6 +160,10 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         if (nonNull(bookKeeper)) {
             bookKeeper.close();
         }
+    }
+
+    private String getSchemaPath(String schemaId) {
+        return SCHEMA_PATH + "/" + schemaId;
     }
 
     private CompletableFuture<SchemaRegistryFormat.SchemaEntry> findSchemaEntry(
@@ -175,17 +196,21 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         SchemaRegistryFormat.PositionInfo position
     ) {
         return openLedger(position.getLedgerId())
-            .thenCompose((ledger) -> Functions.parseSchemaEntry(ledger, position.getEntryId()))
-            .thenCompose(Functions::parseSchemaEntry);
+            .thenCompose((ledger) ->
+                Functions.getLedgerEntry(ledger, position.getEntryId())
+                    .thenCompose(entry -> closeLedger(ledger)
+                        .thenApply(ignore -> entry)
+                    )
+            ).thenCompose(Functions::parseSchemaEntry);
     }
 
     private CompletableFuture<Void> putSchemaLocator(String id, SchemaRegistryFormat.SchemaLocator schema, int version) {
         ZooKeeper zooKeeper = localZkCache.getZooKeeper();
         CompletableFuture<Void> future = new CompletableFuture<>();
-        zooKeeper.setData(SCHEMA_PATH + id, schema.toByteArray(), version, (rc, path, ctx, stat) -> {
-            KeeperException.Code code = KeeperException.Code.get(rc);
-            if (code != KeeperException.Code.OK) {
-                future.completeExceptionally(new Exception());
+        zooKeeper.setData(id, schema.toByteArray(), version, (rc, path, ctx, stat) -> {
+            Code code = Code.get(rc);
+            if (code != Code.OK) {
+                future.completeExceptionally(KeeperException.create(code));
             } else {
                 future.complete(null);
             }
@@ -193,31 +218,95 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         return future;
     }
 
-    private CompletableFuture<Optional<Entry<SchemaRegistryFormat.SchemaLocator, Stat>>> getSchemaLocator(String schema) {
-        return localZkCache.getEntryAsync(SCHEMA_PATH + schema, new SchemaLocatorDeserializer());
+    private CompletableFuture<Optional<LocatorEntry>> getSchemaLocator(String schema) {
+        return localZkCache.getEntryAsync(schema, new SchemaLocatorDeserializer()).thenApply(optional ->
+            optional.map(entry -> new LocatorEntry(entry.getKey(), entry.getValue().getVersion()))
+        );
+    }
+
+    private CompletableFuture<LocatorEntry> getOrCreateSchemaLocator(String schema) {
+        return getSchemaLocator(schema).thenCompose(schemaLocatorStatEntry -> {
+            if (schemaLocatorStatEntry.isPresent()) {
+                return completedFuture(schemaLocatorStatEntry.get());
+            } else {
+                SchemaRegistryFormat.SchemaLocator locator = SchemaRegistryFormat.SchemaLocator.newBuilder()
+                    .setPosition(SchemaRegistryFormat.PositionInfo.newBuilder()
+                        .setEntryId(-1L)
+                        .setLedgerId(-1L)
+                    ).setInfo(SchemaRegistryFormat.SchemaInfo.newBuilder()
+                        .setSchemaId(schema)
+                        .setVersion(-1L)
+                        .setType(SchemaRegistryFormat.SchemaInfo.SchemaType.NONE)
+                    ).build();
+
+                CompletableFuture<LocatorEntry> future = new CompletableFuture<>();
+
+                ZooKeeper zooKeeper = localZkCache.getZooKeeper();
+                zooKeeper.create(schema, locator.toByteArray(), Collections.emptyList(), CreateMode.PERSISTENT,
+                    (rc, path, ctx, name) -> {
+                        Code code = Code.get(rc);
+                        if (code != Code.OK) {
+                            future.completeExceptionally(KeeperException.create(code));
+                        } else {
+                            future.complete(new LocatorEntry(locator, -1));
+                        }
+                    }, null);
+                return future;
+            }
+        });
     }
 
     private CompletableFuture<Long> addEntry(LedgerHandle ledgerHandle, SchemaRegistryFormat.SchemaEntry entry) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
         ledgerHandle.asyncAddEntry(entry.toByteArray(),
-            (i, ledgerHandle1, l, o) -> future.complete(l), null
+            (rc, handle, entryId, ctx) -> {
+                if (rc != BKException.Code.OK) {
+                    future.completeExceptionally(BKException.create(rc));
+                } else {
+                    future.complete(entryId);
+                }
+            }, null
         );
         return future;
     }
 
     private CompletableFuture<LedgerHandle> createLedger() {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        bookKeeper.asyncCreateLedger(0, 0, DigestType.MAC, null,
-            (i, ledgerHandle, o) -> future.complete(ledgerHandle), null
+        bookKeeper.asyncCreateLedger(0, 0, DigestType.MAC, new byte[]{},
+            (rc, handle, ctx) -> {
+                if (rc != BKException.Code.OK) {
+                    future.completeExceptionally(BKException.create(rc));
+                } else {
+                    future.complete(handle);
+                }
+            }, null
         );
         return future;
     }
 
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        bookKeeper.asyncOpenLedger(ledgerId, DigestType.MAC, null,
-            (i, ledgerHandle, o) -> future.complete(ledgerHandle), null
+        bookKeeper.asyncOpenLedger(ledgerId, DigestType.MAC, new byte[]{},
+            (rc, handle, ctx) -> {
+                if (rc != BKException.Code.OK) {
+                    future.completeExceptionally(BKException.create(rc));
+                } else {
+                    future.complete(handle);
+                }
+            }, null
         );
+        return future;
+    }
+
+    private CompletableFuture<Void> closeLedger(LedgerHandle ledgerHandle) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        ledgerHandle.asyncClose((rc, handle, ctx) -> {
+            if (rc != BKException.Code.OK) {
+                future.completeExceptionally(BKException.create(rc));
+            } else {
+                future.complete(null);
+            }
+        }, null);
         return future;
     }
 
@@ -229,10 +318,16 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     interface Functions {
-        static CompletableFuture<LedgerEntry> parseSchemaEntry(LedgerHandle ledger, long entry) {
+        static CompletableFuture<LedgerEntry> getLedgerEntry(LedgerHandle ledger, long entry) {
             final CompletableFuture<LedgerEntry> future = new CompletableFuture<>();
             ledger.asyncReadEntries(entry, entry,
-                (i, ledgerHandle, enumeration, o) -> future.complete(enumeration.nextElement()), null
+                (rc, handle, entries, ctx) -> {
+                    if (rc != BKException.Code.OK) {
+                        future.completeExceptionally(BKException.create(rc));
+                    } else {
+                        future.complete(entries.nextElement());
+                    }
+                }, null
             );
             return future;
         }
@@ -240,7 +335,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         static CompletableFuture<SchemaRegistryFormat.SchemaEntry> parseSchemaEntry(LedgerEntry ledgerEntry) {
             CompletableFuture<SchemaRegistryFormat.SchemaEntry> result = new CompletableFuture<>();
             try {
-                result.complete(SchemaRegistryFormat.SchemaEntry.parseFrom(ledgerEntry.getEntryInputStream()));
+                result.complete(SchemaRegistryFormat.SchemaEntry.parseFrom(ledgerEntry.getEntry()));
             } catch (IOException e) {
                 result.completeExceptionally(e);
             }
@@ -258,7 +353,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
                 case PROTOBUF:
                     return SchemaRegistryFormat.SchemaInfo.SchemaType.PROTO;
                 default:
-                    return null;
+                    return SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
             }
         }
 
@@ -273,7 +368,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
                 case THRIFT:
                     return SchemaType.THRIFT;
                 default:
-                    return null;
+                    return SchemaType.NONE;
             }
         }
 
@@ -290,7 +385,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         }
 
         static SchemaRegistryFormat.SchemaEntry newSchemaEntry(
-            SchemaRegistryFormat.SchemaLocator locator,
+            List<SchemaRegistryFormat.IndexEntry> index,
             Schema schema
         ) {
             return SchemaRegistryFormat.SchemaEntry.newBuilder()
@@ -298,13 +393,15 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
                     .setSchemaId(schema.id)
                     .setVersion(schema.version)
                     .setAddedBy(schema.user)
+                    .setType(Functions.convertFromDomainType(schema.type))
                     .setHash(copyFrom(
                         HASH_FUNCTION.hashBytes(
                             schema.data
                         ).asBytes())
                     ).build())
                 .setSchemaData(copyFrom(schema.data))
-                .addAllIndex(locator.getIndexList())
+                .addAllIndex(index)
+                .setIsDeleted(schema.isDeleted)
                 .build();
         }
 
@@ -326,11 +423,12 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         }
 
         static Iterable<SchemaRegistryFormat.IndexEntry> buildIndex(
-            SchemaRegistryFormat.SchemaLocator locator,
+            List<SchemaRegistryFormat.IndexEntry> index,
             SchemaRegistryFormat.PositionInfo position,
             long version
         ) {
-            List<SchemaRegistryFormat.IndexEntry> entries = locator.getIndexList();
+            List<SchemaRegistryFormat.IndexEntry> entries = new ArrayList<>(index.size());
+            Collections.copy(index, entries);
             entries.add(
                 SchemaRegistryFormat.IndexEntry.newBuilder()
                     .setPosition(position)
@@ -339,6 +437,16 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
             );
             entries.sort(comparingLong(SchemaRegistryFormat.IndexEntry::getVersion));
             return entries;
+        }
+    }
+
+    static class LocatorEntry {
+        final SchemaRegistryFormat.SchemaLocator locator;
+        final Integer version;
+
+        LocatorEntry(SchemaRegistryFormat.SchemaLocator locator, Integer version) {
+            this.locator = locator;
+            this.version = version;
         }
     }
 }

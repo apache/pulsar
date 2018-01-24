@@ -29,10 +29,11 @@ message PositionInfo {
 
 message SchemaInfo {
     enum SchemaType {
-        THRIFT = 1;
-        AVRO = 2;
-        JSON = 3;
-        PROTO = 4;
+        NONE = 1;
+        THRIFT = 2;
+        AVRO = 3;
+        JSON = 4;
+        PROTO = 5;
     }
     required string schema_id = 1;
     required int64 version = 2;
@@ -51,7 +52,7 @@ message SchemaEntry {
     required SchemaInfo info = 1;
     optional bytes schema_data = 2;
     optional string schema_location = 3;
-    optional bool isDeleted = 4;
+    required bool isDeleted = 4;
     repeated IndexEntry index = 5;
 }
 
