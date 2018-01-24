@@ -26,6 +26,7 @@ import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -80,6 +81,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
+import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.ssl.SslHandler;
 
 public class ServerCnx extends PulsarHandler {
@@ -102,7 +104,7 @@ public class ServerCnx extends PulsarHandler {
     private String originalPrincipal;
 
     enum State {
-        Start, Connected
+        Start, Connected, Failed
     }
 
     public ServerCnx(BrokerService service) {
@@ -164,7 +166,23 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.warn("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+        if (state != State.Failed) {
+            if (cause instanceof NativeIoException || cause instanceof ClosedChannelException) {
+                // No need to report stack trace for known exceptions that happen in disconnections
+                log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(),
+                        cause.getMessage());
+            } else {
+                log.warn("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+            }
+
+            state = State.Failed;
+        } else {
+            // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
+            // failed
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+            }
+        }
         ctx.close();
     }
 
