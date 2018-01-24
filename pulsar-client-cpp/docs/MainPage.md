@@ -177,4 +177,4 @@ After you changed code, run auto-formatting by the following command.
 make format
 ```
 You need to have the following installed to use the auto-formatting.
-* [clang-format 4.0](https://clang.llvm.org/)
+* [clang-format 5.0](https://clang.llvm.org/)

@@ -30,43 +30,25 @@ namespace pulsar {
 namespace detail {
 
 class SharedBufferInternal : public std::vector<char> {
- public:
-    SharedBufferInternal(int size)
-            : std::vector<char>(size) {
-    }
+   public:
+    SharedBufferInternal(int size) : std::vector<char>(size) {}
 
-    inline char* ptr() {
-        return &(*this)[0];
-    }
+    inline char* ptr() { return &(*this)[0]; }
 
-    void resize(int newSize) {
-        std::vector<char>::resize(newSize);
-    }
+    void resize(int newSize) { std::vector<char>::resize(newSize); }
 
-    int capacity() const {
-        return std::vector<char>::capacity();
-    }
+    int capacity() const { return std::vector<char>::capacity(); }
 };
-
-}
+}  // namespace detail
 
 class SharedBuffer {
- public:
-
-    explicit SharedBuffer()
-            : data_(),
-              ptr_(0),
-              readIdx_(0),
-              writeIdx_(0),
-              capacity_(0) {
-    }
+   public:
+    explicit SharedBuffer() : data_(), ptr_(0), readIdx_(0), writeIdx_(0), capacity_(0) {}
 
     /**
      * Allocate a buffer of given size
      */
-    static SharedBuffer allocate(const uint32_t size) {
-        return SharedBuffer(size);
-    }
+    static SharedBuffer allocate(const uint32_t size) { return SharedBuffer(size); }
 
     /**
      * Create a buffer with a copy of memory pointed by ptr
@@ -87,17 +69,11 @@ class SharedBuffer {
     /**
      * Create a buffer that wraps the passed pointer, without copying the memory
      */
-    static SharedBuffer wrap(char* ptr, size_t size) {
-        return SharedBuffer(ptr, size);
-    }
+    static SharedBuffer wrap(char* ptr, size_t size) { return SharedBuffer(ptr, size); }
 
-    inline const char* data() const {
-        return ptr_ + readIdx_;
-    }
+    inline const char* data() const { return ptr_ + readIdx_; }
 
-    inline char* mutableData() {
-        return ptr_ + writeIdx_;
-    }
+    inline char* mutableData() { return ptr_ + writeIdx_; }
 
     /**
      * Return a shared buffer that include a portion of current buffer. No memory is copied
@@ -118,45 +94,37 @@ class SharedBuffer {
 
     uint32_t readUnsignedInt() {
         assert(readableBytes() >= sizeof(uint32_t));
-        uint32_t value = ntohl(*(uint32_t* ) data());
+        uint32_t value = ntohl(*(uint32_t*)data());
         consume(sizeof(uint32_t));
         return value;
     }
 
     uint16_t readUnsignedShort() {
         assert(readableBytes() >= sizeof(uint16_t));
-        uint16_t value = ntohs(*(uint16_t* ) data());
+        uint16_t value = ntohs(*(uint16_t*)data());
         consume(sizeof(uint16_t));
         return value;
     }
 
     void writeUnsignedInt(uint32_t value) {
         assert(writableBytes() >= sizeof(uint32_t));
-        *(uint32_t*) (mutableData()) = htonl(value);
+        *(uint32_t*)(mutableData()) = htonl(value);
         bytesWritten(sizeof(value));
     }
 
     void writeUnsignedShort(uint16_t value) {
         assert(writableBytes() >= sizeof(uint16_t));
-        *(uint16_t*) (mutableData()) = htons(value);
+        *(uint16_t*)(mutableData()) = htons(value);
         bytesWritten(sizeof(value));
     }
 
-    inline uint32_t readableBytes() const {
-        return writeIdx_ - readIdx_;
-    }
+    inline uint32_t readableBytes() const { return writeIdx_ - readIdx_; }
 
-    inline uint32_t writableBytes() const {
-        return capacity_ - writeIdx_;
-    }
+    inline uint32_t writableBytes() const { return capacity_ - writeIdx_; }
 
-    inline bool readable() const {
-        return readableBytes() > 0;
-    }
+    inline bool readable() const { return readableBytes() > 0; }
 
-    inline bool writable() const {
-        return writableBytes() > 0;
-    }
+    inline bool writable() const { return writableBytes() > 0; }
 
     boost::asio::const_buffers_1 const_asio_buffer() const {
         return boost::asio::const_buffers_1(ptr_ + readIdx_, readableBytes());
@@ -181,9 +149,7 @@ class SharedBuffer {
     }
 
     // Return current writer index
-    uint32_t writerIndex() {
-        return writeIdx_;
-    }
+    uint32_t writerIndex() { return writeIdx_; }
 
     // skip writerIndex
     void skipBytes(uint32_t size) {
@@ -198,9 +164,7 @@ class SharedBuffer {
     }
 
     // Return current reader index
-    uint32_t readerIndex() {
-        return readIdx_;
-    }
+    uint32_t readerIndex() { return readIdx_; }
 
     // set readerIndex
     void setReaderIndex(uint32_t index) {
@@ -223,8 +187,7 @@ class SharedBuffer {
         writeIdx_ = 0;
     }
 
- private:
-
+   private:
     typedef boost::shared_ptr<detail::SharedBufferInternal> BufferPtr;
 
     BufferPtr data_;
@@ -233,28 +196,20 @@ class SharedBuffer {
     uint32_t writeIdx_;
     uint32_t capacity_;
 
-    SharedBuffer(char *ptr, size_t size)
-            : data_(),
-              ptr_(ptr),
-              readIdx_(0),
-              writeIdx_(size),
-              capacity_(size) {
-    }
+    SharedBuffer(char* ptr, size_t size)
+        : data_(), ptr_(ptr), readIdx_(0), writeIdx_(size), capacity_(size) {}
 
     explicit SharedBuffer(size_t size)
-            : data_(boost::make_shared<detail::SharedBufferInternal>(size)),
-              ptr_(data_->ptr()),
-              readIdx_(0),
-              writeIdx_(0),
-              capacity_(size) {
-    }
-
+        : data_(boost::make_shared<detail::SharedBufferInternal>(size)),
+          ptr_(data_->ptr()),
+          readIdx_(0),
+          writeIdx_(0),
+          capacity_(size) {}
 };
 
-template<int Size>
+template <int Size>
 class CompositeSharedBuffer {
- public:
-
+   public:
     void set(int idx, const SharedBuffer& buffer) {
         sharedBuffers_[idx] = buffer;
         asioBuffers_[idx] = buffer.const_asio_buffer();
@@ -265,21 +220,16 @@ class CompositeSharedBuffer {
     typedef boost::asio::const_buffer* iterator;
     typedef const boost::asio::const_buffer* const_iterator;
 
-    const boost::asio::const_buffer* begin() const {
-        return &(asioBuffers_.at(0));
-    }
+    const boost::asio::const_buffer* begin() const { return &(asioBuffers_.at(0)); }
 
-    const boost::asio::const_buffer* end() const {
-        return begin() + Size;
-    }
+    const boost::asio::const_buffer* end() const { return begin() + Size; }
 
- private:
+   private:
     boost::array<SharedBuffer, Size> sharedBuffers_;
     boost::array<boost::asio::const_buffer, Size> asioBuffers_;
 };
 
 typedef CompositeSharedBuffer<2> PairSharedBuffer;
-
-}
+}  // namespace pulsar
 
 #endif /* LIB_SHARED_BUFFER_H_ */
