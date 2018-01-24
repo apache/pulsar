@@ -32,6 +32,12 @@ message FunctionStatus {
     int64 numTimeouts = 5;
     int64 numUserExceptions = 6;
     int64 numSystemExceptions = 7;
+    // map from topic name to number of deserialization exceptions
+    map<string, int64> deserializationExceptions = 8;
+    // number of serialization exceptions on the output
+    int64 serializationExceptions = 9;
+    // average latency
+    double averageLatency = 10;
 }
 
 message MetricsData {

@@ -133,16 +133,22 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 // process the message
-
-                long processAt = System.nanoTime();
                 stats.incrementProcessed();
-                Object input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
+                Object input;
+                try {
+                    input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
+                } catch (Exception ex) {
+                    stats.incrementDeserializationExceptions(msg.getTopicName());
+                    continue;
+                }
+                long processAt = System.currentTimeMillis();
                 result = javaInstance.handleMessage(
                         msg.getActualMessage().getMessageId(),
                         msg.getTopicName(),
                         input);
+                long doneProcessing = System.currentTimeMillis();
                 log.debug("Got result: {}", result.getResult());
-                processResult(msg, result, processAt);
+                processResult(msg, result, processAt, doneProcessing);
             }
 
             javaInstance.close();
@@ -222,7 +228,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processResult(InputMessage msg, JavaExecutionResult result, long processAt) {
+    private void processResult(InputMessage msg, JavaExecutionResult result, long startTime, long endTime) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions();
@@ -233,9 +239,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             log.info("Timedout when processing message {}", msg, result.getTimeoutException());
             stats.incrementTimeoutExceptions();
         } else {
-            stats.incrementSuccessfullyProcessed();
+            stats.incrementSuccessfullyProcessed(endTime - startTime);
             if (result.getResult() != null && sinkProducer != null) {
-                byte[] output = outputSerDe.serialize(result.getResult());
+                byte[] output = null;
+                try {
+                    output = outputSerDe.serialize(result.getResult());
+                } catch (Exception ex) {
+                    stats.incrementSerializationExceptions();
+                }
                 if (output != null) {
                     sinkProducer.sendAsync(output)
                             .thenAccept(messageId -> {
@@ -296,11 +307,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {
         InstanceCommunication.MetricsData.Builder bldr = InstanceCommunication.MetricsData.newBuilder();
-        addSystemMetrics("__total_processed__", stats.getTotalProcessed(), bldr);
-        addSystemMetrics("__total_successfully_processed__", stats.getTotalSuccessfullyProcessed(), bldr);
-        addSystemMetrics("__total_system_exceptions__", stats.getTotalSystemExceptions(), bldr);
-        addSystemMetrics("__total_timeout_exceptions__", stats.getTotalTimeoutExceptions(), bldr);
-        addSystemMetrics("__total_user_exceptions__", stats.getTotalUserExceptions(), bldr);
+        addSystemMetrics("__total_processed__", stats.getCurrentStats().getTotalProcessed(), bldr);
+        addSystemMetrics("__total_successfully_processed__", stats.getCurrentStats().getTotalSuccessfullyProcessed(), bldr);
+        addSystemMetrics("__total_system_exceptions__", stats.getCurrentStats().getTotalSystemExceptions(), bldr);
+        addSystemMetrics("__total_timeout_exceptions__", stats.getCurrentStats().getTotalTimeoutExceptions(), bldr);
+        addSystemMetrics("__total_user_exceptions__", stats.getCurrentStats().getTotalUserExceptions(), bldr);
+        stats.getCurrentStats().getTotalDeserializationExceptions().forEach((topic, count) -> {
+            addSystemMetrics("__total_deserialization_exceptions__" + topic, count, bldr);
+        });
+        addSystemMetrics("__total_serialization_exceptions__", stats.getCurrentStats().getTotalSerializationExceptions(), bldr);
+        addSystemMetrics("__avg_latency_ms__", stats.getCurrentStats().computeLatency(), bldr);
+        stats.resetCurrent();
         if (javaInstance != null) {
             InstanceCommunication.MetricsData userMetrics =  javaInstance.getAndResetMetrics();
             if (userMetrics != null) {
@@ -312,11 +329,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     public InstanceCommunication.FunctionStatus.Builder getFunctionStatus() {
         InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
-        functionStatusBuilder.setNumProcessed(stats.getTotalProcessed());
-        functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalSuccessfullyProcessed());
-        functionStatusBuilder.setNumUserExceptions(stats.getTotalUserExceptions());
-        functionStatusBuilder.setNumSystemExceptions(stats.getTotalSystemExceptions());
-        functionStatusBuilder.setNumTimeouts(stats.getTotalTimeoutExceptions());
+        functionStatusBuilder.setNumProcessed(stats.getTotalStats().getTotalProcessed());
+        functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalStats().getTotalSuccessfullyProcessed());
+        functionStatusBuilder.setNumUserExceptions(stats.getTotalStats().getTotalUserExceptions());
+        functionStatusBuilder.setNumSystemExceptions(stats.getTotalStats().getTotalSystemExceptions());
+        functionStatusBuilder.setNumTimeouts(stats.getTotalStats().getTotalTimeoutExceptions());
+        functionStatusBuilder.putAllDeserializationExceptions(stats.getTotalStats().getTotalDeserializationExceptions());
+        functionStatusBuilder.setSerializationExceptions(stats.getTotalStats().getTotalSerializationExceptions());
+        functionStatusBuilder.setAverageLatency(stats.getTotalStats().computeLatency());
         return functionStatusBuilder;
     }
 
