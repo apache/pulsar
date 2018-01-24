@@ -63,7 +63,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private final String configClustername = "use";
 
     @BeforeMethod
     @Override
@@ -93,6 +92,8 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
+
+        conf.setClusterName("use");
 
         super.init();
     }
@@ -155,7 +156,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
     }
 
-    @Test(timeOut = 5000, dataProvider = "batch")
+    @Test(dataProvider = "batch")
     public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -166,7 +167,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().updateCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
@@ -177,7 +178,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    @Test(timeOut = 5000, dataProvider = "batch")
+    @Test(dataProvider = "batch")
     public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -188,7 +189,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().updateCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("anonymousUser"), Sets.newHashSet("use")));
@@ -225,7 +226,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      * 
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testAuthenticationFilterNegative() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -242,7 +243,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         // this will cause NPE and it should throw 500
         doReturn(null).when(pulsar).getGlobalZkCache();
         try {
-            admin.clusters().createCluster(cluster, clusterData);
+            admin.clusters().updateCluster(cluster, clusterData);
         } catch (PulsarAdminException e) {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
@@ -256,7 +257,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
      * 
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test
     public void testInternalServerExceptionOnLookup() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
@@ -267,7 +268,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().updateCluster(configClustername, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().updateCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
