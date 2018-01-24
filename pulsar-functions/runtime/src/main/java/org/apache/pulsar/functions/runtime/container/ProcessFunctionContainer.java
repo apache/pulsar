@@ -33,11 +33,9 @@ import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.ServerSocket;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -55,13 +53,17 @@ class ProcessFunctionContainer implements FunctionContainer {
     private Exception startupException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
+    private Timer alivenessTimer;
+    private int alivenessCheckInterval;
+    private int nProcessStarts;
 
     ProcessFunctionContainer(InstanceConfig instanceConfig,
                              int maxBufferedTuples,
                              String instanceFile,
                              String logDirectory,
                              String codeFile,
-                             String pulsarServiceUrl) {
+                             String pulsarServiceUrl,
+                             int alivenessCheckInterval) {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
             args.add("java");
@@ -156,6 +158,7 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(String.valueOf(instancePort));
 
         processBuilder = new ProcessBuilder(args);
+        this.alivenessCheckInterval = alivenessCheckInterval;
     }
 
     /**
@@ -164,24 +167,29 @@ class ProcessFunctionContainer implements FunctionContainer {
     @Override
     public void start() throws Exception {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
-        try {
-            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
-            process = processBuilder.start();
-        } catch (Exception ex) {
-            log.error("Starting process failed", ex);
-            startupException = ex;
-            throw ex;
-        }
-        try {
-            int exitValue = process.exitValue();
-            log.error("Instance Process quit unexpectedly with return value " + exitValue);
-        } catch (IllegalThreadStateException ex) {
-            log.info("Started process successfully");
-        }
+        startProcess();
         channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
                 .usePlaintext(true)
                 .build();
         stub = InstanceControlGrpc.newFutureStub(channel);
+        alivenessTimer = new Timer();
+        alivenessTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (!process.isAlive()) {
+                    log.error("Process is no longer alive, Restarting...");
+                    InputStream errorStream = process.getErrorStream();
+                    try {
+                        byte[] errorBytes = new byte[errorStream.available()];
+                        errorStream.read(errorBytes);
+                        startupException = new RuntimeException(new String(errorBytes));
+                    } catch (Exception ex) {
+                        startupException = ex;
+                    }
+                    startProcess();
+                }
+            }
+        }, alivenessCheckInterval, alivenessCheckInterval);
     }
 
     @Override
@@ -193,6 +201,7 @@ class ProcessFunctionContainer implements FunctionContainer {
     public void stop() {
         process.destroy();
         channel.shutdown();
+        alivenessTimer.cancel();
     }
 
     @Override
@@ -202,7 +211,14 @@ class ProcessFunctionContainer implements FunctionContainer {
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
-                retval.completeExceptionally(throwable);
+                FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+                builder.setRunning(false);
+                if (startupException != null) {
+                    builder.setFailureException(startupException.getMessage());
+                } else {
+                    builder.setFailureException(throwable.getMessage());
+                }
+                retval.complete(builder.build());
             }
 
             @Override
@@ -242,6 +258,24 @@ class ProcessFunctionContainer implements FunctionContainer {
             return port;
         } catch (IOException ex){
             throw new RuntimeException("No free port found", ex);
+        }
+    }
+
+    private void startProcess() {
+        nProcessStarts++;
+        try {
+            log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
+            process = processBuilder.start();
+        } catch (Exception ex) {
+            log.error("Starting process failed", ex);
+            startupException = ex;
+            return;
+        }
+        try {
+            int exitValue = process.exitValue();
+            log.error("Instance Process quit unexpectedly with return value " + exitValue);
+        } catch (IllegalThreadStateException ex) {
+            log.info("Started process successfully");
         }
     }
 }

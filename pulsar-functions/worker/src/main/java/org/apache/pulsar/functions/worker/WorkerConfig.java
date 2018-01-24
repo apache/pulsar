@@ -76,6 +76,7 @@ public class WorkerConfig implements Serializable {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
+        private int livenessCheckInterval;
     }
     private ProcessContainerFactory processContainerFactory;
 
