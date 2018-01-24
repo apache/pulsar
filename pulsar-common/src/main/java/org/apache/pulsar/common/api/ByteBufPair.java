@@ -29,6 +29,7 @@ import io.netty.channel.ChannelPromise;
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.ReferenceCountUtil;
 import io.netty.util.ReferenceCounted;
 
 /**
@@ -119,8 +120,12 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 // Write each buffer individually on the socket. The retain() here is needed to preserve the fact that
                 // ByteBuf are automatically released after a write. If the ByteBufPair ref count is increased and it
                 // gets written multiple times, the individual buffers refcount should be reflected as well.
-                ctx.write(b.getFirst().retain(), ctx.voidPromise());
-                ctx.write(b.getSecond().retain(), promise);
+                try {
+                    ctx.write(b.getFirst().retain(), ctx.voidPromise());
+                    ctx.write(b.getSecond().retain(), promise);
+                } finally {
+                    ReferenceCountUtil.safeRelease(b);
+                }
             } else {
                 ctx.write(msg, promise);
             }
