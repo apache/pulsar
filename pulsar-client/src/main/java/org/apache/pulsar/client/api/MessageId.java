@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import java.io.IOException;
-
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 /**
@@ -36,6 +35,16 @@ public interface MessageId extends Comparable<MessageId>{
      * Serialize the message ID into a byte array
      */
     byte[] toByteArray();
+
+    /**
+     * Get the topic name of this MessageId.
+     * This is mainly for TopicsConsumerImpl to identify a message belongs to which topic.
+     *
+     * @return the topic name
+     */
+    default String getTopicName() {
+        return null;
+    }
 
     /**
      * De-serialize a message id from a byte array

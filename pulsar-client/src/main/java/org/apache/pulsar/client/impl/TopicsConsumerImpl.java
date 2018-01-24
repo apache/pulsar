@@ -19,11 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkState;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -33,7 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-
+import java.util.stream.IntStream;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -46,11 +49,10 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
+public class TopicsConsumerImpl extends ConsumerBase {
 
-public class PartitionedConsumerImpl extends ConsumerBase {
-
-    private final List<ConsumerImpl> consumers;
+    // Map <topic+partition, consumer>, when get do ACK, consumer will by find by topic name
+    private final ConcurrentHashMap<String, ConsumerImpl> consumers;
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
@@ -60,19 +62,28 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     // resume receiving from the paused consumer partitions
     private final int sharedQueueResumeThreshold;
 
-    private final int numPartitions;
+    // sum of topicPartitions, simple topic has 1, partitioned topic equals to partition number.
+    int numberTopicPartitions;
+
+    //private final int numPartitions;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
 
-    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
-        super(client, topic, subscription, conf, Math.max(Math.max(2, numPartitions), conf.getReceiverQueueSize()), listenerExecutor,
-                subscribeFuture);
-        this.consumers = Lists.newArrayListWithCapacity(numPartitions);
+    // use in addConsumer
+    private AtomicReference<Throwable> subscribeFail = new AtomicReference<Throwable>();
+    private AtomicInteger completed = new AtomicInteger(0);
+
+    TopicsConsumerImpl(PulsarClientImpl client, Collection<String> topics, String subscription,
+                       ConsumerConfiguration conf, ExecutorService listenerExecutor,
+                       CompletableFuture<Consumer> subscribeFuture) {
+        super(client, "TopicsConsumerFakeTopicName", subscription,
+            conf, Math.max(2, conf.getReceiverQueueSize()), listenerExecutor,
+            subscribeFuture);
+        this.consumers = new ConcurrentHashMap<>();
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
-        this.numPartitions = numPartitions;
+        this.numberTopicPartitions = 0;
 
         if (conf.getAckTimeoutMillis() != 0) {
             this.unAckedMessageTracker = new UnAckedMessageTracker(client, this, conf.getAckTimeoutMillis());
@@ -82,62 +93,94 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
         checkArgument(conf.getReceiverQueueSize() > 0,
-                "Receiver queue size needs to be greater than 0 for Partitioned Topics");
-        start();
-    }
+            "Receiver queue size needs to be greater than 0 for Partitioned Topics");
 
-    private void start() {
-        AtomicReference<Throwable> subscribeFail = new AtomicReference<Throwable>();
-        AtomicInteger completed = new AtomicInteger();
         ConsumerConfiguration internalConfig = getInternalConsumerConfig();
-        for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
-            consumers.add(consumer);
-            consumer.subscribeFuture().handle((cons, subscribeException) -> {
-                if (subscribeException != null) {
-                    setState(State.Failed);
-                    subscribeFail.compareAndSet(null, subscribeException);
-                    client.cleanupConsumer(this);
+        topics.forEach(topic ->
+            client.getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
                 }
-                if (completed.incrementAndGet() == numPartitions) {
-                    if (subscribeFail.get() == null) {
-                        try {
-                            // We have successfully created N consumers, so we can start receiving messages now
-                            starReceivingMessages();
-                            setState(State.Ready);
-                            subscribeFuture().complete(PartitionedConsumerImpl.this);
-                            log.info("[{}] [{}] Created partitioned consumer", topic, subscription);
-                            return null;
-                        } catch (PulsarClientException e) {
-                            subscribeFail.set(e);
-                        }
-                    }
-                    closeAsync().handle((ok, closeException) -> {
-                        subscribeFuture().completeExceptionally(subscribeFail.get());
-                        client.cleanupConsumer(this);
-                        return null;
+
+                if (metadata.partitions > 1) {
+                    numberTopicPartitions += metadata.partitions;
+                    IntStream.range(0, metadata.partitions).forEach(partitionIndex -> {
+                        String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
+                        addConsumer(
+                            new ConsumerImpl(client, partitionName, subscription, internalConfig,
+                                client.externalExecutorProvider().getExecutor(), partitionIndex,
+                                new CompletableFuture<Consumer>()));
                     });
-                    log.error("[{}] [{}] Could not create partitioned consumer.", topic, subscription,
-                            subscribeFail.get().getCause());
+                } else {
+                    ++ numberTopicPartitions;
+                    addConsumer(
+                        new ConsumerImpl(client, topic, subscription, internalConfig,
+                            client.externalExecutorProvider().getExecutor(), 0,
+                            new CompletableFuture<Consumer>()));
                 }
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
+                subscribeFuture.completeExceptionally(ex);
                 return null;
-            });
-        }
+            })
+        );
     }
 
-    private void starReceivingMessages() throws PulsarClientException {
-        for (ConsumerImpl consumer : consumers) {
+    private void addConsumer(ConsumerImpl consumer) {
+        consumers.putIfAbsent(consumer.getTopic(), consumer);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] Put topic consumer-{} into topics consumer", topic, consumer.getTopic());
+        }
+        consumer.subscribeFuture().handle((cons, subscribeException) -> {
+            if (subscribeException != null) {
+                setState(State.Failed);
+                subscribeFail.compareAndSet(null, subscribeException);
+                client.cleanupConsumer(this);
+            }
+            if (completed.incrementAndGet() == numberTopicPartitions) {
+                if (subscribeFail.get() == null) {
+                    try {
+                        if (numberTopicPartitions > maxReceiverQueueSize) {
+                            setMaxReceiverQueueSize(numberTopicPartitions);
+                        }
+                        // We have successfully created N consumers, so we can start receiving messages now
+                        startReceivingMessages();
+                        setState(State.Ready);
+                        subscribeFuture().complete(TopicsConsumerImpl.this);
+                        log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
+                            topic, subscription, numberTopicPartitions);
+                        return null;
+                    } catch (PulsarClientException e) {
+                        subscribeFail.set(e);
+                    }
+                }
+                closeAsync().handle((ok, closeException) -> {
+                    subscribeFuture().completeExceptionally(subscribeFail.get());
+                    client.cleanupConsumer(this);
+                    return null;
+                });
+                log.error("[{}] [{}] Could not create topics consumer.", topic, subscription,
+                    subscribeFail.get().getCause());
+            }
+            return null;
+        });
+    }
+
+    private void startReceivingMessages() throws PulsarClientException {
+        consumers.values().stream().forEach(consumer -> {
             consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
             receiveMessageFromConsumer(consumer);
-        }
+        });
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl consumer) {
         consumer.receiveAsync().thenAccept(message -> {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}] Receive message from sub consumer:{}",
+                    topic, subscription, consumer.getTopic());
+            }
             // Process the message, add to the queue and trigger listener or async callback
-            messageReceived(message);
+            messageReceived(consumer, message);
 
             // we're modifying pausedConsumers
             lock.writeLock().lock();
@@ -159,6 +202,60 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                 lock.writeLock().unlock();
             }
         });
+    }
+
+    private void messageReceived(ConsumerImpl consumer, Message message) {
+        checkArgument(message instanceof MessageImpl);
+        lock.writeLock().lock();
+        try {
+            TopicMessageImpl topicMessage = new TopicMessageImpl(consumer.getTopic(), message);
+            unAckedMessageTracker.add(topicMessage.getMessageId());
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Received message from topics-consumer {}",
+                    topic, subscription, message.getMessageId());
+            }
+
+            // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
+            if (!pendingReceives.isEmpty()) {
+                CompletableFuture<Message> receivedFuture = pendingReceives.poll();
+                listenerExecutor.execute(() -> receivedFuture.complete(topicMessage));
+            } else {
+                // Enqueue the message so that it can be retrieved when application calls receive()
+                // Waits for the queue to have space for the message
+                // This should never block cause PartitonedConsumerImpl should always use GrowableArrayBlockingQueue
+                incomingMessages.put(topicMessage);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        } finally {
+            lock.writeLock().unlock();
+        }
+
+        if (listener != null) {
+            // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
+            // thread while the message processing happens
+            listenerExecutor.execute(() -> {
+                Message msg;
+                try {
+                    msg = internalReceive();
+                } catch (PulsarClientException e) {
+                    log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
+                    return;
+                }
+
+                try {
+                    if (log.isDebugEnabled()) {
+                        log.debug("[{}][{}] Calling message listener for message {}",
+                            topic, subscription, message.getMessageId());
+                    }
+                    listener.received(TopicsConsumerImpl.this, msg);
+                } catch (Throwable t) {
+                    log.error("[{}][{}] Message listener error in processing message: {}",
+                        topic, subscription, message, t);
+                }
+            });
+        }
     }
 
     private void resumeReceivingFromPausedConsumersIfNeeded() {
@@ -187,7 +284,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         Message message;
         try {
             message = incomingMessages.take();
-            unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
+            checkState(message instanceof TopicMessageImpl);
+            unAckedMessageTracker.add(message.getMessageId());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (InterruptedException e) {
@@ -202,7 +300,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         try {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
-                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
+                checkArgument(message instanceof TopicMessageImpl);
+                unAckedMessageTracker.add(message.getMessageId());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -222,7 +321,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             if (message == null) {
                 pendingReceives.add(result);
             } else {
-                unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
+                checkState(message instanceof TopicMessageImpl);
+                unAckedMessageTracker.add(message.getMessageId());
                 resumeReceivingFromPausedConsumersIfNeeded();
                 result.complete(message);
             }
@@ -239,7 +339,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     @Override
     protected CompletableFuture<Void> doAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties) {
-        checkArgument(messageId instanceof MessageIdImpl);
+        checkArgument(messageId instanceof TopicMessageIdImpl);
 
         if (getState() != State.Ready) {
             return FutureUtil.failedFuture(new PulsarClientException("Consumer already closed"));
@@ -247,14 +347,15 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
         if (ackType == AckType.Cumulative) {
             return FutureUtil.failedFuture(new PulsarClientException.NotSupportedException(
-                    "Cumulative acknowledge not supported for partitioned topics"));
+                    "Cumulative acknowledge not supported for topics consumer"));
         } else {
+            ConsumerImpl consumer = consumers.get(messageId.getTopicName());
 
-            ConsumerImpl consumer = consumers.get(((MessageIdImpl) messageId).getPartitionIndex());
-            return consumer.doAcknowledge(messageId, ackType, properties).thenRun(() ->
-                    unAckedMessageTracker.remove((MessageIdImpl) messageId));
+            MessageId innerId = ((TopicMessageIdImpl)messageId).getInnerMessageId();
+            return consumer.doAcknowledge(innerId, ackType, properties)
+                .thenRun(() ->
+                    unAckedMessageTracker.remove(messageId));
         }
-
     }
 
     @Override
@@ -266,9 +367,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         setState(State.Closing);
 
         AtomicReference<Throwable> unsubscribeFail = new AtomicReference<Throwable>();
-        AtomicInteger completed = new AtomicInteger(numPartitions);
+        AtomicInteger completed = new AtomicInteger(numberTopicPartitions);
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        for (Consumer consumer : consumers) {
+
+        consumers.values().stream().forEach(consumer -> {
             if (consumer != null) {
                 consumer.unsubscribeAsync().handle((unsubscribed, ex) -> {
                     if (ex != null) {
@@ -279,20 +381,20 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                             setState(State.Closed);
                             unAckedMessageTracker.close();
                             unsubscribeFuture.complete(null);
-                            log.info("[{}] [{}] Unsubscribed Partitioned Consumer", topic, subscription);
+                            log.info("[{}] [{}] [{}] Unsubscribed Partitioned Consumer",
+                                topic, subscription, consumerName);
                         } else {
                             setState(State.Failed);
                             unsubscribeFuture.completeExceptionally(unsubscribeFail.get());
-                            log.error("[{}] [{}] Could not unsubscribe Partitioned Consumer", topic, subscription,
-                                    unsubscribeFail.get().getCause());
+                            log.error("[{}] [{}] [{}] Could not unsubscribe Partitioned Consumer",
+                                topic, subscription, consumerName, unsubscribeFail.get().getCause());
                         }
                     }
 
                     return null;
                 });
             }
-
-        }
+        });
 
         return unsubscribeFuture;
     }
@@ -306,9 +408,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         setState(State.Closing);
 
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
-        AtomicInteger completed = new AtomicInteger(numPartitions);
+        AtomicInteger completed = new AtomicInteger(numberTopicPartitions);
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Consumer consumer : consumers) {
+
+        consumers.values().stream().forEach(consumer -> {
             if (consumer != null) {
                 consumer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
@@ -327,15 +430,14 @@ public class PartitionedConsumerImpl extends ConsumerBase {
                             setState(State.Failed);
                             closeFuture.completeExceptionally(closeFail.get());
                             log.error("[{}] [{}] Could not close Partitioned Consumer", topic, subscription,
-                                    closeFail.get().getCause());
+                                closeFail.get().getCause());
                         }
                     }
 
                     return null;
                 });
             }
-
-        }
+        });
 
         return closeFuture;
     }
@@ -361,12 +463,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public boolean isConnected() {
-        for (ConsumerImpl consumer : consumers) {
-            if (!consumer.isConnected()) {
-                return false;
-            }
-        }
-        return true;
+        return consumers.values().stream().allMatch(consumer -> consumer.isConnected());
     }
 
     @Override
@@ -381,54 +478,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     }
 
-    void messageReceived(Message message) {
-        lock.writeLock().lock();
-        try {
-            unAckedMessageTracker.add((MessageIdImpl) message.getMessageId());
-            if (log.isDebugEnabled()) {
-                log.debug("[{}][{}] Received message from partitioned-consumer {}", topic, subscription, message.getMessageId());
-            }
-            // if asyncReceive is waiting : return message to callback without adding to incomingMessages queue
-            if (!pendingReceives.isEmpty()) {
-                CompletableFuture<Message> receivedFuture = pendingReceives.poll();
-                listenerExecutor.execute(() -> receivedFuture.complete(message));
-            } else {
-                // Enqueue the message so that it can be retrieved when application calls receive()
-                // Waits for the queue to have space for the message
-                // This should never block cause PartitonedConsumerImpl should always use GrowableArrayBlockingQueue
-                incomingMessages.put(message);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        } finally {
-            lock.writeLock().unlock();
-        }
-
-        if (listener != null) {
-            // Trigger the notification on the message listener in a separate thread to avoid blocking the networking
-            // thread while the message processing happens
-            listenerExecutor.execute(() -> {
-                Message msg;
-                try {
-                    msg = internalReceive();
-                } catch (PulsarClientException e) {
-                    log.warn("[{}] [{}] Failed to dequeue the message for listener", topic, subscription, e);
-                    return;
-                }
-
-                try {
-                    if (log.isDebugEnabled()) {
-                        log.debug("[{}][{}] Calling message listener for message {}", topic, subscription, message.getMessageId());
-                    }
-                    listener.received(PartitionedConsumerImpl.this, msg);
-                } catch (Throwable t) {
-                    log.error("[{}][{}] Message listener error in processing message: {}", topic, subscription, message,
-                            t);
-                }
-            });
-        }
-    }
-
     @Override
     String getHandlerName() {
         return subscription;
@@ -439,11 +488,6 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
-
-        int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
-                conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
-        internalConsumerConfig.setReceiverQueueSize(receiverQueueSize);
-
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
@@ -458,9 +502,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     @Override
     public void redeliverUnacknowledgedMessages() {
         synchronized (this) {
-            for (ConsumerImpl c : consumers) {
-                c.redeliverUnacknowledgedMessages();
-            }
+            consumers.values().stream().forEach(consumer -> consumer.redeliverUnacknowledgedMessages());
             incomingMessages.clear();
             unAckedMessageTracker.clear();
             resumeReceivingFromPausedConsumersIfNeeded();
@@ -469,19 +511,20 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
-        checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
+        checkArgument(messageIds.stream().findFirst().get() instanceof TopicMessageIdImpl);
+
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
             return;
         }
         removeExpiredMessagesFromQueue(messageIds);
-        messageIds.stream()
-            .map(messageId -> (MessageIdImpl)messageId)
-            .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
-            .forEach((partitionIndex, messageIds1) ->
-                consumers.get(partitionIndex).redeliverUnacknowledgedMessages(
-                    messageIds1.stream().map(mid -> (MessageId)mid).collect(Collectors.toSet())));
+        messageIds.stream().map(messageId -> (TopicMessageIdImpl)messageId)
+            .collect(Collectors.groupingBy(TopicMessageIdImpl::getTopicName, Collectors.toSet()))
+            .forEach((topicName, messageIds1) ->
+                consumers.get(topicName)
+                    .redeliverUnacknowledgedMessages(messageIds1.stream()
+                        .map(mid -> mid.getInnerMessageId()).collect(Collectors.toSet())));
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
@@ -498,7 +541,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
-        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on partitioned topics"));
+        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on topics consumer"));
     }
 
     /**
@@ -507,30 +550,26 @@ public class PartitionedConsumerImpl extends ConsumerBase {
      * @return true if all batch messages have been acknowledged
      */
     public boolean isBatchingAckTrackerEmpty() {
-        boolean state = true;
-        for (Consumer consumer : consumers) {
-            state &= ((ConsumerImpl) consumer).isBatchingAckTrackerEmpty();
-        }
-        return state;
+        return consumers.values().stream().allMatch(consumer -> consumer.isBatchingAckTrackerEmpty());
     }
 
     List<ConsumerImpl> getConsumers() {
-        return consumers;
+        return consumers.values().stream().collect(Collectors.toList());
     }
 
     @Override
     public int getAvailablePermits() {
-        return consumers.stream().mapToInt(ConsumerImpl::getAvailablePermits).sum();
+        return consumers.values().stream().mapToInt(ConsumerImpl::getAvailablePermits).sum();
     }
 
     @Override
     public boolean hasReachedEndOfTopic() {
-        return consumers.stream().allMatch(Consumer::hasReachedEndOfTopic);
+        return consumers.values().stream().allMatch(Consumer::hasReachedEndOfTopic);
     }
 
     @Override
     public int numMessagesInQueue() {
-        return incomingMessages.size() + consumers.stream().mapToInt(ConsumerImpl::numMessagesInQueue).sum();
+        return incomingMessages.size() + consumers.values().stream().mapToInt(ConsumerImpl::numMessagesInQueue).sum();
     }
 
     @Override
@@ -539,9 +578,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             return null;
         }
         stats.reset();
-        for (int i = 0; i < numPartitions; i++) {
-            stats.updateCumulativeStats(consumers.get(i).getStats());
-        }
+
+        consumers.values().stream().forEach(consumer -> stats.updateCumulativeStats(consumer.getStats()));
         return stats;
     }
 
@@ -559,8 +597,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
 
             // try not to remove elements that are added while we remove
             Message message = incomingMessages.poll();
+            checkState(message instanceof TopicMessageImpl);
             while (message != null) {
-                MessageIdImpl messageId = (MessageIdImpl) message.getMessageId();
+                MessageId messageId = message.getMessageId();
                 if (!messageIds.contains(messageId)) {
                     messageIds.add(messageId);
                     break;
@@ -570,5 +609,5 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PartitionedConsumerImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImpl.class);
 }
