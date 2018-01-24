@@ -15,7 +15,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
 
     CompletableFuture<Long> putSchema(Schema schema);
 
-    CompletableFuture<Void> deleteSchema(String schemaId, String user);
+    CompletableFuture<Long> deleteSchema(String schemaId, String user);
 
     void close() throws Exception;
 }

@@ -1,5 +1,14 @@
 package org.apache.pulsar.common.schema;
 
 public enum SchemaType {
-    AVRO, PROTOBUF, THRIFT, JSON
+    AVRO("avro"),
+    PROTOBUF("protobuf"),
+    THRIFT("thrift"),
+    JSON("json");
+
+    private final String str;
+
+    SchemaType(String str) {
+        this.str = str;
+    }
 }

@@ -25,7 +25,7 @@ public class MockSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Void> deleteSchema(String schemaId, String user) {
+    public CompletableFuture<Long> deleteSchema(String schemaId, String user) {
         return completedFuture(null);
     }
 

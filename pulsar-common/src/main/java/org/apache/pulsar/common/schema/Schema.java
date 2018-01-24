@@ -23,13 +23,13 @@ public class Schema {
     }
 
     public static class Builder {
-        private SchemaType type;
-        private long version;
-        private boolean isDeleted;
-        private String id;
-        private long timestamp;
-        private String user;
-        private byte[] data;
+        private SchemaType type = null;
+        private long version = -1;
+        private boolean isDeleted = false;
+        private String id = null;
+        private long timestamp = -1;
+        private String user = null;
+        private byte[] data = null;
 
         public Builder type(SchemaType type) {
             this.type = type;
