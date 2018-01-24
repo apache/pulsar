@@ -86,6 +86,9 @@ public class TwoPhaseCompactor extends Compactor {
                               Optional<MessageId> lastMessageId,
                               Map<String,MessageId> latestForKey,
                               CompletableFuture<PhaseOneResult> loopPromise) {
+        if (loopPromise.isDone()) {
+            return;
+        }
         CompletableFuture<RawMessage> future = reader.readNextAsync();
         scheduleTimeout(future);
         future.whenComplete(
@@ -130,30 +133,34 @@ public class TwoPhaseCompactor extends Compactor {
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to,
                                              Map<String,MessageId> latestForKey, BookKeeper bk) {
         return createLedger(bk).thenCompose(
-                (ledger) -> {
-                    CompletableFuture<Long> promise = new CompletableFuture<>();
+                (ledger) -> phaseTwoSeekThenLoop(reader, from, to, latestForKey, bk, ledger));
+    }
 
-                    reader.seekAsync(from).thenCompose((v) -> {
-                            Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
-                            CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
-                            phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
-                            return loopPromise;
-                        }).thenCompose((v) -> closeLedger(ledger))
-                        .thenCompose((v) -> reader.acknowledgeCumulativeAsync(to,
-                                             ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
-                        .whenComplete((res, exception) -> {
-                                if (exception != null) {
-                                    deleteLedger(bk, ledger)
-                                        .whenComplete((res2, exception2) -> {
-                                                // complete with original exception
-                                                promise.completeExceptionally(exception);
-                                            });
-                                } else {
-                                    promise.complete(ledger.getId());
-                                }
-                            });
-                    return promise;
+    private CompletableFuture<Long> phaseTwoSeekThenLoop(RawReader reader, MessageId from, MessageId to,
+                                                         Map<String, MessageId> latestForKey,
+                                                         BookKeeper bk, LedgerHandle ledger) {
+        CompletableFuture<Long> promise = new CompletableFuture<>();
+
+        reader.seekAsync(from).thenCompose((v) -> {
+                Semaphore outstanding = new Semaphore(MAX_OUTSTANDING);
+                CompletableFuture<Void> loopPromise = new CompletableFuture<Void>();
+                phaseTwoLoop(reader, to, latestForKey, ledger, outstanding, loopPromise);
+                return loopPromise;
+            }).thenCompose((v) -> closeLedger(ledger))
+            .thenCompose((v) -> reader.acknowledgeCumulativeAsync(
+                                 to, ImmutableMap.of(COMPACTED_TOPIC_LEDGER_PROPERTY, ledger.getId())))
+            .whenComplete((res, exception) -> {
+                    if (exception != null) {
+                        deleteLedger(bk, ledger)
+                            .whenComplete((res2, exception2) -> {
+                                    // complete with original exception
+                                    promise.completeExceptionally(exception);
+                                });
+                    } else {
+                        promise.complete(ledger.getId());
+                    }
                 });
+        return promise;
     }
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
