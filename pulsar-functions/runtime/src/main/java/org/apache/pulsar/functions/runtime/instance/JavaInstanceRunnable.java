@@ -87,10 +87,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
-        this.stats = new FunctionStats(
-                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
-                client.getConfiguration().getStatsIntervalSeconds(),
-                client.timer());
+        this.stats = new FunctionStats();
     }
 
     /**
@@ -138,7 +135,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 // process the message
 
                 long processAt = System.nanoTime();
-                stats.incrementProcess();
+                stats.incrementProcessed();
                 Object input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
                 result = javaInstance.handleMessage(
                         msg.getActualMessage().getMessageId(),
@@ -228,15 +225,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private void processResult(InputMessage msg, JavaExecutionResult result, long processAt) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
-            stats.incrementUserException();
+            stats.incrementUserExceptions();
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
-            stats.incrementSystemException();
+            stats.incrementSystemExceptions();
         } else if (result.getTimeoutException() != null) {
             log.info("Timedout when processing message {}", msg, result.getTimeoutException());
-            stats.incrementTimeoutException();
+            stats.incrementTimeoutExceptions();
         } else {
-            stats.incrementProcessSuccess(System.nanoTime() - processAt);
+            stats.incrementSuccessfullyProcessed();
             if (result.getResult() != null && sinkProducer != null) {
                 byte[] output = outputSerDe.serialize(result.getResult());
                 if (output != null) {
