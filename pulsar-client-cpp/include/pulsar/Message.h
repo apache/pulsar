@@ -28,20 +28,21 @@
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-    namespace proto {
-        class CommandMessage;
-        class MessageMetadata;
-        class SingleMessageMetadata;
-    }
+namespace proto {
+class CommandMessage;
+class MessageMetadata;
+class SingleMessageMetadata;
+}  // namespace proto
 
 class SharedBuffer;
 class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
-// TODO: When releasing 2.0.0, make all methods virtual and create the virtual destructor for Google Mock tests
+// TODO: When releasing 2.0.0, make all methods virtual and create the virtual destructor for Google Mock
+// tests
 class Message {
- public:
+   public:
     typedef std::map<std::string, std::string> StringMap;
 
     Message();
@@ -96,7 +97,8 @@ class Message {
     /**
      * Get the unique message ID associated with this message.
      *
-     * The message id can be used to univocally refer to a message without having to keep the entire payload in memory.
+     * The message id can be used to univocally refer to a message without having to keep the entire payload
+     * in memory.
      *
      * Only messages received from the consumer will have a message id assigned.
      *
@@ -111,7 +113,8 @@ class Message {
     bool hasPartitionKey() const;
 
     /**
-     * Get the UTC based timestamp in milliseconds referring to when the message was published by the client producer
+     * Get the UTC based timestamp in milliseconds referring to when the message was published by the client
+     * producer
      */
     uint64_t getPublishTimestamp() const;
 
@@ -120,14 +123,15 @@ class Message {
      */
     uint64_t getEventTimestamp() const;
 
-  private:
+   private:
     typedef boost::shared_ptr<MessageImpl> MessageImplPtr;
     MessageImplPtr impl_;
 
     Message(MessageImplPtr& impl);
     Message(const proto::CommandMessage& msg, proto::MessageMetadata& data, SharedBuffer& payload);
     /// Used for Batch Messages
-    Message(const BatchMessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload, proto::SingleMessageMetadata& singleMetadata);
+    Message(const BatchMessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
+            proto::SingleMessageMetadata& singleMetadata);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class MessageBuilder;
@@ -141,8 +145,7 @@ class Message {
     friend std::ostream& operator<<(std::ostream& s, const StringMap& map);
     friend std::ostream& operator<<(std::ostream& s, const Message& msg);
 };
-
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 #endif /* MESSAGE_HPP_ */

@@ -37,18 +37,15 @@
 namespace pulsar {
 
 class UnAckedMessageTrackerInterface {
- public:
-    virtual ~UnAckedMessageTrackerInterface() {
-    }
-    UnAckedMessageTrackerInterface() {
-    }
+   public:
+    virtual ~UnAckedMessageTrackerInterface() {}
+    UnAckedMessageTrackerInterface() {}
     virtual bool add(const MessageId& m) = 0;
     virtual bool remove(const MessageId& m) = 0;
     virtual void removeMessagesTill(const MessageId& msgId) = 0;
     virtual void clear() = 0;
 };
 
-
 typedef boost::scoped_ptr<UnAckedMessageTrackerInterface> UnAckedMessageTrackerScopedPtr;
-}
+}  // namespace pulsar
 #endif /* LIB_UNACKEDMESSAGETRACKERINTERFACE_H_ */

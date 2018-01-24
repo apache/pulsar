@@ -22,8 +22,6 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/date_time/posix_time/ptime.hpp>
 
-
-
 #include "ClientImpl.h"
 #include "BlockingQueue.h"
 #include "HandlerBase.h"
@@ -50,13 +48,14 @@ struct OpSendMsg {
     boost::posix_time::ptime timeout_;
 
     OpSendMsg();
-    OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& msg,
-              const SendCallback& sendCallback, const ProducerConfiguration& conf);
+    OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& msg, const SendCallback& sendCallback,
+              const ProducerConfiguration& conf);
 };
 
-class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<ProducerImpl>, public ProducerImplBase {
- public:
-
+class ProducerImpl : public HandlerBase,
+                     public boost::enable_shared_from_this<ProducerImpl>,
+                     public ProducerImplBase {
+   public:
     ProducerImpl(ClientImplPtr client, const std::string& topic,
                  const ProducerConfiguration& producerConfiguration);
     ~ProducerImpl();
@@ -87,12 +86,12 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
 
     bool isClosed();
 
- protected:
+   protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
 
     typedef BlockingQueue<OpSendMsg> MessageQueue;
 
-    void setMessageMetadata(const Message &msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
+    void setMessageMetadata(const Message& msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
 
     void sendMessage(const Message& msg, SendCallback callback);
 
@@ -105,19 +104,17 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     virtual void connectionOpened(const ClientConnectionPtr& connection);
     virtual void connectionFailed(Result result);
 
-    virtual HandlerBaseWeakPtr get_weak_from_this() {
-        return shared_from_this();
-    }
+    virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
 
     const std::string& getName() const;
 
- private:
+   private:
     void printStats();
 
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const ResponseData& responseData);
 
-    void statsCallBackHandler(Result , const Message& , SendCallback , boost::posix_time::ptime );
+    void statsCallBackHandler(Result, const Message&, SendCallback, boost::posix_time::ptime);
 
     void handleClose(Result result, ResultCallback callback);
 
@@ -150,7 +147,7 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
 };
 
 struct ProducerImplCmp {
-    bool operator()(const ProducerImplPtr &a, const ProducerImplPtr &b) const;
+    bool operator()(const ProducerImplPtr& a, const ProducerImplPtr& b) const;
 };
 
 } /* namespace pulsar */

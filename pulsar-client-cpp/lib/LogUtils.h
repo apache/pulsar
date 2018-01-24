@@ -23,47 +23,67 @@
 #include <log4cxx/logger.h>
 #include <string>
 
-#define DECLARE_LOG_OBJECT()                                \
-    static log4cxx::LoggerPtr& logger()                     \
-    {                                                       \
-        static boost::thread_specific_ptr<log4cxx::LoggerPtr> threadSpecificLogPtr; \
-        log4cxx::LoggerPtr* ptr = threadSpecificLogPtr.get(); \
-        if (!ptr) { \
-            threadSpecificLogPtr.reset(new log4cxx::LoggerPtr(log4cxx::Logger::getLogger(LOG_CATEGORY_NAME __FILE__)));\
-            ptr = threadSpecificLogPtr.get(); \
-        } \
-        return *ptr;                                      \
+#define DECLARE_LOG_OBJECT()                                                                     \
+    static log4cxx::LoggerPtr& logger() {                                                        \
+        static boost::thread_specific_ptr<log4cxx::LoggerPtr> threadSpecificLogPtr;              \
+        log4cxx::LoggerPtr* ptr = threadSpecificLogPtr.get();                                    \
+        if (!ptr) {                                                                              \
+            threadSpecificLogPtr.reset(                                                          \
+                new log4cxx::LoggerPtr(log4cxx::Logger::getLogger(LOG_CATEGORY_NAME __FILE__))); \
+            ptr = threadSpecificLogPtr.get();                                                    \
+        }                                                                                        \
+        return *ptr;                                                                             \
     }
 
-#define LOG_DEBUG(message) { \
-        if (LOG4CXX_UNLIKELY(logger()->isDebugEnabled())) {\
-           ::log4cxx::helpers::MessageBuffer oss_; \
-           logger()->forcedLog(::log4cxx::Level::getDebug(), oss_.str(((std::ostream&)oss_) << message), LOG4CXX_LOCATION); }}
+#define LOG_DEBUG(message)                                                                                \
+    {                                                                                                     \
+        if (LOG4CXX_UNLIKELY(logger()->isDebugEnabled())) {                                               \
+            ::log4cxx::helpers::MessageBuffer oss_;                                                       \
+            logger()->forcedLog(::log4cxx::Level::getDebug(), oss_.str(((std::ostream&)oss_) << message), \
+                                LOG4CXX_LOCATION);                                                        \
+        }                                                                                                 \
+    }
 
-#define LOG_INFO(message) { \
-        if (logger()->isInfoEnabled()) {\
-           ::log4cxx::helpers::MessageBuffer oss_; \
-           logger()->forcedLog(::log4cxx::Level::getInfo(), oss_.str(((std::ostream&)oss_) << message), LOG4CXX_LOCATION); }}
+#define LOG_INFO(message)                                                                                \
+    {                                                                                                    \
+        if (logger()->isInfoEnabled()) {                                                                 \
+            ::log4cxx::helpers::MessageBuffer oss_;                                                      \
+            logger()->forcedLog(::log4cxx::Level::getInfo(), oss_.str(((std::ostream&)oss_) << message), \
+                                LOG4CXX_LOCATION);                                                       \
+        }                                                                                                \
+    }
 
-#define LOG_WARN(message) { \
-        if (logger()->isWarnEnabled()) {\
-           ::log4cxx::helpers::MessageBuffer oss_; \
-           logger()->forcedLog(::log4cxx::Level::getWarn(), oss_.str(((std::ostream&)oss_) << message), LOG4CXX_LOCATION); }}
+#define LOG_WARN(message)                                                                                \
+    {                                                                                                    \
+        if (logger()->isWarnEnabled()) {                                                                 \
+            ::log4cxx::helpers::MessageBuffer oss_;                                                      \
+            logger()->forcedLog(::log4cxx::Level::getWarn(), oss_.str(((std::ostream&)oss_) << message), \
+                                LOG4CXX_LOCATION);                                                       \
+        }                                                                                                \
+    }
 
-#define LOG_ERROR(message) { \
-        if (logger()->isErrorEnabled()) {\
-           ::log4cxx::helpers::MessageBuffer oss_; \
-           logger()->forcedLog(::log4cxx::Level::getError(), oss_.str(((std::ostream&)oss_) << message), LOG4CXX_LOCATION); }}
+#define LOG_ERROR(message)                                                                                \
+    {                                                                                                     \
+        if (logger()->isErrorEnabled()) {                                                                 \
+            ::log4cxx::helpers::MessageBuffer oss_;                                                       \
+            logger()->forcedLog(::log4cxx::Level::getError(), oss_.str(((std::ostream&)oss_) << message), \
+                                LOG4CXX_LOCATION);                                                        \
+        }                                                                                                 \
+    }
 
-#define LOG_FATAL(message) { \
-        if (logger()->isFatalEnabled()) {\
-           ::log4cxx::helpers::MessageBuffer oss_; \
-           logger()->forcedLog(::log4cxx::Level::getFatal(), oss_.str(((std::ostream&)oss_) << message), LOG4CXX_LOCATION); }}
+#define LOG_FATAL(message)                                                                                \
+    {                                                                                                     \
+        if (logger()->isFatalEnabled()) {                                                                 \
+            ::log4cxx::helpers::MessageBuffer oss_;                                                       \
+            logger()->forcedLog(::log4cxx::Level::getFatal(), oss_.str(((std::ostream&)oss_) << message), \
+                                LOG4CXX_LOCATION);                                                        \
+        }                                                                                                 \
+    }
 
 #pragma GCC visibility push(default)
 
 class LogUtils {
- public:
+   public:
     static void init(const std::string& logConfFilePath);
 };
 

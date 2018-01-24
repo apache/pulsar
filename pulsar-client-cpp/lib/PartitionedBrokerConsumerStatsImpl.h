@@ -31,11 +31,11 @@
 #pragma GCC visibility push(default)
 namespace pulsar {
 class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
- private:
+   private:
     std::vector<BrokerConsumerStats> statsList_;
     static const std::string DELIMITER;
- public:
 
+   public:
     PartitionedBrokerConsumerStatsImpl(size_t size);
 
     /** Returns true if the Stats are still valid **/
@@ -84,10 +84,9 @@ class PartitionedBrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
 
     void clear();
 
-    friend std::ostream& operator<<(std::ostream &os, const PartitionedBrokerConsumerStatsImpl &obj);
+    friend std::ostream &operator<<(std::ostream &os, const PartitionedBrokerConsumerStatsImpl &obj);
 };
 typedef boost::shared_ptr<PartitionedBrokerConsumerStatsImpl> PartitionedBrokerConsumerStatsPtr;
-
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
-#endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H
+#endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H
