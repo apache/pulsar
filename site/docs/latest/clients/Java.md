@@ -215,6 +215,30 @@ CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 
 Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
+## Reader API
+
+The Pulsar [Reader API](../../getting-started/ConceptsAndArchitecture#reader-api) enables applications to access messages on Pulsar {% popover topics %} *without* establishing a {% popover subscription %} or sending {% popover acks %}.
+
+With the Reader API, Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
+
+Here's an example:
+
+```java
+ReaderConfiguration conf = new ReaderConfiguration();
+byte[] msgIdBytes = // Some message ID byte array
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.createReader(topic, id, conf);
+
+while (true) {
+    Message message = reader.readNext();
+    // Process message
+}
+```
+
+In the example above, a `Reader` object is instantiated for a specific topic and message (by ID).
+
+The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
+
 ## Authentication
 
 Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-client-auth) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
@@ -270,10 +294,11 @@ PulsarClient client = PulsarClient.create(
         "pulsar+ssl://my-broker.com:6651", conf);
 ```
 
-**Note**: *`privateKey` parameter supports following three patterns format*.
+{% include admonition.html type="info" title="Supported pattern formats"
+content='
+The `privateKey` parameter supports the following three pattern formats:
 
-```
-file:///path/to/file
-file:/path/to/file
-data:application/x-pem-file;base64,<base64-encoded value>
-```
+* `file:///path/to/file`
+* `file:/path/to/file`
+* `data:application/x-pem-file;base64,<base64-encoded value>`' %}
+

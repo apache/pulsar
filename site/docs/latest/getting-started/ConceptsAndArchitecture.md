@@ -110,6 +110,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 content="Application does not explicitly create the topic but attempting to write or receive message on a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace)." %}
 
 ### Namespace
+
 A namespace is a logical nomenclature within a property. A property can create multiple namespaces via [admin API](../../admin-api/namespaces#create). For instance, a property with different applications can create a separate namespace for each application. A namespace allows the application to create and manage a hierarchy of topics. 
 For e.g.  `my-property/my-cluster/my-property-app1` is a namespace for the application  `my-property-app1` in cluster `my-cluster` for `my-property`. 
 Application can create any number of [topics](#topics) under the namespace.
@@ -314,7 +315,35 @@ You can use your own service discovery system if you'd like. If you use your own
 
 ## Reader API
 
-The "standard" Pulsar API involves using {% popover producers %} to publish messages to Pulsar {% popover topics %} and {% popover consumers %} that listen on topics, process those messages, and {% popover acknowledge %} that those messages have been processed. This model is largely---though not exclusively---oriented toward real-time use cases.
+In Pulsar, the "standard" API involves using {% popover producers %} to publish messages to Pulsar {% popover topics %} and using {% popover consumers %} to listen on topics, process incoming messages, and finally {% popover acknowledge %} that those messages have been processed. This model is largely---though not exclusively---oriented toward real-time use cases.
 
-For some use cases, though, applications may need to access messages on a Pulsar topic *without*
-The Reader API enables clients to read messages from Pulsar topics without needing to establish a {% popover subscription %}
+For some non-real-time use cases, though, applications need to access messages on a Pulsar topic *without* establishing a subscription or acknowledging those messages. If you're using Pulsar topics to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system, for example, the ability to "rewind" to a specific message on a topic is essential. The Reader API provides clients with a low-level abstraction for "manual positioning" on a topic, i.e. the ability to read messages from a specific point and onward, until no messages are left on the topic.
+
+{% include admonition.html type="warning" title="Non-partitioned topics only"
+content="The Reader API cannot currently be used with [partitioned topics](#partitioned-topics)." %}
+
+When specifying an initial message to read from in the Reader API, you have three options:
+
+* The **earliest** available message in the topic
+* The **latest** available message in the topic
+* Some other message between the earliest and the latest. If you select this option, you'll need to explicitly provide a message ID. Your application will be responsible for "knowing" this message ID in advance, perhaps fetching it from a persistent data store or cache.
+
+Here's a Java example:
+
+```java
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Reader;
+
+String topic = "persistent://sample/standalone/ns1/reader-api-test";
+MessageId id = MessageId.earliest;
+
+// Create a reader on a topic and for a specific message (and onward)
+Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+
+while (true) {
+    Message message = reader.readNext();
+
+    // Process the message
+}
+```
