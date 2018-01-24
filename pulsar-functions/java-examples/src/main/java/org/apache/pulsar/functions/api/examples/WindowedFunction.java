@@ -19,10 +19,10 @@
 package org.apache.pulsar.functions.api.examples;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.api.streamlet.windowing.TimestampExtractor;
-import org.apache.pulsar.functions.api.streamlet.windowing.Window;
-import org.apache.pulsar.functions.api.streamlet.windowing.WindowContext;
-import org.apache.pulsar.functions.api.streamlet.windowing.WindowedPulsarFunction;
+import org.apache.pulsar.functions.composition.windowing.TimestampExtractor;
+import org.apache.pulsar.functions.composition.windowing.Window;
+import org.apache.pulsar.functions.composition.windowing.WindowContext;
+import org.apache.pulsar.functions.composition.windowing.WindowedPulsarFunction;
 
 @Slf4j
 public class WindowedFunction extends WindowedPulsarFunction<String, String> {
