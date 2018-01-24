@@ -285,6 +285,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into
     // zookeeper.
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    // Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
+    // corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+    @FieldContext(dynamic = true)
+    private boolean autoSkipNonRecoverableData = false;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
@@ -1031,6 +1035,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setManagedLedgerMaxUnackedRangesToPersistInZooKeeper(
             int managedLedgerMaxUnackedRangesToPersistInZookeeper) {
         this.managedLedgerMaxUnackedRangesToPersistInZooKeeper = managedLedgerMaxUnackedRangesToPersistInZookeeper;
+    }
+
+    public boolean isAutoSkipNonRecoverableData() {
+        return autoSkipNonRecoverableData;
+    }
+
+    public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableLedger) {
+        this.autoSkipNonRecoverableData = skipNonRecoverableLedger;
     }
 
     public boolean isLoadBalancerEnabled() {
