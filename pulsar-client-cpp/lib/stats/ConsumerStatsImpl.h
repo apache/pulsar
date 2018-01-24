@@ -28,7 +28,7 @@
 namespace pulsar {
 
 class ConsumerStatsImpl : public ConsumerStatsBase {
- private:
+   private:
     unsigned long numBytesRecieved_;
     std::map<Result, unsigned long> receivedMsgMap_;
     std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long> ackedMsgMap_;
@@ -45,7 +45,8 @@ class ConsumerStatsImpl : public ConsumerStatsBase {
     friend std::ostream& operator<<(std::ostream&, const ConsumerStatsImpl&);
     friend std::ostream& operator<<(std::ostream&, const std::map<Result, unsigned long>&);
     friend class PulsarFriend;
- public:
+
+   public:
     ConsumerStatsImpl(std::string, DeadlineTimerPtr, unsigned int);
     ConsumerStatsImpl(const ConsumerStatsImpl& stats);
     void flushAndReset(const boost::system::error_code&);
@@ -53,25 +54,21 @@ class ConsumerStatsImpl : public ConsumerStatsBase {
     virtual void messageAcknowledged(Result, proto::CommandAck_AckType);
     virtual ~ConsumerStatsImpl();
 
-    const inline std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& getAckedMsgMap() const {
+    const inline std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& getAckedMsgMap()
+        const {
         return ackedMsgMap_;
     }
 
-    inline unsigned long getNumBytesRecieved() const {
-        return numBytesRecieved_;
-    }
+    inline unsigned long getNumBytesRecieved() const { return numBytesRecieved_; }
 
-    const inline std::map<Result, unsigned long>& getReceivedMsgMap() const {
-        return receivedMsgMap_;
-    }
+    const inline std::map<Result, unsigned long>& getReceivedMsgMap() const { return receivedMsgMap_; }
 
-    inline const std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& getTotalAckedMsgMap() const {
+    inline const std::map<std::pair<Result, proto::CommandAck_AckType>, unsigned long>& getTotalAckedMsgMap()
+        const {
         return totalAckedMsgMap_;
     }
 
-    inline unsigned long getTotalNumBytesRecieved() const {
-        return totalNumBytesRecieved_;
-    }
+    inline unsigned long getTotalNumBytesRecieved() const { return totalNumBytesRecieved_; }
 
     const inline std::map<Result, unsigned long>& getTotalReceivedMsgMap() const {
         return totalReceivedMsgMap_;

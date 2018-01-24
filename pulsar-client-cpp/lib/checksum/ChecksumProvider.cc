@@ -25,18 +25,18 @@
 namespace pulsar {
 bool isCrc32cSupported = crc32cSupported();
 
-bool crc32cSupported() {
-    return crc32c_initialize();
-}
+bool crc32cSupported() { return crc32c_initialize(); }
 
 /**
- *  computes crc32c checksum: uses sse4.2 hardware-instruction to compute crc32c if machine supports else it computes using sw algo
+ *  computes crc32c checksum: uses sse4.2 hardware-instruction to compute crc32c if machine supports else it
+ * computes using sw algo
  *  @param
- *  previousChecksum = in case of incremental-checksum-computation pass previous computed else pass 0 in other case.
+ *  previousChecksum = in case of incremental-checksum-computation pass previous computed else pass 0 in other
+ * case.
  *  data = for which checksum will be computed
  *  length = length of data from offset
  */
-uint32_t computeChecksum(uint32_t previousChecksum, const void * data, int length) {
+uint32_t computeChecksum(uint32_t previousChecksum, const void* data, int length) {
     if (isCrc32cSupported) {
         return crc32cHw(previousChecksum, data, length);
     } else {
@@ -47,7 +47,7 @@ uint32_t computeChecksum(uint32_t previousChecksum, const void * data, int lengt
 /**
  * Computes crc32c using hardware sse4.2 instruction
  */
-uint32_t crc32cHw(uint32_t previousChecksum, const void * data, int length) {
+uint32_t crc32cHw(uint32_t previousChecksum, const void* data, int length) {
     assert(isCrc32cSupported);
     return crc32c(previousChecksum, data, length, 0);
 }
@@ -55,8 +55,7 @@ uint32_t crc32cHw(uint32_t previousChecksum, const void * data, int length) {
 /**
  * Computes crc32c using sw crc-table algo
  */
-uint32_t crc32cSw(uint32_t previousChecksum, const void * data, int length) {
+uint32_t crc32cSw(uint32_t previousChecksum, const void* data, int length) {
     return crc32c_sw(previousChecksum, data, length);
 }
-
-}
+}  // namespace pulsar

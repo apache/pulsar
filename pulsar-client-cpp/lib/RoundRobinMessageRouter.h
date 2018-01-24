@@ -25,16 +25,17 @@
 #include <boost/thread/mutex.hpp>
 
 namespace pulsar {
-    class RoundRobinMessageRouter : public MessageRoutingPolicy {
-    public:
-        RoundRobinMessageRouter ();
-        virtual ~RoundRobinMessageRouter();
-        virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
-    private:
-        boost::mutex mutex_;
-        unsigned int prevPartition_;
-    };
-    typedef boost::hash<std::string> StringHash;
-    typedef boost::unique_lock<boost::mutex> Lock;
-}
-#endif // PULSAR_RR_MESSAGE_ROUTER_HEADER_
+class RoundRobinMessageRouter : public MessageRoutingPolicy {
+   public:
+    RoundRobinMessageRouter();
+    virtual ~RoundRobinMessageRouter();
+    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
+
+   private:
+    boost::mutex mutex_;
+    unsigned int prevPartition_;
+};
+typedef boost::hash<std::string> StringHash;
+typedef boost::unique_lock<boost::mutex> Lock;
+}  // namespace pulsar
+#endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_

@@ -61,8 +61,10 @@ TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithPartitionKey) {
     EXPECT_CALL(message2, hasPartitionKey()).Times(1).WillOnce(Return(true));
     EXPECT_CALL(message2, getPartitionKey()).Times(1).WillOnce(ReturnRef(partitionKey2));
 
-    auto expectedParrtition1 = static_cast<const int>(boost::hash<std::string>()(partitionKey1) % numPartitons);
-    auto expectedParrtition2 = static_cast<const int>(boost::hash<std::string>()(partitionKey2) % numPartitons);
+    auto expectedParrtition1 =
+        static_cast<const int>(boost::hash<std::string>()(partitionKey1) % numPartitons);
+    auto expectedParrtition2 =
+        static_cast<const int>(boost::hash<std::string>()(partitionKey2) % numPartitons);
 
     ASSERT_EQ(expectedParrtition1, router.getPartition(message1, TopicMetadataImpl(numPartitons)));
     ASSERT_EQ(expectedParrtition2, router.getPartition(message2, TopicMetadataImpl(numPartitons)));
