@@ -17,6 +17,7 @@ import org.apache.zookeeper.data.Stat;
 
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
+import java.time.Clock;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Optional;
@@ -35,6 +36,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     private final PulsarService pulsar;
     private final ZooKeeperCache localZkCache;
     private BookKeeper bookKeeper;
+    private Clock clock = Clock.systemUTC();
 
     public static DefaultSchemaRegistryService create(PulsarService pulsar) {
         return new DefaultSchemaRegistryService(pulsar);
@@ -119,8 +121,21 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<Void> deleteSchema(String schemaId) {
-        return null;
+    @NotNull
+    public CompletableFuture<Void> deleteSchema(String schemaId, String user) {
+        return getSchema(schemaId).thenCompose(schema ->
+            putSchema(
+                Schema.newBuilder()
+                    .isDeleted(true)
+                    .id(schema.id)
+                    .data(new byte[]{})
+                    .timestamp(clock.millis())
+                    .type(null)
+                    .user(user)
+                    .version(schema.version + 1)
+                    .build()
+            )
+        ).thenApply(ignore -> null);
     }
 
     @Override
