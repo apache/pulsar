@@ -38,11 +38,14 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.ImmutableMap;
+
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -59,6 +62,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedCursor;
@@ -75,6 +79,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentReplicator;
+import org.apache.pulsar.broker.service.persistent.CompactorSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
@@ -83,12 +88,15 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.ArgumentCaptor;
@@ -749,6 +757,12 @@ public class PersistentTopicTest {
                 return null;
             }
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
+
+        doAnswer((invokactionOnMock) -> {
+                ((MarkDeleteCallback) invokactionOnMock.getArguments()[2])
+                    .markDeleteComplete(invokactionOnMock.getArguments()[3]);
+                return null;
+            }).when(cursorMock).asyncMarkDelete(anyObject(), anyObject(), any(MarkDeleteCallback.class), anyObject());
     }
 
     @Test
@@ -978,4 +992,35 @@ public class PersistentTopicTest {
         verify(clientImpl, Mockito.times(2)).createProducerAsync(globalTopicName, replicator.getProducerConfiguration());
     }
 
+    @Test
+    public void testCompactorSubscription() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
+                                                               Compactor.COMPACTION_SUBSCRIPTION,
+                                                               cursorMock);
+        PositionImpl position = new PositionImpl(1, 1);
+        long ledgerId = 0xc0bfefeL;
+        sub.acknowledgeMessage(position, AckType.Cumulative,
+                               ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+        verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
+    }
+
+
+    @Test
+    public void testCompactorSubscriptionUpdatedOnInit() throws Exception {
+        long ledgerId = 0xc0bfefeL;
+        Map<String, Long> properties = ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId);
+        PositionImpl position = new PositionImpl(1, 1);
+
+        doAnswer((invokactionOnMock) -> properties).when(cursorMock).getProperties();
+        doAnswer((invokactionOnMock) -> position).when(cursorMock).getMarkDeletedPosition();
+
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        CompactedTopic compactedTopic = mock(CompactedTopic.class);
+        PersistentSubscription sub = new CompactorSubscription(topic, compactedTopic,
+                                                               Compactor.COMPACTION_SUBSCRIPTION,
+                                                               cursorMock);
+        verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
+    }
 }

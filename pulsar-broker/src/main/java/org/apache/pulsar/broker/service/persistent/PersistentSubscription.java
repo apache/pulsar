@@ -59,11 +59,11 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.MoreObjects;
 
 public class PersistentSubscription implements Subscription {
-    private final PersistentTopic topic;
-    private final ManagedCursor cursor;
-    private volatile Dispatcher dispatcher;
-    private final String topicName;
-    private final String subName;
+    protected final PersistentTopic topic;
+    protected final ManagedCursor cursor;
+    protected volatile Dispatcher dispatcher;
+    protected final String topicName;
+    protected final String subName;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
