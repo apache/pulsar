@@ -124,4 +124,14 @@ public interface Message {
      * @return the key of the message
      */
     String getKey();
+
+    /**
+     * Get the topic name of this message.
+     * This is mainly for TopicsConsumerImpl to identify a message belongs to which topic.
+     *
+     * @return the topic name
+     */
+    default String getTopicName() {
+        return null;
+    }
 }
