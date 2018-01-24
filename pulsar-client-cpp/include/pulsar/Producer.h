@@ -30,7 +30,7 @@ class ProducerImplBase;
 class PulsarWrapper;
 class PulsarFriend;
 class Producer {
- public:
+   public:
     /**
      * Construct an uninitialized Producer.
      */
@@ -86,7 +86,8 @@ class Producer {
      * This represent either the automatically assigned or custom sequence id (set on the MessageBuilder) that
      * was published and acknowledged by the broker.
      *
-     * After recreating a producer with the same producer name, this will return the last message that was published in
+     * After recreating a producer with the same producer name, this will return the last message that was
+     * published in
      * the previous producer session, or -1 if there no message was ever published.
      *
      * @return the last sequence id published by this producer
@@ -113,7 +114,7 @@ class Producer {
      */
     void closeAsync(CloseCallback callback);
 
- private:
+   private:
     typedef boost::shared_ptr<ProducerImplBase> ProducerImplBasePtr;
     explicit Producer(ProducerImplBasePtr);
 
@@ -123,8 +124,7 @@ class Producer {
 
     ProducerImplBasePtr impl_;
 };
-
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

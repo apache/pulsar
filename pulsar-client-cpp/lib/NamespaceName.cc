@@ -28,8 +28,7 @@
 
 DECLARE_LOG_OBJECT()
 
-boost::shared_ptr<NamespaceName> NamespaceName::get(const std::string& property,
-                                                    const std::string& cluster,
+boost::shared_ptr<NamespaceName> NamespaceName::get(const std::string& property, const std::string& cluster,
                                                     const std::string& namespaceName) {
     if (validateNamespace(property, cluster, namespaceName)) {
         boost::shared_ptr<NamespaceName> ptr(new NamespaceName(property, cluster, namespaceName));
@@ -53,8 +52,8 @@ NamespaceName::NamespaceName(const std::string& property, const std::string& clu
 bool NamespaceName::validateNamespace(const std::string& property, const std::string& cluster,
                                       const std::string& namespaceName) {
     if (!property.empty() && !cluster.empty() && !namespaceName.empty()) {
-        return NamedEntity::checkName(property) && NamedEntity::checkName(cluster)
-                && NamedEntity::checkName(namespaceName);
+        return NamedEntity::checkName(property) && NamedEntity::checkName(cluster) &&
+               NamedEntity::checkName(namespaceName);
     } else {
         LOG_DEBUG("Empty parameters passed for validating namespace");
         return false;
@@ -65,18 +64,12 @@ boost::shared_ptr<NamespaceName> NamespaceName::getNamespaceObject() {
     return boost::shared_ptr<NamespaceName>(this);
 }
 
-bool NamespaceName::operator ==(const NamespaceName& namespaceName) {
+bool NamespaceName::operator==(const NamespaceName& namespaceName) {
     return this->namespace_.compare(namespaceName.namespace_) == 0;
 }
 
-std::string NamespaceName::getProperty() {
-    return this->property_;
-}
+std::string NamespaceName::getProperty() { return this->property_; }
 
-std::string NamespaceName::getCluster() {
-    return this->cluster_;
-}
+std::string NamespaceName::getCluster() { return this->cluster_; }
 
-std::string NamespaceName::getLocalName() {
-    return this->localName_;
-}
+std::string NamespaceName::getLocalName() { return this->localName_; }

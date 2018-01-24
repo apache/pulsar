@@ -27,7 +27,7 @@
 
 namespace pulsar {
 class LookupService {
-public:
+   public:
     /*
      * @param    destinationName - topic name
      *
@@ -43,5 +43,5 @@ public:
     virtual Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr& dn) = 0;
 };
 typedef boost::shared_ptr<LookupService> LookupServicePtr;
-}
-#endif //PULSAR_CPP_LOOKUPSERVICE_H
+}  // namespace pulsar
+#endif  // PULSAR_CPP_LOOKUPSERVICE_H

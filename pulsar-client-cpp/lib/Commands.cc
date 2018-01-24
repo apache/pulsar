@@ -60,8 +60,7 @@ SharedBuffer Commands::newPartitionMetadataRequest(const std::string& topic, uin
     return buffer;
 }
 
-SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative,
-                                 uint64_t requestId) {
+SharedBuffer Commands::newLookup(const std::string& topic, const bool authoritative, uint64_t requestId) {
     static BaseCommand cmd;
     static boost::mutex mutex;
     mutex.lock();
@@ -90,8 +89,8 @@ SharedBuffer Commands::newConsumerStats(uint64_t consumerId, uint64_t requestId)
     return buffer;
 }
 
-PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
-                                   uint64_t producerId, uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
+PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint64_t producerId,
+                                   uint64_t sequenceId, ChecksumType checksumType, const Message& msg) {
     const proto::MessageMetadata& metadata = msg.impl_->metadata;
     SharedBuffer& payload = msg.impl_->payload;
 
@@ -110,10 +109,10 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
     int msgMetadataSize = metadata.ByteSize();
     int payloadSize = payload.readableBytes();
 
-    int magicAndChecksumLength =
-            (Crc32c == (checksumType)) ? (2 + 4 /* magic + checksumLength*/) : 0;
+    int magicAndChecksumLength = (Crc32c == (checksumType)) ? (2 + 4 /* magic + checksumLength*/) : 0;
     bool includeChecksum = magicAndChecksumLength > 0;
-    int headerContentSize = 4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize;  // cmdLength + cmdSize + magicLength +
+    int headerContentSize =
+        4 + cmdSize + magicAndChecksumLength + 4 + msgMetadataSize;  // cmdLength + cmdSize + magicLength +
     // checksumSize + msgMetadataLength + msgMetadataSize
     int totalSize = headerContentSize + payloadSize;
     int headersSize = 4 + headerContentSize;  // totalSize + headerLength
@@ -132,7 +131,7 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
     if (includeChecksum) {
         headers.writeUnsignedShort(magicCrc32c);
         checksumReaderIndex = headers.writerIndex();
-        headers.skipBytes(checksumSize);  //skip 4 bytes of checksum
+        headers.skipBytes(checksumSize);  // skip 4 bytes of checksum
     }
 
     // Write metadata
@@ -148,10 +147,9 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd,
     if (includeChecksum) {
         int writeIndex = headers.writerIndex();
         int metadataStartIndex = checksumReaderIndex + checksumSize;
-        uint32_t metadataChecksum = computeChecksum(
-                0, headers.data() + metadataStartIndex, (writeIndex - metadataStartIndex));
-        uint32_t computedChecksum = computeChecksum(metadataChecksum, payload.data(),
-                                               payload.writerIndex());
+        uint32_t metadataChecksum =
+            computeChecksum(0, headers.data() + metadataStartIndex, (writeIndex - metadataStartIndex));
+        uint32_t computedChecksum = computeChecksum(metadataChecksum, payload.data(), payload.writerIndex());
         // set computed checksum
         headers.setWriterIndex(checksumReaderIndex);
         headers.writeUnsignedInt(computedChecksum);
@@ -176,11 +174,9 @@ SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication) {
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string&subscription,
-                                    uint64_t consumerId, uint64_t requestId,
-                                    CommandSubscribe_SubType subType,
-                                    const std::string& consumerName,
-                                    SubscriptionMode subscriptionMode,
+SharedBuffer Commands::newSubscribe(const std::string& topic, const std::string& subscription,
+                                    uint64_t consumerId, uint64_t requestId, CommandSubscribe_SubType subType,
+                                    const std::string& consumerName, SubscriptionMode subscriptionMode,
                                     Optional<BatchMessageId> startMessageId) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::SUBSCRIBE);
@@ -231,8 +227,7 @@ SharedBuffer Commands::newProducer(const std::string& topic, uint64_t producerId
     return writeMessageWithSize(cmd);
 }
 
-SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageId,
-                              CommandAck_AckType ackType,
+SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageId, CommandAck_AckType ackType,
                               int validationError) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::ACK);
@@ -240,7 +235,7 @@ SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageI
     ack->set_consumer_id(consumerId);
     ack->set_ack_type(ackType);
     if (CommandAck_AckType_IsValid(validationError)) {
-        ack->set_validation_error((CommandAck_ValidationError) validationError);
+        ack->set_validation_error((CommandAck_ValidationError)validationError);
     }
     *(ack->mutable_message_id()) = messageId;
     return writeMessageWithSize(cmd);
@@ -375,8 +370,7 @@ std::string Commands::messageType(BaseCommand_Type type) {
     };
 }
 
-void Commands::initBatchMessageMetadata(const Message &msg, pulsar::proto::MessageMetadata &batchMetadata)
-{
+void Commands::initBatchMessageMetadata(const Message& msg, pulsar::proto::MessageMetadata& batchMetadata) {
     if (msg.impl_->metadata.has_publish_time()) {
         batchMetadata.set_publish_time(msg.impl_->metadata.publish_time());
     }
@@ -390,16 +384,16 @@ void Commands::initBatchMessageMetadata(const Message &msg, pulsar::proto::Messa
     }
 }
 
-void Commands::serializeSingleMessageInBatchWithPayload(const Message &msg,
-                                                        SharedBuffer& batchPayLoad, const unsigned long& maxMessageSizeInBytes) {
+void Commands::serializeSingleMessageInBatchWithPayload(const Message& msg, SharedBuffer& batchPayLoad,
+                                                        const unsigned long& maxMessageSizeInBytes) {
     SingleMessageMetadata metadata;
     if (msg.impl_->hasPartitionKey()) {
         metadata.set_partition_key(msg.impl_->getPartitionKey());
     }
 
     for (MessageBuilder::StringMap::const_iterator it = msg.impl_->properties().begin();
-            it != msg.impl_->properties().end(); it++) {
-        proto::KeyValue *keyValue = proto::KeyValue().New();
+         it != msg.impl_->properties().end(); it++) {
+        proto::KeyValue* keyValue = proto::KeyValue().New();
         keyValue->set_key(it->first);
         keyValue->set_value(it->second);
         metadata.mutable_properties()->AddAllocated(keyValue);
@@ -415,8 +409,11 @@ void Commands::serializeSingleMessageInBatchWithPayload(const Message &msg,
 
     unsigned long requiredSpace = sizeof(uint32_t) + msgMetadataSize + payloadSize;
     if (batchPayLoad.writableBytes() <= sizeof(uint32_t) + msgMetadataSize + payloadSize) {
-        LOG_DEBUG("remaining size of batchPayLoad buffer [" << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace << "] - expanding the batchPayload buffer");
-        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() +  std::max(requiredSpace, maxMessageSizeInBytes));
+        LOG_DEBUG("remaining size of batchPayLoad buffer ["
+                  << batchPayLoad.writableBytes() << "] can't accomodate new payload [" << requiredSpace
+                  << "] - expanding the batchPayload buffer");
+        SharedBuffer buffer = SharedBuffer::allocate(batchPayLoad.readableBytes() +
+                                                     std::max(requiredSpace, maxMessageSizeInBytes));
         // Adding batch created so far
         buffer.write(batchPayLoad.data(), batchPayLoad.readableBytes());
         batchPayLoad = buffer;
@@ -445,11 +442,10 @@ Message Commands::deSerializeSingleMessageInBatch(Message& batchedMessage) {
     SharedBuffer payload = uncompressedPayload.slice(0, payloadSize);
     uncompressedPayload.consume(payloadSize);
 
-    Message singleMessage(batchedMessage.impl_->messageId, batchedMessage.impl_->metadata, payload,
-                          metadata);
+    Message singleMessage(batchedMessage.impl_->messageId, batchedMessage.impl_->metadata, payload, metadata);
     singleMessage.impl_->cnx_ = batchedMessage.impl_->cnx_;
 
     return singleMessage;
 }
-}
+}  // namespace pulsar
 /* namespace pulsar */
