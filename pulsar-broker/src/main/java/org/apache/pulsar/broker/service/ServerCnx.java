@@ -381,6 +381,7 @@ public class ServerCnx extends PulsarHandler {
                 : null;
 
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
+        final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
 
         authorizationFuture.thenApply(isAuthorized -> {
@@ -423,7 +424,10 @@ public class ServerCnx extends PulsarHandler {
                 }
 
                 service.getTopic(topicName).thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName,
-                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId, metadata))
+                                                                                 consumerId, subType, priorityLevel,
+                                                                                 consumerName, isDurable,
+                                                                                 startMessageId, metadata,
+                                                                                 readCompacted))
                         .thenAccept(consumer -> {
                             if (consumerFuture.complete(consumer)) {
                                 log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
