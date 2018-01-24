@@ -19,32 +19,8 @@
 
 package org.apache.pulsar.functions.api.streamlet.windowing;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.experimental.Accessors;
-
-@Data
-@Setter
-@Getter
-@Accessors(chain = true)
-@ToString
-public class WindowConfig {
-
-    private Integer windowLengthCount;
-
-    private Long windowLengthDurationMs;
-
-    private Integer slidingIntervalCount;
-
-    private Long slidingDurationMs;
-
-    private String lateDataTopic;
-
-    private Long maxLagMs;
-
-    private Long watermarkEmitIntervalMs;
-
-    private String timestampExtractorClassName;
+public class WindowUtils {
+    public static String getFullyQualifiedName(String tenant, String namespace, String name) {
+        return String.format("%s/%s/%s", tenant, namespace, name);
+    }
 }

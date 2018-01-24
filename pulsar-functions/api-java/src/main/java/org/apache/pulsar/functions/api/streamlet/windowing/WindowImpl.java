@@ -22,7 +22,7 @@ package org.apache.pulsar.functions.api.streamlet.windowing;
 import java.util.List;
 
 /**
- * Holds the expired, new and current tuples in a window.
+ * Holds the expired, new and current events in a window.
  */
 public class WindowImpl<T> implements Window<T> {
   private final List<T> tuples;

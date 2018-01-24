@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.api.streamlet.windowing.triggers;
 
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.logging.log4j.ThreadContext;
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.streamlet.windowing.DefaultEvictionContext;
 import org.apache.pulsar.functions.api.streamlet.windowing.Event;
 import org.apache.pulsar.functions.api.streamlet.windowing.EvictionPolicy;
 import org.apache.pulsar.functions.api.streamlet.windowing.TriggerHandler;
 import org.apache.pulsar.functions.api.streamlet.windowing.TriggerPolicy;
+import org.apache.pulsar.functions.api.streamlet.windowing.WindowUtils;
 
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -47,14 +49,10 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
     private final EvictionPolicy<T, ?> evictionPolicy;
     private ScheduledFuture<?> executorFuture;
     private final ScheduledExecutorService executor;
-
-
-    public TimeTriggerPolicy(long millis, TriggerHandler handler) {
-        this(millis, handler, null);
-    }
+    private Context context;
 
     public TimeTriggerPolicy(long millis, TriggerHandler handler, EvictionPolicy<T, ?>
-            evictionPolicy) {
+            evictionPolicy, Context context) {
         this.duration = millis;
         this.handler = handler;
         this.evictionPolicy = evictionPolicy;
@@ -63,6 +61,7 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
                 .setDaemon(true)
                 .build();
         this.executor = Executors.newSingleThreadScheduledExecutor(threadFactory);
+        this.context = context;
     }
 
     @Override
@@ -102,6 +101,9 @@ public class TimeTriggerPolicy<T> implements TriggerPolicy<T, Void> {
         return new Runnable() {
             @Override
             public void run() {
+                // initialize the thread context
+                ThreadContext.put("function", WindowUtils.getFullyQualifiedName(
+                        context.getTenant(), context.getNamespace(), context.getFunctionName()));
                 // do not process current timestamp since tuples might arrive while the trigger is executing
                 long now = System.currentTimeMillis() - 1;
                 try {

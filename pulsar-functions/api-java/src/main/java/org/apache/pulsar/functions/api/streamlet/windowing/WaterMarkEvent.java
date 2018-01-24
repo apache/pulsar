@@ -16,35 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.api.streamlet.windowing;
 
-import lombok.Data;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
-import lombok.experimental.Accessors;
+/**
+ * Watermark event used for tracking progress of time when
+ * processing event based ts.
+ */
+public class WaterMarkEvent<T> extends EventImpl<T> {
 
-@Data
-@Setter
-@Getter
-@Accessors(chain = true)
-@ToString
-public class WindowConfig {
+  public WaterMarkEvent(long ts) {
+    super(null, ts, null, null);
+  }
 
-    private Integer windowLengthCount;
+  @Override
+  public boolean isWatermark() {
+    return true;
+  }
 
-    private Long windowLengthDurationMs;
-
-    private Integer slidingIntervalCount;
-
-    private Long slidingDurationMs;
-
-    private String lateDataTopic;
-
-    private Long maxLagMs;
-
-    private Long watermarkEmitIntervalMs;
-
-    private String timestampExtractorClassName;
+  @Override
+  public String toString() {
+    return "WaterMarkEvent{} " + super.toString();
+  }
 }
