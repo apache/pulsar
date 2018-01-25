@@ -121,7 +121,7 @@ public class TwoPhaseCompactor extends Compactor {
 
     }
 
-    private void scheduleTimeout(CompletableFuture<?> future) {
+    private void scheduleTimeout(CompletableFuture<RawMessage> future) {
         Future<?> timeout = scheduler.schedule(() -> {
                 future.completeExceptionally(new TimeoutException("Timeout"));
             }, 10, TimeUnit.SECONDS);
