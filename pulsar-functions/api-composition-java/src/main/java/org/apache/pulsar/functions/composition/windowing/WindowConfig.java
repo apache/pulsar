@@ -38,7 +38,7 @@ public class WindowConfig {
 
     private Integer slidingIntervalCount;
 
-    private Long slidingDurationMs;
+    private Long slidingIntervalDurationMs;
 
     private String lateDataTopic;
 
