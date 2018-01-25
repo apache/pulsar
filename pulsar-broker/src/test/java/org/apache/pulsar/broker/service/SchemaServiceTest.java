@@ -12,7 +12,11 @@ import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import static junit.framework.Assert.assertEquals;
+import static junit.framework.Assert.assertTrue;
+
 public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -26,34 +30,36 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void writeAndReacBackSchemaEntry() throws ExecutionException, InterruptedException {
+    public void writeAndReadBackSchemaEntry() throws ExecutionException, InterruptedException {
+
         SchemaRegistryService schemaRegistryService =
             pulsar.getSchemaRegistryService();
 
         String schemaId = "id1";
 
-        CompletableFuture<Long> put = schemaRegistryService
-            .putSchema(
-                Schema.newBuilder()
-                    .user("dave")
-                    .type(SchemaType.JSON)
-                    .timestamp(Clock.systemUTC().millis())
-                    .isDeleted(false)
-                    .id(schemaId)
-                    .version(1)
-                    .schemaInfo("")
-                    .data(new byte[]{})
-                    .build()
-            );
+        Schema schema = Schema.newBuilder()
+            .user("dave")
+            .type(SchemaType.JSON)
+            .timestamp(Clock.systemUTC().millis())
+            .isDeleted(false)
+            .id(schemaId)
+            .schemaInfo("")
+            .data("message { required int64 a = 1};".getBytes())
+            .build();
 
-        Long putted = put.get();
-        System.out.println(putted);
+        CompletableFuture<Long> put =
+            schemaRegistryService.putSchema(schema);
+
+        long puttedVersion = put.get();
+        long expectedVersion = 0;
+        assertEquals(expectedVersion, puttedVersion);
 
         CompletableFuture<Schema> get =
             schemaRegistryService.getSchema(schemaId);
 
         Schema gotten = get.get();
-        System.out.println(gotten);
+        //TODO: mock the Clock so I can compare apples to apples
+        //assertEquals(schema, gotten);
 
         CompletableFuture<Void> delete =
             schemaRegistryService.deleteSchema(schemaId, "dave");
@@ -64,7 +70,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             schemaRegistryService.getSchema(schemaId);
 
         Schema gottenAgain = getAgain.get();
-        System.out.println(gottenAgain);
+
+        assertTrue(gottenAgain.isDeleted);
     }
 
 }

@@ -3,8 +3,11 @@ package org.apache.pulsar.broker.service.schema;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-import org.apache.bookkeeper.client.*;
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.LedgerEntry;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
 import org.apache.pulsar.common.schema.Schema;
@@ -13,7 +16,10 @@ import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.data.ACL;
+import org.apache.zookeeper.data.Stat;
 
 import javax.validation.constraints.NotNull;
 import java.io.IOException;
@@ -32,10 +38,12 @@ import static org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryServi
 import static org.apache.pulsar.client.util.FutureUtil.completedFuture;
 
 public class DefaultSchemaRegistryService implements SchemaRegistryService {
-    private static final String SCHEMA_PATH = "/schemas";
-    private static final HashFunction HASH_FUNCTION = Hashing.sha1();
+    private static final String SchemaPath = "/schemas";
+    private static final HashFunction HashFunction = Hashing.sha1();
+    private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
 
     private final PulsarService pulsar;
+    private final ZooKeeper zooKeeper;
     private final ZooKeeperCache localZkCache;
     private final Clock clock;
     private BookKeeper bookKeeper;
@@ -47,9 +55,10 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @VisibleForTesting
-    DefaultSchemaRegistryService(PulsarService pulsar, Clock clock) {
+    public DefaultSchemaRegistryService(PulsarService pulsar, Clock clock) {
         this.pulsar = pulsar;
         this.localZkCache = pulsar.getLocalZkCache();
+        this.zooKeeper = localZkCache.getZooKeeper();
         this.clock = clock;
     }
 
@@ -57,8 +66,13 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         this(pulsar, Clock.systemUTC());
     }
 
-    void init() throws KeeperException, InterruptedException {
-        localZkCache.getZooKeeper().create(SCHEMA_PATH, new byte[]{}, Collections.emptyList(), CreateMode.PERSISTENT);
+    @VisibleForTesting
+    public void init() throws KeeperException, InterruptedException {
+        try {
+            zooKeeper.create(SchemaPath, new byte[]{}, Acl, CreateMode.PERSISTENT);
+        } catch (KeeperException.NodeExistsException error) {
+            // race on startup, ignore.
+        }
     }
 
     @Override
@@ -163,7 +177,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     private String getSchemaPath(String schemaId) {
-        return SCHEMA_PATH + "/" + schemaId;
+        return SchemaPath + "/" + schemaId;
     }
 
     private CompletableFuture<SchemaRegistryFormat.SchemaEntry> findSchemaEntry(
@@ -205,7 +219,6 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     private CompletableFuture<Void> putSchemaLocator(String id, SchemaRegistryFormat.SchemaLocator schema, int version) {
-        ZooKeeper zooKeeper = localZkCache.getZooKeeper();
         CompletableFuture<Void> future = new CompletableFuture<>();
         zooKeeper.setData(id, schema.toByteArray(), version, (rc, path, ctx, stat) -> {
             Code code = Code.get(rc);
@@ -241,8 +254,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
 
                 CompletableFuture<LocatorEntry> future = new CompletableFuture<>();
 
-                ZooKeeper zooKeeper = localZkCache.getZooKeeper();
-                zooKeeper.create(schema, locator.toByteArray(), Collections.emptyList(), CreateMode.PERSISTENT,
+                zooKeeper.create(schema, locator.toByteArray(), Acl, CreateMode.PERSISTENT,
                     (rc, path, ctx, name) -> {
                         Code code = Code.get(rc);
                         if (code != Code.OK) {
@@ -395,7 +407,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
                     .setAddedBy(schema.user)
                     .setType(Functions.convertFromDomainType(schema.type))
                     .setHash(copyFrom(
-                        HASH_FUNCTION.hashBytes(
+                        HashFunction.hashBytes(
                             schema.data
                         ).asBytes())
                     ).build())

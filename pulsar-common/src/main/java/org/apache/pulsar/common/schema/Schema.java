@@ -2,6 +2,9 @@ package org.apache.pulsar.common.schema;
 
 import com.google.common.base.MoreObjects;
 
+import java.util.Arrays;
+import java.util.Objects;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -28,7 +31,7 @@ public class Schema {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(Schema.class)
+        return MoreObjects.toStringHelper(this)
             .add("type", type)
             .add("version", version)
             .add("isDeleted", isDeleted)
@@ -38,6 +41,28 @@ public class Schema {
             .add("user", user)
             .add("data", data)
             .toString();
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Schema schema = (Schema) o;
+        return version == schema.version &&
+            isDeleted == schema.isDeleted &&
+            timestamp == schema.timestamp &&
+            type == schema.type &&
+            Objects.equals(schemaInfo, schema.schemaInfo) &&
+            Objects.equals(id, schema.id) &&
+            Objects.equals(user, schema.user) &&
+            Arrays.equals(data, schema.data);
+    }
+
+    @Override
+    public int hashCode() {
+        int result = Objects.hash(type, version, isDeleted, schemaInfo, id, timestamp, user);
+        result = 31 * result + Arrays.hashCode(data);
+        return result;
     }
 
     public static class Builder {
@@ -92,7 +117,6 @@ public class Schema {
 
         public Schema build() {
             checkNotNull(type);
-            checkArgument(version > 0);
             checkNotNull(schemaInfo);
             checkNotNull(id);
             checkNotNull(user);
