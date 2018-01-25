@@ -40,6 +40,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
+    private final String clusterName = "use";
 
     @BeforeMethod
     @Override
@@ -62,7 +63,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
-        conf.setClusterName("use");
+        conf.setClusterName(clusterName);
     }
 
     protected void internalSetUpForClient() throws Exception {
@@ -78,7 +79,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         clientConf.setUseTls(true);
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        admin.clusters().createCluster("use",
+        admin.clusters().updateCluster(clusterName,
                 new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,
                         "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",

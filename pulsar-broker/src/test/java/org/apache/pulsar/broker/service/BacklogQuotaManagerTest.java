@@ -80,6 +80,7 @@ public class BacklogQuotaManagerTest {
             // start pulsar service
             config = new ServiceConfiguration();
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+            config.setAdvertisedAddress("localhost");
             config.setWebServicePort(BROKER_WEBSERVICE_PORT);
             config.setClusterName("usc");
             config.setBrokerServicePort(BROKER_SERVICE_PORT);
@@ -95,7 +96,7 @@ public class BacklogQuotaManagerTest {
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
             admin = new PulsarAdmin(adminUrl, (Authentication) null);
 
-            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
+            admin.clusters().updateCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
                     new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
             admin.namespaces().createNamespace("prop/usc/ns-quota");

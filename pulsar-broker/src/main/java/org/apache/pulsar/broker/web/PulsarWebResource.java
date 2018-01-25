@@ -168,25 +168,26 @@ public abstract class PulsarWebResource {
         } catch (RestException e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to get property admin data for property");
+            log.error("Failed to get property admin data for property {}", property);
             throw new RestException(e);
         }
     }
 
     protected static void validateAdminAccessOnProperty(PulsarService pulsar, String clientAppId, String property) throws RestException, Exception{
-        PropertyAdmin propertyAdmin;
-
-        try {
-            propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, property))
-                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("Failed to get property admin data for non existing property {}", property);
-            throw new RestException(Status.NOT_FOUND, "Property does not exist");
-        }
 
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             log.debug("check admin access on property: {} - Authenticated: {} -- role: {}", property,
                     (isClientAuthenticated(clientAppId)), clientAppId);
+            
+            PropertyAdmin propertyAdmin;
+
+            try {
+                propertyAdmin = pulsar.getConfigurationCache().propertiesCache().get(path(POLICIES, property))
+                        .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Property does not exist"));
+            } catch (KeeperException.NoNodeException e) {
+                log.warn("Failed to get property admin data for non existing property {}", property);
+                throw new RestException(Status.NOT_FOUND, "Property does not exist");
+            }
 
             if (!isClientAuthenticated(clientAppId)) {
                 throw new RestException(Status.FORBIDDEN, "Need to authenticate to perform the request");
