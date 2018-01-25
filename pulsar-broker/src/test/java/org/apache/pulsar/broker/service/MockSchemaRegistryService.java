@@ -10,17 +10,17 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class MockSchemaRegistryService implements SchemaRegistryService {
     @Override
-    public CompletableFuture<Schema> getSchema(String schemaId) {
+    public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Schema> getSchema(String schemaId, long version) {
+    public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, long version) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Long> putSchema(Schema schema) {
+    public CompletableFuture<Long> putSchema(String schemaId, Schema schema) {
         return completedFuture(null);
     }
 

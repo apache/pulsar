@@ -39,6 +39,7 @@ import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.web.RestException;
@@ -73,7 +74,6 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -358,7 +358,7 @@ public class ServerCnx extends PulsarHandler {
 
     static class ConsumerAndSchema {
         Consumer consumer;
-        Schema schema;
+        SchemaRegistry.SchemaAndMetadata schema;
     }
 
     @Override
@@ -441,7 +441,7 @@ public class ServerCnx extends PulsarHandler {
                             metadata
                     );
 
-                    CompletableFuture<Schema> schema = topic.getSchema();
+                    CompletableFuture<SchemaRegistry.SchemaAndMetadata> schema = topic.getSchema();
 
                     return subscribe1.thenCombine(schema, (consumer, schema1) -> {
                         ConsumerAndSchema tac = new ConsumerAndSchema();
@@ -451,11 +451,11 @@ public class ServerCnx extends PulsarHandler {
                     });
                 }).thenAccept(consumerAndSchema -> {
                     Consumer consumer = consumerAndSchema.consumer;
-                    Schema schema = consumerAndSchema.schema;
+                    SchemaRegistry.SchemaAndMetadata schema = consumerAndSchema.schema;
                     if (consumerFuture.complete(consumer)) {
                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
                                 subscriptionName);
-                        ctx.writeAndFlush(Commands.newSuccess(requestId, schema), ctx.voidPromise());
+                        ctx.writeAndFlush(Commands.newSuccess(requestId, schema.schema), ctx.voidPromise());
                     } else {
                         // The consumer future was completed before by a close command
                         try {
@@ -513,7 +513,7 @@ public class ServerCnx extends PulsarHandler {
 
     static class TopicAndSchema {
         Topic topic;
-        Schema schema;
+        SchemaRegistry.SchemaAndMetadata schema;
     }
 
     @Override
@@ -626,7 +626,7 @@ public class ServerCnx extends PulsarHandler {
                             if (producerFuture.complete(producer)) {
                                 log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                 ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                        producer.getLastSequenceId(), tac.schema));
+                                        producer.getLastSequenceId(), tac.schema.schema));
                                 return;
                             } else {
                                 // The producer's future was completed before by
