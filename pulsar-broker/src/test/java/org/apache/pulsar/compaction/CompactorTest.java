@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.bookkeeper.client.BookKeeper;
@@ -196,6 +197,19 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         List<String> keyOrder = compactAndVerify(topic, expected);
 
         Assert.assertEquals(keyOrder, Lists.newArrayList("c", "b", "a"));
+    }
+
+    @Test(expectedExceptions = ExecutionException.class)
+    public void testCompactEmptyTopic() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+
+        // trigger creation of topic on server side
+        pulsarClient.subscribe(topic, "sub1").close();
+
+        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
+                this.conf, null);
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
     }
 
     public ByteBuf extractPayload(RawMessage m) throws Exception {

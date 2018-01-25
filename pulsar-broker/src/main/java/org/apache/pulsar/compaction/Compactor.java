@@ -69,6 +69,8 @@ public abstract class Compactor {
                     reader.closeAsync().whenComplete((v, exception2) -> {
                             if (exception2 != null) {
                                 log.warn("Error closing reader handle {}, ignoring", reader, exception2);
+                            }
+                            if (exception != null) {
                                 // complete with original exception
                                 promise.completeExceptionally(exception);
                             } else {
