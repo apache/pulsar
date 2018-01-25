@@ -73,6 +73,7 @@ import com.google.common.collect.Sets;
 
 public class NonPersistentTopicTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopicTest.class);
+    private final String configClusterName = "r1";
 
     @DataProvider(name = "subscriptionType")
     public Object[][] getSubscriptionType() {
@@ -835,7 +836,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // completely
             // independent config objects instead of referring to the same properties object
             ServiceConfiguration config1 = new ServiceConfiguration();
-            config1.setClusterName("r1");
+            config1.setClusterName(configClusterName);
             config1.setWebServicePort(webServicePort1);
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
             config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
@@ -901,11 +902,11 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             admin3 = new PulsarAdmin(url3, (Authentication) null);
 
             // Provision the global namespace
-            admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
+            admin1.clusters().updateCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
+            admin1.clusters().updateCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
+            admin1.clusters().updateCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
 
             admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));

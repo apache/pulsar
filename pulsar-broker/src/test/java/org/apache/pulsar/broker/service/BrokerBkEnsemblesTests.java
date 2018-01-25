@@ -102,7 +102,7 @@ public class BrokerBkEnsemblesTests {
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
             admin = new PulsarAdmin(adminUrl, (Authentication) null);
 
-            admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
+            admin.clusters().updateCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",
                     new PropertyAdmin(Lists.newArrayList("appid1"), Sets.newHashSet("usc")));
         } catch (Throwable t) {
