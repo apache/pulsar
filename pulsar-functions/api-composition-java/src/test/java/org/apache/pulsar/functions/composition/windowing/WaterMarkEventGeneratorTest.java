@@ -61,12 +61,12 @@ public class WaterMarkEventGeneratorTest {
         // set watermark interval to a high value and trigger manually to fix timing issues
         waterMarkEventGenerator = new WaterMarkEventGenerator<>(windowManager, 5L, 5, Collections
                 .singleton("s1"), context);
-        waterMarkEventGenerator.start();
+//        waterMarkEventGenerator.start();
     }
 
     @AfterMethod
     public void tearDown() {
-        waterMarkEventGenerator.shutdown();
+//        waterMarkEventGenerator.shutdown();
         eventList.clear();
     }
 
