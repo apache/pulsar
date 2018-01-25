@@ -25,7 +25,7 @@ import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 public class PublishFunction implements PulsarFunction<String, Void> {
     @Override
     public Void process(String input, Context context) {
-        context.publish(context.getUserConfigValue("PublishTopic"), input + "!", Utf8StringSerDe.class);
+        context.publish(context.getUserConfigValue("PublishTopic"), input + "!", Utf8StringSerDe.class.getName());
         return null;
     }
 }

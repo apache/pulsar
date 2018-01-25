@@ -29,7 +29,6 @@ import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.LinkedList;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
@@ -85,7 +84,7 @@ public class WindowedPulsarFunctionTest {
         Mockito.doReturn("10").when(context).getUserConfigValue("slidingIntervalDurationMs");
         Mockito.doReturn("5").when(context).getUserConfigValue("maxLagMs");
         Mockito.doReturn("test-source-topic").when(context).getTopicName();
-        Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+        Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
         Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
         Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
         // trigger manually to avoid timing issues
@@ -133,7 +132,7 @@ public class WindowedPulsarFunctionTest {
         Mockito.doReturn("test-namespace").when(context).getNamespace();
         Mockito.doReturn("test-tenant").when(context).getTenant();
         Mockito.doReturn("test-source-topic").when(context).getTopicName();
-        Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+        Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
         Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
         Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
         Mockito.doReturn("20").when(context).getUserConfigValue("windowLengthDurationMs");
@@ -167,7 +166,7 @@ public class WindowedPulsarFunctionTest {
         }
         System.out.println(testWindowedPulsarFunction.windows);
         long event = events.get(events.size() - 1);
-        Mockito.verify(context).publish("$late", event, Utf8StringSerDe.class);
+        Mockito.verify(context).publish("$late", event, Utf8StringSerDe.class.getName());
     }
 
     @Test
@@ -214,7 +213,7 @@ public class WindowedPulsarFunctionTest {
                 Mockito.doReturn(TestTimestampExtractor.class.getName()).when(context).getUserConfigValue
                         ("timestampExtractorClassName");
                 Mockito.doReturn("test-source-topic").when(context).getTopicName();
-                Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+                Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
                 Mockito.doReturn(windowLengthCount).when(context).getUserConfigValue("windowLengthCount");
@@ -292,7 +291,7 @@ public class WindowedPulsarFunctionTest {
                 Mockito.doReturn(TestTimestampExtractor.class.getName()).when(context).getUserConfigValue
                         ("timestampExtractorClassName");
                 Mockito.doReturn("test-source-topic").when(context).getTopicName();
-                Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+                Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
                 Mockito.doReturn(windowLengthDuration).when(context).getUserConfigValue("windowLengthDurationMs");
@@ -348,7 +347,7 @@ public class WindowedPulsarFunctionTest {
                 Mockito.doReturn(TestTimestampExtractor.class.getName()).when(context).getUserConfigValue
                         ("timestampExtractorClassName");
                 Mockito.doReturn("test-source-topic").when(context).getTopicName();
-                Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+                Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
                 Mockito.doReturn(windowLengthCount).when(context).getUserConfigValue("windowLengthCount");
@@ -396,7 +395,7 @@ public class WindowedPulsarFunctionTest {
                 Mockito.doReturn(TestTimestampExtractor.class.getName()).when(context).getUserConfigValue
                         ("timestampExtractorClassName");
                 Mockito.doReturn("test-source-topic").when(context).getTopicName();
-                Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+                Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
                 Mockito.doReturn(windowLengthDuration).when(context).getUserConfigValue("windowLengthDurationMs");
@@ -444,7 +443,7 @@ public class WindowedPulsarFunctionTest {
                 Mockito.doReturn(TestTimestampExtractor.class.getName()).when(context).getUserConfigValue
                         ("timestampExtractorClassName");
                 Mockito.doReturn("test-source-topic").when(context).getTopicName();
-                Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+                Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
                 Mockito.doReturn("1").when(context).getUserConfigValue("windowLengthCount");
@@ -491,7 +490,7 @@ public class WindowedPulsarFunctionTest {
                 Mockito.doReturn(TestTimestampExtractor.class.getName()).when(context).getUserConfigValue
                         ("timestampExtractorClassName");
                 Mockito.doReturn("test-source-topic").when(context).getTopicName();
-                Mockito.doReturn(Utf8StringSerDe.class).when(context).getOutputSerdeClass();
+                Mockito.doReturn(Utf8StringSerDe.class.getName()).when(context).getOutputSerdeClassName();
                 Mockito.doReturn(Collections.singleton("test-source-topic")).when(context).getSourceTopics();
                 Mockito.doReturn("test-sink-topic").when(context).getSinkTopic();
                 Mockito.doReturn("1").when(context).getUserConfigValue("windowLengthCount");

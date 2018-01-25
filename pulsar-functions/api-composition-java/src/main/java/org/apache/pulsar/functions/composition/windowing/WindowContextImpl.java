@@ -83,7 +83,7 @@ public class WindowContextImpl implements WindowContext {
     }
 
     @Override
-    public CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass) {
-        return this.context.publish(topicName, object, serDeClass);
+    public CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName) {
+        return this.context.publish(topicName, object, serDeClassName);
     }
 }

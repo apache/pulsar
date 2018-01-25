@@ -127,7 +127,7 @@ class ContextImpl(context.Context):
   def get_sink_topic(self):
     return self.instance_config.function_config.sinkTopic
 
-  def get_output_serde_class(self):
+  def get_output_serde_class_name(self):
     return self.instance_config.function_config.outputSerdeClassName
 
   def publish(self, topic_name, message, serde_class_name):
