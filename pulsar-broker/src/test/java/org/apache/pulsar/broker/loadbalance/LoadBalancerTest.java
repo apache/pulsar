@@ -142,7 +142,8 @@ public class LoadBalancerTest {
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-            config.setAdvertisedAddress(localhost+i);;
+            config.setAdvertisedAddress(localhost+i);
+            config.setLoadBalancerEnabled(false);
 
             pulsarServices[i] = new PulsarService(config);
             pulsarServices[i].start();

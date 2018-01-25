@@ -295,7 +295,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
-    private boolean loadBalancerEnabled = false;
+    private boolean loadBalancerEnabled = true;
     // load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)
     @Deprecated
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
