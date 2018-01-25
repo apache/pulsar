@@ -18,8 +18,12 @@
  */
 package org.apache.pulsar.compaction;
 
+import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 
 public interface CompactedTopic {
     void newCompactedLedger(Position p, long compactedLedgerId);
+    void asyncReadEntriesOrWait(ManagedCursor cursor, int numberOfEntriesToRead,
+                                ReadEntriesCallback callback, Object ctx);
 }

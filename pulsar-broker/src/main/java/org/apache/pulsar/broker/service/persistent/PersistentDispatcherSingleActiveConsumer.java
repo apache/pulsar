@@ -297,7 +297,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
             havePendingRead = true;
-            cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
+            if (consumer.readCompacted()) {
+                topic.compactedTopic.asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
+            } else {
+                cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
+            }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);
