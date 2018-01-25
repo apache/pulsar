@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,23 +27,23 @@ import java.util.List;
  * @param <T> The type of Event in the window (e.g. Tuple).
  */
 public interface WindowLifecycleListener<T> {
-  /**
-   * Called on expiry of events from the window due to {@link EvictionPolicy}
-   *
-   * @param events the expired events
-   */
-  void onExpiry(List<T> events);
+    /**
+     * Called on expiry of events from the window due to {@link EvictionPolicy}
+     *
+     * @param events the expired events
+     */
+    void onExpiry(List<T> events);
 
-  /**
-   * Called on activation of the window due to the {@link TriggerPolicy}
-   *
-   * @param events the list of current events in the window.
-   * @param newEvents the newly added events since last activation.
-   * @param expired the expired events since last activation.
-   * @param referenceTime the reference (event or processing) time that resulted in activation
-   */
-  default void onActivation(List<T> events, List<T> newEvents, List<T> expired, Long
-          referenceTime) {
-    throw new UnsupportedOperationException("Not implemented");
-  }
+    /**
+     * Called on activation of the window due to the {@link TriggerPolicy}
+     *
+     * @param events the list of current events in the window.
+     * @param newEvents the newly added events since last activation.
+     * @param expired the expired events since last activation.
+     * @param referenceTime the reference (event or processing) time that resulted in activation
+     */
+    default void onActivation(List<T> events, List<T> newEvents, List<T> expired, Long
+            referenceTime) {
+        throw new UnsupportedOperationException("Not implemented");
+    }
 }

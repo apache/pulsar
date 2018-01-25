@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,42 +27,42 @@ package org.apache.pulsar.functions.composition.windowing;
  */
 public interface TriggerPolicy<T, S> {
 
-  /**
-   * Tracks the event and could use this to invoke the trigger.
-   *
-   * @param event the input event
-   */
-  void track(Event<T> event);
+    /**
+     * Tracks the event and could use this to invoke the trigger.
+     *
+     * @param event the input event
+     */
+    void track(Event<T> event);
 
-  /**
-   * resets the trigger policy.
-   */
-  void reset();
+    /**
+     * resets the trigger policy.
+     */
+    void reset();
 
-  /**
-   * Starts the trigger policy. This can be used
-   * during recovery to start the triggers after
-   * recovery is complete.
-   */
-  void start();
+    /**
+     * Starts the trigger policy. This can be used
+     * during recovery to start the triggers after
+     * recovery is complete.
+     */
+    void start();
 
-  /**
-   * Any clean up could be handled here.
-   */
-  void shutdown();
+    /**
+     * Any clean up could be handled here.
+     */
+    void shutdown();
 
-  /**
-   * Return runtime state to be checkpointed by the framework for restoring the trigger policy
-   * in case of failures.
-   *
-   * @return the state
-   */
-  S getState();
+    /**
+     * Return runtime state to be checkpointed by the framework for restoring the trigger policy
+     * in case of failures.
+     *
+     * @return the state
+     */
+    S getState();
 
-  /**
-   * Restore the trigger policy from the state that was earlier checkpointed by the framework.
-   *
-   * @param state the state
-   */
-  void restoreState(S state);
+    /**
+     * Restore the trigger policy from the state that was earlier checkpointed by the framework.
+     *
+     * @param state the state
+     */
+    void restoreState(S state);
 }
