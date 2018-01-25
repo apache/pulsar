@@ -39,7 +39,7 @@ struct ClientConfigurationImpl {
           ioThreads(1),
           operationTimeoutSeconds(30),
           messageListenerThreads(1),
-          concurrentLookupRequest(5000),
+          concurrentLookupRequest(50000),
           logConfFilePath(),
           useTls(false),
           tlsAllowInsecureConnection(true),
