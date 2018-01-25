@@ -241,6 +241,7 @@ public class WebServiceTest {
         roles.add("client");
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setAdvertisedAddress("localhost");
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
         config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         config.setClientLibraryVersionCheckEnabled(enableFilter);

@@ -23,6 +23,7 @@ import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -57,6 +58,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.util.concurrent.Promise;
 
 public class ClientCnx extends PulsarHandler {
@@ -85,7 +87,7 @@ public class ClientCnx extends PulsarHandler {
     private String proxyToTargetBrokerAddress = null;
 
     enum State {
-        None, SentConnectFrame, Ready
+        None, SentConnectFrame, Ready, Failed
     }
 
     public ClientCnx(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
@@ -152,8 +154,24 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.warn("{} Exception caught: {}", ctx.channel(), cause.getMessage(), cause);
+        if (state != State.Failed) {
+            // No need to report stack trace for known exceptions that happen in disconnections
+            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                    isKnownException(cause) ? null : cause);
+            state = State.Failed;
+        } else {
+            // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
+            // failed
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+            }
+        }
+
         ctx.close();
+    }
+
+    public static boolean isKnownException(Throwable t) {
+        return t instanceof NativeIoException || t instanceof ClosedChannelException;
     }
 
     @Override
