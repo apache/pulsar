@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -72,7 +72,8 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
             windowConfig.setSlidingIntervalCount(Integer.parseInt(context.getUserConfigValue("slidingIntervalCount")));
         }
         if (context.getUserConfigValue("slidingIntervalDurationMs") != null) {
-            windowConfig.setSlidingIntervalDurationMs(Long.parseLong(context.getUserConfigValue("slidingIntervalDurationMs")));
+            windowConfig.setSlidingIntervalDurationMs(Long.parseLong(context.getUserConfigValue
+                    ("slidingIntervalDurationMs")));
         }
         if (context.getUserConfigValue("lateDataTopic") != null) {
             windowConfig.setLateDataTopic(context.getUserConfigValue("lateDataTopic"));
@@ -168,7 +169,8 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
         if (this.windowConfig.getTimestampExtractorClassName() != null) {
             this.timestampExtractor = getTimeStampExtractor(windowConfig);
 
-            waterMarkEventGenerator = new WaterMarkEventGenerator<>(manager, this.windowConfig.getWatermarkEmitIntervalMs(),
+            waterMarkEventGenerator = new WaterMarkEventGenerator<>(manager, this.windowConfig
+                    .getWatermarkEmitIntervalMs(),
                     this.windowConfig.getMaxLagMs(), new HashSet<>(context.getSourceTopics()), context);
         } else {
             if (this.windowConfig.getLateDataTopic() != null) {
@@ -235,7 +237,8 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
             }
         } else {
             if (this.isEventTime()) {
-                return new WatermarkTimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager, evictionPolicy, manager);
+                return new WatermarkTimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager,
+                        evictionPolicy, manager);
             }
             return new TimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager,
                     evictionPolicy, context);
@@ -318,7 +321,8 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
     public void shutdown() {
         if (this.waterMarkEventGenerator != null) {
             this.waterMarkEventGenerator.shutdown();
-        } if (this.windowManager != null) {
+        }
+        if (this.windowManager != null) {
             this.windowManager.shutdown();
         }
     }

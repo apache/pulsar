@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -34,74 +34,74 @@ import java.util.List;
  * @param <T> the type of event tracked by this policy.
  */
 public class WatermarkCountTriggerPolicy<T> implements TriggerPolicy<T, Long> {
-  private final int count;
-  private final TriggerHandler handler;
-  private final EvictionPolicy<T, ?> evictionPolicy;
-  private final WindowManager<T> windowManager;
-  private volatile long lastProcessedTs;
-  private boolean started;
+    private final int count;
+    private final TriggerHandler handler;
+    private final EvictionPolicy<T, ?> evictionPolicy;
+    private final WindowManager<T> windowManager;
+    private volatile long lastProcessedTs;
+    private boolean started;
 
-  public WatermarkCountTriggerPolicy(int count, TriggerHandler handler, EvictionPolicy<T, ?>
-          evictionPolicy, WindowManager<T> windowManager) {
-    this.count = count;
-    this.handler = handler;
-    this.evictionPolicy = evictionPolicy;
-    this.windowManager = windowManager;
-    this.started = false;
-  }
-
-  @Override
-  public void track(Event<T> event) {
-    if (started && event.isWatermark()) {
-      handleWaterMarkEvent(event);
+    public WatermarkCountTriggerPolicy(int count, TriggerHandler handler, EvictionPolicy<T, ?>
+            evictionPolicy, WindowManager<T> windowManager) {
+        this.count = count;
+        this.handler = handler;
+        this.evictionPolicy = evictionPolicy;
+        this.windowManager = windowManager;
+        this.started = false;
     }
-  }
 
-  @Override
-  public void reset() {
-    // NOOP
-  }
-
-  @Override
-  public void start() {
-    started = true;
-  }
-
-  @Override
-  public void shutdown() {
-    // NOOP
-  }
-
-  /**
-   * Triggers all the pending windows up to the waterMarkEvent timestamp
-   * based on the sliding interval count.
-   *
-   * @param waterMarkEvent the watermark event
-   */
-  private void handleWaterMarkEvent(Event<T> waterMarkEvent) {
-    long watermarkTs = waterMarkEvent.getTimestamp();
-    List<Long> eventTs = windowManager.getSlidingCountTimestamps(lastProcessedTs, watermarkTs,
-            count);
-    for (long ts : eventTs) {
-      evictionPolicy.setContext(new DefaultEvictionContext(ts, null, Long.valueOf(count)));
-      handler.onTrigger();
-      lastProcessedTs = ts;
+    @Override
+    public void track(Event<T> event) {
+        if (started && event.isWatermark()) {
+            handleWaterMarkEvent(event);
+        }
     }
-  }
 
-  @Override
-  public Long getState() {
-    return lastProcessedTs;
-  }
+    @Override
+    public void reset() {
+        // NOOP
+    }
 
-  @Override
-  public void restoreState(Long state) {
-    lastProcessedTs = state;
-  }
+    @Override
+    public void start() {
+        started = true;
+    }
 
-  @Override
-  public String toString() {
-    return "WatermarkCountTriggerPolicy{" + "count=" + count + ", lastProcessedTs="
-            + lastProcessedTs + ", started=" + started + '}';
-  }
+    @Override
+    public void shutdown() {
+        // NOOP
+    }
+
+    /**
+     * Triggers all the pending windows up to the waterMarkEvent timestamp
+     * based on the sliding interval count.
+     *
+     * @param waterMarkEvent the watermark event
+     */
+    private void handleWaterMarkEvent(Event<T> waterMarkEvent) {
+        long watermarkTs = waterMarkEvent.getTimestamp();
+        List<Long> eventTs = windowManager.getSlidingCountTimestamps(lastProcessedTs, watermarkTs,
+                count);
+        for (long ts : eventTs) {
+            evictionPolicy.setContext(new DefaultEvictionContext(ts, null, Long.valueOf(count)));
+            handler.onTrigger();
+            lastProcessedTs = ts;
+        }
+    }
+
+    @Override
+    public Long getState() {
+        return lastProcessedTs;
+    }
+
+    @Override
+    public void restoreState(Long state) {
+        lastProcessedTs = state;
+    }
+
+    @Override
+    public String toString() {
+        return "WatermarkCountTriggerPolicy{" + "count=" + count + ", lastProcessedTs="
+                + lastProcessedTs + ", started=" + started + '}';
+    }
 }

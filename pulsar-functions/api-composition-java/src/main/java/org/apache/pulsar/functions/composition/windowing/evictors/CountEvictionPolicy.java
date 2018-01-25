@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -32,69 +32,69 @@ import java.util.concurrent.atomic.AtomicLong;
  * @param <T> the type of event tracked by this policy.
  */
 public class CountEvictionPolicy<T> implements EvictionPolicy<T, Long> {
-  protected final int threshold;
-  protected final AtomicLong currentCount;
-  private EvictionContext context;
+    protected final int threshold;
+    protected final AtomicLong currentCount;
+    private EvictionContext context;
 
-  public CountEvictionPolicy(int count) {
-    this.threshold = count;
-    this.currentCount = new AtomicLong();
-  }
+    public CountEvictionPolicy(int count) {
+        this.threshold = count;
+        this.currentCount = new AtomicLong();
+    }
 
-  @Override
-  public Action evict(Event<T> event) {
+    @Override
+    public Action evict(Event<T> event) {
         /*
          * atomically decrement the count if its greater than threshold and
          * return if the event should be evicted
          */
-    while (true) {
-      long curVal = currentCount.get();
-      if (curVal > threshold) {
-        if (currentCount.compareAndSet(curVal, curVal - 1)) {
-          return Action.EXPIRE;
+        while (true) {
+            long curVal = currentCount.get();
+            if (curVal > threshold) {
+                if (currentCount.compareAndSet(curVal, curVal - 1)) {
+                    return Action.EXPIRE;
+                }
+            } else {
+                break;
+            }
         }
-      } else {
-        break;
-      }
+        return Action.PROCESS;
     }
-    return Action.PROCESS;
-  }
 
-  @Override
-  public void track(Event<T> event) {
-    if (!event.isWatermark()) {
-      currentCount.incrementAndGet();
+    @Override
+    public void track(Event<T> event) {
+        if (!event.isWatermark()) {
+            currentCount.incrementAndGet();
+        }
     }
-  }
 
-  @Override
-  public void setContext(EvictionContext context) {
-    this.context = context;
-  }
+    @Override
+    public void setContext(EvictionContext context) {
+        this.context = context;
+    }
 
-  @Override
-  public EvictionContext getContext() {
-    return context;
-  }
+    @Override
+    public EvictionContext getContext() {
+        return context;
+    }
 
-  @Override
-  public String toString() {
-    return "CountEvictionPolicy{" + "threshold=" + threshold + ", currentCount=" + currentCount
-        + '}';
-  }
+    @Override
+    public String toString() {
+        return "CountEvictionPolicy{" + "threshold=" + threshold + ", currentCount=" + currentCount
+                + '}';
+    }
 
-  @Override
-  public void reset() {
-    // NOOP
-  }
+    @Override
+    public void reset() {
+        // NOOP
+    }
 
-  @Override
-  public Long getState() {
-    return currentCount.get();
-  }
+    @Override
+    public Long getState() {
+        return currentCount.get();
+    }
 
-  @Override
-  public void restoreState(Long state) {
-    currentCount.set(state);
-  }
+    @Override
+    public void restoreState(Long state) {
+        currentCount.set(state);
+    }
 }
