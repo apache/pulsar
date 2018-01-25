@@ -62,10 +62,6 @@ metadata:
 spec:
   serviceName: bookkeeper
   replicas: 3
-  selector:
-    matchLabels:
-      app: pulsar
-      component: bookkeeper
   template:
     metadata:
       labels:
@@ -73,7 +69,6 @@ spec:
         component: bookkeeper
         cluster: pulsar-gke
       annotations:
-        pod.alpha.kubernetes.io/initialized: "true"
         prometheus.io/scrape: "true"
         prometheus.io/port: "8000"
     spec:
@@ -85,10 +80,21 @@ spec:
               podAffinityTerm:
                 labelSelector:
                   matchExpressions:
-                    - key: component
+                    - key: "app"
                       operator: In
                       values:
                         - bookkeeper
+      initContainers:
+        - name: bookie-metaformat
+          image: apachepulsar/pulsar:latest
+          command: ["sh", "-c"]
+          args:
+            - >
+              bin/apply-config-from-env.py conf/bookkeeper.conf &&
+              bin/bookkeeper shell metaformat --nonInteractive || true;
+          envFrom:
+            - configMapRef:
+                name: bookie-config
       containers:
         - name: bookie
           image: apachepulsar/pulsar:latest
@@ -103,7 +109,7 @@ spec:
               hostPort: 3181
               name: client
           envFrom:
-            - configMapRef:
+            - configMapRef: 
                 name: bookie-config
           volumeMounts:
             - name: journal-disk
@@ -126,6 +132,10 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: journal-disk
+        annotations:
+          volume.alpha.kubernetes.io/storage-class: default
+        labels:
+          component: bookkeeper
       spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
@@ -134,6 +144,10 @@ spec:
         storageClassName: bookie-ssd
     - metadata:
         name: ledger-disk
+        annotations:
+          volume.alpha.kubernetes.io/storage-class: default
+        labels:
+          component: bookkeeper
       spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:

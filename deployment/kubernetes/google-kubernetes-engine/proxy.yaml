@@ -49,7 +49,6 @@ spec:
       containers:
         - name: pulsar-proxy
           image: apachepulsar/pulsar:latest
-          imagePullPolicy: IfNotPresent
           command: ["sh", "-c"]
           args:
             - >
