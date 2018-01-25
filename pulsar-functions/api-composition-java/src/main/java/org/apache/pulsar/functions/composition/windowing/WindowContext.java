@@ -93,8 +93,8 @@ public interface WindowContext {
      * Publish an object using serDe for serializing to the topic
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published
-     * @param serDeClass The class that needs to be used to serialize the object before publishing
+     * @param serDeClassName The class name of the class that needs to be used to serialize the object before publishing
      * @return
      */
-    CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass);
+    CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName);
 }

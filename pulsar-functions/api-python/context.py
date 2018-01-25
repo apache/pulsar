@@ -115,7 +115,7 @@ class Context(object):
     pass
 
   @abstractmethod
-  def get_output_serde_class(self):
+  def get_output_serde_class_name(self):
     '''return output Serde class'''
     pass
 

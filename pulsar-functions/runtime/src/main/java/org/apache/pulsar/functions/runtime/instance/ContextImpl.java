@@ -82,12 +82,11 @@ class ContextImpl implements Context {
     private ConcurrentMap<String, AccumulatedMetricDatum> accumulatedMetrics;
 
     private Map<String, Producer> publishProducers;
-    private Map<Class<? extends SerDe>, SerDe> publishSerializers;
+    private Map<String, SerDe> publishSerializers;
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
     private Map<String, Consumer> sourceConsumers;
-    private Class<? extends SerDe> outputSerdeClass;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        ClassLoader classLoader, Map<String, Consumer> sourceConsumers) {
@@ -133,16 +132,8 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public Class<? extends SerDe> getOutputSerdeClass() {
-        if (outputSerdeClass == null) {
-            try {
-                outputSerdeClass
-                        =  (Class<? extends SerDe>) Class.forName(config.getFunctionConfig().getOutputSerdeClassName());
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
-            }
-        }
-        return outputSerdeClass;
+    public String getOutputSerdeClassName() {
+        return config.getFunctionConfig().getOutputSerdeClassName();
     }
 
     @Override
@@ -205,7 +196,7 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass) {
+    public CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName) {
         if (!publishProducers.containsKey(topicName)) {
             try {
                 publishProducers.put(topicName, pulsarClient.createProducer(topicName, producerConfiguration));
@@ -216,14 +207,20 @@ class ContextImpl implements Context {
             }
         }
 
-        if (!publishSerializers.containsKey(serDeClass)) {
-            publishSerializers.put(serDeClass, Reflections.createInstance(
-                    serDeClass.getName(),
+        if (!publishSerializers.containsKey(serDeClassName)) {
+            Class<? extends SerDe> serDeClass;
+            try {
+                serDeClass = (Class<? extends SerDe>) Class.forName(serDeClassName);
+            } catch (ClassNotFoundException e) {
+                throw new RuntimeException(e);
+            }
+            publishSerializers.put(serDeClassName, Reflections.createInstance(
+                    serDeClassName,
                     serDeClass,
                     classLoader));
         }
 
-        byte[] bytes = publishSerializers.get(serDeClass).serialize(object);
+        byte[] bytes = publishSerializers.get(serDeClassName).serialize(object);
         return publishProducers.get(topicName).sendAsync(bytes)
                 .thenApply(msgId -> null);
     }

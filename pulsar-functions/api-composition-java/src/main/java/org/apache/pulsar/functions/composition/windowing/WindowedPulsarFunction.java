@@ -296,7 +296,7 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
             throw new RuntimeException(e);
         }
         if (output != null) {
-            context.publish(context.getSinkTopic(), output, context.getOutputSerdeClass());
+            context.publish(context.getSinkTopic(), output, context.getOutputSerdeClassName());
         }
     }
 
@@ -342,7 +342,7 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
                 this.windowManager.add(input, ts, context.getMessageId(), context.getTopicName());
             } else {
                 if (this.windowConfig.getLateDataTopic() != null) {
-                    context.publish(this.windowConfig.getLateDataTopic(), input, context.getOutputSerdeClass());
+                    context.publish(this.windowConfig.getLateDataTopic(), input, context.getOutputSerdeClassName());
                 } else {
                     log.info(String.format(
                             "Received a late tuple %s with ts %d. This will not be " + "processed"

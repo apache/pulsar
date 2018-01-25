@@ -60,7 +60,7 @@ public interface Context {
      * Get output Serde class
      * @return output serde class
      */
-    Class<? extends SerDe> getOutputSerdeClass();
+    String getOutputSerdeClassName();
 
     /**
      * The tenant this function belongs to
@@ -142,10 +142,10 @@ public interface Context {
      * Publish an object using serDe for serializing to the topic
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published
-     * @param serDeClass The class that needs to be used to serialize the object before publishing
+     * @param serDeClassName The class name of the class that needs to be used to serialize the object before publishing
      * @return
      */
-    CompletableFuture<Void> publish(String topicName, Object object, Class<? extends SerDe> serDeClass);
+    CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName);
 
     CompletableFuture<Void> ack(byte[] messageId, String topic);
 }
