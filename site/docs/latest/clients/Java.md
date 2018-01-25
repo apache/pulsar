@@ -215,9 +215,9 @@ CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 
 Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
-## Reader API
+## Reader interface
 
-The Pulsar [Reader API](../../getting-started/ConceptsAndArchitecture#reader-api) enables applications to access messages on Pulsar {% popover topics %} *without* establishing a {% popover subscription %} or sending {% popover acks %}.
+The Pulsar [Reader API](../../getting-started/ConceptsAndArchitecture#reader-interface) enables applications to access messages on Pulsar {% popover topics %}
 
 With the Reader API, Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
 

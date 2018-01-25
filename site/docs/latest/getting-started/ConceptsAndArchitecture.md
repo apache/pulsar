@@ -313,22 +313,22 @@ Whenever the TCP connection breaks, the client will immediately re-initiate this
 
 You can use your own service discovery system if you'd like. If you use your own system, there is just one requirement: when a client performs an HTTP request to an endpoint, such as `http://pulsar.us-west.example.com:8080`, the client needs to be redirected to *some* active broker in the desired {% popover cluster %}, whether via DNS, an HTTP or IP redirect, or some other means.
 
-## Reader API
+## Reader interface
 
-In Pulsar, the "standard" API involves using {% popover producers %} to publish messages to Pulsar {% popover topics %} and using {% popover consumers %} to listen on topics, process incoming messages, and finally {% popover acknowledge %} that those messages have been processed. This model is largely---though not exclusively---oriented toward real-time use cases.
+In Pulsar, the "standard" [consumer interface](#consumers) involves using {% popover consumers %} to listen on {% popover topics %}, process incoming messages, and finally {% popover acknowledge %} those messages when they've been processed. Whenever a consumer disconnects from and then reconnects to a topic, it automatically begins reading from the earliest un-acked message onward because the topic's cursor is automatically managed by Pulsar.
 
-For some non-real-time use cases, though, applications need to access messages on a Pulsar topic *without* establishing a subscription or acknowledging those messages. If you're using Pulsar topics to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system, for example, the ability to "rewind" to a specific message on a topic is essential. The Reader API provides clients with a low-level abstraction for "manual positioning" on a topic, i.e. the ability to read messages from a specific point and onward, until no messages are left on the topic.
-
-{% include admonition.html type="warning" title="Non-partitioned topics only"
-content="The Reader API cannot currently be used with [partitioned topics](#partitioned-topics)." %}
-
-When specifying an initial message to read from in the Reader API, you have three options:
+The **reader interface** for Pulsar enables applications to manually manage cursors. When you use a reader to connect to a topic---rather than a consumer---you need to specify *which* message the reader begins reading from. When specifying that initial message, the reader interface gives you three options:
 
 * The **earliest** available message in the topic
 * The **latest** available message in the topic
 * Some other message between the earliest and the latest. If you select this option, you'll need to explicitly provide a message ID. Your application will be responsible for "knowing" this message ID in advance, perhaps fetching it from a persistent data store or cache.
 
-Here's a Java example:
+The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
+
+{% include admonition.html type="warning" title="Non-partitioned topics only"
+content="The reader interface for Pulsar cannot currently be used with [partitioned topics](#partitioned-topics)." %}
+
+Here's a Java example that begins reading from the earliest available message on a topic:
 
 ```java
 import org.apache.pulsar.client.api.Message;
@@ -346,4 +346,19 @@ while (true) {
 
     // Process the message
 }
+```
+
+To create a reader that will read from the latest available message:
+
+```java
+MessageId id = MessageId.latest;
+Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
+```
+
+To create a reader that will read from some message between earliest and latest:
+
+```java
+byte[] msgIdBytes = // Some byte array
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 ```
