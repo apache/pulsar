@@ -201,7 +201,7 @@ public class Commands {
         if (schema != null && !schema.isDeleted) {
             schemaBuilder = PulsarApi.Schema.newBuilder();
             schemaBuilder.setFormat(getSchemaFormat(schema.type));
-            schemaBuilder.setVersion(schema.version);
+            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
             successBuilder.setSchema(schemaBuilder.build());
         }
         CommandSuccess success = successBuilder.build();
@@ -230,7 +230,7 @@ public class Commands {
         if (schema != null && !schema.isDeleted) {
             schemaBuilder = PulsarApi.Schema.newBuilder();
             schemaBuilder.setFormat(getSchemaFormat(schema.type));
-            schemaBuilder.setVersion(schema.version);
+            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
             producerSuccessBuilder.setSchema(schemaBuilder.build());
         }
         producerSuccess.recycle();

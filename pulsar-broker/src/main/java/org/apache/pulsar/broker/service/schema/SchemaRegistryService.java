@@ -9,11 +9,11 @@ import java.util.concurrent.CompletableFuture;
 public interface SchemaRegistryService extends SchemaRegistry {
     void start() throws IOException;
 
-    CompletableFuture<Schema> getSchema(String schemaId);
+    CompletableFuture<SchemaAndMetadata> getSchema(String schemaId);
 
-    CompletableFuture<Schema> getSchema(String schemaId, long version);
+    CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, long version);
 
-    CompletableFuture<Long> putSchema(Schema schema);
+    CompletableFuture<Long> putSchema(String schemaId, Schema schema);
 
     CompletableFuture<Long> deleteSchema(String schemaId, String user);
 
