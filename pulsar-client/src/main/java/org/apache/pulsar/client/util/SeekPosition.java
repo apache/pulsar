@@ -39,7 +39,6 @@ public class SeekPosition {
     }
 
     
-    private static SeekPosition _instance;
     public static MessageId getPosition(String key){
         if(positions.containsKey(key)){
             return positions.get(key);
