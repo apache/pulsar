@@ -37,12 +37,4 @@ public class PulsarHttpAuthenticationException extends AuthenticationException {
     public String getRealmInformation() {
         return realmInformation;
     }
-
-    public void addRealmInformation(String realmInformation) {
-        if (isBlank(this.realmInformation)) {
-            this.realmInformation = realmInformation;
-        } else {
-            this.realmInformation += ", " + realmInformation;
-        }
-    }
 }

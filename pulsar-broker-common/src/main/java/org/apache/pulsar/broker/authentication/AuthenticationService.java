@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 /**
  * Authentication service
  *
@@ -82,14 +84,18 @@ public class AuthenticationService implements Closeable {
     }
 
     public String authenticateHttpRequest(HttpServletRequest request) throws PulsarHttpAuthenticationException {
-        PulsarHttpAuthenticationException exception = new PulsarHttpAuthenticationException("Authentication required");
+        String realmInformation = "";
         // Try to validate with any configured provider
         AuthenticationDataSource authData = new AuthenticationDataHttps(request);
         for (AuthenticationProvider provider : providers.values()) {
             try {
                 return provider.authenticate(authData);
             } catch (PulsarHttpAuthenticationException e) {
-                exception.addRealmInformation(e.getRealmInformation());
+                if (isBlank(realmInformation)) {
+                    realmInformation = e.getRealmInformation();
+                } else {
+                    realmInformation += ", " + e.getRealmInformation();
+                }
             } catch (AuthenticationException e) {
                 // Ignore the exception because we don't know which authentication method is expected here.
             }
@@ -101,7 +107,7 @@ public class AuthenticationService implements Closeable {
                 return anonymousUserRole;
             }
             // If at least a provider was configured, then the authentication needs to be provider
-            throw exception;
+            throw new PulsarHttpAuthenticationException("Authentication required", realmInformation);
         } else {
             // No authentication required
             return "<none>";
