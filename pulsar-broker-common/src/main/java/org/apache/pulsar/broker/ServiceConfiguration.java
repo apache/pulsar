@@ -370,7 +370,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int defaultRetentionSizeInMB = 0;
     // How often to check pulsar connection is still alive
     private int keepAliveIntervalSeconds = 30;
-    // How often broker checks for inactive topics to be isDeleted (topics with no subscriptions and no one connected)
+    // How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
     private int brokerServicePurgeInactiveFrequencyInSeconds = 60;
     private List<String> bootstrapNamespaces = new ArrayList<String>();
     private Properties properties = new Properties();
