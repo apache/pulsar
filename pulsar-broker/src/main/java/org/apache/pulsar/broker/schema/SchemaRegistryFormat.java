@@ -21,30 +21,12 @@ public final class SchemaRegistryFormat {
   }
   public static final class PositionInfo extends
       com.google.protobuf.GeneratedMessageLite
-      implements PositionInfoOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+      implements PositionInfoOrBuilder {
     // Use PositionInfo.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<PositionInfo> handle;
-    private PositionInfo(io.netty.util.Recycler.Handle<PositionInfo> handle) {
-      this.handle = handle;
+    private PositionInfo(Builder builder) {
+      super(builder);
     }
-    
-     private static final io.netty.util.Recycler<PositionInfo> RECYCLER = new io.netty.util.Recycler<PositionInfo>() {
-            protected PositionInfo newObject(Handle<PositionInfo> handle) {
-              return new PositionInfo(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private PositionInfo(boolean noInit) {
-        this.handle = null;
-    }
+    private PositionInfo(boolean noInit) {}
     
     private static final PositionInfo defaultInstance;
     public static PositionInfo getDefaultInstance() {
@@ -99,11 +81,6 @@ public final class SchemaRegistryFormat {
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
-                        throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeInt64(1, ledgerId_);
@@ -141,13 +118,14 @@ public final class SchemaRegistryFormat {
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -214,28 +192,16 @@ public final class SchemaRegistryFormat {
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageLite.Builder<
           org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo, Builder>
-        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfoOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfoOrBuilder {
       // Construct using org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
+      private Builder() {
         maybeForceBuilderInitialization();
       }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
       
       private void maybeForceBuilderInitialization() {
       }
       private static Builder create() {
-        return RECYCLER.get();
+        return new Builder();
       }
       
       public Builder clear() {
@@ -274,7 +240,7 @@ public final class SchemaRegistryFormat {
       }
       
       public org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo buildPartial() {
-        org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo result = org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo.RECYCLER.get();
+        org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo result = new org.apache.pulsar.broker.schema.SchemaRegistryFormat.PositionInfo(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -312,13 +278,8 @@ public final class SchemaRegistryFormat {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
       public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
@@ -328,7 +289,7 @@ public final class SchemaRegistryFormat {
               
               return this;
             default: {
-              if (!input.skipField(tag)) {
+              if (!parseUnknownField(input, extensionRegistry, tag)) {
                 
                 return this;
               }
@@ -432,30 +393,12 @@ public final class SchemaRegistryFormat {
   }
   public static final class SchemaInfo extends
       com.google.protobuf.GeneratedMessageLite
-      implements SchemaInfoOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+      implements SchemaInfoOrBuilder {
     // Use SchemaInfo.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<SchemaInfo> handle;
-    private SchemaInfo(io.netty.util.Recycler.Handle<SchemaInfo> handle) {
-      this.handle = handle;
+    private SchemaInfo(Builder builder) {
+      super(builder);
     }
-    
-     private static final io.netty.util.Recycler<SchemaInfo> RECYCLER = new io.netty.util.Recycler<SchemaInfo>() {
-            protected SchemaInfo newObject(Handle<SchemaInfo> handle) {
-              return new SchemaInfo(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private SchemaInfo(boolean noInit) {
-        this.handle = null;
-    }
+    private SchemaInfo(boolean noInit) {}
     
     private static final SchemaInfo defaultInstance;
     public static SchemaInfo getDefaultInstance() {
@@ -468,26 +411,29 @@ public final class SchemaRegistryFormat {
     
     public enum SchemaType
         implements com.google.protobuf.Internal.EnumLite {
-      THRIFT(0, 1),
-      AVRO(1, 2),
-      JSON(2, 3),
-      PROTO(3, 4),
+      NONE(0, 1),
+      THRIFT(1, 2),
+      AVRO(2, 3),
+      JSON(3, 4),
+      PROTO(4, 5),
       ;
       
-      public static final int THRIFT_VALUE = 1;
-      public static final int AVRO_VALUE = 2;
-      public static final int JSON_VALUE = 3;
-      public static final int PROTO_VALUE = 4;
+      public static final int NONE_VALUE = 1;
+      public static final int THRIFT_VALUE = 2;
+      public static final int AVRO_VALUE = 3;
+      public static final int JSON_VALUE = 4;
+      public static final int PROTO_VALUE = 5;
       
       
       public final int getNumber() { return value; }
       
       public static SchemaType valueOf(int value) {
         switch (value) {
-          case 1: return THRIFT;
-          case 2: return AVRO;
-          case 3: return JSON;
-          case 4: return PROTO;
+          case 1: return NONE;
+          case 2: return THRIFT;
+          case 3: return AVRO;
+          case 4: return JSON;
+          case 5: return PROTO;
           default: return null;
         }
       }
@@ -621,7 +567,7 @@ public final class SchemaRegistryFormat {
     private void initFields() {
       schemaId_ = "";
       version_ = 0L;
-      type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.THRIFT;
+      type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
       timestamp_ = 0L;
       addedBy_ = "";
       hash_ = com.google.protobuf.ByteString.EMPTY;
@@ -648,11 +594,6 @@ public final class SchemaRegistryFormat {
     }
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
                         throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
@@ -719,13 +660,14 @@ public final class SchemaRegistryFormat {
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -792,28 +734,16 @@ public final class SchemaRegistryFormat {
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageLite.Builder<
           org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo, Builder>
-        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfoOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfoOrBuilder {
       // Construct using org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
+      private Builder() {
         maybeForceBuilderInitialization();
       }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
       
       private void maybeForceBuilderInitialization() {
       }
       private static Builder create() {
-        return RECYCLER.get();
+        return new Builder();
       }
       
       public Builder clear() {
@@ -822,7 +752,7 @@ public final class SchemaRegistryFormat {
         bitField0_ = (bitField0_ & ~0x00000001);
         version_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000002);
-        type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.THRIFT;
+        type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
         bitField0_ = (bitField0_ & ~0x00000004);
         timestamp_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000008);
@@ -860,7 +790,7 @@ public final class SchemaRegistryFormat {
       }
       
       public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo buildPartial() {
-        org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo result = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.RECYCLER.get();
+        org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo result = new org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -930,13 +860,8 @@ public final class SchemaRegistryFormat {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
       public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
@@ -946,7 +871,7 @@ public final class SchemaRegistryFormat {
               
               return this;
             default: {
-              if (!input.skipField(tag)) {
+              if (!parseUnknownField(input, extensionRegistry, tag)) {
                 
                 return this;
               }
@@ -1050,7 +975,7 @@ public final class SchemaRegistryFormat {
       }
       
       // required .pulsar.schema.SchemaInfo.SchemaType type = 3;
-      private org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.THRIFT;
+      private org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
       public boolean hasType() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
       }
@@ -1068,7 +993,7 @@ public final class SchemaRegistryFormat {
       }
       public Builder clearType() {
         bitField0_ = (bitField0_ & ~0x00000004);
-        type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.THRIFT;
+        type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
         
         return this;
       }
@@ -1178,30 +1103,12 @@ public final class SchemaRegistryFormat {
   }
   public static final class IndexEntry extends
       com.google.protobuf.GeneratedMessageLite
-      implements IndexEntryOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+      implements IndexEntryOrBuilder {
     // Use IndexEntry.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<IndexEntry> handle;
-    private IndexEntry(io.netty.util.Recycler.Handle<IndexEntry> handle) {
-      this.handle = handle;
+    private IndexEntry(Builder builder) {
+      super(builder);
     }
-    
-     private static final io.netty.util.Recycler<IndexEntry> RECYCLER = new io.netty.util.Recycler<IndexEntry>() {
-            protected IndexEntry newObject(Handle<IndexEntry> handle) {
-              return new IndexEntry(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private IndexEntry(boolean noInit) {
-        this.handle = null;
-    }
+    private IndexEntry(boolean noInit) {}
     
     private static final IndexEntry defaultInstance;
     public static IndexEntry getDefaultInstance() {
@@ -1260,11 +1167,6 @@ public final class SchemaRegistryFormat {
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
-                        throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeInt64(1, version_);
@@ -1302,13 +1204,14 @@ public final class SchemaRegistryFormat {
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -1375,28 +1278,16 @@ public final class SchemaRegistryFormat {
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageLite.Builder<
           org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry, Builder>
-        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntryOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntryOrBuilder {
       // Construct using org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
+      private Builder() {
         maybeForceBuilderInitialization();
       }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
       
       private void maybeForceBuilderInitialization() {
       }
       private static Builder create() {
-        return RECYCLER.get();
+        return new Builder();
       }
       
       public Builder clear() {
@@ -1435,7 +1326,7 @@ public final class SchemaRegistryFormat {
       }
       
       public org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry buildPartial() {
-        org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry result = org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry.RECYCLER.get();
+        org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry result = new org.apache.pulsar.broker.schema.SchemaRegistryFormat.IndexEntry(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -1477,13 +1368,8 @@ public final class SchemaRegistryFormat {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
       public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
@@ -1493,7 +1379,7 @@ public final class SchemaRegistryFormat {
               
               return this;
             default: {
-              if (!input.skipField(tag)) {
+              if (!parseUnknownField(input, extensionRegistry, tag)) {
                 
                 return this;
               }
@@ -1511,7 +1397,6 @@ public final class SchemaRegistryFormat {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setPosition(subBuilder.buildPartial());
-              subBuilder.recycle();
               break;
             }
           }
@@ -1610,7 +1495,7 @@ public final class SchemaRegistryFormat {
     boolean hasSchemaLocation();
     String getSchemaLocation();
     
-    // optional bool isDeleted = 4;
+    // required bool isDeleted = 4;
     boolean hasIsDeleted();
     boolean getIsDeleted();
     
@@ -1622,30 +1507,12 @@ public final class SchemaRegistryFormat {
   }
   public static final class SchemaEntry extends
       com.google.protobuf.GeneratedMessageLite
-      implements SchemaEntryOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+      implements SchemaEntryOrBuilder {
     // Use SchemaEntry.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<SchemaEntry> handle;
-    private SchemaEntry(io.netty.util.Recycler.Handle<SchemaEntry> handle) {
-      this.handle = handle;
+    private SchemaEntry(Builder builder) {
+      super(builder);
     }
-    
-     private static final io.netty.util.Recycler<SchemaEntry> RECYCLER = new io.netty.util.Recycler<SchemaEntry>() {
-            protected SchemaEntry newObject(Handle<SchemaEntry> handle) {
-              return new SchemaEntry(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private SchemaEntry(boolean noInit) {
-        this.handle = null;
-    }
+    private SchemaEntry(boolean noInit) {}
     
     private static final SchemaEntry defaultInstance;
     public static SchemaEntry getDefaultInstance() {
@@ -1709,7 +1576,7 @@ public final class SchemaRegistryFormat {
       }
     }
     
-    // optional bool isDeleted = 4;
+    // required bool isDeleted = 4;
     public static final int ISDELETED_FIELD_NUMBER = 4;
     private boolean isDeleted_;
     public boolean hasIsDeleted() {
@@ -1756,6 +1623,10 @@ public final class SchemaRegistryFormat {
         memoizedIsInitialized = 0;
         return false;
       }
+      if (!hasIsDeleted()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
       if (!getInfo().isInitialized()) {
         memoizedIsInitialized = 0;
         return false;
@@ -1771,11 +1642,6 @@ public final class SchemaRegistryFormat {
     }
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
                         throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
@@ -1835,13 +1701,14 @@ public final class SchemaRegistryFormat {
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -1908,28 +1775,16 @@ public final class SchemaRegistryFormat {
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageLite.Builder<
           org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry, Builder>
-        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntryOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntryOrBuilder {
       // Construct using org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
+      private Builder() {
         maybeForceBuilderInitialization();
       }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
       
       private void maybeForceBuilderInitialization() {
       }
       private static Builder create() {
-        return RECYCLER.get();
+        return new Builder();
       }
       
       public Builder clear() {
@@ -1974,7 +1829,7 @@ public final class SchemaRegistryFormat {
       }
       
       public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry buildPartial() {
-        org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry result = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry.RECYCLER.get();
+        org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry result = new org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaEntry(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -2034,6 +1889,10 @@ public final class SchemaRegistryFormat {
           
           return false;
         }
+        if (!hasIsDeleted()) {
+          
+          return false;
+        }
         if (!getInfo().isInitialized()) {
           
           return false;
@@ -2047,13 +1906,8 @@ public final class SchemaRegistryFormat {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
       public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
@@ -2063,7 +1917,7 @@ public final class SchemaRegistryFormat {
               
               return this;
             default: {
-              if (!input.skipField(tag)) {
+              if (!parseUnknownField(input, extensionRegistry, tag)) {
                 
                 return this;
               }
@@ -2076,7 +1930,6 @@ public final class SchemaRegistryFormat {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setInfo(subBuilder.buildPartial());
-              subBuilder.recycle();
               break;
             }
             case 18: {
@@ -2209,7 +2062,7 @@ public final class SchemaRegistryFormat {
         
       }
       
-      // optional bool isDeleted = 4;
+      // required bool isDeleted = 4;
       private boolean isDeleted_ ;
       public boolean hasIsDeleted() {
         return ((bitField0_ & 0x00000008) == 0x00000008);
@@ -2349,30 +2202,12 @@ public final class SchemaRegistryFormat {
   }
   public static final class SchemaLocator extends
       com.google.protobuf.GeneratedMessageLite
-      implements SchemaLocatorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+      implements SchemaLocatorOrBuilder {
     // Use SchemaLocator.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<SchemaLocator> handle;
-    private SchemaLocator(io.netty.util.Recycler.Handle<SchemaLocator> handle) {
-      this.handle = handle;
+    private SchemaLocator(Builder builder) {
+      super(builder);
     }
-    
-     private static final io.netty.util.Recycler<SchemaLocator> RECYCLER = new io.netty.util.Recycler<SchemaLocator>() {
-            protected SchemaLocator newObject(Handle<SchemaLocator> handle) {
-              return new SchemaLocator(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private SchemaLocator(boolean noInit) {
-        this.handle = null;
-    }
+    private SchemaLocator(boolean noInit) {}
     
     private static final SchemaLocator defaultInstance;
     public static SchemaLocator getDefaultInstance() {
@@ -2463,11 +2298,6 @@ public final class SchemaRegistryFormat {
     
     public void writeTo(com.google.protobuf.CodedOutputStream output)
                         throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
-                        throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         output.writeMessage(1, info_);
@@ -2512,13 +2342,14 @@ public final class SchemaRegistryFormat {
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator parseFrom(
         com.google.protobuf.ByteString data)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data).buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator parseFrom(
         com.google.protobuf.ByteString data,
         com.google.protobuf.ExtensionRegistryLite extensionRegistry)
         throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
     }
     public static org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator parseFrom(byte[] data)
         throws com.google.protobuf.InvalidProtocolBufferException {
@@ -2585,28 +2416,16 @@ public final class SchemaRegistryFormat {
     public static final class Builder extends
         com.google.protobuf.GeneratedMessageLite.Builder<
           org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator, Builder>
-        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocatorOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+        implements org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocatorOrBuilder {
       // Construct using org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
+      private Builder() {
         maybeForceBuilderInitialization();
       }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
       
       private void maybeForceBuilderInitialization() {
       }
       private static Builder create() {
-        return RECYCLER.get();
+        return new Builder();
       }
       
       public Builder clear() {
@@ -2647,7 +2466,7 @@ public final class SchemaRegistryFormat {
       }
       
       public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator buildPartial() {
-        org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator result = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator.RECYCLER.get();
+        org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator result = new org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaLocator(this);
         int from_bitField0_ = bitField0_;
         int to_bitField0_ = 0;
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
@@ -2714,13 +2533,8 @@ public final class SchemaRegistryFormat {
         return true;
       }
       
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
       public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.CodedInputStream input,
           com.google.protobuf.ExtensionRegistryLite extensionRegistry)
           throws java.io.IOException {
         while (true) {
@@ -2730,7 +2544,7 @@ public final class SchemaRegistryFormat {
               
               return this;
             default: {
-              if (!input.skipField(tag)) {
+              if (!parseUnknownField(input, extensionRegistry, tag)) {
                 
                 return this;
               }
@@ -2743,7 +2557,6 @@ public final class SchemaRegistryFormat {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setInfo(subBuilder.buildPartial());
-              subBuilder.recycle();
               break;
             }
             case 18: {
@@ -2753,7 +2566,6 @@ public final class SchemaRegistryFormat {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setPosition(subBuilder.buildPartial());
-              subBuilder.recycle();
               break;
             }
             case 26: {

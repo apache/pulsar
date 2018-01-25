@@ -50,6 +50,7 @@ public class AdvertisedAddressTest {
         config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
         config.setClusterName("usc");
+        config.setAdvertisedAddress("localhost");
         config.setBrokerServicePort(BROKER_SERVICE_PORT);
         config.setAdvertisedAddress(advertisedAddress);
         config.setManagedLedgerMaxEntriesPerLedger(5);

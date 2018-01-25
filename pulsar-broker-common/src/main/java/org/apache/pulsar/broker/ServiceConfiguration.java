@@ -61,6 +61,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;
+    // Enable cluster's failure-domain which can distribute brokers into logical region
+    @FieldContext(dynamic = true)
+    private boolean failureDomainsEnabled = false;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
     // Time to wait for broker graceful shutdown. After this time elapses, the
@@ -285,10 +288,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into
     // zookeeper.
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    // Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
+    // corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+    @FieldContext(dynamic = true)
+    private boolean autoSkipNonRecoverableData = false;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
-    private boolean loadBalancerEnabled = false;
+    private boolean loadBalancerEnabled = true;
     // load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)
     @Deprecated
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
@@ -466,6 +473,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setClusterName(String clusterName) {
         this.clusterName = clusterName;
+    }
+
+    public boolean isFailureDomainsEnabled() {
+        return failureDomainsEnabled;
+    }
+
+    public void setFailureDomainsEnabled(boolean failureDomainsEnabled) {
+        this.failureDomainsEnabled = failureDomainsEnabled;
     }
 
     public long getBrokerShutdownTimeoutMs() {
@@ -1031,6 +1046,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setManagedLedgerMaxUnackedRangesToPersistInZooKeeper(
             int managedLedgerMaxUnackedRangesToPersistInZookeeper) {
         this.managedLedgerMaxUnackedRangesToPersistInZooKeeper = managedLedgerMaxUnackedRangesToPersistInZookeeper;
+    }
+
+    public boolean isAutoSkipNonRecoverableData() {
+        return autoSkipNonRecoverableData;
+    }
+
+    public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableLedger) {
+        this.autoSkipNonRecoverableData = skipNonRecoverableLedger;
     }
 
     public boolean isLoadBalancerEnabled() {

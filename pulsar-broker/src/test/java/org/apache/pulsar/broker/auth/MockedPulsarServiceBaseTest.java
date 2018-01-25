@@ -78,6 +78,7 @@ public abstract class MockedPulsarServiceBaseTest {
     protected MockZooKeeper mockZookKeeper;
     protected NonClosableMockBookKeeper mockBookKeeper;
     protected boolean isTcpLookup = false;
+    protected final String configClusterName = "test";
 
     private SameThreadOrderedSafeExecutor sameThreadOrderedSafeExecutor;
 
@@ -89,15 +90,15 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
         this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
         this.conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
-        this.conf.setClusterName("test");
+        this.conf.setClusterName(configClusterName);
         this.conf.setAdvertisedAddress("localhost"); // there are TLS tests in here, they need to use localhost because of the certificate
         this.conf.setManagedLedgerCacheSizeMB(8);
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
-        this.conf.setClusterName("mock");
     }
 
     protected final void internalSetup() throws Exception {
@@ -184,7 +185,7 @@ public abstract class MockedPulsarServiceBaseTest {
         // Override default providers with mocked ones
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).getBookKeeperClientFactory();
-        doReturn(new MockSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
+//        doReturn(new MockSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();

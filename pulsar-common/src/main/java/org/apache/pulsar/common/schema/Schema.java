@@ -1,5 +1,7 @@
 package org.apache.pulsar.common.schema;
 
+import com.google.common.base.MoreObjects;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -7,6 +9,7 @@ public class Schema {
     public final SchemaType type;
     public final long version;
     public final boolean isDeleted;
+    public final String schemaInfo;
     public final String id;
     public final long timestamp;
     public final String user;
@@ -16,20 +19,36 @@ public class Schema {
         this.type = builder.type;
         this.version = builder.version;
         this.isDeleted = builder.isDeleted;
+        this.schemaInfo = builder.schemaInfo;
         this.id = builder.id;
         this.timestamp = builder.timestamp;
         this.user = builder.user;
         this.data = builder.data;
     }
 
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(Schema.class)
+            .add("type", type)
+            .add("version", version)
+            .add("isDeleted", isDeleted)
+            .add("schemaInfo", schemaInfo)
+            .add("id", id)
+            .add("timestamp", timestamp)
+            .add("user", user)
+            .add("data", data)
+            .toString();
+    }
+
     public static class Builder {
-        private SchemaType type = null;
-        private long version = -1;
-        private boolean isDeleted = false;
-        private String id = null;
-        private long timestamp = -1;
-        private String user = null;
-        private byte[] data = null;
+        private SchemaType type;
+        private long version;
+        private boolean isDeleted;
+        private String schemaInfo = "";
+        private String id;
+        private long timestamp;
+        private String user;
+        private byte[] data;
 
         public Builder type(SchemaType type) {
             this.type = type;
@@ -43,6 +62,11 @@ public class Schema {
 
         public Builder isDeleted(boolean isDeleted) {
             this.isDeleted = isDeleted;
+            return this;
+        }
+
+        public Builder schemaInfo(String schemaInfo) {
+            this.schemaInfo = schemaInfo;
             return this;
         }
 
@@ -69,8 +93,8 @@ public class Schema {
         public Schema build() {
             checkNotNull(type);
             checkArgument(version > 0);
+            checkNotNull(schemaInfo);
             checkNotNull(id);
-            checkArgument(timestamp > 0);
             checkNotNull(user);
             checkNotNull(data);
             return new Schema(this);

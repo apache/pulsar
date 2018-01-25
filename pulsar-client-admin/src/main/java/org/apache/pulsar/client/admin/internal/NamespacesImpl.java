@@ -229,6 +229,55 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
+    public void setNamespaceAntiAffinityGroup(String namespace, String namespaceAntiAffinityGroup)
+            throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                    .path("antiAffinity")).post(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON),
+                            ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public String getNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            return request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                    .path("antiAffinity")).get(new GenericType<String>() {
+                    });
+
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
+            throws PulsarAdminException {
+        try {
+            return request(namespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup)
+                    .queryParam("property", property)).get(new GenericType<List<String>>() {
+                    });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void deleteNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                    .path("antiAffinity")).delete(ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
     public void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
