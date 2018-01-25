@@ -43,13 +43,13 @@ import java.util.stream.Collectors;
 public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, O> {
 
     private boolean initialized;
-    private WindowConfig windowConfig;
+    protected WindowConfig windowConfig;
     private WindowManager<I> windowManager;
     private TimestampExtractor<I> timestampExtractor;
     protected transient WaterMarkEventGenerator<I> waterMarkEventGenerator;
 
-    private static final long DEFAULT_MAX_LAG_MS = 0; // no lag
-    private static final long DEFAULT_WATERMARK_EVENT_INTERVAL_MS = 1000; // 1s
+    protected static final long DEFAULT_MAX_LAG_MS = 0; // no lag
+    protected static final long DEFAULT_WATERMARK_EVENT_INTERVAL_MS = 1000; // 1s
 
     public void initialize(Context context) {
         this.windowConfig = this.getWindowConfigs(context);
@@ -72,7 +72,7 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
             windowConfig.setSlidingIntervalCount(Integer.parseInt(context.getUserConfigValue("slidingIntervalCount")));
         }
         if (context.getUserConfigValue("slidingIntervalDurationMs") != null) {
-            windowConfig.setSlidingDurationMs(Long.parseLong(context.getUserConfigValue("slidingIntervalDurationMs")));
+            windowConfig.setSlidingIntervalDurationMs(Long.parseLong(context.getUserConfigValue("slidingIntervalDurationMs")));
         }
         if (context.getUserConfigValue("lateDataTopic") != null) {
             windowConfig.setLateDataTopic(context.getUserConfigValue("lateDataTopic"));
@@ -102,8 +102,38 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
                     "Window length for time and count are set! Please set one or the other.");
         }
 
-        if (windowConfig.getWindowLengthDurationMs() != null && windowConfig.getSlidingDurationMs() == null) {
-            windowConfig.setSlidingDurationMs(windowConfig.getWindowLengthDurationMs());
+        if (windowConfig.getWindowLengthCount() != null) {
+            if (windowConfig.getWindowLengthCount() <= 0) {
+                throw new IllegalArgumentException(
+                        "Window length must be positive [" + windowConfig.getWindowLengthCount() + "]");
+            }
+        }
+
+        if (windowConfig.getWindowLengthDurationMs() != null) {
+            if (windowConfig.getWindowLengthDurationMs() <= 0) {
+                throw new IllegalArgumentException(
+                        "Window length must be positive [" + windowConfig.getWindowLengthDurationMs() + "]");
+            }
+        }
+
+        if (windowConfig.getSlidingIntervalCount() != null) {
+            if (windowConfig.getSlidingIntervalCount() <= 0) {
+                throw new IllegalArgumentException(
+                        "Sliding interval must be positive [" + windowConfig.getSlidingIntervalCount() + "]");
+
+            }
+        }
+
+        if (windowConfig.getSlidingIntervalDurationMs() != null) {
+            if (windowConfig.getSlidingIntervalDurationMs() <= 0) {
+                throw new IllegalArgumentException(
+                        "Sliding interval must be positive [" + windowConfig.getSlidingIntervalDurationMs() + "]");
+
+            }
+        }
+
+        if (windowConfig.getWindowLengthDurationMs() != null && windowConfig.getSlidingIntervalDurationMs() == null) {
+            windowConfig.setSlidingIntervalDurationMs(windowConfig.getWindowLengthDurationMs());
         }
 
         if (windowConfig.getWindowLengthCount() != null && windowConfig.getSlidingIntervalCount() == null) {
@@ -111,10 +141,20 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
         }
 
         if (windowConfig.getTimestampExtractorClassName() != null) {
-            if (windowConfig.getMaxLagMs() == null) {
+            if (windowConfig.getMaxLagMs() != null) {
+                if (windowConfig.getMaxLagMs() <= 0) {
+                    throw new IllegalArgumentException(
+                            "Lag duration must be positive [" + windowConfig.getMaxLagMs() + "]");
+                }
+            } else {
                 windowConfig.setMaxLagMs(DEFAULT_MAX_LAG_MS);
             }
-            if (windowConfig.getWatermarkEmitIntervalMs() == null) {
+            if (windowConfig.getWatermarkEmitIntervalMs() != null) {
+                if (windowConfig.getWatermarkEmitIntervalMs() <= 0) {
+                    throw new IllegalArgumentException(
+                            "Watermark interval must be positive [" + windowConfig.getWatermarkEmitIntervalMs() + "]");
+                }
+            } else {
                 windowConfig.setWatermarkEmitIntervalMs(DEFAULT_WATERMARK_EVENT_INTERVAL_MS);
             }
         }
@@ -153,7 +193,9 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
             theCls = Class.forName(windowConfig.getTimestampExtractorClassName(),
                     true, Thread.currentThread().getContextClassLoader());
         } catch (ClassNotFoundException cnfe) {
-            throw new RuntimeException("Timestamp extractor class must be in class path", cnfe);
+            throw new RuntimeException(
+                    String.format("Timestamp extractor class %s must be in class path",
+                            windowConfig.getTimestampExtractorClassName()), cnfe);
         }
 
         Object result;
@@ -193,9 +235,9 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
             }
         } else {
             if (this.isEventTime()) {
-                return new WatermarkTimeTriggerPolicy<>(windowConfig.getSlidingDurationMs(), manager, evictionPolicy, manager);
+                return new WatermarkTimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager, evictionPolicy, manager);
             }
-            return new TimeTriggerPolicy<>(windowConfig.getSlidingDurationMs(), manager,
+            return new TimeTriggerPolicy<>(windowConfig.getSlidingIntervalDurationMs(), manager,
                     evictionPolicy, context);
         }
     }
@@ -271,6 +313,14 @@ public abstract class WindowedPulsarFunction<I, O> implements PulsarFunction<I, 
 
         log.debug("Starting trigger policy");
         this.windowManager.triggerPolicy.start();
+    }
+
+    public void shutdown() {
+        if (this.waterMarkEventGenerator != null) {
+            this.waterMarkEventGenerator.shutdown();
+        } if (this.windowManager != null) {
+            this.windowManager.shutdown();
+        }
     }
 
     private boolean isEventTime() {

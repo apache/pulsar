@@ -31,7 +31,6 @@ import static org.testng.Assert.assertNull;
 
 import java.io.File;
 import java.net.URI;
-import java.net.URL;
 import org.apache.pulsar.admin.cli.CmdFunctions.CreateFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.DeleteFunction;
 import org.apache.pulsar.admin.cli.CmdFunctions.GetFunction;

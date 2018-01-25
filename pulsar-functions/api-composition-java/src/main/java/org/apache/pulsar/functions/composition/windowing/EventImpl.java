@@ -19,9 +19,11 @@
 
 package org.apache.pulsar.functions.composition.windowing;
 
+import lombok.EqualsAndHashCode;
 import lombok.ToString;
 
 @ToString
+@EqualsAndHashCode
 public class EventImpl<T> implements Event<T> {
   private final T event;
   private final long ts;
