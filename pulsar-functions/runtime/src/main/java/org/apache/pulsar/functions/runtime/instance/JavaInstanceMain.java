@@ -22,6 +22,8 @@ package org.apache.pulsar.functions.runtime.instance;
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.converters.StringConverter;
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.Empty;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
@@ -35,6 +37,7 @@ import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImp
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
+import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -132,16 +135,9 @@ public class JavaInstanceMain {
         } else {
             functionConfigBuilder.setAutoAck(false);
         }
-        Map<String, String> userConfigMap = new HashMap<>();
-
         if (userConfig != null && !userConfig.isEmpty()) {
-            String[] params = userConfig.split(",");
-            for (String p : params) {
-                String[] kv = p.split(":");
-                if (kv.length == 2) {
-                    userConfigMap.put(kv[0], kv[1]);
-                }
-            }
+            Type type = new TypeToken<Map<String, String>>(){}.getType();
+            Map<String, String> userConfigMap = new Gson().fromJson(userConfig, type);
             functionConfigBuilder.putAllUserConfig(userConfigMap);
         }
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());

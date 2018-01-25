@@ -22,6 +22,7 @@ package org.apache.pulsar.functions.runtime.container;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -142,16 +143,9 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add("--max_buffered_tuples");
         args.add(String.valueOf(maxBufferedTuples));
         Map<String, String> userConfig = instanceConfig.getFunctionConfig().getUserConfigMap();
-        String userConfigString = "";
         if (userConfig != null && !userConfig.isEmpty()) {
-            for (Map.Entry<String, String> entry : userConfig.entrySet()) {
-                if (!userConfigString.isEmpty()) {
-                    userConfigString = userConfigString + ",";
-                }
-                userConfigString = userConfigString + entry.getKey() + ":" + entry.getValue();
-            }
             args.add("--user_config");
-            args.add(userConfigString);
+            args.add(new Gson().toJson(userConfig));
         }
         instancePort = findAvailablePort();
         args.add("--port");
@@ -182,14 +176,16 @@ class ProcessFunctionContainer implements FunctionContainer {
                     try {
                         byte[] errorBytes = new byte[errorStream.available()];
                         errorStream.read(errorBytes);
-                        startupException = new RuntimeException(new String(errorBytes));
+                        String errorMessage = new String(errorBytes);
+                        startupException = new RuntimeException(errorMessage);
+                        log.error("ErrorStream was " + errorMessage);
                     } catch (Exception ex) {
                         startupException = ex;
                     }
                     startProcess();
                 }
             }
-        }, alivenessCheckInterval, alivenessCheckInterval);
+        }, alivenessCheckInterval * 1000, alivenessCheckInterval * 1000);
     }
 
     @Override

@@ -45,6 +45,7 @@ import os
 import sys
 import signal
 import time
+import json
 from collections import namedtuple
 
 import pulsar
@@ -120,10 +121,9 @@ def main():
   else:
     function_config.autoAck = False
   if args.user_config != None and len(args.user_config) != 0:
-    user_config = args.user_config.split(",")
-    for config in user_config:
-      (key, value) = config.split(":")
-      function_config.userConfig[key] = value
+    user_config = json.loads(args.user_config)
+    for (key, value) in user_config.items():
+      function_config.userConfig[str(key)] = str(value)
 
   # TODO(sanjeev):- Implement limits
   limits = LimitsConfig(-1, -1, -1, args.max_buffered_tuples)
