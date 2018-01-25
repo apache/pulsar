@@ -18,6 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
+import static org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl.createManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.util.Enumeration;
@@ -197,7 +198,7 @@ public class EntryCacheManager {
             lh.asyncReadEntries(firstEntry, lastEntry, new ReadCallback() {
                 public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object bkctx) {
                     if (rc != BKException.Code.OK) {
-                        callback.readEntriesFailed(new ManagedLedgerException(BKException.create(rc)), ctx);
+                        callback.readEntriesFailed(createManagedLedgerException(rc), ctx);
                         return;
                     }
 

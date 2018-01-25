@@ -41,18 +41,21 @@ class PulsarFriend;
 class PulsarWrapper;
 
 class Client {
- public:
+   public:
     /**
-     * Create a Pulsar client object connecting to the specified cluster address and using the default configuration.
+     * Create a Pulsar client object connecting to the specified cluster address and using the default
+     * configuration.
      *
      * @param serviceUrl the Pulsar endpoint to use (eg: pulsar://localhost:6650)
      */
     Client(const std::string& serviceUrl);
 
     /**
-     * Create a Pulsar client object connecting to the specified cluster address and using the specified configuration.
+     * Create a Pulsar client object connecting to the specified cluster address and using the specified
+     * configuration.
      *
-     * @param serviceUrl the Pulsar endpoint to use (eg: http://brokerv2-pdev.messaging.corp.gq1.yahoo.com:4080 for Sandbox access)
+     * @param serviceUrl the Pulsar endpoint to use (eg:
+     * http://brokerv2-pdev.messaging.corp.gq1.yahoo.com:4080 for Sandbox access)
      * @param clientConfiguration the client configuration to use
      */
     Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration);
@@ -80,8 +83,7 @@ class Client {
      * @return ResultOk if the producer has been successfully created
      * @return ResultError if there was an error
      */
-    Result createProducer(const std::string& topic, const ProducerConfiguration& conf,
-                          Producer& producer);
+    Result createProducer(const std::string& topic, const ProducerConfiguration& conf, Producer& producer);
 
     void createProducerAsync(const std::string& topic, CreateProducerCallback callback);
 
@@ -98,34 +100,39 @@ class Client {
                         const ConsumerConfiguration& conf, SubscribeCallback callback);
 
     /**
-     * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.
+     * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified
+     * topic.
      * <p>
-     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
+     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without
+     * using a
      * subscription. Reader can only work on non-partitioned topics.
      * <p>
      * The initial reader positioning is done by specifying a message id. The options are:
      * <ul>
      * <li><code>MessageId.earliest</code> : Start reading from the earliest message available in the topic
-     * <li><code>MessageId.latest</code> : Start reading from the end topic, only getting messages published after the
+     * <li><code>MessageId.latest</code> : Start reading from the end topic, only getting messages published
+     * after the
      * reader was created
-     * <li><code>MessageId</code> : When passing a particular message id, the reader will position itself on that
+     * <li><code>MessageId</code> : When passing a particular message id, the reader will position itself on
+     * that
      * specific position. The first message to be read will be the message next to the specified messageId.
      * </ul>
      *
      * @param topic
      *            The name of the topic where to read
      * @param startMessageId
-     *            The message id where the reader will position itself. The first message returned will be the one after
+     *            The message id where the reader will position itself. The first message returned will be the
+     * one after
      *            the specified startMessageId
      * @param conf
      *            The {@code ReaderConfiguration} object
      * @return The {@code Reader} object
      */
-     Result createReader(const std::string& topic, const MessageId& startMessageId,
-                       const ReaderConfiguration& conf, Reader& reader);
+    Result createReader(const std::string& topic, const MessageId& startMessageId,
+                        const ReaderConfiguration& conf, Reader& reader);
 
-     void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
-                            const ReaderConfiguration& conf, ReaderCallback callback);
+    void createReaderAsync(const std::string& topic, const MessageId& startMessageId,
+                           const ReaderConfiguration& conf, ReaderCallback callback);
 
     /**
      *
@@ -137,16 +144,16 @@ class Client {
 
     void shutdown();
 
- private:
-    Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration, bool poolConnections);
+   private:
+    Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
+           bool poolConnections);
     Client(const boost::shared_ptr<ClientImpl>);
 
     friend class PulsarFriend;
     friend class PulsarWrapper;
     boost::shared_ptr<ClientImpl> impl_;
 };
-
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

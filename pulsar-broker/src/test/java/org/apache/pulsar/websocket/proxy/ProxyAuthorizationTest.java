@@ -44,7 +44,8 @@ import com.google.common.collect.Sets;
 
 public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     private WebSocketService service;
-    private static final int TEST_PORT = PortManager.nextFreePort();;
+    private static final int TEST_PORT = PortManager.nextFreePort();
+    private final String configClusterName = "c1";
 
     public ProxyAuthorizationTest() {
         super();
@@ -53,7 +54,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setClusterName("c1");
+        conf.setClusterName(configClusterName);
         internalSetup();
 
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
@@ -81,7 +82,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), false);
 
-        admin.clusters().createCluster("c1", new ClusterData());
+        admin.clusters().updateCluster(configClusterName, new ClusterData());
         admin.properties().createProperty("p1", new PropertyAdmin(Lists.newArrayList("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");
@@ -102,8 +103,8 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role"), true);
         assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), true);
         assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role"), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role"), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds2"), "no-access-role"), false);
+        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role", null), true);
+        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null), false);
 
         assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "no-access-role"), false);
 
@@ -111,7 +112,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
         waitForChange();
 
         assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), true);
+        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.properties().deleteProperty("p1");

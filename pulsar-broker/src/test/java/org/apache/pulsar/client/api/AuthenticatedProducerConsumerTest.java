@@ -22,10 +22,7 @@ import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.InternalServerErrorException;
@@ -42,8 +39,10 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +67,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
+        if (methodName.equals("testAnonymousSyncProducerAndConsumer")) {
+            conf.setAnonymousUserRole("anonymousUser");
+        }
+
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
@@ -119,26 +122,10 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         return new Object[][] { { 0 }, { 1000 } };
     }
 
-    @Test(dataProvider = "batch")
-    public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
-        log.info("-- Starting {} test --", methodName);
-
-        Map<String, String> authParams = new HashMap<>();
-        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
-        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
-        Authentication authTls = new AuthenticationTls();
-        authTls.configure(authParams);
-        internalSetup(authTls);
-
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
-
+    public void testSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name",
                 conf);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
@@ -149,7 +136,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
             producerConf.setBatchingMaxMessages(5);
         }
 
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", producerConf);
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -167,6 +154,70 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         // Acknowledge the consumption of all messages at once
         consumer.acknowledgeCumulative(msg);
         consumer.close();
+    }
+
+    @Test(dataProvider = "batch")
+    public void testTlsSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        internalSetup(authTls);
+
+        admin.clusters().updateCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+        admin.properties().createProperty("my-property",
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+        admin.namespaces().createNamespace("my-property/use/my-ns");
+
+        testSyncProducerAndConsumer(batchMessageDelayMs);
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test(dataProvider = "batch")
+    public void testAnonymousSyncProducerAndConsumer(int batchMessageDelayMs) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        Authentication authTls = new AuthenticationTls();
+        authTls.configure(authParams);
+        internalSetup(authTls);
+
+        admin.clusters().updateCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+        admin.properties().createProperty("my-property",
+                new PropertyAdmin(Lists.newArrayList("anonymousUser"), Sets.newHashSet("use")));
+
+        // make a PulsarAdmin instance as "anonymousUser" for http request
+        admin.close();
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setOperationTimeout(1, TimeUnit.SECONDS);
+        admin = spy(new PulsarAdmin(brokerUrl, clientConf));
+        admin.namespaces().createNamespace("my-property/use/my-ns");
+        admin.persistentTopics().grantPermission("persistent://my-property/use/my-ns/my-topic", "anonymousUser", EnumSet
+                .allOf(AuthAction.class));
+
+        // setup the client
+        pulsarClient.close();
+        pulsarClient = PulsarClient.create("pulsar://localhost:" + BROKER_PORT, clientConf);
+
+        // unauthorized topic test
+        Exception pulsarClientException = null;
+        try {
+            pulsarClient.subscribe("persistent://my-property/use/my-ns/other-topic", "my-subscriber-name");
+        } catch (Exception e) {
+            pulsarClientException = e;
+        }
+        Assert.assertTrue(pulsarClientException instanceof PulsarClientException);
+
+        testSyncProducerAndConsumer(batchMessageDelayMs);
+
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -192,7 +243,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         // this will cause NPE and it should throw 500
         doReturn(null).when(pulsar).getGlobalZkCache();
         try {
-            admin.clusters().createCluster(cluster, clusterData);
+            admin.clusters().updateCluster(cluster, clusterData);
         } catch (PulsarAdminException e) {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
@@ -217,7 +268,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().updateCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));

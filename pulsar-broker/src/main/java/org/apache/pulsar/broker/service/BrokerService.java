@@ -123,6 +123,7 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
@@ -289,7 +290,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
             tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort)).sync();
-            log.info("Started Pulsar Broker TLS service on port {}", tlsPort);
+            log.info("Started Pulsar Broker TLS service on port {} - TLS provider: {}", tlsPort,
+                    SslContext.defaultServerProvider());
         }
 
         // start other housekeeping functions
@@ -1061,6 +1063,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         registerConfigurationListener("dispatchThrottlingRatePerTopicInByte", (dispatchRatePerTopicInByte) -> {
             updateTopicMessageDispatchRate();
         });
+        // add listener to update managed-ledger config to skipNonRecoverableLedgers
+        registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
+            updateManagedLedgerConfig();
+        });
         // add more listeners here
     }
 
@@ -1085,6 +1091,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         });
     }
 
+    private void updateManagedLedgerConfig() {
+        this.pulsar().getExecutor().submit(() -> {
+            // update managed-ledger config of each topic
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    String topicName = null;
+                    try {
+                        if (topicFuture.getNow(null) instanceof PersistentTopic) {
+                            PersistentTopic topic = (PersistentTopic) topicFuture.get();
+                            topicName = topicFuture.get().getName();
+                            // update skipNonRecoverableLedger configuration
+                            topic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
+                                    pulsar.getConfiguration().isAutoSkipNonRecoverableData());
+                        }
+                    } catch (Exception e) {
+                        log.warn("[{}] failed to update managed-ledger config", topicName, e);
+                    }
+                }
+            });
+        });
+    }
+    
     /**
      * Allows a listener to listen on update of {@link ServiceConfiguration} change, so listener can take appropriate
      * action if any specific config-field value has been changed.
