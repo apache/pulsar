@@ -89,6 +89,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf = new ServiceConfiguration();
         this.conf.setBrokerServicePort(BROKER_PORT);
         this.conf.setBrokerServicePortTls(BROKER_PORT_TLS);
+        this.conf.setAdvertisedAddress("localhost");
         this.conf.setWebServicePort(BROKER_WEBSERVICE_PORT);
         this.conf.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         this.conf.setClusterName(configClusterName);

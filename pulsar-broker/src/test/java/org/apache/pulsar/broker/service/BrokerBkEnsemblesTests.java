@@ -87,6 +87,7 @@ public class BrokerBkEnsemblesTests {
             // start pulsar service
             config = new ServiceConfiguration();
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
+            config.setAdvertisedAddress("localhost");
             config.setWebServicePort(BROKER_WEBSERVICE_PORT);
             config.setClusterName("usc");
             config.setBrokerServicePort(BROKER_SERVICE_PORT);
