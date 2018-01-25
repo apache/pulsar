@@ -46,6 +46,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.client.util.SeekPosition;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -106,6 +107,7 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final Map<String, String> metadata;
 
+    private final MessageId seekPosition;
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -164,6 +166,8 @@ public class ConsumerImpl extends ConsumerBase {
         } else {
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
+
+        this.seekPosition = SeekPosition.getPosition(metadata.get(seekPositonKey));
 
         grabCnx();
     }
@@ -1202,6 +1206,20 @@ public class ConsumerImpl extends ConsumerBase {
             log.warn("[{}] Reconnecting the client to redeliver the messages.", this);
             cnx.ctx().close();
         }
+    }
+
+    @Override
+    public void seek() throws PulsarClientException {
+        try {
+            seekAsync().get();
+        } catch (ExecutionException | InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync() {
+        return seekAsync(this.seekPosition);
     }
 
     @Override

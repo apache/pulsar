@@ -278,4 +278,43 @@ public interface Consumer extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
+
+
+    /**
+     * Reset the subscription associated with this consumer to a configured message id.
+     * <p>
+     *
+     * The message id can either be the first or last messages in the topic which is determined by your client configuration.
+     * Corresponding configuration is <b>seekPosition</b>, legal choice has to be one of following:
+     * <p>
+     * <ul>
+     * <li>earliest: Reset the subscription on the earliest message available in the topic
+     * <li>latest: Reset the subscription on the latest message in the topic, it's the default configuration if not given
+     * </ul>
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     */
+    void seek() throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this consumer to a configured message id.
+     * <p>
+     *
+     * The message id can either be the first or last messages in the topic which is determined by your client configuration.
+     * Corresponding configuration is <b>seekPosition</b>, legal choice has to be one of following:
+     * <p>
+     * <ul>
+     * <li>earliest: Reset the subscription on the earliest message available in the topic
+     * <li>latest: Reset the subscription on the latest message in the topic, it's the default configuration if not given
+     * </ul>
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     */
+    CompletableFuture<Void> seekAsync();
+
+    public final static String seekPositonKey = "seekPosition";
 }
