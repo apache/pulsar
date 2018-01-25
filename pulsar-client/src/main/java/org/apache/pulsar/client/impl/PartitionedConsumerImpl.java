@@ -492,6 +492,22 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on partitioned topics"));
     }
 
+    @Override
+    public void seek() throws PulsarClientException {
+        try {
+            seekAsync().get();
+        } catch (ExecutionException e) {
+            throw new PulsarClientException(e.getCause());
+        } catch (InterruptedException e) {
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> seekAsync() {
+        return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on partitioned topics"));
+    }
+
     /**
      * helper method that returns current state of data structure used to track acks for batch messages
      *
