@@ -133,8 +133,8 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         schemaRegistryService.putSchema(
+            buildSchemaId(property, cluster, namespace, topic),
             Schema.newBuilder()
-                .id(buildSchemaId(property, cluster, namespace, topic))
                 .data(payload.schema.getBytes())
                 .isDeleted(false)
                 .timestamp(clock.millis())
