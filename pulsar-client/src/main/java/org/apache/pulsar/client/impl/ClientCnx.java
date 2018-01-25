@@ -23,6 +23,7 @@ import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -154,14 +155,9 @@ public class ClientCnx extends PulsarHandler {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (state != State.Failed) {
-            if (cause instanceof NativeIoException) {
-                // No need to report stack trace for known exceptions that happen in disconnections
-                log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(),
-                        cause.getMessage());
-            } else {
-                log.warn("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
-            }
-
+            // No need to report stack trace for known exceptions that happen in disconnections
+            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                    isKnownException(cause) ? null : cause);
             state = State.Failed;
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
@@ -172,6 +168,10 @@ public class ClientCnx extends PulsarHandler {
         }
 
         ctx.close();
+    }
+
+    public static boolean isKnownException(Throwable t) {
+        return t instanceof NativeIoException || t instanceof ClosedChannelException;
     }
 
     @Override

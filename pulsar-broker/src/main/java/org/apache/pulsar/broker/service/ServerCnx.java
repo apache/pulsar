@@ -26,7 +26,6 @@ import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
-import java.nio.channels.ClosedChannelException;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -45,6 +44,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
@@ -81,7 +81,6 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelOption;
-import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.handler.ssl.SslHandler;
 
 public class ServerCnx extends PulsarHandler {
@@ -167,14 +166,9 @@ public class ServerCnx extends PulsarHandler {
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         if (state != State.Failed) {
-            if (cause instanceof NativeIoException || cause instanceof ClosedChannelException) {
-                // No need to report stack trace for known exceptions that happen in disconnections
-                log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(),
-                        cause.getMessage());
-            } else {
-                log.warn("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
-            }
-
+            // No need to report stack trace for known exceptions that happen in disconnections
+            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                    ClientCnx.isKnownException(cause) ? null : cause);
             state = State.Failed;
         } else {
             // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
