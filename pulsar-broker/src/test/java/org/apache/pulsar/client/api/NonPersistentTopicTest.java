@@ -837,6 +837,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // independent config objects instead of referring to the same properties object
             ServiceConfiguration config1 = new ServiceConfiguration();
             config1.setClusterName(configClusterName);
+            config1.setAdvertisedAddress("localhost");
             config1.setWebServicePort(webServicePort1);
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
             config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
@@ -863,6 +864,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2 = new ServiceConfiguration();
             config2.setClusterName("r2");
             config2.setWebServicePort(webServicePort2);
+            config2.setAdvertisedAddress("localhost");
             config2.setZookeeperServers("127.0.0.1:" + zkPort2);
             config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
             config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
@@ -888,6 +890,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3 = new ServiceConfiguration();
             config3.setClusterName("r3");
             config3.setWebServicePort(webServicePort3);
+            config3.setAdvertisedAddress("localhost");
             config3.setZookeeperServers("127.0.0.1:" + zkPort3);
             config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
             config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
