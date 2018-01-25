@@ -38,7 +38,6 @@
     <module>worker</module>
     <module>cli</module>
     <module>java-examples</module>
-    <module>runtime-benchmark</module>
     <module>api-composition-java</module>
   </modules>
 
