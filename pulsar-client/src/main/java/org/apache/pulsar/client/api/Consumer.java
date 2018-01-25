@@ -316,5 +316,5 @@ public interface Consumer extends Closeable {
      */
     CompletableFuture<Void> seekAsync();
 
-    public final static String seekPositonKey = "seekPosition";
+    public final static String SeekPositonKey = "seekPosition";
 }

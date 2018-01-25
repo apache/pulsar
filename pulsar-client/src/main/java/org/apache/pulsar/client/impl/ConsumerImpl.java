@@ -167,7 +167,7 @@ public class ConsumerImpl extends ConsumerBase {
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
-        this.seekPosition = SeekPosition.getPosition(metadata.get(seekPositonKey));
+        this.seekPosition = SeekPosition.getPosition(metadata.get(Consumer.SeekPositonKey));
 
         grabCnx();
     }
