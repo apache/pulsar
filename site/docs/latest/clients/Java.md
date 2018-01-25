@@ -235,7 +235,7 @@ while (true) {
 }
 ```
 
-In the example above, a `Reader` object is instantiated for a specific topic and message (by ID).
+In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by `msgIdBytes` (how that value is obtained depends on the application).
 
 The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
 
@@ -259,8 +259,7 @@ authParams.put("tlsCertFile", "/path/to/client-cert.pem");
 authParams.put("tlsKeyFile", "/path/to/client-key.pem");
 conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.create(
-                        "pulsar+ssl://my-broker.com:6651", conf);
+PulsarClient client = PulsarClient.create("pulsar+ssl://my-broker.com:6651", conf);
 ```
 
 ### Athenz
