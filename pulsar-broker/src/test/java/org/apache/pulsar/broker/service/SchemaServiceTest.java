@@ -55,7 +55,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Schema gotten = get.get();
         System.out.println(gotten);
 
-        CompletableFuture<Void> delete =
+        CompletableFuture<Long> delete =
             schemaRegistryService.deleteSchema(schemaId, "dave");
 
         delete.get();
