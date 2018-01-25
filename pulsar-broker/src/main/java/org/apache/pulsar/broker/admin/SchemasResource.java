@@ -1,7 +1,6 @@
-package org.apache.pulsar.broker.schema;
+package org.apache.pulsar.broker.admin;
 
 import io.swagger.annotations.ApiOperation;
-import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
@@ -40,13 +39,42 @@ public class SchemasResource extends AdminResource {
         @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
-        @QueryParam("version") long version,
         @Suspended final AsyncResponse response
     ) {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
         schemaRegistryService.getSchema(schemaId)
+            .handle((schema, error) -> {
+                if (isNull(error)) {
+                    response.resume(
+                        Response.ok()
+                            .encoding(MediaType.APPLICATION_JSON)
+                            .entity(schema)
+                            .build()
+                    );
+                } else {
+                    response.resume(error);
+                }
+                return null;
+            });
+    }
+
+    @GET @Path("/{property}/{cluster}/{namespace}/{topic}/schema/{version}")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiOperation(value = "Get topic schema")
+    public void getSchema(
+        @PathParam("property") String property,
+        @PathParam("cluster") String cluster,
+        @PathParam("namespace") String namespace,
+        @PathParam("topic") String topic,
+        @PathParam("version") long version,
+        @Suspended final AsyncResponse response
+    ) {
+        validateDestinationAndAdminOperation(property, cluster, namespace, topic);
+
+        String schemaId = buildSchemaId(property, cluster, namespace, topic);
+        schemaRegistryService.getSchema(schemaId, version)
             .handle((schema, error) -> {
                 if (isNull(error)) {
                     response.resume(
