@@ -18,9 +18,6 @@
  */
 package org.apache.pulsar.functions.runtime.instance;
 
-import com.google.common.collect.Sets;
-
-import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -39,7 +36,6 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.utils.Reflections;
 
-import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -52,19 +48,6 @@ import org.slf4j.LoggerFactory;
  */
 @Slf4j
 public class JavaInstance implements AutoCloseable {
-
-    private static final Set<Type> supportedInputTypes = Sets.newHashSet(
-        Integer.TYPE,
-        Double.TYPE,
-        Long.TYPE,
-        String.class,
-        Short.TYPE,
-        Byte.TYPE,
-        Float.TYPE,
-        Map.class,
-        List.class,
-        Object.class
-    );
 
     private ContextImpl context;
     private PulsarFunction pulsarFunction;
@@ -92,7 +75,7 @@ public class JavaInstance implements AutoCloseable {
         // create the functions
         if (object instanceof PulsarFunction) {
             pulsarFunction = (PulsarFunction) object;
-            computeInputAndOutputTypesAndVerifySerDe(inputSerDe, outputSerDe);
+            verifyTypes(inputSerDe, outputSerDe);
         } else {
             throw new RuntimeException("User class must be either a Request or Raw Request Handler");
         }
@@ -103,14 +86,11 @@ public class JavaInstance implements AutoCloseable {
         }
     }
 
-    private void computeInputAndOutputTypesAndVerifySerDe(List<SerDe> inputSerDe, SerDe outputSerDe) {
+    private void verifyTypes(List<SerDe> inputSerDe, SerDe outputSerDe) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        verifySupportedType(typeArgs[0], false);
-        verifySupportedType(typeArgs[1], true);
 
         for (SerDe serDe : inputSerDe) {
             Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-            verifySupportedType(inputSerdeTypeArgs[0], false);
             if (!typeArgs[0].equals(inputSerdeTypeArgs[0])) {
                 throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
                         + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
@@ -122,19 +102,10 @@ public class JavaInstance implements AutoCloseable {
                 throw new RuntimeException("Output serde class is null even though return type is not Void!");
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
-            verifySupportedType(outputSerdeTypeArgs[0], false);
             if (!typeArgs[1].equals(outputSerdeTypeArgs[0])) {
                 throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
                     + " function type = " + typeArgs[1] + ", serde type = " + outputSerdeTypeArgs[0]);
             }
-        }
-    }
-
-    private void verifySupportedType(Type type, boolean allowVoid) {
-        if (!allowVoid && !supportedInputTypes.contains(type)) {
-            throw new RuntimeException("Non Basic types not yet supported: " + type);
-        } else if (!(supportedInputTypes.contains(type) || type.equals(Void.class))) {
-            throw new RuntimeException("Non Basic types not yet supported: " + type);
         }
     }
 

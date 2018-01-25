@@ -30,6 +30,7 @@ import lombok.Setter;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.api.utils.JavaSerDe;
@@ -60,15 +61,27 @@ public class JavaInstanceTest {
 
     @Getter
     @Setter
-    private class UnSupportedClass {
+    private class ComplexUserDefinedType {
         private String name;
         private Integer age;
     }
 
-    private class UnsupportedHandler implements PulsarFunction<String, UnSupportedClass> {
+    private class ComplexTypeHandler implements PulsarFunction<String, ComplexUserDefinedType> {
         @Override
-        public UnSupportedClass process(String input, Context context) throws Exception {
-            return new UnSupportedClass();
+        public ComplexUserDefinedType process(String input, Context context) throws Exception {
+            return new ComplexUserDefinedType();
+        }
+    }
+
+    private class ComplexSerDe implements SerDe<ComplexUserDefinedType> {
+        @Override
+        public ComplexUserDefinedType deserialize(byte[] input) {
+            return null;
+        }
+
+        @Override
+        public byte[] serialize(ComplexUserDefinedType input) {
+            return new byte[0];
         }
     }
 
@@ -138,14 +151,11 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testUnsupportedClasses() {
+    public void testComplexClasses() {
         InstanceConfig config = createInstanceConfig();
         try {
             new JavaInstance(
-                config, new UnsupportedHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
-            assertFalse(true);
-        } catch (RuntimeException ex) {
-            // Good
+                config, new ComplexTypeHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), new ComplexSerDe(), new HashMap<>());
         } catch (Exception ex) {
             assertFalse(true);
         }
