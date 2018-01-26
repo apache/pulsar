@@ -24,7 +24,6 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
-import org.apache.pulsar.shade.io.netty.util.Timer;
 import java.net.URL;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
@@ -53,7 +52,6 @@ public class ThreadFunctionContainerTest {
         this.jarFile = jarUrl.getPath();
         this.client = mock(PulsarClientImpl.class);
         when(client.getConfiguration()).thenReturn(new ClientConfiguration());
-        when(client.timer()).thenReturn(mock(Timer.class));
 
         this.factory = new ThreadFunctionContainerFactory(
             "ThreadFunctionContainerFactory",
