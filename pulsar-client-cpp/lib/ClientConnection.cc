@@ -104,7 +104,8 @@ static Result getResult(ServerError serverError) {
     return ResultUnknownError;
 }
 
-ClientConnection::ClientConnection(const std::string& endpoint, ExecutorServicePtr executor,
+ClientConnection::ClientConnection(const std::string& logicalAddress, const std::string& physicalAddress,
+                                   ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration,
                                    const AuthenticationPtr& authentication)
     : state_(Pending),
@@ -114,8 +115,9 @@ ClientConnection::ClientConnection(const std::string& endpoint, ExecutorServiceP
       executor_(executor),
       resolver_(executor->createTcpResolver()),
       socket_(executor->createSocket()),
-      address_(endpoint),
-      cnxString_("[<none> -> " + endpoint + "] "),
+      logicalAddress_(logicalAddress),
+      physicalAddress_(physicalAddress),
+      cnxString_("[<none> -> " + physicalAddress + "] "),
       error_(boost::system::error_code()),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
       incomingCmd_(),
@@ -267,7 +269,11 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
         cnxStringStream << "[" << socket_->local_endpoint() << " -> " << socket_->remote_endpoint() << "] ";
         cnxString_ = cnxStringStream.str();
 
-        LOG_INFO(cnxString_ << "Connected to broker");
+        if (logicalAddress_ == physicalAddress_) {
+            LOG_INFO(cnxString_ << "Connected to broker");
+        } else {
+            LOG_INFO(cnxString_ << "Connected to broker through proxy. Logical broker: " << logicalAddress_);
+        }
         state_ = TcpConnected;
         socket_->set_option(tcp::no_delay(true));
 
@@ -288,7 +294,7 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             if (!isTlsAllowInsecureConnection_) {
                 boost::system::error_code err;
                 Url service_url;
-                if (!Url::parse(address_, service_url)) {
+                if (!Url::parse(physicalAddress_, service_url)) {
                     LOG_ERROR(cnxString_ << "Invalid Url, unable to parse: " << err << " " << err.message());
                     close();
                     return;
@@ -315,7 +321,8 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
 }
 
 void ClientConnection::handleHandshake(const boost::system::error_code& err) {
-    SharedBuffer buffer = Commands::newConnect(authentication_);
+    bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
+    SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
     // Send CONNECT command to broker
     asyncWrite(buffer.const_asio_buffer(),
                boost::bind(&ClientConnection::handleSentPulsarConnect, shared_from_this(),
@@ -343,7 +350,7 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
 void ClientConnection::tcpConnectAsync() {
     boost::system::error_code err;
     Url service_url;
-    if (!Url::parse(address_, service_url)) {
+    if (!Url::parse(physicalAddress_, service_url)) {
         LOG_ERROR(cnxString_ << "Invalid Url, unable to parse: " << err << " " << err.message());
         close();
         return;
@@ -788,6 +795,8 @@ void ClientConnection::handleIncomingCommand() {
                             lookupResultPtr->setAuthoritative(lookupTopicResponse.authoritative());
                             lookupResultPtr->setRedirect(lookupTopicResponse.response() ==
                                                          CommandLookupTopicResponse::Redirect);
+                            lookupResultPtr->setShouldProxyThroughServiceUrl(
+                                lookupTopicResponse.proxy_through_service_url());
                             lookupDataPromise->setValue(lookupResultPtr);
                         }
 
@@ -1178,7 +1187,7 @@ void ClientConnection::removeConsumer(int consumerId) {
     consumers_.erase(consumerId);
 }
 
-const std::string& ClientConnection::brokerAddress() const { return address_; }
+const std::string& ClientConnection::brokerAddress() const { return physicalAddress_; }
 
 const std::string& ClientConnection::cnxString() const { return cnxString_; }
 

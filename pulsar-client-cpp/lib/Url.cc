@@ -88,6 +88,12 @@ const std::string& Url::file() const { return file_; }
 
 const std::string& Url::parameter() const { return parameter_; }
 
+std::string Url::hostPort() const {
+    std::stringstream ss;
+    ss << host_ << ':' << port_;
+    return ss.str();
+}
+
 std::ostream& operator<<(std::ostream& os, const Url& obj) {
     os << "Url [Host = " << obj.host() << ", Protocol = " << obj.protocol() << ", Port = " << obj.port()
        << "]";
