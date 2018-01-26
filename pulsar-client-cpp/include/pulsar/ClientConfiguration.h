@@ -88,7 +88,7 @@ class ClientConfiguration {
 
     /**
      * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to
+     * <i>(default: 50000)</i> It should be configured with higher value only in case of it requires to
      * produce/subscribe on
      * thousands of topic using created {@link PulsarClient}
      *
