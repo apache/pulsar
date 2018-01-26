@@ -709,4 +709,29 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
         assertEquals(namespaces2.size(), 0);
     }
+    
+    @Test
+    public void testNonPersistentTopics() throws Exception {
+        final String namespace = "prop-xyz/use/ns2";
+        final String topicName = "non-persistent://" + namespace + "/topic";
+        admin.namespaces().createNamespace(namespace, 20);
+        int totalTopics = 100;
+        
+        Set<String> topicNames = Sets.newHashSet();
+        for (int i = 0; i < totalTopics; i++) {
+            topicNames.add(topicName + i);
+            Producer producer = pulsarClient.createProducer(topicName + i);
+            producer.close();
+        }
+
+        for (int i = 0; i < totalTopics; i++) {
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i);
+            assertNotNull(topic);
+        }
+
+        Set<String> topicsInNs = Sets.newHashSet(admin.nonPersistentTopics().getList(namespace));
+        assertEquals(topicsInNs.size(), totalTopics);
+        topicsInNs.removeAll(topicNames);
+        assertEquals(topicsInNs.size(), 0);
+    }
 }
