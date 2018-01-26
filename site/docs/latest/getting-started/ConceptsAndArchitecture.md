@@ -315,15 +315,17 @@ You can use your own service discovery system if you'd like. If you use your own
 
 ## Reader interface
 
-In Pulsar, the "standard" [consumer interface](#consumers) involves using {% popover consumers %} to listen on {% popover topics %}, process incoming messages, and finally {% popover acknowledge %} those messages when they've been processed. Whenever a consumer disconnects from and then reconnects to a topic, it automatically begins reading from the earliest un-acked message onward because the topic's cursor is automatically managed by Pulsar.
+In Pulsar, the "standard" [consumer interface](#consumers) involves using {% popover consumers %} to listen on {% popover topics %}, process incoming messages, and finally {% popover acknowledge %} those messages when they've been processed. Whenever a consumer connects to a topic, it automatically begins reading from the earliest un-acked message onward because the topic's cursor is automatically managed by Pulsar.
 
-The **reader interface** for Pulsar enables applications to manually manage cursors. When you use a reader to connect to a topic---rather than a consumer---you need to specify *which* message the reader begins reading from. When specifying that initial message, the reader interface gives you three options:
+The **reader interface** for Pulsar enables applications to manually manage cursors. When you use a reader to connect to a topic---rather than a consumer---you need to specify *which* message the reader begins reading from when it connects to a topic. When connecting to a topic, the reader interface enables you to begin with:
 
 * The **earliest** available message in the topic
 * The **latest** available message in the topic
 * Some other message between the earliest and the latest. If you select this option, you'll need to explicitly provide a message ID. Your application will be responsible for "knowing" this message ID in advance, perhaps fetching it from a persistent data store or cache.
 
 The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
+
+<img src="https://www.lucidchart.com/publicSegments/view/50675d85-c9bb-45a7-b908-c606cbbe8a0b/image.png" alt="The Pulsar consumer and reader interfaces" width="80%">
 
 {% include admonition.html type="warning" title="Non-partitioned topics only"
 content="The reader interface for Pulsar cannot currently be used with [partitioned topics](#partitioned-topics)." %}
