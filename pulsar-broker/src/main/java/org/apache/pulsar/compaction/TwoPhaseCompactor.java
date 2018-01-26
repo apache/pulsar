@@ -56,7 +56,7 @@ import org.slf4j.LoggerFactory;
  * magnitude larger than a message id.
 */
 public class TwoPhaseCompactor extends Compactor {
-    private static final Logger log = LoggerFactory.getLogger(Compactor.class);
+    private static final Logger log = LoggerFactory.getLogger(TwoPhaseCompactor.class);
     private static final int MAX_OUTSTANDING = 500;
     private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
 
@@ -153,6 +153,9 @@ public class TwoPhaseCompactor extends Compactor {
                     if (exception != null) {
                         deleteLedger(bk, ledger)
                             .whenComplete((res2, exception2) -> {
+                                    if (exception2) {
+                                        log.warn("Cleanup of ledger {} for failed", ledger, exception2);
+                                    }
                                     // complete with original exception
                                     promise.completeExceptionally(exception);
                                 });
