@@ -28,8 +28,8 @@ SharedBuffer CompressionCodecLZ4::encode(const SharedBuffer& raw) {
     int maxCompressedSize = LZ4_compressBound(raw.readableBytes());
     SharedBuffer compressed = SharedBuffer::allocate(maxCompressedSize);
 
-    int compressedSize = LZ4_compress_default(raw.data(), compressed.mutableData(),
-                                              raw.readableBytes(), maxCompressedSize);
+    int compressedSize =
+        LZ4_compress_default(raw.data(), compressed.mutableData(), raw.readableBytes(), maxCompressedSize);
     assert(compressedSize > 0);
     compressed.bytesWritten(compressedSize);
 
@@ -50,5 +50,4 @@ bool CompressionCodecLZ4::decode(const SharedBuffer& encoded, uint32_t uncompres
         return false;
     }
 }
-
-}
+}  // namespace pulsar

@@ -28,12 +28,11 @@ typedef boost::weak_ptr<ConsumerImplBase> ConsumerImplBaseWeakPtr;
 typedef boost::shared_ptr<ConsumerImplBase> ConsumerImplBasePtr;
 
 class ConsumerImplBase {
-public:
-    virtual ~ConsumerImplBase(){
-    }
+   public:
+    virtual ~ConsumerImplBase() {}
     virtual Future<Result, ConsumerImplBaseWeakPtr> getConsumerCreatedFuture() = 0;
     virtual const std::string& getSubscriptionName() const = 0;
-    virtual const std::string& getTopic() const  = 0;
+    virtual const std::string& getTopic() const = 0;
     virtual Result receive(Message& msg) = 0;
     virtual Result receive(Message& msg, int timeout) = 0;
     virtual void unsubscribeAsync(ResultCallback callback) = 0;
@@ -51,5 +50,5 @@ public:
     virtual int getNumOfPrefetchedMessages() const = 0;
     virtual void getBrokerConsumerStatsAsync(BrokerConsumerStatsCallback callback) = 0;
 };
-}
-#endif //PULSAR_CONSUMER_IMPL_BASE_HEADER
+}  // namespace pulsar
+#endif  // PULSAR_CONSUMER_IMPL_BASE_HEADER

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -25,7 +26,9 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.net.URL;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -54,6 +57,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -582,7 +586,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
     }
-    
+
     /**
      * It validates that peer-cluster can't coexist in replication-cluster list
      * 
@@ -640,4 +644,94 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }
 
+    @Test
+    public void clusterFailureDomain() throws PulsarAdminException {
+
+        final String cluster = pulsar.getConfiguration().getClusterName();
+        admin.clusters().updateCluster(cluster,
+                new ClusterData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls()));
+        // create
+        FailureDomain domain = new FailureDomain();
+        domain.setBrokers(Sets.newHashSet("b1", "b2", "b3"));
+        admin.clusters().createFailureDomain(cluster, "domain-1", domain);
+        admin.clusters().updateFailureDomain(cluster, "domain-1", domain);
+
+        assertEquals(admin.clusters().getFailureDomain(cluster, "domain-1"), domain);
+
+        Map<String, FailureDomain> domains = admin.clusters().getFailureDomains(cluster);
+        assertEquals(domains.size(), 1);
+        assertTrue(domains.containsKey("domain-1"));
+
+        try {
+            // try to create domain with already registered brokers
+            admin.clusters().createFailureDomain(cluster, "domain-2", domain);
+            fail("should have failed because of brokers are already registered");
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok
+        }
+
+        admin.clusters().deleteFailureDomain(cluster, "domain-1");
+        assertTrue(admin.clusters().getFailureDomains(cluster).isEmpty());
+
+        admin.clusters().createFailureDomain(cluster, "domain-2", domain);
+        domains = admin.clusters().getFailureDomains(cluster);
+        assertEquals(domains.size(), 1);
+        assertTrue(domains.containsKey("domain-2"));
+    }
+
+    @Test
+    public void namespaceAntiAffinity() throws PulsarAdminException {
+        final String namespace = "prop-xyz/use/ns1";
+        final String antiAffinityGroup = "group";
+        assertTrue(isBlank(admin.namespaces().getNamespaceAntiAffinityGroup(namespace)));
+        admin.namespaces().setNamespaceAntiAffinityGroup(namespace, antiAffinityGroup);
+        assertEquals(admin.namespaces().getNamespaceAntiAffinityGroup(namespace), antiAffinityGroup);
+        admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
+        assertTrue(isBlank(admin.namespaces().getNamespaceAntiAffinityGroup(namespace)));
+
+        final String ns1 = "prop-xyz/use/antiAG1";
+        final String ns2 = "prop-xyz/use/antiAG2";
+        final String ns3 = "prop-xyz/use/antiAG3";
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        admin.namespaces().createNamespace(ns3);
+        admin.namespaces().setNamespaceAntiAffinityGroup(ns1, antiAffinityGroup);
+        admin.namespaces().setNamespaceAntiAffinityGroup(ns2, antiAffinityGroup);
+        admin.namespaces().setNamespaceAntiAffinityGroup(ns3, antiAffinityGroup);
+
+        Set<String> namespaces = new HashSet<>(
+                admin.namespaces().getAntiAffinityNamespaces("dummy", "use", antiAffinityGroup));
+        assertEquals(namespaces.size(), 3);
+        assertTrue(namespaces.contains(ns1));
+        assertTrue(namespaces.contains(ns2));
+        assertTrue(namespaces.contains(ns3));
+
+        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
+        assertEquals(namespaces2.size(), 0);
+    }
+    
+    @Test
+    public void testNonPersistentTopics() throws Exception {
+        final String namespace = "prop-xyz/use/ns2";
+        final String topicName = "non-persistent://" + namespace + "/topic";
+        admin.namespaces().createNamespace(namespace, 20);
+        int totalTopics = 100;
+        
+        Set<String> topicNames = Sets.newHashSet();
+        for (int i = 0; i < totalTopics; i++) {
+            topicNames.add(topicName + i);
+            Producer producer = pulsarClient.createProducer(topicName + i);
+            producer.close();
+        }
+
+        for (int i = 0; i < totalTopics; i++) {
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i);
+            assertNotNull(topic);
+        }
+
+        Set<String> topicsInNs = Sets.newHashSet(admin.nonPersistentTopics().getList(namespace));
+        assertEquals(topicsInNs.size(), totalTopics);
+        topicsInNs.removeAll(topicNames);
+        assertEquals(topicsInNs.size(), 0);
+    }
 }

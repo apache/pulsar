@@ -111,6 +111,14 @@ public class AuthenticationAthenzTest {
     }
 
     @Test
+    public void testZtsUrl() throws Exception {
+        Field field = auth.getClass().getDeclaredField("ztsUrl");
+        field.setAccessible(true);
+        String ztsUrl = (String) field.get(auth);
+        assertEquals(ztsUrl, "https://localhost:4443/");
+    }
+
+    @Test
     public void testLoadPrivateKeyBase64() throws Exception {
         try {
             String paramsStr = new String(Files.readAllBytes(Paths.get("./src/test/resources/authParams.json")));

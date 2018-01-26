@@ -18,12 +18,17 @@
  */
 package org.apache.pulsar.common.api;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.api.ByteBufPair;
 import org.testng.annotations.Test;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 
 public class ByteBufPairTest {
 
@@ -44,6 +49,34 @@ public class ByteBufPairTest {
         assertEquals(b2.refCnt(), 1);
 
         buf.release();
+
+        assertEquals(buf.refCnt(), 0);
+        assertEquals(b1.refCnt(), 0);
+        assertEquals(b2.refCnt(), 0);
+    }
+
+    @Test
+    public void testEncoder() throws Exception {
+        ByteBuf b1 = Unpooled.wrappedBuffer("hello".getBytes());
+        ByteBuf b2 = Unpooled.wrappedBuffer("world".getBytes());
+        ByteBufPair buf = ByteBufPair.get(b1, b2);
+
+        assertEquals(buf.readableBytes(), 10);
+        assertEquals(buf.getFirst(), b1);
+        assertEquals(buf.getSecond(), b2);
+
+        assertEquals(buf.refCnt(), 1);
+        assertEquals(b1.refCnt(), 1);
+        assertEquals(b2.refCnt(), 1);
+
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        when(ctx.write(any(), any())).then(invocation -> {
+            // Simulate a write on the context which releases the buffer
+            ((ByteBuf) invocation.getArguments()[0]).release();
+            return null;
+        });
+
+        ByteBufPair.ENCODER.write(ctx, buf, null);
 
         assertEquals(buf.refCnt(), 0);
         assertEquals(b1.refCnt(), 0);

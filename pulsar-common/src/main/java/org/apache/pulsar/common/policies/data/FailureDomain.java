@@ -16,18 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_COMPRESSIONCODECLZ4_H_
-#define LIB_COMPRESSIONCODECLZ4_H_
+package org.apache.pulsar.common.policies.data;
 
-#include "CompressionCodec.h"
+import java.util.HashSet;
+import java.util.Set;
 
-namespace pulsar {
+import com.google.common.base.Objects;
 
-class CompressionCodecLZ4 : public CompressionCodec {
-   public:
-    SharedBuffer encode(const SharedBuffer& raw);
+public class FailureDomain {
 
-    bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
-};
-}  // namespace pulsar
-#endif /* LIB_COMPRESSIONCODECLZ4_H_ */
+    public Set<String> brokers = new HashSet<String>();
+
+    public Set<String> getBrokers() {
+        return brokers;
+    }
+
+    public void setBrokers(Set<String> brokers) {
+        this.brokers = brokers;
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        if (obj instanceof FailureDomain) {
+            FailureDomain other = (FailureDomain) obj;
+            return Objects.equal(brokers, other.brokers);
+        }
+
+        return false;
+    }
+
+    @Override
+    public String toString() {
+        return Objects.toStringHelper(this).add("brokers", brokers).toString();
+    }
+}

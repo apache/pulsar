@@ -56,6 +56,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private static final String APPLICATION_X_PEM_FILE_BASE64 = "application/x-pem-file;base64";
 
     private transient ZTSClient ztsClient = null;
+    private String ztsUrl;
     private String tenantDomain;
     private String tenantService;
     private String providerDomain;
@@ -150,6 +151,9 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (authParams.containsKey("roleHeader")) {
             System.setProperty("athenz.auth.role.header", authParams.get("roleHeader"));
         }
+        if (authParams.containsKey("ztsUrl")) {
+            this.ztsUrl = authParams.get("ztsUrl");
+        }
     }
 
     @Override
@@ -164,7 +168,7 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (ztsClient == null) {
             ServiceIdentityProvider siaProvider = new SimpleServiceIdentityProvider(tenantDomain, tenantService,
                     privateKey, keyId);
-            ztsClient = new ZTSClient(null, tenantDomain, tenantService, siaProvider);
+            ztsClient = new ZTSClient(ztsUrl, tenantDomain, tenantService, siaProvider);
         }
         return ztsClient;
     }

@@ -213,6 +213,65 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set Anti-affinity group name for a namspace")
+    private class SetAntiAffinityGroup extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--group", "-g" }, description = "Anti-affinity group name", required = true)
+        private String antiAffinityGroup;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setNamespaceAntiAffinityGroup(namespace, antiAffinityGroup);
+        }
+    }
+
+    @Parameters(commandDescription = "Get Anti-affinity group name for a namspace")
+    private class GetAntiAffinityGroup extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+        
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getNamespaceAntiAffinityGroup(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get Anti-affinity namespaces grouped with the given anti-affinity group name")
+    private class GetAntiAffinityNamespaces extends CliCommand {
+
+        @Parameter(names = { "--property",
+                "-p" }, description = "property is only used for authorization. Client has to be admin of any of the property to access this api", required = false)
+        private String property;
+
+        @Parameter(names = { "--cluster", "-c" }, description = "Cluster name", required = true)
+        private String cluster;
+
+        @Parameter(names = { "--group", "-g" }, description = "Anti-affinity group name", required = true)
+        private String antiAffinityGroup;
+
+        @Override
+        void run() throws PulsarAdminException {
+            print(admin.namespaces().getAntiAffinityNamespaces(property, cluster, antiAffinityGroup));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove Anti-affinity group name for a namspace")
+    private class DeleteAntiAffinityGroup extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+        
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
+        }
+    }
+    
+
     @Parameters(commandDescription = "Enable or disable deduplication for a namespace")
     private class SetDeduplication extends CliCommand {
         @Parameter(description = "property/cluster/namespace", required = true)
@@ -621,6 +680,11 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
+        
+        jcommander.addCommand("get-anti-affinity-group", new GetAntiAffinityGroup());
+        jcommander.addCommand("set-anti-affinity-group", new SetAntiAffinityGroup());
+        jcommander.addCommand("get-anti-affinity-namespaces", new GetAntiAffinityNamespaces());
+        jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
 
         jcommander.addCommand("set-deduplication", new SetDeduplication());
 

@@ -42,6 +42,7 @@ public class Policies {
     public int message_ttl_in_seconds = 0;
     public RetentionPolicies retention_policies = null;
     public boolean deleted = false;
+    public String antiAffinityGroup;
 
     public static final String FIRST_BOUNDARY = "0x00000000";
     public static final String LAST_BOUNDARY = "0xffffffff";
@@ -63,7 +64,8 @@ public class Policies {
                     && message_ttl_in_seconds == other.message_ttl_in_seconds
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
-                    && Objects.equals(subscription_auth_mode, other.subscription_auth_mode);
+                    && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
+                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup);
         }
 
         return false;
@@ -86,6 +88,7 @@ public class Policies {
                 .add("deduplicationEnabled", deduplicationEnabled)
                 .add("clusterDispatchRate", clusterDispatchRate)
                 .add("latency_stats_sample_rate", latency_stats_sample_rate)
+                .add("antiAffinityGroup", antiAffinityGroup)
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)

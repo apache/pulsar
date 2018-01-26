@@ -26,9 +26,8 @@
 
 namespace pulsar {
 
-BatchMessageId::BatchMessageId(const MessageId& msgId) :
-        MessageId(msgId.ledgerId_, msgId.entryId_), batchIndex_(msgId.getBatchIndex()) {
-}
+BatchMessageId::BatchMessageId(const MessageId& msgId)
+    : MessageId(msgId.ledgerId_, msgId.entryId_), batchIndex_(msgId.getBatchIndex()) {}
 
 void BatchMessageId::serialize(std::string& result) const {
     proto::MessageIdData idData;
@@ -43,9 +42,7 @@ void BatchMessageId::serialize(std::string& result) const {
     idData.SerializeToString(&result);
 }
 
-int64_t BatchMessageId::getBatchIndex() const {
-    return batchIndex_;
-}
+int64_t BatchMessageId::getBatchIndex() const { return batchIndex_; }
 
 #pragma GCC visibility push(default)
 
@@ -63,21 +60,17 @@ bool BatchMessageId::operator<(const BatchMessageId& other) const {
     }
 }
 
-bool BatchMessageId::operator<=(const BatchMessageId& other) const {
-    return *this < other || *this == other;
-}
+bool BatchMessageId::operator<=(const BatchMessageId& other) const { return *this < other || *this == other; }
 
 bool BatchMessageId::operator==(const BatchMessageId& other) const {
-    return ledgerId_ == other.ledgerId_ && entryId_ == other.entryId_
-            && batchIndex_ == other.batchIndex_;
+    return ledgerId_ == other.ledgerId_ && entryId_ == other.entryId_ && batchIndex_ == other.batchIndex_;
 }
 
 std::ostream& operator<<(std::ostream& s, const BatchMessageId& messageId) {
-    s << '(' << messageId.ledgerId_ << ':' << messageId.entryId_ << ':' << messageId.batchIndex_
-      << ':' << messageId.partition_ << ')';
+    s << '(' << messageId.ledgerId_ << ':' << messageId.entryId_ << ':' << messageId.batchIndex_ << ':'
+      << messageId.partition_ << ')';
     return s;
 }
 
 #pragma GCC visibility pop
-
-}
+}  // namespace pulsar

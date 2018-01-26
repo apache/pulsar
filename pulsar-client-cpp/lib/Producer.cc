@@ -27,17 +27,11 @@ namespace pulsar {
 
 static const std::string EMPTY_STRING;
 
-Producer::Producer()
-        : impl_() {
-}
+Producer::Producer() : impl_() {}
 
-Producer::Producer(ProducerImplBasePtr impl)
-        : impl_(impl) {
-}
+Producer::Producer(ProducerImplBasePtr impl) : impl_(impl) {}
 
-const std::string& Producer::getTopic() const {
-    return impl_ != NULL ? impl_->getTopic() : EMPTY_STRING;
-}
+const std::string& Producer::getTopic() const { return impl_ != NULL ? impl_->getTopic() : EMPTY_STRING; }
 
 Result Producer::send(const Message& msg) {
     Promise<Result, Message> promise;
@@ -57,13 +51,9 @@ void Producer::sendAsync(const Message& msg, SendCallback callback) {
     impl_->sendAsync(msg, callback);
 }
 
-const std::string& Producer::getProducerName() const {
-    return impl_->getProducerName();
-}
+const std::string& Producer::getProducerName() const { return impl_->getProducerName(); }
 
-int64_t Producer::getLastSequenceId() const {
-    return impl_->getLastSequenceId();
-}
+int64_t Producer::getLastSequenceId() const { return impl_->getLastSequenceId(); }
 
 Result Producer::close() {
     Promise<bool, Result> promise;
@@ -82,5 +72,4 @@ void Producer::closeAsync(CloseCallback callback) {
 
     impl_->closeAsync(callback);
 }
-
-}
+}  // namespace pulsar

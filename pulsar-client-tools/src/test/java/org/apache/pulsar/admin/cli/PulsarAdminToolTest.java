@@ -40,6 +40,7 @@ import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -131,6 +132,24 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("delete use"));
         verify(mockClusters).deleteCluster("use");
+        
+        clusters.run(split("list-failure-domains use"));
+        verify(mockClusters).getFailureDomains("use");
+
+        clusters.run(split("get-failure-domain use --domain-name domain"));
+        verify(mockClusters).getFailureDomain("use", "domain");
+
+        clusters.run(split("create-failure-domain use --domain-name domain --broker-list b1"));
+        FailureDomain domain = new FailureDomain();
+        domain.setBrokers(Sets.newHashSet("b1"));
+        verify(mockClusters).createFailureDomain("use", "domain", domain);
+
+        clusters.run(split("update-failure-domain use --domain-name domain --broker-list b1"));
+        verify(mockClusters).updateFailureDomain("use", "domain", domain);
+
+        clusters.run(split("delete-failure-domain use --domain-name domain"));
+        verify(mockClusters).deleteFailureDomain("use", "domain");
+
 
         // Re-create CmdClusters to avoid a issue.
         // See https://github.com/cbeust/jcommander/issues/271
@@ -284,6 +303,19 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
+        
+        namespaces.run(split("set-anti-affinity-group myprop/clust/ns1 -g group"));
+        verify(mockNamespaces).setNamespaceAntiAffinityGroup("myprop/clust/ns1", "group");
+
+        namespaces.run(split("get-anti-affinity-group myprop/clust/ns1"));
+        verify(mockNamespaces).getNamespaceAntiAffinityGroup("myprop/clust/ns1");
+        
+        namespaces.run(split("get-anti-affinity-namespaces -p dummy -c cluster -g group"));
+        verify(mockNamespaces).getAntiAffinityNamespaces("dummy", "cluster", "group");
+
+        namespaces.run(split("delete-anti-affinity-group myprop/clust/ns1 "));
+        verify(mockNamespaces).deleteNamespaceAntiAffinityGroup("myprop/clust/ns1");
+        
 
         namespaces.run(split("set-retention myprop/clust/ns1 -t 1h -s 1M"));
         verify(mockNamespaces).setRetention("myprop/clust/ns1", new RetentionPolicies(60, 1));
@@ -462,6 +494,12 @@ public class PulsarAdminToolTest {
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/clust/ns1/ds1", 32);
+        
+        topics.run(split("list myprop/clust/ns1"));
+        verify(mockTopics).getList("myprop/clust/ns1");
+        
+        topics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
+        verify(mockTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
 
     }
 
