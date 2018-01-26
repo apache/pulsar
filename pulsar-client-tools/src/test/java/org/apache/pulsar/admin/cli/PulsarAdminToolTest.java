@@ -494,6 +494,12 @@ public class PulsarAdminToolTest {
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/clust/ns1/ds1", 32);
+        
+        topics.run(split("list myprop/clust/ns1"));
+        verify(mockTopics).getList("myprop/clust/ns1");
+        
+        topics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
+        verify(mockTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
 
     }
 
