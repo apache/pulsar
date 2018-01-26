@@ -155,7 +155,6 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                Schema schema = schemaAndVersion.schema;
                 return putSchema(
                     schemaId,
                     Schema.newBuilder()

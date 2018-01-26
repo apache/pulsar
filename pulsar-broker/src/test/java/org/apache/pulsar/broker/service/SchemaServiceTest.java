@@ -96,7 +96,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Schema latest = getLatestSchema(schemaId1, 0);
         assertEquals(schema1, latest);
 
-        deleteScehma(schemaId1);
+        deleteScehma(schemaId1, 1);
 
         Schema latest2 = getLatestSchema(schemaId1, 1);
 
@@ -162,7 +162,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         Schema version6 = getSchema(schemaId1, 6);
         assertEquals(schema1, version6);
 
-        deleteScehma(schemaId1);
+        deleteScehma(schemaId1, 7);
 
         Schema version7 = getSchema(schemaId1, 7);
         assertTrue(version7.isDeleted);
@@ -203,7 +203,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         return schemaAndVersion.schema;
     }
 
-    private void deleteScehma(String schemaId) throws Exception{
-        schemaRegistryService.deleteSchema(schemaId, userId).get();
+    private long deleteScehma(String schemaId, long expectedVersion) throws Exception{
+        long version = schemaRegistryService.deleteSchema(schemaId, userId).get();
+        assertEquals(expectedVersion, version);
+        return version;
     }
 }
