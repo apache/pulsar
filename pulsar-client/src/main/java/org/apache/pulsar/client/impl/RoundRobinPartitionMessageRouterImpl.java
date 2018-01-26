@@ -18,19 +18,24 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import com.google.common.hash.HashCode;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.TopicMetadata;
 
-public class RoundRobinPartitionMessageRouterImpl implements MessageRouter {
+public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
 
     private static final AtomicIntegerFieldUpdater<RoundRobinPartitionMessageRouterImpl> PARTITION_INDEX_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(RoundRobinPartitionMessageRouterImpl.class, "partitionIndex");
     private volatile int partitionIndex = 0;
 
-    public RoundRobinPartitionMessageRouterImpl() {
+    public RoundRobinPartitionMessageRouterImpl(boolean useMurmurHash) {
+        super(useMurmurHash);
         PARTITION_INDEX_UPDATER.set(this, 0);
     }
 
@@ -38,7 +43,15 @@ public class RoundRobinPartitionMessageRouterImpl implements MessageRouter {
     public int choosePartition(Message msg, TopicMetadata topicMetadata) {
         // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % topicMetadata.numPartitions());
+            if (useMurmurHash) {
+                HashFunction hf = Hashing.murmur3_32(0);
+                HashCode hc = hf.hashString(msg.getKey(), StandardCharsets.UTF_8);
+                long l = Integer.toUnsignedLong(hc.asInt());
+                return (int) (l % topicMetadata.numPartitions());
+            }
+            else {
+                return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % topicMetadata.numPartitions());
+            }
         }
         return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());
     }

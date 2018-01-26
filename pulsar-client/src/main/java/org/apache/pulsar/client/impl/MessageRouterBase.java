@@ -16,29 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
+package org.apache.pulsar.client.impl;
 
-#include <memory>
+import org.apache.pulsar.client.api.MessageRouter;
 
-#include <pulsar/MessageRoutingPolicy.h>
-#include <pulsar/ProducerConfiguration.h>
-#include <pulsar/TopicMetadata.h>
-#include <boost/thread/mutex.hpp>
-#include "include/pulsar/Hash.h"
+public abstract class MessageRouterBase implements MessageRouter {
+    final boolean useMurmurHash;
 
-namespace pulsar {
-class RoundRobinMessageRouter : public MessageRoutingPolicy {
-   public:
-    RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme);
-    virtual ~RoundRobinMessageRouter();
-    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
-
-   private:
-    boost::mutex mutex_;
-    unsigned int prevPartition_;
-    std::unique_ptr<Hash> hash;
-};
-typedef boost::unique_lock<boost::mutex> Lock;
-}  // namespace pulsar
-#endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_
+    MessageRouterBase(boolean useMurmurHash) {
+        this.useMurmurHash = useMurmurHash;
+    }
+}

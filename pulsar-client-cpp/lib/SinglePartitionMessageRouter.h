@@ -19,21 +19,24 @@
 #ifndef PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
 #define PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
 
+#include <memory>
 #include <pulsar/MessageRoutingPolicy.h>
+#include <include/pulsar/ProducerConfiguration.h>
+#include "include/pulsar/Hash.h"
 #include <pulsar/TopicMetadata.h>
-#include <boost/functional/hash.hpp>
 
 namespace pulsar {
 
 class SinglePartitionMessageRouter : public MessageRoutingPolicy {
    public:
-    explicit SinglePartitionMessageRouter(int partitionIndex);
-    typedef boost::hash<std::string> StringHash;
+    SinglePartitionMessageRouter(int partitionIndex, ProducerConfiguration::HashingScheme hashingScheme);
     virtual ~SinglePartitionMessageRouter();
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
 
    private:
     int selectedSinglePartition_;
+    std::unique_ptr<Hash> hash;
 };
+
 }  // namespace pulsar
 #endif  // PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_

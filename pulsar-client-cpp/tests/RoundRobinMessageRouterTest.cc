@@ -17,8 +17,10 @@
  * under the License.
  */
 #include <pulsar/Client.h>
+#include <pulsar/ProducerConfiguration.h>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <boost/functional/hash.hpp>
 
 #include "tests/mocks/GMockMessage.h"
 
@@ -37,8 +39,8 @@ TEST(RoundRobinMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey) {
     const int numPartitions1 = 5;
     const int numPartitions2 = 3;
 
-    RoundRobinMessageRouter router1;
-    RoundRobinMessageRouter router2;
+    RoundRobinMessageRouter router1(ProducerConfiguration::BoostHash);
+    RoundRobinMessageRouter router2(ProducerConfiguration::BoostHash);
 
     GMockMessage message;
     EXPECT_CALL(message, hasPartitionKey()).Times(20).WillRepeatedly(Return(false));
@@ -52,7 +54,7 @@ TEST(RoundRobinMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey) {
 TEST(RoundRobinMessageRouterTest, DISABLED_getPartitionWithPartitionKey) {
     const int numPartitons = 1234;
 
-    RoundRobinMessageRouter router;
+    RoundRobinMessageRouter router(ProducerConfiguration::BoostHash);
 
     std::string partitionKey1 = "key1";
     std::string partitionKey2 = "key2";

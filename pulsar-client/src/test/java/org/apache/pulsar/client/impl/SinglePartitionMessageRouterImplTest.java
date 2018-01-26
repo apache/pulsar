@@ -35,7 +35,7 @@ public class SinglePartitionMessageRouterImplTest {
         Message msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234);
+        SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234, false);
         assertEquals(1234, router.choosePartition(msg, new TopicMetadataImpl(2468)));
     }
 
@@ -50,7 +50,7 @@ public class SinglePartitionMessageRouterImplTest {
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
 
-        SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234);
+        SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234, false);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         assertEquals(key1.hashCode() % 100, router.choosePartition(msg1, metadata));

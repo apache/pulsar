@@ -16,29 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
+#include <pulsar/JavaStringHash.h>
 
-#include <memory>
-
-#include <pulsar/MessageRoutingPolicy.h>
-#include <pulsar/ProducerConfiguration.h>
-#include <pulsar/TopicMetadata.h>
-#include <boost/thread/mutex.hpp>
-#include "include/pulsar/Hash.h"
+#include <limits>
 
 namespace pulsar {
-class RoundRobinMessageRouter : public MessageRoutingPolicy {
-   public:
-    RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme);
-    virtual ~RoundRobinMessageRouter();
-    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
 
-   private:
-    boost::mutex mutex_;
-    unsigned int prevPartition_;
-    std::unique_ptr<Hash> hash;
-};
-typedef boost::unique_lock<boost::mutex> Lock;
+JavaStringHash::JavaStringHash(uint32_t seed) {}
+
+uint32_t JavaStringHash::makeHash(const std::string& key) {
+    auto len = key.length();
+    auto* val = key.c_str();
+    int32_t hash = 0;
+
+    for (int i = 0; i < len; i++) {
+        hash = 31 * hash + val[i];
+    }
+
+    hash &= std::numeric_limits<int32_t>::max();
+
+    return hash;
+}
+
 }  // namespace pulsar
-#endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_

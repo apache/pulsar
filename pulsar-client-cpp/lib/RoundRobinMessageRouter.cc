@@ -17,9 +17,25 @@
  * under the License.
  */
 #include "RoundRobinMessageRouter.h"
+#include "include/pulsar/Murmur3_32Hash.h"
+#include "include/pulsar/BoostHash.h"
+#include "include/pulsar/JavaStringHash.h"
 
 namespace pulsar {
-RoundRobinMessageRouter::RoundRobinMessageRouter() : prevPartition_(0) {}
+RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme)
+    : prevPartition_(0) {
+    switch (hashingScheme) {
+        case ProducerConfiguration::Murmur3_32Hash:
+            hash = std::unique_ptr<Hash>(new Murmur3_32Hash(0));
+            break;
+        case ProducerConfiguration::BoostHash:
+            hash = std::unique_ptr<Hash>(new BoostHash(0));
+            break;
+        case ProducerConfiguration::JavaStringHash:
+            hash = std::unique_ptr<Hash>(new JavaStringHash(0));
+            break;
+    }
+}
 
 RoundRobinMessageRouter::~RoundRobinMessageRouter() {}
 
@@ -27,12 +43,12 @@ RoundRobinMessageRouter::~RoundRobinMessageRouter() {}
 int RoundRobinMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
     // if message has a key, hash the key and return the partition
     if (msg.hasPartitionKey()) {
-        static StringHash hash;
-        return hash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
+        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
     } else {
         Lock lock(mutex_);
         // else pick the next partition
         return prevPartition_++ % topicMetadata.getNumPartitions();
     }
 }
+
 }  // namespace pulsar

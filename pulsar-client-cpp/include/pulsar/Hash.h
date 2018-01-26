@@ -16,29 +16,17 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
-#define PULSAR_RR_MESSAGE_ROUTER_HEADER_
+#ifndef HASH_HPP_
+#define HASH_HPP_
 
-#include <memory>
-
-#include <pulsar/MessageRoutingPolicy.h>
-#include <pulsar/ProducerConfiguration.h>
-#include <pulsar/TopicMetadata.h>
-#include <boost/thread/mutex.hpp>
-#include "include/pulsar/Hash.h"
+#include <cstdint>
+#include <string>
 
 namespace pulsar {
-class RoundRobinMessageRouter : public MessageRoutingPolicy {
+class Hash {
    public:
-    RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme);
-    virtual ~RoundRobinMessageRouter();
-    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
-
-   private:
-    boost::mutex mutex_;
-    unsigned int prevPartition_;
-    std::unique_ptr<Hash> hash;
+    virtual uint32_t makeHash(const std::string& key) = 0;
 };
-typedef boost::unique_lock<boost::mutex> Lock;
 }  // namespace pulsar
-#endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_
+
+#endif /* HASH_HPP_ */

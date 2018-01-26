@@ -46,6 +46,7 @@ public class ProducerConfiguration implements Serializable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
+    private boolean useMurmurHash = true;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
@@ -137,6 +138,15 @@ public class ProducerConfiguration implements Serializable {
         return this;
     }
 
+    public boolean isUseMurmurHash() {
+        return useMurmurHash;
+    }
+
+    public ProducerConfiguration setUseMurmurHash(boolean useMurmurHash) {
+        this.useMurmurHash = useMurmurHash;
+        return this;
+    }
+
     /**
      *
      * @return whether the producer will block {@link Producer#send} and {@link Producer#sendAsync} operations when the
@@ -151,7 +161,7 @@ public class ProducerConfiguration implements Serializable {
      * message queue is full.
      * <p>
      * Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
-     * {@link ProducerQueueIsFullError} when there is no space left in pending queue.
+     * {@link PulsarClientException.ProducerQueueIsFullError} when there is no space left in pending queue.
      *
      * @param blockIfQueueFull
      *            whether to block {@link Producer#send} and {@link Producer#sendAsync} operations on queue full
@@ -461,7 +471,8 @@ public class ProducerConfiguration implements Serializable {
             ProducerConfiguration other = (ProducerConfiguration) obj;
             return Objects.equal(this.sendTimeoutMs, other.sendTimeoutMs)
                     && Objects.equal(maxPendingMessages, other.maxPendingMessages)
-                    && Objects.equal(this.messageRouteMode, other.messageRouteMode);
+                    && Objects.equal(this.messageRouteMode, other.messageRouteMode)
+                    && Objects.equal(this.useMurmurHash, other.useMurmurHash);
         }
 
         return false;

@@ -17,6 +17,8 @@
  * under the License.
  */
 #include <pulsar/Client.h>
+#include <pulsar/ProducerConfiguration.h>
+#include <boost/functional/hash.hpp>
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 
@@ -36,7 +38,7 @@ using namespace pulsar;
 TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey) {
     const int selectedPartition = 1234;
 
-    SinglePartitionMessageRouter router(selectedPartition);
+    SinglePartitionMessageRouter router(selectedPartition, ProducerConfiguration::BoostHash);
 
     GMockMessage message;
     EXPECT_CALL(message, hasPartitionKey()).Times(1).WillOnce(Return(false));
@@ -48,7 +50,7 @@ TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithoutPartitionKey)
 TEST(SinglePartitionMessageRouterTest, DISABLED_getPartitionWithPartitionKey) {
     const int numPartitons = 1234;
 
-    SinglePartitionMessageRouter router(1);
+    SinglePartitionMessageRouter router(1, ProducerConfiguration::BoostHash);
 
     std::string partitionKey1 = "key1";
     std::string partitionKey2 = "key2";
