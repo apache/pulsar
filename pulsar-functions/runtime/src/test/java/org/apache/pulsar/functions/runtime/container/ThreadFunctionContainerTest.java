@@ -56,7 +56,8 @@ public class ThreadFunctionContainerTest {
         this.factory = new ThreadFunctionContainerFactory(
             "ThreadFunctionContainerFactory",
             1024,
-            client);
+            client,
+            "state-storage-service-url");
     }
 
     @AfterMethod

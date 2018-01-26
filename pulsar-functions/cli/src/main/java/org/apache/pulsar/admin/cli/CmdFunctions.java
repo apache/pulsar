@@ -215,6 +215,10 @@ public class CmdFunctions extends CmdBase {
     @Parameters(commandDescription = "Run function locally")
     class LocalRunner extends FunctionConfigCommand {
 
+        // TODO: this should become bookkeeper url and it should be fetched from pulsar client.
+        @Parameter(names = "--statestorage-service-url", description = "state storage service url\n")
+        protected String stateStorageServiceUrl;
+
         @Override
         void runCmd() throws Exception {
             if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
@@ -230,7 +234,8 @@ public class CmdFunctions extends CmdBase {
             try (ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
                 "LocalRunnerThreadGroup",
                 limitsConfig.getMaxBufferedTuples(),
-                admin.getServiceUrl().toString())) {
+                admin.getServiceUrl().toString(),
+                stateStorageServiceUrl)) {
 
                 Spawner spawner = Spawner.createSpawner(
                     functionConfig,

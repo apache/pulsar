@@ -25,6 +25,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import lombok.AccessLevel;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.Consumer;
@@ -49,13 +51,16 @@ import org.slf4j.LoggerFactory;
 @Slf4j
 public class JavaInstance implements AutoCloseable {
 
-    private ContextImpl context;
+    @Getter(AccessLevel.PACKAGE)
+    private final ContextImpl context;
     private PulsarFunction pulsarFunction;
     private ExecutorService executorService;
 
     public JavaInstance(InstanceConfig config, ClassLoader clsLoader,
                         PulsarClient pulsarClient,
-                        List<SerDe> inputSerDe, SerDe outputSerDe, Map<String, Consumer> sourceConsumers) {
+                        List<SerDe> inputSerDe,
+                        SerDe outputSerDe,
+                        Map<String, Consumer> sourceConsumers) {
         this(
             config,
             Reflections.createInstance(

@@ -85,6 +85,9 @@ public class JavaInstanceMain {
     @Parameter(names = "--pulsar_serviceurl", description = "Pulsar Service Url\n", required = true)
     protected String pulsarServiceUrl;
 
+    @Parameter(names = "--state_storage_serviceurl", description = "State Storage Service Url\n", required = true)
+    protected String stateStorageServiceUrl;
+
     @Parameter(names = "--port", description = "Port to listen on\n", required = true)
     protected int port;
 
@@ -148,7 +151,8 @@ public class JavaInstanceMain {
                 maxBufferedTuples,
                 new FunctionCacheManagerImpl(),
                 jarFile,
-                PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()));
+                PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()),
+                stateStorageServiceUrl);
         this.fnThread = new Thread(javaInstanceRunnable, FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
 
         server = ServerBuilder.forPort(port)

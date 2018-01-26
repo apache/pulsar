@@ -56,6 +56,7 @@ public class WorkerConfig implements Serializable {
     private LimitsConfig limitsConfig;
     private MetricsConfig metricsConfig;
     private long snapshotFreqMs;
+    private String stateStorageServiceUrl;
 
     @Data
     @Setter
