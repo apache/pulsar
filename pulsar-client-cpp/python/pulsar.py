@@ -185,10 +185,8 @@ class Authentication:
         * `authParamsString`: Comma-separated list of provider-specific
           configuration params
         """
-        if type(dynamicLibPath) is not str:
-            raise ValueError("dynamicLibPath is expected to be a string")
-        if type(authParamsString) is not str:
-            raise ValueError("authParamsString is expected to be a string")
+        _check_type(str, dynamicLibPath, 'dynamicLibPath')
+        _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
 
