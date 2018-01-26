@@ -51,7 +51,7 @@ public class ClientConfiguration implements Serializable {
     private boolean useTls = false;
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
-    private int concurrentLookupRequest = 5000;
+    private int concurrentLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
 
     /**
@@ -296,7 +296,7 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Stats will be activated with positive statsIntervalSeconds
-     * 
+     *
      * @return the interval between each stat info <i>(default: 60 seconds)</i>
      */
     public long getStatsIntervalSeconds() {
@@ -306,7 +306,7 @@ public class ClientConfiguration implements Serializable {
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
      * statsIntervalSeconds It should be set to at least 1 second
-     * 
+     *
      * @param statsIntervalSeconds
      *            the interval between each stat info
      * @param unit
@@ -318,7 +318,7 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Get configured total allowed concurrent lookup-request.
-     * 
+     *
      * @return
      */
     public int getConcurrentLookupRequest() {
@@ -327,9 +327,9 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
+     * <i>(default: 50000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
      * thousands of topic using created {@link PulsarClient}
-     * 
+     *
      * @param concurrentLookupRequest
      */
     public void setConcurrentLookupRequest(int concurrentLookupRequest) {
@@ -338,7 +338,7 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed
-     * 
+     *
      * @return
      */
     public int getMaxNumberOfRejectedRequestPerConnection() {
@@ -349,7 +349,7 @@ public class ClientConfiguration implements Serializable {
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>
-     * 
+     *
      * @param maxNumberOfRejectedRequestPerConnection
      */
     public void setMaxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
