@@ -247,26 +247,16 @@ class Client:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
         """
-        if type(service_url) is not str:
-            raise ValueError("service_url is expected to be a string")
-        if authentication is not None and not isinstance(authentication, Authentication):
-            raise ValueError("authentication is expected to be of type Authentication")
-        if type(operation_timeout_seconds) is not int:
-            raise ValueError("operation_timeout_seconds is expected to be an int")
-        if type(io_threads) is not int:
-            raise ValueError("io_threads is expected to be an int")
-        if type(message_listener_threads) is not int:
-            raise ValueError("message_listener_threads is expected to be an int")
-        if type(concurrent_lookup_requests) is not int:
-            raise ValueError("concurrent_lookup_requests is expected to be an int")
-        if log_conf_file_path is not None and type(log_conf_file_path) is not str:
-            raise ValueError("log_conf_file_path is expected to be a string")
-        if type(use_tls) is not bool:
-            raise ValueError("use_tls is expected to be a boolean")
-        if tls_trust_certs_file_path is not None and type(tls_trust_certs_file_path) is not str:
-            raise ValueError("tls_trust_certs_file_path is expected to be a string")
-        if type(tls_allow_insecure_connection) is not bool:
-            raise ValueError("tls_allow_insecure_connection is expected to be a boolean")
+        _check_type(str, service_url, 'service_url')
+        _check_type_or_none(Authentication, authentication, 'authentication')
+        _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, io_threads, 'io_threads')
+        _check_type(int, message_listener_threads, 'message_listener_threads')
+        _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
+        _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
+        _check_type(bool, use_tls, 'use_tls')
+        _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
+        _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
 
         conf = _pulsar.ClientConfiguration()
         if authentication:
@@ -331,28 +321,17 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer.
         """
-        if type(topic) is not str:
-            raise ValueError("topic is expected to be a string")
-        if producer_name is not None and type(producer_name) is not str:
-            raise ValueError("producer_name is expected to be a string")
-        if initial_sequence_id is not None and type(initial_sequence_id) is not int:
-            raise ValueError("initial_sequence_id is expected to be an integer")
-        if type(send_timeout_millis) is not int:
-            raise ValueError("send_timeout_millis is expected to be an integer")
-        if not isinstance(compression_type, CompressionType):
-            raise ValueError("compression_type is expected to be a enum")
-        if type(max_pending_messages) is not int:
-            raise ValueError("max_pending_messages is expected to be an integer")
-        if type(block_if_queue_full) is not bool:
-            raise ValueError("block_if_queue_full is expected to be a boolean")
-        if type(batching_enabled) is not bool:
-            raise ValueError("batching_enabled is expected to be a boolean")
-        if type(batching_max_messages) is not int:
-            raise ValueError("batching_max_messages is expected to be an integer")
-        if type(batching_max_allowed_size_in_bytes) is not int:
-            raise ValueError("batching_max_allowed_size_in_bytes is expected to be an integer")
-        if type(batching_max_publish_delay_ms) is not int:
-            raise ValueError("batching_max_publish_delay_ms is expected to be an integer")
+        _check_type(str, topic, 'topic')
+        _check_type(str, producer_name, 'producer_name')
+        _check_type_or_none(int, initial_sequence_id, 'initial_sequence_id')
+        _check_type(int, send_timeout_millis, 'send_timeout_millis')
+        _check_type(CompressionType, compression_type, 'compression_type')
+        _check_type(int, max_pending_messages, 'max_pending_messages')
+        _check_type(bool, block_if_queue_full, 'block_if_queue_full')
+        _check_type(bool, batching_enabled, 'batching_enabled')
+        _check_type(int, batching_max_messages, 'batching_max_messages')
+        _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
+        _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
 
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
@@ -428,20 +407,13 @@ class Client:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
         """
-        if type(topic) is not str:
-            raise ValueError("topic is expected to be a string")
-        if type(subscription_name) is not str:
-            raise ValueError("subscription_name is expected to be a string")
-        if not isinstance(consumer_type, ConsumerType):
-            raise ValueError("consumer_type is expected to be an enum")
-        if type(receiver_queue_size) is not int:
-            raise ValueError("receiver_queue_size is expected to be an integer")
-        if consumer_name is not None and type(consumer_name) is not str:
-            raise ValueError("consumer_name is expected to be a string")
-        if unacked_messages_timeout_ms is not None and type(unacked_messages_timeout_ms) is not int:
-            raise ValueError("unacked_messages_timeout_ms is expected to be an integer")
-        if type(broker_consumer_stats_cache_time_ms) is not int:
-            raise ValueError("broker_consumer_stats_cache_time_ms is expected to be an integer")
+        _check_type(str, topic, 'topic')
+        _check_type(str, subscription_name, 'subscription_name')
+        _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type_or_none(int, consumer_name, 'consumer_name')
+        _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
+        _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
 
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
@@ -507,14 +479,10 @@ class Client:
         * `reader_name`:
           Sets the reader name.
         """
-        if type(topic) is not str:
-            raise ValueError("topic is expected to be a string")
-        if not isinstance(start_message_id, _pulsar.MessageId):
-            raise ValueError("start_message_id is expected to be a MessageId")
-        if type(receiver_queue_size) is not int:
-            raise ValueError("receiver_queue_size is expected to be an integer")
-        if reader_name is not None and type(reader_name) is not str:
-            raise ValueError("reader_name is expected to be a string")
+        _check_type(str, topic, 'topic')
+        _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type(str, reader_name, 'reader_name')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -660,18 +628,12 @@ class Producer:
 
     def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
-        if type(content) is not bytes:
-            raise ValueError("content is expected to be of type bytes")
-        if properties is not None and type(properties) is not dict:
-            raise ValueError("properties is expected to be a dict")
-        if partition_key is not None and type(partition_key) is not str:
-            raise ValueError("partition_key is expected to be a string")
-        if sequence_id is not None and type(sequence_id) is not int:
-            raise ValueError("sequence_id is expected to be an integer")
-        if replication_clusters is not None and type(replication_clusters) is not list:
-            raise ValueError("replication_clusters is expected to be a list")
-        if type(disable_replication) is not bool:
-            raise ValueError("disable_replication is expected to be a boolean")
+        _check_type(bytes, content, 'content')
+        _check_type_or_none(dict, properties, 'properties')
+        _check_type_or_none(str, partition_key, 'partition_key')
+        _check_type_or_none(int, sequence_id, 'sequence_id')
+        _check_type_or_none(list, replication_clusters, 'replication_clusters')
+        _check_type(bool, disable_replication, 'disable_replication')
 
         mb = _pulsar.MessageBuilder()
         mb.content(content)
@@ -733,9 +695,8 @@ class Consumer:
         """
         if timeout_millis is None:
             return self._consumer.receive()
-        elif type(timeout_millis) is not int:
-            raise ValueError("timeout_millis is expected to be an integer")
         else:
+            _check_type(int, timeout_millis, 'timeout_millis')
             return self._consumer.receive(timeout_millis)
 
     def acknowledge(self, message):
@@ -827,9 +788,8 @@ class Reader:
         """
         if timeout_millis is None:
             return self._reader.read_next()
-        elif type(timeout_millis) is not int:
-            raise ValueError("timeout_millis is expected to be an integer")
         else:
+            _check_type(int, timeout_millis, 'timeout_millis')
             return self._reader.read_next(timeout_millis)
 
     def close(self):
@@ -838,3 +798,14 @@ class Reader:
         """
         self._reader.close()
         self._client._consumers.remove(self)
+
+
+def _check_type(var_type, var, name):
+    if not isinstance(var, var_type):
+        raise ValueError("Argument %s is expected to be of type '%s'" % (name, var_type.__name__))
+
+
+def _check_type_or_none(var_type, var, name):
+    if var is not None and not isinstance(var, var_type):
+        raise ValueError("Argument %s is expected to be either None or of type '%s'"
+                         % (name, var_type.__name__))
