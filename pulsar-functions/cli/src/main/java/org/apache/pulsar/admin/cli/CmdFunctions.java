@@ -27,6 +27,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.functions.api.PulsarFunction;
@@ -40,6 +41,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 
 import java.io.File;
 
+@Slf4j
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
 
@@ -246,11 +248,14 @@ public class CmdFunctions extends CmdBase {
                     0);
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {
+                        log.info("Shutting down the localrun spawner ...");
                         spawner.close();
+                        log.info("The localrun spawner is closed.");
                     }
                 });
                 spawner.start();
                 spawner.join();
+                log.info("Spawner is quitting.");
             }
         }
     }

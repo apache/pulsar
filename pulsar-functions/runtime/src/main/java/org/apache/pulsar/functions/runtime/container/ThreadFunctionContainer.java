@@ -79,6 +79,8 @@ class ThreadFunctionContainer implements FunctionContainer {
 
     @Override
     public void stop() {
+        // interrupt the instance thread
+        fnThread.interrupt();
         javaInstanceRunnable.close();
         try {
             fnThread.join();
