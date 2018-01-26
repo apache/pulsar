@@ -61,6 +61,16 @@ public class FunctionWorkerStarter {
         } else {
             workerConfig = WorkerConfig.load(workerArguments.configFile);
         }
+        if (null != workerConfig.getProcessContainerFactory()
+            && null == workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation()) {
+
+            String envJavaInstanceJarLocation = System.getProperty("pulsar.functions.java.instance.jar");
+            if (null != envJavaInstanceJarLocation) {
+                log.info("Java instance jar location is not defined in worker config yml."
+                    + " Use the location defined in system environment : {}", envJavaInstanceJarLocation);
+                workerConfig.getProcessContainerFactory().setJavaInstanceJarLocation(envJavaInstanceJarLocation);
+            }
+        }
 
         if (null == workerConfig.getLimitsConfig()) {
             workerConfig.setLimitsConfig(new LimitsConfig(-1, -1, -1, 1024));
