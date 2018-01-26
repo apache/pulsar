@@ -18,9 +18,10 @@
  */
 package org.apache.pulsar.client.api;
 
-import io.netty.buffer.ByteBuf;
-import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * A representation of a message in a topic in its raw form (i.e. as it is stored in a managed ledger).
@@ -45,10 +46,10 @@ public interface RawMessage extends AutoCloseable {
     ByteBuf getHeadersAndPayload();
 
     /**
-     * Serialize a raw message to a ByteBuf. The caller is responsible for releasing
-     * the returned ByteBuf.
+     * Serialize a raw message to a ByteBufPair. The caller is responsible for releasing
+     * the returned ByteBufPair.
      */
-    ByteBuf serialize();
+    ByteBufPair serialize();
 
     @Override
     void close();

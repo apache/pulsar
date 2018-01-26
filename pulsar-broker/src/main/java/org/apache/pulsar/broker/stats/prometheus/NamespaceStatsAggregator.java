@@ -36,16 +36,21 @@ public class NamespaceStatsAggregator {
         }
     };
 
-    public static void generate(PulsarService pulsar, SimpleTextOutputStream stream) {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
+        TopicStats topicStats = new TopicStats();
 
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
 
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
-                    updateNamespaceStats(namespaceStats, topic);
+                    getTopicStats(topic, topicStats);
+                    namespaceStats.updateStats(topicStats);
+                    if (includeTopicMetrics) {
+                        TopicStats.printNamespaceStats(stream, cluster, namespace, name, topicStats);
+                    }
                 });
             });
 
@@ -53,21 +58,20 @@ public class NamespaceStatsAggregator {
         });
     }
 
-    private static void updateNamespaceStats(AggregatedNamespaceStats stats, Topic topic) {
-        
+    private static void getTopicStats(Topic topic, TopicStats stats) {
+        stats.reset();
+
         if(topic instanceof PersistentTopic) {
-         // Managed Ledger stats
+            // Managed Ledger stats
             ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ((PersistentTopic)topic).getManagedLedger().getStats();
 
-            stats.storageSize += mlStats.getStoredMessagesSize();
+            stats.storageSize = mlStats.getStoredMessagesSize();
             stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
             stats.entrySizeBuckets.addAll(mlStats.getInternalEntrySizeBuckets());
 
             stats.storageWriteRate = mlStats.getAddEntryMessagesRate();
-            stats.storageReadRate = mlStats.getReadEntriesRate();    
+            stats.storageReadRate = mlStats.getReadEntriesRate();
         }
-        
-        stats.topicsCount++;
 
         topic.getProducers().forEach(producer -> {
             if (producer.isRemote()) {

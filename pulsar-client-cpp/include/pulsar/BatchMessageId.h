@@ -29,17 +29,13 @@ namespace pulsar {
 class PulsarWrapper;
 
 class BatchMessageId : public MessageId {
- public:
+   public:
     BatchMessageId(int64_t ledgerId, int64_t entryId, int batchIndex = -1)
-            : MessageId(ledgerId, entryId),
-              batchIndex_(batchIndex) {
-    }
+        : MessageId(ledgerId, entryId), batchIndex_(batchIndex) {}
 
     BatchMessageId(const MessageId& msgId);
 
-    BatchMessageId()
-            : batchIndex_(-1) {
-    }
+    BatchMessageId() : batchIndex_(-1) {}
 
     virtual void serialize(std::string& result) const;
 
@@ -48,7 +44,7 @@ class BatchMessageId : public MessageId {
     bool operator<=(const BatchMessageId& other) const;
     bool operator==(const BatchMessageId& other) const;
 
-  protected:
+   protected:
     virtual int64_t getBatchIndex() const;
 
     friend class Commands;
@@ -65,8 +61,7 @@ class BatchMessageId : public MessageId {
 
     friend std::ostream& operator<<(std::ostream& s, const BatchMessageId& messageId);
 };
-
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 
 #endif /* LIB_BATCHMESSAGEID_H_ */

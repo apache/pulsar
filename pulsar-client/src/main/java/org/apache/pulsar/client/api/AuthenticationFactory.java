@@ -51,6 +51,7 @@ public final class AuthenticationFactory {
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */
+    @SuppressWarnings("deprecation")
     public static final Authentication create(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
         try {
@@ -81,6 +82,7 @@ public final class AuthenticationFactory {
      * @return instance of the Authentication-Plugin
      * @throws UnsupportedAuthenticationException
      */
+    @SuppressWarnings("deprecation")
     public static final Authentication create(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
         try {

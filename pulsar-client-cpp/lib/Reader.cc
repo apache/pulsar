@@ -27,17 +27,11 @@ namespace pulsar {
 
 static const std::string EMPTY_STRING;
 
-Reader::Reader() :
-        impl_() {
-}
+Reader::Reader() : impl_() {}
 
-Reader::Reader(ReaderImplPtr impl) :
-        impl_(impl) {
-}
+Reader::Reader(ReaderImplPtr impl) : impl_(impl) {}
 
-const std::string& Reader::getTopic() const {
-    return impl_ != NULL ? impl_->getTopic() : EMPTY_STRING;
-}
+const std::string& Reader::getTopic() const { return impl_ != NULL ? impl_->getTopic() : EMPTY_STRING; }
 
 Result Reader::readNext(Message& msg) {
     if (!impl_) {
@@ -72,5 +66,4 @@ void Reader::closeAsync(ResultCallback callback) {
 
     impl_->closeAsync(callback);
 }
-
-}
+}  // namespace pulsar

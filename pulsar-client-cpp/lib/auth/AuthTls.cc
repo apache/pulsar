@@ -19,50 +19,37 @@
 #include <lib/auth/AuthTls.h>
 
 namespace pulsar {
-    AuthDataTls::AuthDataTls(ParamMap& params) {
-        tlsCertificates_ = params["tlsCertFile"];
-        tlsPrivateKey_ = params["tlsKeyFile"];
-    }
-
-    AuthDataTls::~AuthDataTls() {
-
-    }
-
-    bool AuthDataTls::hasDataForTls() {
-        return true;
-    }
-
-    std::string AuthDataTls::getTlsCertificates() {
-        return tlsCertificates_;
-    }
-
-    std::string AuthDataTls::getTlsPrivateKey() {
-        return tlsPrivateKey_;
-    }
-
-    AuthTls::AuthTls(AuthenticationDataPtr& authDataTls) {
-        authDataTls_ = authDataTls;
-    }
-
-    AuthTls::~AuthTls() {
-    }
-
-    AuthenticationPtr AuthTls::create(ParamMap& params) {
-        AuthenticationDataPtr authDataTls = AuthenticationDataPtr(new AuthDataTls(params));
-        return AuthenticationPtr(new AuthTls(authDataTls));
-    }
-
-    const std::string AuthTls::getAuthMethodName() const {
-        return "tls";
-    }
-
-    Result AuthTls::getAuthData(AuthenticationDataPtr& authDataContent) const {
-        authDataContent = authDataTls_;
-        return ResultOk;
-    }
-
-    extern "C" Authentication* createFromMap(ParamMap& params) {
-        AuthenticationDataPtr authDataTls = AuthenticationDataPtr(new AuthDataTls(params));
-        return new AuthTls(authDataTls);
-    }
+AuthDataTls::AuthDataTls(ParamMap& params) {
+    tlsCertificates_ = params["tlsCertFile"];
+    tlsPrivateKey_ = params["tlsKeyFile"];
 }
+
+AuthDataTls::~AuthDataTls() {}
+
+bool AuthDataTls::hasDataForTls() { return true; }
+
+std::string AuthDataTls::getTlsCertificates() { return tlsCertificates_; }
+
+std::string AuthDataTls::getTlsPrivateKey() { return tlsPrivateKey_; }
+
+AuthTls::AuthTls(AuthenticationDataPtr& authDataTls) { authDataTls_ = authDataTls; }
+
+AuthTls::~AuthTls() {}
+
+AuthenticationPtr AuthTls::create(ParamMap& params) {
+    AuthenticationDataPtr authDataTls = AuthenticationDataPtr(new AuthDataTls(params));
+    return AuthenticationPtr(new AuthTls(authDataTls));
+}
+
+const std::string AuthTls::getAuthMethodName() const { return "tls"; }
+
+Result AuthTls::getAuthData(AuthenticationDataPtr& authDataContent) const {
+    authDataContent = authDataTls_;
+    return ResultOk;
+}
+
+extern "C" Authentication* createFromMap(ParamMap& params) {
+    AuthenticationDataPtr authDataTls = AuthenticationDataPtr(new AuthDataTls(params));
+    return new AuthTls(authDataTls);
+}
+}  // namespace pulsar

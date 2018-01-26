@@ -17,24 +17,22 @@
  * under the License.
  */
 #include "SinglePartitionMessageRouter.h"
-#include <cstdlib> // rand()
-#include <boost/algorithm/string.hpp>
-namespace pulsar {
-    SinglePartitionMessageRouter::~SinglePartitionMessageRouter(){}
-    SinglePartitionMessageRouter::SinglePartitionMessageRouter(unsigned int numPartitions):numPartitions_(numPartitions) {
-        unsigned int random = rand();
-        selectedSinglePartition_ = random % numPartitions_;
-    }
 
-    //override
-    int SinglePartitionMessageRouter::getPartition(const Message& msg) {
-        //if message has a key, hash the key and return the partition
-        if (msg.hasPartitionKey()) {
-            StringHash hash;
-            return hash(msg.getPartitionKey()) % numPartitions_;
-        } else {
-            //else pick the next partition
-            return selectedSinglePartition_;
-        }
+namespace pulsar {
+SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex) {
+    selectedSinglePartition_ = partitionIndex;
+}
+
+// override
+int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
+    // if message has a key, hash the key and return the partition
+    if (msg.hasPartitionKey()) {
+        StringHash hash;
+        return hash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
+    } else {
+        // else pick the next partition
+        return selectedSinglePartition_;
     }
 }
+}  // namespace pulsar

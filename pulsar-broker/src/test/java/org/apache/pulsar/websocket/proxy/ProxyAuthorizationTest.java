@@ -44,7 +44,8 @@ import com.google.common.collect.Sets;
 
 public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     private WebSocketService service;
-    private static final int TEST_PORT = PortManager.nextFreePort();;
+    private static final int TEST_PORT = PortManager.nextFreePort();
+    private final String configClusterName = "c1";
 
     public ProxyAuthorizationTest() {
         super();
@@ -53,7 +54,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
     @BeforeClass
     @Override
     protected void setup() throws Exception {
-        conf.setClusterName("c1");
+        conf.setClusterName(configClusterName);
         internalSetup();
 
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
@@ -81,7 +82,7 @@ public class ProxyAuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role"), false);
 
-        admin.clusters().createCluster("c1", new ClusterData());
+        admin.clusters().updateCluster(configClusterName, new ClusterData());
         admin.properties().createProperty("p1", new PropertyAdmin(Lists.newArrayList("role1"), Sets.newHashSet("c1")));
         waitForChange();
         admin.namespaces().createNamespace("p1/c1/ns1");

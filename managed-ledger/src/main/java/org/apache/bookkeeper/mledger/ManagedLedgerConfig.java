@@ -51,6 +51,7 @@ public class ManagedLedgerConfig {
     private double throttleMarkDelete = 0;
     private long retentionTimeMs = 0;
     private long retentionSizeInMB = 0;
+    private boolean autoSkipNonRecoverableData;
 
     private DigestType digestType = DigestType.MAC;
     private byte[] password = "".getBytes(Charsets.UTF_8);
@@ -351,6 +352,20 @@ public class ManagedLedgerConfig {
      */
     public long getRetentionSizeInMB() {
         return retentionSizeInMB;
+    }
+
+    /**
+     * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
+     * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+     * 
+     * @param autoSkipNonRecoverableData
+     */
+    public boolean isAutoSkipNonRecoverableData() {
+        return autoSkipNonRecoverableData;
+    }
+
+    public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableData) {
+        this.autoSkipNonRecoverableData = skipNonRecoverableData;
     }
 
     /**

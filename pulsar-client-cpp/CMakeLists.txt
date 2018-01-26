@@ -122,6 +122,7 @@ find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
 
 find_package(OpenSSL REQUIRED)
 find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
 find_path(JSON_INCLUDE_PATH jsoncpp)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 
@@ -147,6 +148,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIR}
   ${LOG4CXX_INCLUDE_PATH}
   ${GTEST_INCLUDE_PATH}
+  ${GMOCK_INCLUDE_PATH}
   ${JSON_INCLUDE_PATH}
 )
 
@@ -198,7 +200,7 @@ add_subdirectory(tests)
 add_subdirectory(python)
 
 # `make format` option
-set(CLANG_FORMAT_VERSION "4.0")
+set(CLANG_FORMAT_VERSION "5.0")
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
 add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py

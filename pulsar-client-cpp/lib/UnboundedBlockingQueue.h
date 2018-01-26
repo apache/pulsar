@@ -25,17 +25,14 @@
 // For struct QueueNotEmpty
 #include "BlockingQueue.h"
 
-template<typename T>
+template <typename T>
 class UnboundedBlockingQueue {
- public:
+   public:
     typedef typename boost::circular_buffer<T> Container;
     typedef typename Container::iterator iterator;
     typedef typename Container::const_iterator const_iterator;
 
-    UnboundedBlockingQueue(size_t maxSize)
-            : mutex_(),
-              queue_(maxSize) {
-    }
+    UnboundedBlockingQueue(size_t maxSize) : mutex_(), queue_(maxSize) {}
 
     ~UnboundedBlockingQueue() {
         Lock lock(mutex_);
@@ -78,7 +75,7 @@ class UnboundedBlockingQueue {
     bool pop(T& value, const boost::posix_time::time_duration& timeout) {
         Lock lock(mutex_);
         if (!queueEmptyCondition_.timed_wait(lock, timeout,
-                                            QueueNotEmpty<UnboundedBlockingQueue<T> >(*this))) {
+                                             QueueNotEmpty<UnboundedBlockingQueue<T> >(*this))) {
             return false;
         }
 
@@ -128,34 +125,23 @@ class UnboundedBlockingQueue {
         return isEmptyNoMutex();
     }
 
-    const_iterator begin() const {
-        return queue_.begin();
-    }
+    const_iterator begin() const { return queue_.begin(); }
 
-    const_iterator end() const {
-        return queue_.end();
-    }
+    const_iterator end() const { return queue_.end(); }
 
-    iterator begin() {
-        return queue_.begin();
-    }
+    iterator begin() { return queue_.begin(); }
 
-    iterator end() {
-        return queue_.end();
-    }
+    iterator end() { return queue_.end(); }
 
- private:
-
-    bool isEmptyNoMutex() const {
-        return queue_.empty();
-    }
+   private:
+    bool isEmptyNoMutex() const { return queue_.empty(); }
 
     mutable boost::mutex mutex_;
     boost::condition_variable queueEmptyCondition_;
     Container queue_;
 
     typedef boost::unique_lock<boost::mutex> Lock;
-    friend struct QueueNotEmpty<UnboundedBlockingQueue<T> > ;
+    friend struct QueueNotEmpty<UnboundedBlockingQueue<T> >;
 };
 
 #endif /* LIB_BLOCKINGQUEUE_H_ */

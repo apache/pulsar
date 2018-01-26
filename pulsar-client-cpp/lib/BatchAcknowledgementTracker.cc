@@ -21,12 +21,13 @@
 namespace pulsar {
 DECLARE_LOG_OBJECT()
 
-BatchAcknowledgementTracker::BatchAcknowledgementTracker(const std::string topic, const std::string subscription,
-                               const long consumerId)
-        : greatestCumulativeAckSent_(BatchMessageId()) {
+BatchAcknowledgementTracker::BatchAcknowledgementTracker(const std::string topic,
+                                                         const std::string subscription,
+                                                         const long consumerId)
+    : greatestCumulativeAckSent_(BatchMessageId()) {
     std::stringstream consumerStrStream;
-    consumerStrStream << "BatchAcknowledgementTracker for [" << topic << ", " << subscription
-                      << ", " << consumerId << "] ";
+    consumerStrStream << "BatchAcknowledgementTracker for [" << topic << ", " << subscription << ", "
+                      << consumerId << "] ";
     name_ = consumerStrStream.str();
     LOG_DEBUG(name_ << "Constructed BatchAcknowledgementTracker");
 }
@@ -46,14 +47,17 @@ void BatchAcknowledgementTracker::receivedMessage(const Message& message) {
 
     // ignore message if it is less than the last cumulative ack sent or messageID is already being tracked
     TrackerMap::iterator pos = trackerMap_.find(msgID);
-    if (msgID < greatestCumulativeAckSent_ || pos != trackerMap_.end()
-            || std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
+    if (msgID < greatestCumulativeAckSent_ || pos != trackerMap_.end() ||
+        std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
         return;
     }
     LOG_DEBUG("Initializing the trackerMap_ with Message ID = " << msgID);
 
-    // Since dynamic_set (this version) doesn't have all() function, initializing all bits with 1 and then reseting them to 0 and using any()
-    trackerMap_.insert(pos, TrackerPair(msgID, boost::dynamic_bitset<>(message.impl_->metadata.num_messages_in_batch()).set()));
+    // Since dynamic_set (this version) doesn't have all() function, initializing all bits with 1 and then
+    // reseting them to 0 and using any()
+    trackerMap_.insert(
+        pos,
+        TrackerPair(msgID, boost::dynamic_bitset<>(message.impl_->metadata.num_messages_in_batch()).set()));
 }
 
 void BatchAcknowledgementTracker::deleteAckedMessage(const BatchMessageId& messageId,
@@ -78,36 +82,36 @@ void BatchAcknowledgementTracker::deleteAckedMessage(const BatchMessageId& messa
             }
         }
 
-        // std::remove shifts all to be deleted items to the end of the vector and returns an iterator to the first
+        // std::remove shifts all to be deleted items to the end of the vector and returns an iterator to the
+        // first
         // instance of item, then we erase all elements from this iterator to the end of the list
-        sendList_.erase(
-                std::remove_if(sendList_.begin(), sendList_.end(), SendRemoveCriteria(messageId)),
-                sendList_.end());
+        sendList_.erase(std::remove_if(sendList_.begin(), sendList_.end(), SendRemoveCriteria(messageId)),
+                        sendList_.end());
 
         if (greatestCumulativeAckSent_ < messageId) {
             greatestCumulativeAckSent_ = messageId;
-            LOG_DEBUG(
-                    *this << " The greatestCumulativeAckSent_ is now " << greatestCumulativeAckSent_);
+            LOG_DEBUG(*this << " The greatestCumulativeAckSent_ is now " << greatestCumulativeAckSent_);
         }
     } else {
         // Error - if it is a batch message and found in trackerMap_
         if (trackerMap_.find(messageId) != trackerMap_.end()) {
-            LOG_ERROR(
-                    *this << " - This should not happened - Message should have been removed from trakerMap_ and moved to sendList_ " << messageId);
+            LOG_ERROR(*this << " - This should not happened - Message should have been removed from "
+                               "trakerMap_ and moved to sendList_ "
+                            << messageId);
         }
 
-        sendList_.erase(std::remove(sendList_.begin(), sendList_.end(), messageId),
-                        sendList_.end());
+        sendList_.erase(std::remove(sendList_.begin(), sendList_.end(), messageId), sendList_.end());
     }
 }
 
-bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID, const proto::CommandAck_AckType ackType) {
+bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID,
+                                               const proto::CommandAck_AckType ackType) {
     Lock lock(mutex_);
     TrackerMap::iterator pos = trackerMap_.find(msgID);
-    if (pos == trackerMap_.end() ||
-            std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
+    if (pos == trackerMap_.end() || std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
         LOG_DEBUG(
-                "Batch is ready since message present in sendList_ or not present in trackerMap_ [message ID = " << msgID << "]");
+            "Batch is ready since message present in sendList_ or not present in trackerMap_ [message ID = "
+            << msgID << "]");
         return true;
     }
 
@@ -126,8 +130,8 @@ bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID, cons
     }
     sendList_.push_back(msgID);
     trackerMap_.erase(pos);
-    LOG_DEBUG(
-            "Batch is ready since message all bits are reset in trackerMap_ [message ID = " << msgID << "]");
+    LOG_DEBUG("Batch is ready since message all bits are reset in trackerMap_ [message ID = " << msgID
+                                                                                              << "]");
     return true;
 }
 
@@ -135,7 +139,7 @@ bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID, cons
 // - a batch message id < messageId
 // - same messageId if it is the last message in the batch
 const BatchMessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(
-        const BatchMessageId& messageId) {
+    const BatchMessageId& messageId) {
     Lock lock(mutex_);
     BatchMessageId messageReadyForCumulativeAck = BatchMessageId();
     TrackerMap::iterator pos = trackerMap_.find(messageId);
@@ -144,7 +148,6 @@ const BatchMessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(
     if (pos == trackerMap_.end()) {
         return BatchMessageId();
     }
-
 
     if (pos->second.size() - 1 != messageId.batchIndex_) {
         // Can't cumulatively ack this batch message
@@ -157,5 +160,4 @@ const BatchMessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(
 
     return pos->first;
 }
-
-}
+}  // namespace pulsar

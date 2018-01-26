@@ -29,7 +29,7 @@
 #pragma GCC visibility push(default)
 namespace pulsar {
 class BrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
- private:
+   private:
     /** validTill_ - Stats will be valid till this time.*/
     boost::posix_time::ptime validTill_;
 
@@ -69,15 +69,14 @@ class BrokerConsumerStatsImpl : public BrokerConsumerStatsImplBase {
     /** Number of messages in the subscription backlog */
     uint64_t msgBacklog_;
 
-public:
-
+   public:
     BrokerConsumerStatsImpl();
 
     BrokerConsumerStatsImpl(double msgRateOut, double msgThroughputOut, double msgRateRedeliver,
-                            std::string consumerName, uint64_t availablePermits,
-                            uint64_t unackedMessages, bool blockedConsumerOnUnackedMsgs,
-                            std::string address, std::string connectedSince, const std::string& type,
-                            double msgRateExpired, uint64_t msgBacklog);
+                            std::string consumerName, uint64_t availablePermits, uint64_t unackedMessages,
+                            bool blockedConsumerOnUnackedMsgs, std::string address,
+                            std::string connectedSince, const std::string& type, double msgRateExpired,
+                            uint64_t msgBacklog);
 
     /** Returns true if the Stats are still valid **/
     virtual bool isValid() const;
@@ -120,10 +119,10 @@ public:
 
     void setCacheTime(uint64_t cacehTimeInMs);
 
-    friend std::ostream& operator<<(std::ostream &os, const BrokerConsumerStatsImpl &obj);
+    friend std::ostream& operator<<(std::ostream& os, const BrokerConsumerStatsImpl& obj);
 
     static ConsumerType convertStringToConsumerType(const std::string& str);
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
-#endif //PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H
+#endif  // PULSAR_CPP_BROKERCONSUMERSTATSIMPL_H
