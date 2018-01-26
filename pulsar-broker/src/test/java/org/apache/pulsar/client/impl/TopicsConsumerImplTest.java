@@ -66,6 +66,40 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
     }
 
     @Test(timeOut = testTimeout)
+    public void testGetConsumersAndGetTopics() throws Exception {
+        String key = "TopicsConsumerGet";
+        final String subscriptionName = "my-ex-subscription-" + key;
+
+        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
+
+        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
+        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+
+        // 2. Create consumer
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setReceiverQueueSize(4);
+        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+        assertTrue(consumer instanceof TopicsConsumerImpl);
+
+        List<String> topics = ((TopicsConsumerImpl) consumer).getPartitionedTopics();
+        List<ConsumerImpl> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
+
+        topics.forEach(topic -> log.info("topic: {}", topic));
+        consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
+
+        IntStream.range(0, 6).forEach(index ->
+            assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
+
+        assertTrue(((TopicsConsumerImpl) consumer).getTopics().size() == 3);
+    }
+
+    @Test(timeOut = testTimeout)
     public void testSyncProducerAndConsumer() throws Exception {
         String key = "TopicsConsumerSyncTest";
         final String subscriptionName = "my-ex-subscription-" + key;

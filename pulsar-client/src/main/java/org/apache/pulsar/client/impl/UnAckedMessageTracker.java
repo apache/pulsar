@@ -171,8 +171,8 @@ public class UnAckedMessageTracker implements Closeable {
     public int removeMessagesTill(MessageId msgId) {
         readLock.lock();
         try {
-            int currentSetRemovedMsgCount = currentSet.removeIf(m -> (m.compareTo(msgId) < 0));
-            int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> (m.compareTo(msgId) < 0));
+            int currentSetRemovedMsgCount = currentSet.removeIf(m -> (m.compareTo(msgId) <= 0));
+            int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> (m.compareTo(msgId) <= 0));
 
             return currentSetRemovedMsgCount + oldSetRemovedMsgCount;
         } finally {
