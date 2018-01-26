@@ -69,6 +69,7 @@ public class LookupProxyHandler {
         lookupRequests.inc();
         long clientRequestId = lookup.getRequestId();
         String topic = lookup.getTopic();
+        String serviceUrl;
         if (isBlank(brokerServiceURL)) {
             ServiceLookupData availableBroker = null;
             try {
@@ -79,15 +80,13 @@ public class LookupProxyHandler {
                         Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
                 return;
             }
-            performLookup(clientRequestId, topic,
-                    this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls() : availableBroker.getPulsarServiceUrl(),
-                    false, 10);
+            serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
+                    : availableBroker.getPulsarServiceUrl();
         } else {
-            performLookup(clientRequestId, topic,
-                    this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
-                            : service.getConfiguration().getBrokerServiceURL(),
-                    false, 10);
+            serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
+                    : service.getConfiguration().getBrokerServiceURL();
         }
+        performLookup(clientRequestId, topic, serviceUrl, false, 10);
     }
 
     private void performLookup(long clientRequestId, String topic, String brokerServiceUrl, boolean authoritative,

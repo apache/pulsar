@@ -69,8 +69,8 @@ public class AuthorizationManager {
             log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
             throw e;
         } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}", role,
-                    destination, e);
+            log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
+                    destination, e.getMessage());
             throw e;
         }
     }
@@ -115,12 +115,12 @@ public class AuthorizationManager {
                     permissionFuture.complete(isAuthorized);
                 });
             }).exceptionally(ex -> {
-                log.warn("Client with Role - {} failed to get permissions for destination - {}", role, destination, ex);
+                log.warn("Client with Role - {} failed to get permissions for destination - {}. {}", role, destination, ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination, e);
+            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination, e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
@@ -133,8 +133,8 @@ public class AuthorizationManager {
             log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}", role,
-                    destination, e);
+            log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
+                    destination, e.getMessage());
             throw e;
         }
     }
@@ -164,44 +164,30 @@ public class AuthorizationManager {
      * @throws Exception
      */
     public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role) {
-        CompletableFuture<Boolean> produceFuture = canProduceAsync(destination, role);
-        CompletableFuture<Boolean> consumeFuture = canConsumeAsync(destination, role, null);
         CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        AtomicBoolean futureCompleted = new AtomicBoolean(false);
-        produceFuture.whenComplete((authorized, ex) -> {
-            synchronized (this) {
-                if (ex == null) {
-                    if (authorized) {
-                        finalResult.complete(authorized);
+        canProduceAsync(destination, role).whenComplete((produceAuthorized, ex) -> {
+            if (ex == null) {
+                if (produceAuthorized) {
+                    finalResult.complete(produceAuthorized);
+                    return;
+                }
+            } else if (log.isDebugEnabled()) {
+                log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                        destination.toString(), role, ex.getMessage());
+            }
+            canConsumeAsync(destination, role, null).whenComplete((consumeAuthorized, e) -> {
+                if (e == null) {
+                    if (consumeAuthorized) {
+                        finalResult.complete(consumeAuthorized);
                         return;
                     }
-                } else {
-                    log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions",
-                            destination.toString(), role, ex);
+                } else if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Destination [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                            destination.toString(), role, e.getMessage());
                 }
-                if (futureCompleted.get()) {
-                    finalResult.complete(false);
-                }
-                futureCompleted.set(true);
-            }
-        });
-
-        consumeFuture.whenComplete((authorized, ex) -> {
-            synchronized (this) {
-                if (ex == null) {
-                    if (authorized) {
-                        finalResult.complete(authorized);
-                        return;
-                    }
-                } else {
-                    log.debug("Destination [{}] Role [{}] exception occured while trying to check Consume permissions",
-                            destination.toString(), role, ex);
-                }
-                if (futureCompleted.get()) {
-                    finalResult.complete(false);
-                }
-                futureCompleted.set(true);
-            }
+                finalResult.complete(false);
+            });
         });
         return finalResult;
     }
@@ -273,13 +259,13 @@ public class AuthorizationManager {
                 }
                 permissionFuture.complete(false);
             }).exceptionally(ex -> {
-                log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination,
-                        ex);
+                log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                        ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination, e);
+            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination, e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;

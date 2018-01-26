@@ -99,7 +99,7 @@ public class ServerCnx extends PulsarHandler {
     private String clientVersion = null;
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
-    private String proxyClientAuthRole = null;
+    private String originalPrincipal = null;
 
     enum State {
         Start, Connected
@@ -182,10 +182,10 @@ public class ServerCnx extends PulsarHandler {
 
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            final String proxyClientAuthRole = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
-                    : this.proxyClientAuthRole;
+            final String originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
+                    : this.originalPrincipal;
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
-            if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+            if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationManager()
                         .canLookupAsync(DestinationName.get(topicName), authRole);
             } else {
@@ -195,7 +195,7 @@ public class ServerCnx extends PulsarHandler {
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
                     lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topicName),
-                            lookup.getAuthoritative(), proxyClientAuthRole != null ? proxyClientAuthRole : authRole,
+                            lookup.getAuthoritative(), originalPrincipal != null ? originalPrincipal : authRole,
                             lookup.getRequestId()).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
@@ -215,6 +215,12 @@ public class ServerCnx extends PulsarHandler {
                     ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                     lookupSemaphore.release();
                 }
+                return null;
+            }).exceptionally(ex -> {
+                final String msg = "Exception occured while trying to authorize lookup";
+                log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                lookupSemaphore.release();
                 return null;
             });
         } else {
@@ -236,10 +242,10 @@ public class ServerCnx extends PulsarHandler {
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
 
-            final String proxyClientAuthRole = partitionMetadata.hasOriginalPrincipal()
-                    ? partitionMetadata.getOriginalPrincipal() : this.proxyClientAuthRole;
+            final String originalPrincipal = partitionMetadata.hasOriginalPrincipal()
+                    ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
-            if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+            if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationManager()
                         .canLookupAsync(DestinationName.get(topicName), authRole);
             } else {
@@ -248,7 +254,7 @@ public class ServerCnx extends PulsarHandler {
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
                         getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                                proxyClientAuthRole != null ? proxyClientAuthRole : authRole,
+                                originalPrincipal != null ? originalPrincipal : authRole,
                                 DestinationName.get(topicName)).handle((metadata, ex) -> {
                                     if (ex == null) {
                                         int partitions = metadata.partitions;
@@ -280,6 +286,12 @@ public class ServerCnx extends PulsarHandler {
                         lookupSemaphore.release();
                     }
                     return null;
+            }).exceptionally(ex -> {
+                final String msg = "Exception occured while trying to authorize get Partition Metadata";
+                log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                lookupSemaphore.release();
+                return null;
             });
         } else {
             if (log.isDebugEnabled()) {
@@ -362,11 +374,11 @@ public class ServerCnx extends PulsarHandler {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
 
-                proxyClientAuthRole = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 
-                log.info("[{}] Client successfully authenticated with {} role {} and proxyClientAuthRole {}", remoteAddress, authMethod, authRole, proxyClientAuthRole);
+                log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}", remoteAddress, authMethod, authRole, originalPrincipal);
             } catch (AuthenticationException e) {
                 String msg = "Unable to authenticate";
                 log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
@@ -395,7 +407,7 @@ public class ServerCnx extends PulsarHandler {
         final long consumerId = subscribe.getConsumerId();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+        if (service.isAuthorizationEnabled() && originalPrincipal != null) {
             isProxyAuthorizedFuture = service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topicName),
                     authRole, subscribe.getSubscription());
         } else {
@@ -407,7 +419,7 @@ public class ServerCnx extends PulsarHandler {
                 if (service.isAuthorizationEnabled()) {
                     authorizationFuture = service.getAuthorizationManager().canConsumeAsync(
                             DestinationName.get(subscribe.getTopic()),
-                            isRequestViaProxy() ? proxyClientAuthRole : authRole, subscribe.getSubscription());
+                            originalPrincipal != null ? originalPrincipal : authRole, subscribe.getSubscription());
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -547,7 +559,7 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = cmdProducer.getRequestId();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
-        if (service.isAuthorizationEnabled() && proxyClientAuthRole != null) {
+        if (service.isAuthorizationEnabled() && originalPrincipal != null) {
             isProxyAuthorizedFuture = service.getAuthorizationManager().canProduceAsync(DestinationName.get(topicName),
                     authRole);
         } else {
@@ -559,7 +571,7 @@ public class ServerCnx extends PulsarHandler {
                 if (service.isAuthorizationEnabled()) {
                     authorizationFuture = service.getAuthorizationManager().canProduceAsync(
                             DestinationName.get(cmdProducer.getTopic().toString()),
-                            isRequestViaProxy() ? proxyClientAuthRole : authRole);
+                            originalPrincipal != null ? originalPrincipal : authRole);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -702,11 +714,12 @@ public class ServerCnx extends PulsarHandler {
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             }
             return null;
+        }).exceptionally(ex -> {
+            String msg = String.format("[%s] %s with role %s", remoteAddress, ex.getMessage(), authRole);
+            log.warn(msg);
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, ex.getMessage()));
+            return null;
         });
-    }
-
-    private boolean isRequestViaProxy() {
-        return proxyClientAuthRole != null;
     }
 
     @Override
