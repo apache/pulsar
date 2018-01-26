@@ -202,7 +202,7 @@ class Client:
                  operation_timeout_seconds=30,
                  io_threads=1,
                  message_listener_threads=1,
-                 concurrent_lookup_requests=5000,
+                 concurrent_lookup_requests=50000,
                  log_conf_file_path=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
