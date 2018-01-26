@@ -254,6 +254,8 @@ $ pulsar-admin namespaces list prop/us-central
 ns
 ```
 
+Now that you have a namespace and property set up, you can move on to [experimenting with your Pulsar cluster](#experimenting-with-your-cluster) from within the cluster or [connecting to the cluster](#client-connections) using a Pulsar client.
+
 #### Experimenting with your cluster
 
 Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](../../reference/CliTools#pulsar-perf) to create a test {% popover producer %} to publish 10,000 messages a second on a topic in the {% popover property %} and {% popover namespace %} you created.
@@ -317,3 +319,20 @@ $ kubectl port-forward \
 ```
 
 You can then access the dashboard in your web browser at [localhost:8080](http://localhost:8080).
+
+### Client connections
+
+Once your Pulsar cluster is running on Kubernetes, you can connect to it using a Pulsar client. You can fetch the IP address for the Pulsar proxy running in your Kubernetes cluster using kubectl:
+
+```bash
+$ kubectl get service broker-proxy \
+  --output=jsonpath='{.status.loadBalancer.ingress[*].ip}'
+```
+
+If the IP address for the proxy were, for example, 35.12.13.198, you could connect to Pulsar using `pulsar://35.12.13.198:6650`.
+
+You can find client documentation for:
+
+* [Java](../../clients/Java)
+* [Python](../../clients/Python)
+* [C++](../../clients/Cpp)
