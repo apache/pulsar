@@ -168,9 +168,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authTls.configure(authParams);
         internalSetup(authTls);
 
-        admin.clusters().createCluster("use",
-                new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,
-                        "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
@@ -187,9 +184,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser\",\"password\":\"supepass\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("use",
-                new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,
-                        "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties()
                 .createProperty("my-property", new PropertyAdmin(Lists.newArrayList(), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
@@ -206,9 +200,6 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         authPassword.configure("{\"userId\":\"superUser2\",\"password\":\"superpassword\"}");
         internalSetup(authPassword);
 
-        admin.clusters().createCluster("use",
-                new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,
-                        "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties()
                 .createProperty("my-property", new PropertyAdmin(Lists.newArrayList(), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
