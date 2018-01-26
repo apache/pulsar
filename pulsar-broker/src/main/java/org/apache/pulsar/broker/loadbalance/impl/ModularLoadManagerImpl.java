@@ -35,7 +35,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -131,7 +130,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // Strategy to use for splitting bundles.
     private BundleSplitStrategy bundleSplitStrategy;
-    
+
     // Service configuration belonging to the pulsar service.
     private ServiceConfiguration conf;
 
@@ -174,10 +173,10 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     // ZooKeeper belonging to the pulsar service.
     private ZooKeeper zkClient;
-    
+
     // check if given broker can load persistent/non-persistent topic
     private final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate;
-    
+
     private Map<String, String> brokerToFailureDomainMap;
 
     private static final Deserializer<LocalBrokerData> loadReportDeserializer = (key, content) -> jsonMapper()
@@ -197,7 +196,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         preallocatedBundleToBroker = new ConcurrentHashMap<>();
         scheduler = Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-modular-load-manager"));
         this.brokerToFailureDomainMap = Maps.newHashMap();
-        
+
         this.brokerTopicLoadingPredicate = new BrokerTopicLoadingPredicate() {
             @Override
             public boolean isEnablePersistentTopics(String brokerUrl) {
@@ -253,7 +252,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         }
 
         bundleSplitStrategy = new BundleSplitterTask(pulsar);
-        
+
         conf = pulsar.getConfiguration();
 
         // Initialize the default stats to assume for unseen bundles (hard-coded for now).
@@ -273,12 +272,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
         localData.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         localData.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
 
-        
+
         placementStrategy = ModularLoadManagerStrategy.create(conf);
         policies = new SimpleResourceAllocationPolicies(pulsar);
         zkClient = pulsar.getZkClient();
         filterPipeline.add(new BrokerVersionFilter());
-        
+
         refreshBrokerToFailureDomainMap();
         // register listeners for domain changes
         pulsar.getConfigurationCache().failureDomainListCache()
@@ -591,7 +590,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                     for (Map.Entry<String, String> entry : bundlesToUnload.entrySet()) {
                         final String broker = entry.getKey();
                         final String bundle = entry.getValue();
-                        
+
                         final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
                         final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
                         if(!shouldAntiAffinityNamespaceUnload(namespaceName, bundleRange, broker)) {
@@ -640,7 +639,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      */
     @Override
     public void checkNamespaceBundleSplit() {
-        
+
         if (!conf.isLoadBalancerAutoBundleSplitEnabled() || pulsar.getLeaderElectionService() == null
                 || !pulsar.getLeaderElectionService().isLeader()) {
             return;
@@ -673,7 +672,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
                 }
             }
         }
-    
+
     }
 
     /**
@@ -692,13 +691,13 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
      * @return The name of the selected broker, as it appears on ZooKeeper.
      */
     @Override
-    public String selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
+    public Optional<String> selectBrokerForAssignment(final ServiceUnitId serviceUnit) {
         // Use brokerCandidateCache as a lock to reduce synchronization.
         synchronized (brokerCandidateCache) {
             final String bundle = serviceUnit.toString();
             if (preallocatedBundleToBroker.containsKey(bundle)) {
                 // If the given bundle is already in preallocated, return the selected broker.
-                return preallocatedBundleToBroker.get(bundle);
+                return Optional.of(preallocatedBundleToBroker.get(bundle));
             }
             final BundleData data = loadData.getBundleData().computeIfAbsent(bundle,
                     key -> getBundleDataOrDefault(bundle));
@@ -717,7 +716,9 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
                     brokerToNamespaceToBundleRange);
-            log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
+            if (log.isDebugEnabled()) {
+                log.debug("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
+            }
 
             // Use the filter pipeline to finalize broker candidates.
             try {
@@ -737,13 +738,18 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
 
             // Choose a broker among the potentially smaller filtered list, when possible
-            String broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
+            Optional<String> broker = placementStrategy.selectBroker(brokerCandidateCache, data, loadData, conf);
             if (log.isDebugEnabled()) {
                 log.debug("Selected broker {} from candidate brokers {}", broker, brokerCandidateCache);
             }
 
+            if (!broker.isPresent()) {
+                // No brokers available
+                return broker;
+            }
+
             final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
-            final double maxUsage = loadData.getBrokerData().get(broker).getLocalData().getMaxResourceUsage();
+            final double maxUsage = loadData.getBrokerData().get(broker.get()).getLocalData().getMaxResourceUsage();
             if (maxUsage > overloadThreshold) {
                 // All brokers that were in the filtered list were overloaded, so check if there is a better broker
                 LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, getAvailableBrokers(),
@@ -752,12 +758,12 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
 
             // Add new bundle to preallocated.
-            loadData.getBrokerData().get(broker).getPreallocatedBundleData().put(bundle, data);
-            preallocatedBundleToBroker.put(bundle, broker);
+            loadData.getBrokerData().get(broker.get()).getPreallocatedBundleData().put(bundle, data);
+            preallocatedBundleToBroker.put(bundle, broker.get());
 
             final String namespaceName = LoadManagerShared.getNamespaceNameFromBundleName(bundle);
             final String bundleRange = LoadManagerShared.getBundleRangeFromBundleName(bundle);
-            brokerToNamespaceToBundleRange.get(broker).computeIfAbsent(namespaceName, k -> new HashSet<>())
+            brokerToNamespaceToBundleRange.get(broker.get()).computeIfAbsent(namespaceName, k -> new HashSet<>())
                     .add(bundleRange);
             return broker;
         }
@@ -827,7 +833,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
     /**
      * As any broker, retrieve the namespace bundle stats and system resource usage to update data local to this broker.
-     * @return 
+     * @return
      */
     @Override
     public LocalBrokerData updateLocalBrokerData() {
@@ -902,7 +908,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
             }
         }
     }
-    
+
     private void deleteBundleDataFromZookeeper(String bundle) {
         final String zooKeeperPath = getBundleDataZooKeeperPath(bundle);
         try {
