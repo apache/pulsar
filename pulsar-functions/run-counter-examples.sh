@@ -17,7 +17,7 @@
 # under the License.
 #
 
-bin/pulsar-functions functions localrun \
+bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
     --function-config conf/example.yml \
     --source-topics persistent://sample/standalone/ns1/test_src \
     --sink-topic persistent://sample/standalone/ns1/test_result \
