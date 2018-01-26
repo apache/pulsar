@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
@@ -166,30 +167,40 @@ public class AuthorizationManager {
         CompletableFuture<Boolean> produceFuture = canProduceAsync(destination, role);
         CompletableFuture<Boolean> consumeFuture = canConsumeAsync(destination, role, null);
         CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        CountDownLatch latch = new CountDownLatch(2);
+        AtomicBoolean futureCompleted = new AtomicBoolean(false);
         produceFuture.whenComplete((authorized, ex) -> {
-            latch.countDown();
-            if (ex == null) {
-                if (authorized) {
-                    finalResult.complete(authorized);
-                } else if(latch.getCount() == 0) {
+            synchronized (this) {
+                if (ex == null) {
+                    if (authorized) {
+                        finalResult.complete(authorized);
+                        return;
+                    }
+                } else {
+                    log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions",
+                            destination.toString(), role, ex);
+                }
+                if (futureCompleted.get()) {
                     finalResult.complete(false);
                 }
-            } else {
-                log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions", destination.toString(), role, ex);
+                futureCompleted.set(true);
             }
         });
-        
+
         consumeFuture.whenComplete((authorized, ex) -> {
-            latch.countDown();
-            if (ex == null) {
-                if (authorized) {
-                    finalResult.complete(authorized);
-                } else if(latch.getCount() == 0) {
+            synchronized (this) {
+                if (ex == null) {
+                    if (authorized) {
+                        finalResult.complete(authorized);
+                        return;
+                    }
+                } else {
+                    log.debug("Destination [{}] Role [{}] exception occured while trying to check Consume permissions",
+                            destination.toString(), role, ex);
+                }
+                if (futureCompleted.get()) {
                     finalResult.complete(false);
                 }
-            } else {
-                log.debug("Destination [{}] Role [{}] exception occured while trying to check Consume permissions", destination.toString(), role, ex);
+                futureCompleted.set(true);
             }
         });
         return finalResult;
