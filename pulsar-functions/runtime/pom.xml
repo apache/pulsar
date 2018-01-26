@@ -103,6 +103,11 @@
       <version>1.5.0</version>
     </dependency>
 
+    <dependency>
+      <groupId>org.apache.distributedlog</groupId>
+      <artifactId>stream-storage-java-client</artifactId>
+      <version>0.6.0-SNAPSHOT</version>
+    </dependency>
 
     <dependency>
       <groupId>net.jodah</groupId>
@@ -190,5 +195,16 @@
       </plugin>
     </plugins>
   </build>
+  <!-- current the stream storage artifacts are hosted at streamlio. will give rid of this once it is proposed to merge to bookkeeper -->
+  <repositories>
+    <repository>
+        <id>stream-storage-mvn-repo</id>
+        <url>https://raw.githubusercontent.com/sijie/artifacts/mvn-repo/</url>
+        <snapshots>
+            <enabled>true</enabled>
+            <updatePolicy>always</updatePolicy>
+        </snapshots>
+    </repository>
+  </repositories>
 
 </project>

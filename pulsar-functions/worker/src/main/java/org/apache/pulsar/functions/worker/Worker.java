@@ -141,7 +141,8 @@ public class Worker extends AbstractService {
                 this.functionContainerFactory = new ThreadFunctionContainerFactory(
                         workerConfig.getThreadContainerFactory().getThreadGroupName(),
                         workerConfig.getLimitsConfig().getMaxBufferedTuples(),
-                        workerConfig.getPulsarServiceUrl());
+                        workerConfig.getPulsarServiceUrl(),
+                        workerConfig.getStateStorageServiceUrl());
             } else if (workerConfig.getProcessContainerFactory() != null) {
                 this.functionContainerFactory = new ProcessFunctionContainerFactory(
                         workerConfig.getLimitsConfig().getMaxBufferedTuples(),

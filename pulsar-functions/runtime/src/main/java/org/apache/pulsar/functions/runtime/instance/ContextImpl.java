@@ -30,6 +30,7 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
+import org.apache.pulsar.functions.runtime.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.slf4j.Logger;
 
@@ -87,6 +88,9 @@ class ContextImpl implements Context {
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
     private Map<String, Consumer> sourceConsumers;
+    @Getter
+    @Setter
+    private StateContextImpl stateContext;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
                        ClassLoader classLoader, Map<String, Consumer> sourceConsumers) {
@@ -192,6 +196,15 @@ class ContextImpl implements Context {
             return config.getFunctionConfig().getUserConfigOrDefault(key, null);
         } else {
             return null;
+        }
+    }
+
+    @Override
+    public void incrCounter(String key, long amount) {
+        if (null != stateContext) {
+            stateContext.incr(key, amount);
+        } else {
+            throw new RuntimeException("State is not enabled.");
         }
     }
 

@@ -48,12 +48,18 @@ class ThreadFunctionContainer implements FunctionContainer {
                             FunctionCacheManager fnCache,
                             ThreadGroup threadGroup,
                             String jarFile,
-                            PulsarClient pulsarClient) {
+                            PulsarClient pulsarClient,
+                            String stateStorageServiceUrl) {
         if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
-        this.javaInstanceRunnable = new JavaInstanceRunnable(instanceConfig, maxBufferedTuples,
-                fnCache, jarFile, pulsarClient);
+        this.javaInstanceRunnable = new JavaInstanceRunnable(
+            instanceConfig,
+            maxBufferedTuples,
+            fnCache,
+            jarFile,
+            pulsarClient,
+            stateStorageServiceUrl);
         this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
                 FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
     }

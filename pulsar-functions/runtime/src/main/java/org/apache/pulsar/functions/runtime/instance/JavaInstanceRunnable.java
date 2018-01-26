@@ -19,9 +19,22 @@
 
 package org.apache.pulsar.functions.runtime.instance;
 
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+import static org.apache.distributedlog.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
+
+import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.distributedlog.api.StorageClient;
+import org.apache.distributedlog.api.kv.Table;
+import org.apache.distributedlog.clients.StorageClientBuilder;
+import org.apache.distributedlog.clients.admin.StorageAdminClient;
+import org.apache.distributedlog.clients.config.StorageClientSettings;
+import org.apache.distributedlog.clients.exceptions.NamespaceNotFoundException;
+import org.apache.distributedlog.clients.exceptions.StreamNotFoundException;
+import org.apache.distributedlog.clients.utils.NetUtils;
+import org.apache.distributedlog.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -30,6 +43,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.runtime.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
@@ -55,6 +69,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final PulsarClientImpl client;
     private Producer sinkProducer;
     private Map<String, Consumer> sourceConsumers;
+
+    // provide tables for storing states
+    private final String stateStorageServiceUrl;
+    private StorageClient storageClient;
+    private Table<ByteBuf, ByteBuf> stateTable;
+
     @Getter
     private Exception failureException;
     private JavaInstance javaInstance;
@@ -78,7 +98,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                 int maxBufferedTuples,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
-                                PulsarClient pulsarClient) {
+                                PulsarClient pulsarClient,
+                                String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
         this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees() == null
                 ? FunctionConfig.ProcessingGuarantees.ATMOST_ONCE
@@ -87,6 +108,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
+        this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
     }
 
@@ -107,6 +129,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             this.inputSerDe = new HashMap<>();
             instanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
 
+            // start the state table
+            setupStateTable();
             // start the sink producer
             startSinkProducer();
             // start the source consumer
@@ -132,6 +156,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     break;
                 }
 
+                // state object is per function, because we need to have the ability to know what updates
+                // are made in this function and ensure we only acknowledge after the state is persisted.
+                StateContextImpl stateContext;
+                if (null != stateTable) {
+                    stateContext = new StateContextImpl(stateTable);
+                    javaInstance.getContext().setStateContext(stateContext);
+                } else {
+                    stateContext = null;
+                }
+
                 // process the message
                 stats.incrementProcessed();
                 Object input;
@@ -146,9 +180,21 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         msg.getActualMessage().getMessageId(),
                         msg.getTopicName(),
                         input);
+
                 long doneProcessing = System.currentTimeMillis();
                 log.debug("Got result: {}", result.getResult());
-                processResult(msg, result, processAt, doneProcessing);
+
+                if (null != stateContext) {
+                    stateContext.flush()
+                        .thenRun(() -> processResult(msg, result, processAt, doneProcessing))
+                        .exceptionally(cause -> {
+                            // log the messages, since we DONT ack, pulsar consumer will re-deliver the messages.
+                            log.error("Failed to flush the state updates of message {}", msg, cause);
+                            return null;
+                        });
+                } else {
+                    processResult(msg, result, processAt, doneProcessing);
+                }
             }
 
             javaInstance.close();
@@ -176,6 +222,48 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         // make sure the function class loader is accessible thread-locally
         Thread.currentThread().setContextClassLoader(fnClassLoader);
+    }
+
+    private void setupStateTable() throws Exception {
+        if (null == stateStorageServiceUrl) {
+            return;
+        }
+
+        String tableNs = String.format(
+            "%s_%s",
+            instanceConfig.getFunctionConfig().getTenant(),
+            instanceConfig.getFunctionConfig().getNamespace()
+        ).replace('-', '_');
+        String tableName = instanceConfig.getFunctionConfig().getName();
+
+        // TODO (sijie): use endpoint for now
+        StorageClientSettings settings = StorageClientSettings.newBuilder()
+            .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+            .clientName("function-" + tableNs + "/" + tableName)
+            .build();
+
+        // TODO (sijie): provide a better way to provision the state table for functions
+        try (StorageAdminClient storageAdminClient = StorageClientBuilder.newBuilder()
+            .withSettings(settings)
+            .buildAdmin()) {
+            try {
+                result(storageAdminClient.getStream(tableNs, tableName));
+            } catch (NamespaceNotFoundException nnfe) {
+                result(storageAdminClient.createNamespace(tableNs, NamespaceConfiguration.newBuilder()
+                    .setDefaultStreamConf(DEFAULT_STREAM_CONF)
+                    .build()));
+                result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
+            } catch (StreamNotFoundException snfe) {
+                result(storageAdminClient.createStream(tableNs, tableName, DEFAULT_STREAM_CONF));
+            }
+        }
+
+        log.info("Starting state table for function {}", instanceConfig.getFunctionConfig().getName());
+        this.storageClient = StorageClientBuilder.newBuilder()
+            .withSettings(settings)
+            .withNamespace(tableNs)
+            .build();
+        this.stateTable = result(storageClient.openTable(tableName));
     }
 
     private void startSinkProducer() throws Exception {
@@ -228,7 +316,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private void processResult(InputMessage msg, JavaExecutionResult result, long startTime, long endTime) {
+    private void processResult(InputMessage msg,
+                               JavaExecutionResult result,
+                               long startTime, long endTime) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions();
@@ -296,6 +386,15 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 log.warn("Failed to close producer to sink topic {}", instanceConfig.getFunctionConfig().getSinkTopic(), e);
             }
             sinkProducer = null;
+        }
+
+        // kill the state table
+        if (null != stateTable) {
+            stateTable.close();
+            stateTable = null;
+        }
+        if (null != storageClient) {
+            storageClient.close();
         }
 
         // once the thread quits, clean up the instance

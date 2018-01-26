@@ -55,7 +55,6 @@ public interface Context {
      */
     String getSinkTopic();
 
-
     /**
      * Get output Serde class
      * @return output serde class
@@ -123,6 +122,13 @@ public interface Context {
      * @return the logger object
      */
     Logger getLogger();
+
+    /**
+     * The counter object that can be used for counting.
+     *
+     * @return the counter object.
+     */
+    void incrCounter(String key, long amount);
 
     /**
      * Get Any user defined key/value

@@ -36,22 +36,32 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
     private final PulsarClient pulsarClient;
+    private final String storageServiceUrl;
     private int maxBufferedTuples;
     private volatile boolean closed;
 
     public ThreadFunctionContainerFactory(String threadGroupName,
                                           int maxBufferedTuples,
-                                          String pulsarServiceUrl)
+                                          String pulsarServiceUrl,
+                                          String storageServiceUrl)
             throws Exception {
-        this(threadGroupName, maxBufferedTuples, pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()) : null);
+        this(
+            threadGroupName,
+            maxBufferedTuples,
+            pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()) : null,
+            storageServiceUrl);
     }
 
     @VisibleForTesting
-    ThreadFunctionContainerFactory(String threadGroupName, int maxBufferedTuples, PulsarClient pulsarClient) {
+    ThreadFunctionContainerFactory(String threadGroupName,
+                                   int maxBufferedTuples,
+                                   PulsarClient pulsarClient,
+                                   String storageServiceUrl) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.maxBufferedTuples = maxBufferedTuples;
         this.pulsarClient = pulsarClient;
+        this.storageServiceUrl = storageServiceUrl;
     }
 
     @Override
@@ -62,7 +72,8 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
             fnCache,
             threadGroup,
             jarFile,
-            pulsarClient);
+            pulsarClient,
+            storageServiceUrl);
     }
 
     @Override
