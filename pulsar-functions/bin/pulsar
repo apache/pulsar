@@ -23,6 +23,8 @@ PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_WORKER_CONF=$PULSAR_HOME/conf/function_worker.yml
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yml
+DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
+JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -56,6 +58,19 @@ elif [ -e "$BUILT_JAR" ]; then
     PULSAR_JAR=$BUILT_JAR
 fi
 
+# find the java instance location
+if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
+    # didn't find a released jar, then search the built jar
+    BUILT_JAVA_INSTANCE_JAR="${PULSAR_HOME}/runtime/target/java-instance.jar"
+    if [ -f "${BUILT_JAVA_INSTANCE_JAR}" ]; then
+        JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
+    else
+        echo "\nCouldn't find pulsar java instance jar.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+fi
+
 pulsar_help() {
     cat <<EOF
 Usage: pulsar <command>
@@ -73,6 +88,7 @@ Environment variables:
    PULSAR_EXTRA_CLASSPATH        Add extra paths to the pulsar classpath
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
    PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
+   PULSAR_JAVA_INSTANCE_JAR      The java instance jar that pulsar worker uses to run functions (default: $DEFAULT_JAVA_INSTANCE_JAR)
 
 These variable can also be set in conf/pulsar_env.sh
 EOF
@@ -143,6 +159,9 @@ OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
+
+# instance
+OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"
