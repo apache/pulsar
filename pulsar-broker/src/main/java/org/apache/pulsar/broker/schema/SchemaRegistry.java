@@ -30,6 +30,8 @@ public interface SchemaRegistry extends AutoCloseable {
 
     CompletableFuture<Long> putSchema(String schemaId, Schema schema);
 
+    CompletableFuture<Long> deleteSchema(String schemaId, String user);
+
     class SchemaAndMetadata {
         public final String id;
         public final Schema schema;

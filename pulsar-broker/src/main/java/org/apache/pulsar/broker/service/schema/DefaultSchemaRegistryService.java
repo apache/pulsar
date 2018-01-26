@@ -150,12 +150,11 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
 
     @Override
     @NotNull
-    public CompletableFuture<Void> deleteSchema(String schemaId, String user) {
+    public CompletableFuture<Long> deleteSchema(String schemaId, String user) {
         return getSchema(schemaId).thenCompose(schemaAndVersion -> {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                Schema schema = schemaAndVersion.schema;
                 return putSchema(
                     schemaId,
                     Schema.newBuilder()
@@ -167,7 +166,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
                         .build()
                 );
             }
-        }).thenApply(ignore -> null);
+        });
     }
 
     @Override
