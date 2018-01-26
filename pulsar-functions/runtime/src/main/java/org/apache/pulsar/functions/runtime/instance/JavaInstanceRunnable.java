@@ -118,6 +118,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void run() {
         try {
+            // initialize the thread context
+            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+            ThreadContext.put("instance", instanceConfig.getInstanceId());
+
             log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
 
             // start the function thread
@@ -135,9 +139,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             startSinkProducer();
             // start the source consumer
             startSourceConsumers();
-
-            // initialize the thread context
-            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
 
             this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
 

@@ -98,7 +98,7 @@ public class JavaInstanceMain {
     protected String userConfig;
 
     @Parameter(names = "--auto_ack", description = "Enable Auto Acking?\n")
-    protected String autoAck;
+    protected String autoAck = "true";
 
     private Thread fnThread;
     private JavaInstanceRunnable javaInstanceRunnable;
