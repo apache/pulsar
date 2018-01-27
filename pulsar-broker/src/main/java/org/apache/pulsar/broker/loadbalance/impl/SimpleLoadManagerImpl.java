@@ -942,7 +942,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     }
 
     public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId serviceUnit) throws Exception {
-        return Optional.of(getLeastLoadedBroker(serviceUnit, getAvailableBrokers(serviceUnit)));
+        return Optional.ofNullable(getLeastLoadedBroker(serviceUnit, getAvailableBrokers(serviceUnit)));
     }
 
     public Multimap<Long, ResourceUnit> getResourceAvailabilityFor(ServiceUnitId serviceUnitId) throws Exception {

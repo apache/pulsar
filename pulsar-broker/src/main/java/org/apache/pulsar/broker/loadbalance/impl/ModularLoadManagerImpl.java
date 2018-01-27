@@ -716,9 +716,7 @@ public class ModularLoadManagerImpl implements ModularLoadManager, ZooKeeperCach
 
             LoadManagerShared.removeMostServicingBrokersForNamespace(serviceUnit.toString(), brokerCandidateCache,
                     brokerToNamespaceToBundleRange);
-            if (log.isDebugEnabled()) {
-                log.debug("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
-            }
+            log.info("{} brokers being considered for assignment of {}", brokerCandidateCache.size(), bundle);
 
             // Use the filter pipeline to finalize broker candidates.
             try {

@@ -462,6 +462,7 @@ public class NamespaceService {
     private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
         Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
         if (!leastLoadedBroker.isPresent()) {
+            LOG.warn("No broker is available for {}", serviceUnit);
             return Optional.empty();
         }
 
