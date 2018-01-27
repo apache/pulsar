@@ -437,7 +437,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         try {
             Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic7",
-                    "my-subscriber-name", null);
+                    "my-subscriber-name", (ConsumerConfiguration) null);
             Assert.fail("Should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);

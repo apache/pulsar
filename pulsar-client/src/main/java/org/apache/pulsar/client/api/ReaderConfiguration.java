@@ -35,13 +35,20 @@ public class ReaderConfiguration implements Serializable {
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     /**
+     * @deprecated Use {@link PulsarClient#createReader(String, MessageId, ReaderConfiguration, ReaderListener)} or
+     * {@link PulsarClient#createReaderAsync(String, MessageId, ReaderConfiguration, ReaderListener)} to add a listener.
+     *
      * @return the configured {@link ReaderListener} for the reader
      */
+    @Deprecated
     public ReaderListener getReaderListener() {
         return this.readerListener;
     }
 
     /**
+     * @deprecated Use {@link PulsarClient#createReader(String, MessageId, ReaderConfiguration, ReaderListener)} or
+     * {@link PulsarClient#createReaderAsync(String, MessageId, ReaderConfiguration, ReaderListener)} to add a listener.
+     *
      * Sets a {@link ReaderListener} for the reader
      * <p>
      * When a {@link ReaderListener} is set, application will receive messages through it. Calls to
@@ -50,6 +57,7 @@ public class ReaderConfiguration implements Serializable {
      * @param readerListener
      *            the listener object
      */
+    @Deprecated
     public ReaderConfiguration setReaderListener(ReaderListener readerListener) {
         checkNotNull(readerListener);
         this.readerListener = readerListener;
@@ -85,7 +93,7 @@ public class ReaderConfiguration implements Serializable {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      * 
-     * @param The consumer action
+     * @param action consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
         cryptoFailureAction = action;

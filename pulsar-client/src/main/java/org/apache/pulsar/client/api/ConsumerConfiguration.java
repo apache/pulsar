@@ -106,13 +106,20 @@ public class ConsumerConfiguration implements Serializable {
     }
 
     /**
+     * @deprecated Use a suitable {@link PulsarClient} subscribe method and provide a {@link MessageListener}, ex:
+     * {@link PulsarClient#subscribe(String, String, MessageListener)}
+     *
      * @return the configured {@link MessageListener} for the consumer
      */
+    @Deprecated
     public MessageListener getMessageListener() {
         return this.messageListener;
     }
 
     /**
+     * @deprecated Use a suitable {@link PulsarClient} subscribe method and provide a {@link MessageListener}, ex:
+     * {@link PulsarClient#subscribe(String, String, MessageListener)}
+     *
      * Sets a {@link MessageListener} for the consumer
      * <p>
      * When a {@link MessageListener} is set, application will receive messages through it. Calls to
@@ -121,6 +128,7 @@ public class ConsumerConfiguration implements Serializable {
      * @param messageListener
      *            the listener object
      */
+    @Deprecated
     public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
         checkNotNull(messageListener);
         this.messageListener = messageListener;
@@ -156,7 +164,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      * 
-     * @param The consumer action
+     * @param action consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
         cryptoFailureAction = action;

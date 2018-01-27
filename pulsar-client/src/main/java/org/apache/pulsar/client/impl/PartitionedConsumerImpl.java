@@ -33,12 +33,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import com.google.common.collect.ImmutableMap;
-import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -65,9 +60,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final UnAckedMessageTracker unAckedMessageTracker;
 
     PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
+        int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture,
+        MessageListener listener) {
         super(client, topic, subscription, conf, Math.max(Math.max(2, numPartitions), conf.getReceiverQueueSize()), listenerExecutor,
-                subscribeFuture);
+                subscribeFuture, listener);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
@@ -92,7 +88,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
             String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
             ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
+                    client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<>(),
+                    internalConfig.getMessageListener());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
                 if (subscribeException != null) {
