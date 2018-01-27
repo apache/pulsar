@@ -40,7 +40,7 @@ import org.testng.annotations.Test;
 
 public class ProxyTest extends MockedPulsarServiceBaseTest {
 
-    private final String DUMMY_VALUE = " ";
+    private final String DUMMY_VALUE = "DUMMY_VALUE";
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
