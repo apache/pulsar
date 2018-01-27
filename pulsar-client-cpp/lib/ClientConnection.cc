@@ -97,6 +97,12 @@ static Result getResult(ServerError serverError) {
 
         case UnsupportedVersionError:
             return ResultUnsupportedVersionError;
+
+        case TooManyRequests:
+            return ResultTooManyLookupRequestException;
+
+        case TopicTerminatedError:
+            return ResultTopicTerminated;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
