@@ -77,7 +77,7 @@ uint32_t Murmur3_32Hash::makeHash(const void *key, const int64_t len) {
     h1 ^= len;
     h1 = fmix(h1);
 
-    return BYTESPWAP(h1);
+    return h1;
 }
 
 uint32_t Murmur3_32Hash::fmix(uint32_t h) {
