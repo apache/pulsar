@@ -48,10 +48,12 @@ public class ConsumerConfiguration implements Serializable {
 
     private int receiverQueueSize = 1000;
 
+    private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
+
     private String consumerName = null;
 
     private long ackTimeoutMillis = 0;
-    
+
     private int priorityLevel = 0;
 
     private CryptoKeyReader cryptoKeyReader = null;
@@ -134,6 +136,27 @@ public class ConsumerConfiguration implements Serializable {
         return this.receiverQueueSize;
     }
 
+
+    /**
+     * @return the configured max total receiver queue size across partitions
+     */
+    public int getMaxTotalReceiverQueueSizeAcrossPartitions() {
+        return maxTotalReceiverQueueSizeAcrossPartitions;
+    }
+
+    /**
+     * Set the max total receiver queue size across partitons.
+     * <p>
+     * This setting will be used to reduce the receiver queue size for individual partitions
+     * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions
+     */
+    public void setMaxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= receiverQueueSize);
+        this.maxTotalReceiverQueueSizeAcrossPartitions = maxTotalReceiverQueueSizeAcrossPartitions;
+    }
+
     /**
      * @return the CryptoKeyReader
      */
@@ -155,7 +178,7 @@ public class ConsumerConfiguration implements Serializable {
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
-     * 
+     *
      * @param The consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
@@ -218,7 +241,7 @@ public class ConsumerConfiguration implements Serializable {
         this.consumerName = consumerName;
         return this;
     }
-    
+
     public int getPriorityLevel() {
         return priorityLevel;
     }
@@ -230,7 +253,7 @@ public class ConsumerConfiguration implements Serializable {
      * permits, else broker will consider next priority level consumers. </br>
      * If subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1 then broker will dispatch
      * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
-     * 
+     *
      * <pre>
      * Consumer PriorityLevel Permits
      * C1       0             2
@@ -240,7 +263,7 @@ public class ConsumerConfiguration implements Serializable {
      * C5       1             1
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
-     * 
+     *
      * @param priorityLevel
      */
     public void setPriorityLevel(int priorityLevel) {

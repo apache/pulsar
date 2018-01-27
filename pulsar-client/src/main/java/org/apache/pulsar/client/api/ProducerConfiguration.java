@@ -25,11 +25,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
-import org.apache.pulsar.client.impl.SinglePartitionMessageRouterImpl;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import com.google.common.base.Objects;
@@ -45,6 +43,7 @@ public class ProducerConfiguration implements Serializable {
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
+    private int maxPendingMessagesAcrossPartitions = 50000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
@@ -135,6 +134,27 @@ public class ProducerConfiguration implements Serializable {
         checkArgument(maxPendingMessages > 0);
         this.maxPendingMessages = maxPendingMessages;
         return this;
+    }
+
+    /**
+     *
+     * @return the maximum number of pending messages allowed across all the partitions
+     */
+    public int getMaxPendingMessagesAcrossPartitions() {
+        return maxPendingMessagesAcrossPartitions;
+    }
+
+    /**
+     * Set the number of max pending messages across all the partitions
+     * <p>
+     * This setting will be used to lower the max pending messages for each partition
+     * ({@link #setMaxPendingMessages(int)}), if the total exceeds the configured value.
+     *
+     * @param maxPendingMessagesAcrossPartitions
+     */
+    public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
+        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
+        this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
     }
 
     /**
@@ -295,18 +315,18 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return encryptionKeys
-     *  
+     *
      */
     public  ConcurrentOpenHashSet<String> getEncryptionKeys() {
         return this.encryptionKeys;
     }
 
     /**
-     * 
+     *
      * Returns true if encryption keys are added
-     *  
+     *
      */
     public boolean isEncryptionEnabled() {
         return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty();
@@ -352,7 +372,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return the batch time period in ms.
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      */

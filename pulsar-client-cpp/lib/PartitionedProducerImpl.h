@@ -96,7 +96,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
      */
     bool cleanup_;
 
-    const ProducerConfiguration conf_;
+    ProducerConfiguration conf_;
 
     typedef std::vector<ProducerImplPtr> ProducerList;
 

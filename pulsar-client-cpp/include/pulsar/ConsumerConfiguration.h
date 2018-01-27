@@ -97,6 +97,21 @@ class ConsumerConfiguration {
     void setReceiverQueueSize(int size);
     int getReceiverQueueSize() const;
 
+    /**
+     * Set the max total receiver queue size across partitons.
+     * <p>
+     * This setting will be used to reduce the receiver queue size for individual partitions
+     * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions
+     */
+    void setMaxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
+
+    /**
+     * @return the configured max total receiver queue size across partitions
+     */
+    int getMaxTotalReceiverQueueSizeAcrossPartitions() const;
+
     void setConsumerName(const std::string&);
     const std::string& getConsumerName() const;
 
