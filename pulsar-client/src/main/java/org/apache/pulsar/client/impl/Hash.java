@@ -19,5 +19,10 @@
 package org.apache.pulsar.client.impl;
 
 public interface Hash {
-    long makeHash(String s);
+    /**
+     * Generate the hash of a given String
+     *
+     * @return The hash of {@param s}, which is non-negative integer.
+     */
+    int makeHash(String s);
 }
