@@ -46,7 +46,7 @@ public class ProducerConfiguration implements Serializable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
-    private HashingScheme hashingScheme = HashingScheme.Murmur3_32Hash;
+    private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
