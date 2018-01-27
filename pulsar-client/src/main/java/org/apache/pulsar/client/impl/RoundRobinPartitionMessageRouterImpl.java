@@ -39,7 +39,7 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     public int choosePartition(Message msg, TopicMetadata topicMetadata) {
         // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
-            return (int) (hash.makeHash(msg.getKey()) % topicMetadata.numPartitions());
+            return hash.makeHash(msg.getKey()) % topicMetadata.numPartitions();
         }
 
         return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());

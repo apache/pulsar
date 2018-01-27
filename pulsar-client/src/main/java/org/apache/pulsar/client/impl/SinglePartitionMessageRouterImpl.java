@@ -35,7 +35,7 @@ public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
     public int choosePartition(Message msg, TopicMetadata metadata) {
         // If the message has a key, it supersedes the single partition routing policy
         if (msg.hasKey()) {
-            return (int) (hash.makeHash(msg.getKey()) % metadata.numPartitions());
+            return hash.makeHash(msg.getKey()) % metadata.numPartitions();
         }
 
         return partitionIndex;

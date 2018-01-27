@@ -40,11 +40,11 @@ public class Murmur3_32Hash implements Hash {
     }
 
     @Override
-    public long makeHash(String s) {
-        return makeHash(s.getBytes(StandardCharsets.UTF_8));
+    public int makeHash(String s) {
+        return makeHash(s.getBytes(StandardCharsets.UTF_8)) & Integer.MAX_VALUE;
     }
 
-    private long makeHash(byte[] bytes) {
+    private int makeHash(byte[] bytes) {
         int len = bytes.length;
         int reminder = len % CHUNK_SIZE;
         int h1 = seed;
@@ -68,7 +68,7 @@ public class Murmur3_32Hash implements Hash {
         h1 ^= len;
         h1 = fmix(h1);
 
-        return Integer.toUnsignedLong(h1);
+        return h1;
     }
 
     private int fmix(int h) {

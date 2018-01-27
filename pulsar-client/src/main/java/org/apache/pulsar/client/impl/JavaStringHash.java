@@ -20,7 +20,7 @@ package org.apache.pulsar.client.impl;
 
 public class JavaStringHash implements Hash {
     @Override
-    public long makeHash(String s) {
+    public int makeHash(String s) {
         return s.hashCode() & Integer.MAX_VALUE;
     }
 }
