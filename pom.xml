@@ -94,6 +94,7 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-auth-athenz</module>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
+    <module>pulsar-connectors</module>
     <module>all</module>
   </modules>
 

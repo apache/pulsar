@@ -82,6 +82,9 @@ case $command in
     (standalone)
         echo "doing $startStop $command ..."
         ;;
+    (connector)
+        echo "doing $startStop $command ..."
+        ;;
     (*)
         echo "Error: unknown service name $command"
         usage
