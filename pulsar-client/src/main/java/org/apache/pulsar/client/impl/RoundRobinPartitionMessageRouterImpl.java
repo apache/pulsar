@@ -18,14 +18,10 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.TopicMetadata;
 
 public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
@@ -34,8 +30,8 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
             AtomicIntegerFieldUpdater.newUpdater(RoundRobinPartitionMessageRouterImpl.class, "partitionIndex");
     private volatile int partitionIndex = 0;
 
-    public RoundRobinPartitionMessageRouterImpl(boolean useMurmurHash) {
-        super(useMurmurHash);
+    public RoundRobinPartitionMessageRouterImpl(ProducerConfiguration.HashingScheme hashingScheme) {
+        super(hashingScheme);
         PARTITION_INDEX_UPDATER.set(this, 0);
     }
 
@@ -43,16 +39,9 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     public int choosePartition(Message msg, TopicMetadata topicMetadata) {
         // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
-            if (useMurmurHash) {
-                HashFunction hf = Hashing.murmur3_32(0);
-                HashCode hc = hf.hashString(msg.getKey(), StandardCharsets.UTF_8);
-                long l = Integer.toUnsignedLong(hc.asInt());
-                return (int) (l % topicMetadata.numPartitions());
-            }
-            else {
-                return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % topicMetadata.numPartitions());
-            }
+            return (int) (hash.makeHash(msg.getKey()) % topicMetadata.numPartitions());
         }
+
         return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());
     }
 

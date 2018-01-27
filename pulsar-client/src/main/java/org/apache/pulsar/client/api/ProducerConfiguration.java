@@ -46,7 +46,7 @@ public class ProducerConfiguration implements Serializable {
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
-    private boolean useMurmurHash = true;
+    private HashingScheme hashingScheme = HashingScheme.Murmur3_32Hash;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
@@ -64,6 +64,11 @@ public class ProducerConfiguration implements Serializable {
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
+    }
+
+    public enum HashingScheme {
+        JavaStringHash,
+        Murmur3_32Hash
     }
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
@@ -138,12 +143,12 @@ public class ProducerConfiguration implements Serializable {
         return this;
     }
 
-    public boolean isUseMurmurHash() {
-        return useMurmurHash;
+    public HashingScheme getHashingScheme() {
+        return hashingScheme;
     }
 
-    public ProducerConfiguration setUseMurmurHash(boolean useMurmurHash) {
-        this.useMurmurHash = useMurmurHash;
+    public ProducerConfiguration setHashingScheme(HashingScheme hashingScheme) {
+        this.hashingScheme = hashingScheme;
         return this;
     }
 
@@ -472,7 +477,7 @@ public class ProducerConfiguration implements Serializable {
             return Objects.equal(this.sendTimeoutMs, other.sendTimeoutMs)
                     && Objects.equal(maxPendingMessages, other.maxPendingMessages)
                     && Objects.equal(this.messageRouteMode, other.messageRouteMode)
-                    && Objects.equal(this.useMurmurHash, other.useMurmurHash);
+                    && Objects.equal(this.hashingScheme, other.hashingScheme);
         }
 
         return false;

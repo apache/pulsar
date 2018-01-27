@@ -18,20 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-
-public abstract class MessageRouterBase implements MessageRouter {
-    protected final Hash hash;
-
-    MessageRouterBase(ProducerConfiguration.HashingScheme hashingScheme) {
-        switch (hashingScheme) {
-            case JavaStringHash:
-                this.hash = new JavaStringHash();
-                break;
-            case Murmur3_32Hash:
-            default:
-                this.hash = new Murmur3_32Hash();
-        }
+public class JavaStringHash implements Hash {
+    @Override
+    public long makeHash(String s) {
+        return s.hashCode() & Integer.MAX_VALUE;
     }
 }

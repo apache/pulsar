@@ -18,21 +18,16 @@
  */
 package org.apache.pulsar.client.impl;
 
-import java.nio.charset.StandardCharsets;
-
-import com.google.common.hash.HashCode;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.TopicMetadata;
 
 public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
 
     private final int partitionIndex;
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex, boolean useMurmurHash) {
-        super(useMurmurHash);
+    public SinglePartitionMessageRouterImpl(int partitionIndex, ProducerConfiguration.HashingScheme hashingScheme) {
+        super(hashingScheme);
         this.partitionIndex = partitionIndex;
     }
 
@@ -40,15 +35,7 @@ public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
     public int choosePartition(Message msg, TopicMetadata metadata) {
         // If the message has a key, it supersedes the single partition routing policy
         if (msg.hasKey()) {
-            if (useMurmurHash) {
-                HashFunction hf = Hashing.murmur3_32(0);
-                HashCode hc = hf.hashString(msg.getKey(), StandardCharsets.UTF_8);
-                long l = Integer.toUnsignedLong(hc.asInt());
-                return (int) (l % metadata.numPartitions());
-            }
-            else {
-                return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % metadata.numPartitions());
-            }
+            return (int) (hash.makeHash(msg.getKey()) % metadata.numPartitions());
         }
 
         return partitionIndex;

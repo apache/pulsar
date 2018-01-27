@@ -71,12 +71,12 @@ public class PartitionedProducerImpl extends ProducerBase {
             messageRouter = customMessageRouter;
             break;
         case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl(true);
+            messageRouter = new RoundRobinPartitionMessageRouterImpl(conf.getHashingScheme());
             break;
         case SinglePartition:
         default:
             messageRouter = new SinglePartitionMessageRouterImpl(
-                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), true);
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
         }
 
         return messageRouter;
