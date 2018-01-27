@@ -45,7 +45,7 @@ struct ProducerConfigurationImpl {
           compressionType(CompressionNone),
           maxPendingMessages(1000),
           routingMode(ProducerConfiguration::UseSinglePartition),
-          hashingScheme(ProducerConfiguration::Murmur3_32Hash),
+          hashingScheme(ProducerConfiguration::BoostHash),
           blockIfQueueFull(false),
           batchingEnabled(false),
           batchingMaxMessages(1000),
