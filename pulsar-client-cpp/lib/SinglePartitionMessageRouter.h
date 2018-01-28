@@ -22,20 +22,21 @@
 #include <memory>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <include/pulsar/ProducerConfiguration.h>
-#include "include/pulsar/Hash.h"
+#include "Hash.h"
 #include <pulsar/TopicMetadata.h>
+#include "MessageRouterBase.h"
 
 namespace pulsar {
 
-class SinglePartitionMessageRouter : public MessageRoutingPolicy {
+class SinglePartitionMessageRouter : public MessageRouterBase {
    public:
-    SinglePartitionMessageRouter(int partitionIndex, ProducerConfiguration::HashingScheme hashingScheme);
+    SinglePartitionMessageRouter(const int partitionIndex,
+                                 ProducerConfiguration::HashingScheme hashingScheme);
     virtual ~SinglePartitionMessageRouter();
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
 
    private:
     int selectedSinglePartition_;
-    std::unique_ptr<Hash> hash;
 };
 
 }  // namespace pulsar

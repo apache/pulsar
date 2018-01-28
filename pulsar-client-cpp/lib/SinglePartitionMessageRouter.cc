@@ -19,27 +19,16 @@
 #include "SinglePartitionMessageRouter.h"
 #include <cstdlib>  // rand()
 #include <boost/algorithm/string.hpp>
-#include "include/pulsar/Murmur3_32Hash.h"
-#include "include/pulsar/BoostHash.h"
-#include "include/pulsar/JavaStringHash.h"
+#include "Murmur3_32Hash.h"
+#include "BoostHash.h"
+#include "JavaStringHash.h"
 
 namespace pulsar {
 SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(
-    const int partitionIndex, ProducerConfiguration::HashingScheme hashingScheme) {
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
+                                                           ProducerConfiguration::HashingScheme hashingScheme)
+    : MessageRouterBase(hashingScheme) {
     selectedSinglePartition_ = partitionIndex;
-
-    switch (hashingScheme) {
-        case ProducerConfiguration::Murmur3_32Hash:
-            hash = std::unique_ptr<Hash>(new Murmur3_32Hash(0));
-            break;
-        case ProducerConfiguration::BoostHash:
-            hash = std::unique_ptr<Hash>(new BoostHash(0));
-            break;
-        case ProducerConfiguration::JavaStringHash:
-            hash = std::unique_ptr<Hash>(new JavaStringHash(0));
-            break;
-    }
 }
 
 // override

@@ -24,7 +24,7 @@
 #ifndef MURMUR3_32_HASH_HPP_
 #define MURMUR3_32_HASH_HPP_
 
-#include <pulsar/Hash.h>
+#include "Hash.h"
 
 #include <cstdint>
 #include <string>

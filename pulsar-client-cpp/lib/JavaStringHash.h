@@ -16,24 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef BOOST_HASH_HPP_
-#define BOOST_HASH_HPP_
+#ifndef JAVA_DEFAULT_HASH_HPP_
+#define JAVA_DEFAULT_HASH_HPP_
 
-#include <pulsar/Hash.h>
+#include "Hash.h"
 
 #include <cstdint>
 #include <string>
 #include <boost/functional/hash.hpp>
 
 namespace pulsar {
-class BoostHash : public Hash {
+class JavaStringHash : public Hash {
    public:
-    BoostHash(uint32_t seed);
+    JavaStringHash(uint32_t seed);
     uint32_t makeHash(const std::string &key);
-
-   private:
-    boost::hash<std::string> hash;
 };
 }  // namespace pulsar
 
-#endif /* BOOST_HASH_HPP_ */
+#endif /* JAVA_DEFAULT_HASH_HPP_ */

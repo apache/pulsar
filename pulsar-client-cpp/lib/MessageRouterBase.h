@@ -16,27 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "RoundRobinMessageRouter.h"
-#include "Murmur3_32Hash.h"
-#include "BoostHash.h"
-#include "JavaStringHash.h"
+#ifndef PULSAR_CPP_MESSAGEROUTERBASE_H
+#define PULSAR_CPP_MESSAGEROUTERBASE_H
+
+#include <boost/interprocess/smart_ptr/unique_ptr.hpp>
+#include <boost/checked_delete.hpp>
+
+#include <pulsar/MessageRoutingPolicy.h>
+#include <pulsar/ProducerConfiguration.h>
+#include "Hash.h"
 
 namespace pulsar {
-RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme), prevPartition_(0) {}
+typedef boost::interprocess::unique_ptr<Hash, boost::checked_deleter<Hash> > HashPtr;
 
-RoundRobinMessageRouter::~RoundRobinMessageRouter() {}
+class MessageRouterBase : public MessageRoutingPolicy {
+   public:
+    MessageRouterBase(ProducerConfiguration::HashingScheme hashingScheme);
 
-// override
-int RoundRobinMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        Lock lock(mutex_);
-        // else pick the next partition
-        return prevPartition_++ % topicMetadata.getNumPartitions();
-    }
-}
-
+   protected:
+    HashPtr hash;
+};
 }  // namespace pulsar
+
+#endif  // PULSAR_CPP_MESSAGEROUTERBASE_H

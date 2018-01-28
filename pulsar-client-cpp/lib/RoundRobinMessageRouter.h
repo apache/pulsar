@@ -25,10 +25,11 @@
 #include <pulsar/ProducerConfiguration.h>
 #include <pulsar/TopicMetadata.h>
 #include <boost/thread/mutex.hpp>
-#include "include/pulsar/Hash.h"
+#include "Hash.h"
+#include "MessageRouterBase.h"
 
 namespace pulsar {
-class RoundRobinMessageRouter : public MessageRoutingPolicy {
+class RoundRobinMessageRouter : public MessageRouterBase {
    public:
     RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme);
     virtual ~RoundRobinMessageRouter();

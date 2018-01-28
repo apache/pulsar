@@ -16,27 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "RoundRobinMessageRouter.h"
-#include "Murmur3_32Hash.h"
-#include "BoostHash.h"
-#include "JavaStringHash.h"
+#ifndef BOOST_HASH_HPP_
+#define BOOST_HASH_HPP_
+
+#include "Hash.h"
+
+#include <cstdint>
+#include <string>
+#include <boost/functional/hash.hpp>
 
 namespace pulsar {
-RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme), prevPartition_(0) {}
+class BoostHash : public Hash {
+   public:
+    BoostHash(uint32_t seed);
+    uint32_t makeHash(const std::string &key);
 
-RoundRobinMessageRouter::~RoundRobinMessageRouter() {}
-
-// override
-int RoundRobinMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        Lock lock(mutex_);
-        // else pick the next partition
-        return prevPartition_++ % topicMetadata.getNumPartitions();
-    }
-}
-
+   private:
+    boost::hash<std::string> hash;
+};
 }  // namespace pulsar
+
+#endif /* BOOST_HASH_HPP_ */

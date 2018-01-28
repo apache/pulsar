@@ -16,9 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/JavaStringHash.h>
-
-#include <limits>
+#include "JavaStringHash.h"
 
 namespace pulsar {
 

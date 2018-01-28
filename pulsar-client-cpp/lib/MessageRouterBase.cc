@@ -16,21 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef JAVA_DEFAULT_HASH_HPP_
-#define JAVA_DEFAULT_HASH_HPP_
+#include "MessageRouterBase.h"
 
-#include <pulsar/Hash.h>
-
-#include <cstdint>
-#include <string>
-#include <boost/functional/hash.hpp>
+#include "BoostHash.h"
+#include "JavaStringHash.h"
+#include "Murmur3_32Hash.h"
 
 namespace pulsar {
-class JavaStringHash : public Hash {
-   public:
-    JavaStringHash(uint32_t seed);
-    uint32_t makeHash(const std::string &key);
-};
+MessageRouterBase::MessageRouterBase(ProducerConfiguration::HashingScheme hashingScheme) {
+    switch (hashingScheme) {
+        case ProducerConfiguration::BoostHash:
+            hash = HashPtr(new BoostHash(0));
+            break;
+        case ProducerConfiguration::JavaStringHash:
+            hash = HashPtr(new JavaStringHash(0));
+            break;
+        case ProducerConfiguration::Murmur3_32Hash:
+        default:
+            hash = HashPtr(new Murmur3_32Hash(0));
+            break;
+    }
+}
 }  // namespace pulsar
-
-#endif /* JAVA_DEFAULT_HASH_HPP_ */

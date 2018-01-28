@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/BoostHash.h>
+#include "BoostHash.h"
 
 namespace pulsar {
 
