@@ -19,9 +19,7 @@
 
 bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
     --function-config conf/example.yml \
-    --source-topics persistent://sample/standalone/ns1/test_src \
     --sink-topic persistent://sample/standalone/ns1/test_result \
-    --input-serde-classnames org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
     --output-serde-classname org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
     --function-classname org.apache.pulsar.functions.api.examples.CounterFunction \
     --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar \

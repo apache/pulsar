@@ -102,7 +102,7 @@ public class JavaInstanceTest {
     private static InstanceConfig createInstanceConfig() {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         LimitsConfig limitsConfig = new LimitsConfig();
-        functionConfigBuilder.putInputs("TEST", Utf8StringSerDe.class.getName());
+        functionConfigBuilder.addInputs("TEST");
         functionConfigBuilder.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());
@@ -194,6 +194,18 @@ public class JavaInstanceTest {
         assertNull(result.getResult());
     }
 
+    private class IntegerSerDe implements SerDe<Integer> {
+        @Override
+        public Integer deserialize(byte[] input) {
+            return null;
+        }
+
+        @Override
+        public byte[] serialize(Integer input) {
+            return new byte[0];
+        }
+    }
+
     /**
      * Verify that function input type should be consistent with input serde type.
      */
@@ -202,14 +214,14 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
-                .putInputs("TEST", JavaSerDe.class.getName()).build());
+                .putCustomSerdeInputs("TEST", IntegerSerDe.class.getName()).build());
 
         try {
             new JavaInstance(
                 config,
                 (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
                     null, null,
-                    Arrays.asList(JavaSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
+                    Arrays.asList(new IntegerSerDe()), Utf8StringSerDe.of(), new HashMap<>());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
@@ -224,14 +236,14 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
-                .setOutputSerdeClassName(JavaSerDe.class.getName()).build());
+                .setOutputSerdeClassName(IntegerSerDe.class.getName()).build());
 
         try {
             new JavaInstance(
                 config,
                 (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
                     null, null,
-                    Arrays.asList(Utf8StringSerDe.of()), JavaSerDe.of(), new HashMap<>());
+                    Arrays.asList(Utf8StringSerDe.of()), new IntegerSerDe(), new HashMap<>());
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (RuntimeException re) {
             assertTrue(re.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));

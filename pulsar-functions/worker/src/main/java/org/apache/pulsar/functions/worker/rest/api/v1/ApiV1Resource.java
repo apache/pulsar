@@ -454,7 +454,7 @@ public class ApiV1Resource extends BaseApiResource {
             if (functionConfig.getClassName() == null || functionConfig.getClassName().isEmpty()) {
                 missingFields.add("ClassName");
             }
-            if (functionConfig.getInputsCount() == 0) {
+            if (functionConfig.getInputsCount() == 0 && functionConfig.getCustomSerdeInputsCount() == 0) {
                 missingFields.add("Input");
             }
             if (!missingFields.isEmpty()) {

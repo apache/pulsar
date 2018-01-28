@@ -98,6 +98,8 @@ public class CmdFunctionsTest {
         assertNull(runner.getFnConfigFile());
     }
 
+    /*
+    TODO(sijie):- Can we fix this?
     @Test
     public void testLocalRunnerCmdSettings() throws Exception {
         String fnName = TEST_NAME + "-function";
@@ -117,8 +119,6 @@ public class CmdFunctionsTest {
         assertNull(runner.getFnConfigFile());
     }
 
-    /*
-    TODO(sijie):- Can we fix this?
     @Test
     public void testLocalRunnerCmdYaml() throws Exception {
         URL yamlUrl = getClass().getClassLoader().getResource("test_function_config.yml");
@@ -144,9 +144,9 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
             "create",
             "--function-name", fnName,
-            "--source-topics", sourceTopicName,
+            "--custom-serde-source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--input-serde-classnames", Utf8StringSerDe.class.getName(),
+            "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
             "--output-serde-classname", Utf8StringSerDe.class.getName(),
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
@@ -156,7 +156,7 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals(fnName, creater.getFunctionName());
-        assertEquals(sourceTopicName, creater.getSourceTopicNames());
+        assertEquals(sourceTopicName, creater.getCustomSourceTopics());
         assertEquals(sinkTopicName, creater.getSinkTopicName());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
@@ -216,9 +216,9 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
             "update",
             "--function-name", fnName,
-            "--source-topics", sourceTopicName,
+            "--custom-serde-source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--input-serde-classnames", Utf8StringSerDe.class.getName(),
+            "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
             "--output-serde-classname", Utf8StringSerDe.class.getName(),
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
@@ -228,7 +228,7 @@ public class CmdFunctionsTest {
 
         UpdateFunction updater = cmd.getUpdater();
         assertEquals(fnName, updater.getFunctionName());
-        assertEquals(sourceTopicName, updater.getSourceTopicNames());
+        assertEquals(sourceTopicName, updater.getCustomSourceTopics());
         assertEquals(sinkTopicName, updater.getSinkTopicName());
 
         verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());

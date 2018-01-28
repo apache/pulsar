@@ -110,11 +110,13 @@ public class CmdFunctions extends CmdBase {
         protected String pyFile;
         @Parameter(names = "--source-topics", description = "Input Topic Name\n")
         protected String sourceTopicNames;
+        @Parameter(names = "--custom-serde-source-topics", description = "Input Topic Name that have custom deserializers\n")
+        protected String customSourceTopics;
         @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
         protected String sinkTopicName;
 
-        @Parameter(names = "--input-serde-classnames", description = "Input SerDe\n")
-        protected String inputSerdeClassNames;
+        @Parameter(names = "--custom-serde-classnames", description = "Input SerDe for custom serde source topics\n")
+        protected String customSerdeClassNames;
 
         @Parameter(names = "--output-serde-classname", description = "Output SerDe\n")
         protected String outputSerdeClassName;
@@ -136,14 +138,20 @@ public class CmdFunctions extends CmdBase {
             } else {
                 functionConfigBuilder = FunctionConfig.newBuilder();
             }
-            if (null != sourceTopicNames && null != inputSerdeClassNames) {
-                String[] sourceTopicName = sourceTopicNames.split(",");
-                String[] inputSerdeClassName = inputSerdeClassNames.split(",");
+            if (null != sourceTopicNames) {
+                String[] topicNames = sourceTopicNames.split(",");
+                for (int i = 0; i < topicNames.length; ++i) {
+                    functionConfigBuilder.addInputs(topicNames[i]);
+                }
+            }
+            if (null != customSourceTopics && null != customSerdeClassNames) {
+                String[] sourceTopicName = customSourceTopics.split(",");
+                String[] inputSerdeClassName = customSerdeClassNames.split(",");
                 if (sourceTopicName.length != inputSerdeClassName.length) {
-                    throw new IllegalArgumentException(String.format("SourceTopics and InputSerde should match"));
+                    throw new IllegalArgumentException(String.format("CustomSerde Topics and InputSerde should match"));
                 }
                 for (int i = 0; i < sourceTopicName.length; ++i) {
-                    functionConfigBuilder.putInputs(sourceTopicName[i], inputSerdeClassName[i]);
+                    functionConfigBuilder.putCustomSerdeInputs(sourceTopicName[i], inputSerdeClassName[i]);
                 }
             }
             if (null != sinkTopicName) {
@@ -193,7 +201,7 @@ public class CmdFunctions extends CmdBase {
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
-            functionConfigBuilder.getInputsMap().forEach((topicName, inputSerializer) -> {
+            functionConfigBuilder.getCustomSerdeInputsMap().forEach((topicName, inputSerializer) -> {
                 if (!Reflections.classExists(inputSerializer)
                         && !Reflections.classExistsInJar(new File(jarFile), inputSerializer)) {
                     throw new IllegalArgumentException(

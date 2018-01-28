@@ -56,19 +56,7 @@ public class JavaInstance implements AutoCloseable {
     private PulsarFunction pulsarFunction;
     private ExecutorService executorService;
 
-    public JavaInstance(InstanceConfig config, ClassLoader clsLoader,
-                        PulsarClient pulsarClient,
-                        List<SerDe> inputSerDe,
-                        SerDe outputSerDe,
-                        Map<String, Consumer> sourceConsumers) {
-        this(
-            config,
-            Reflections.createInstance(
-                config.getFunctionConfig().getClassName(),
-                clsLoader), clsLoader, pulsarClient, inputSerDe, outputSerDe, sourceConsumers);
-    }
-
-    JavaInstance(InstanceConfig config, Object object,
+    public JavaInstance(InstanceConfig config, PulsarFunction pulsarFunction,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
                  List<SerDe> inputSerDe, SerDe outputSerDe, Map<String, Consumer> sourceConsumers) {
@@ -78,12 +66,9 @@ public class JavaInstance implements AutoCloseable {
         this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, sourceConsumers);
 
         // create the functions
-        if (object instanceof PulsarFunction) {
-            pulsarFunction = (PulsarFunction) object;
-            verifyTypes(inputSerDe, outputSerDe);
-        } else {
-            throw new RuntimeException("User class must be either a Request or Raw Request Handler");
-        }
+        this.pulsarFunction = pulsarFunction;
+        verifyTypes(inputSerDe, outputSerDe);
+
 
         if (config.getLimitsConfig() != null && config.getLimitsConfig().getMaxTimeMs() > 0) {
             log.info("Spinning up a executor service since time budget is infinite");
@@ -96,7 +81,7 @@ public class JavaInstance implements AutoCloseable {
 
         for (SerDe serDe : inputSerDe) {
             Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-            if (!typeArgs[0].equals(inputSerdeTypeArgs[0])) {
+            if (!inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0])) {
                 throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
                         + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
             }
@@ -107,7 +92,7 @@ public class JavaInstance implements AutoCloseable {
                 throw new RuntimeException("Output serde class is null even though return type is not Void!");
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
-            if (!typeArgs[1].equals(outputSerdeTypeArgs[0])) {
+            if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
                 throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
                     + " function type = " + typeArgs[1] + ", serde type = " + outputSerdeTypeArgs[0]);
             }

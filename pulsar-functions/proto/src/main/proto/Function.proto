@@ -40,8 +40,9 @@ message FunctionConfig {
     string namespace = 2;
     string name = 3;
     string className = 4;
+    repeated string inputs = 14;
     // map from input topic name to serde
-    map<string, string> inputs = 5;
+    map<string, string> custom_serde_inputs = 5;
     string outputSerdeClassName = 6;
     string sinkTopic = 7;
     ProcessingGuarantees processingGuarantees = 9;

@@ -58,13 +58,16 @@ public class JavaInstanceMain {
     protected String tenant;
     @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
     protected String namespace;
-    @Parameter(names = "--source_topics", description = "Input Topic Name\n", required = true)
-    protected String sourceTopicName;
+
     @Parameter(names = "--sink_topic", description = "Output Topic Name\n")
     protected String sinkTopicName;
 
-    @Parameter(names = "--input_serde_classnames", description = "Input SerDe\n", required = true)
-    protected String inputSerdeClassName;
+    @Parameter(names = "--custom_serde_source_topics", description = "Input Topics that need custom deserialization\n", required = false)
+    protected String customSerdeSourceTopics;
+    @Parameter(names = "--custom_serde_classnames", description = "Input SerDe\n", required = false)
+    protected String customSerdeClassnames;
+    @Parameter(names = "--source_topics", description = "Input Topics\n", required = false)
+    protected String defaultSerdeSourceTopics;
 
     @Parameter(names = "--output_serde_classname", description = "Output SerDe\n")
     protected String outputSerdeClassName;
@@ -114,13 +117,21 @@ public class JavaInstanceMain {
         functionConfigBuilder.setNamespace(namespace);
         functionConfigBuilder.setName(functionName);
         functionConfigBuilder.setClassName(className);
-        String[] sourceTopics = sourceTopicName.split(",");
-        String[] inputSerdeClassNames = inputSerdeClassName.split(",");
-        if (sourceTopics.length != inputSerdeClassNames.length) {
-            throw new RuntimeException("Error specifying inputs");
+        if (defaultSerdeSourceTopics != null) {
+            String[] sourceTopics = defaultSerdeSourceTopics.split(",");
+            for (String sourceTopic : sourceTopics) {
+                functionConfigBuilder.addInputs(sourceTopic);
+            }
         }
-        for (int i = 0; i < sourceTopics.length; ++i) {
-            functionConfigBuilder.putInputs(sourceTopics[i], inputSerdeClassNames[i]);
+        if (customSerdeSourceTopics != null && customSerdeClassnames != null) {
+            String[] sourceTopics = customSerdeSourceTopics.split(",");
+            String[] inputSerdeClassNames = customSerdeClassnames.split(",");
+            if (sourceTopics.length != inputSerdeClassNames.length) {
+                throw new RuntimeException("Error specifying inputs");
+            }
+            for (int i = 0; i < sourceTopics.length; ++i) {
+                functionConfigBuilder.putCustomSerdeInputs(sourceTopics[i], inputSerdeClassNames[i]);
+            }
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
