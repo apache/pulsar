@@ -19,6 +19,14 @@
 package org.apache.pulsar.client.impl;
 
 public class JavaStringHash implements Hash {
+    private static final JavaStringHash instance = new JavaStringHash();
+
+    private JavaStringHash(){ }
+
+    public static Hash getInstance() {
+        return instance;
+    }
+
     @Override
     public int makeHash(String s) {
         return s.hashCode() & Integer.MAX_VALUE;

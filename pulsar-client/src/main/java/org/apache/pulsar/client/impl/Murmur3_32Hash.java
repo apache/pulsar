@@ -30,13 +30,19 @@ import java.nio.charset.StandardCharsets;
 import com.google.common.primitives.UnsignedBytes;
 
 public class Murmur3_32Hash implements Hash {
+    private static final Murmur3_32Hash instance = new Murmur3_32Hash();
+
     private static final int CHUNK_SIZE = 4;
     private static final int C1 = 0xcc9e2d51;
     private static final int C2 = 0x1b873593;
     private final int seed;
 
-    Murmur3_32Hash() {
+    private Murmur3_32Hash() {
         seed = 0;
+    }
+
+    public static Hash getInstance() {
+        return instance;
     }
 
     @Override
