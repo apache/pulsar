@@ -468,7 +468,7 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
-        return Commands.newLookup(topic, authoritative, requestId, null);
+        return Commands.newLookup(topic, authoritative, null, requestId);
     }
 
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
