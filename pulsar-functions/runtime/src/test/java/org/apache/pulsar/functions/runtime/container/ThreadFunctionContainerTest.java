@@ -71,7 +71,7 @@ public class ThreadFunctionContainerTest {
         functionConfigBuilder.setNamespace(TEST_NAMESPACE);
         functionConfigBuilder.setName(TEST_NAME);
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        functionConfigBuilder.putInputs(TEST_NAME + "-source", "org.apache.pulsar.functions.api.utils.Utf8StringSerDe");
+        functionConfigBuilder.addInputs(TEST_NAME + "-source");
         functionConfigBuilder.setSinkTopic(TEST_NAME + "-sink");
         return functionConfigBuilder.build();
     }

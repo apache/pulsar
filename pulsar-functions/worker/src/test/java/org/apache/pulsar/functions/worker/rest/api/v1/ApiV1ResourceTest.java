@@ -288,7 +288,7 @@ public class ApiV1ResourceTest {
             functionConfigBuilder.setSinkTopic(sinkTopic);
         }
         if (sourceTopic != null && inputSerdeClassName != null) {
-            functionConfigBuilder.putInputs(sourceTopic, inputSerdeClassName);
+            functionConfigBuilder.putCustomSerdeInputs(sourceTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -313,7 +313,7 @@ public class ApiV1ResourceTest {
     private Response registerDefaultFunction() throws InvalidProtocolBufferException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSinkTopic(sinkTopic).putInputs(sourceTopic, inputSerdeClassName)
+                .setSinkTopic(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className).build();
         return resource.registerFunction(
@@ -573,7 +573,7 @@ public class ApiV1ResourceTest {
             functionConfigBuilder.setSinkTopic(sinkTopic);
         }
         if (sourceTopic != null && inputSerdeClassName != null) {
-            functionConfigBuilder.putInputs(sourceTopic, inputSerdeClassName);
+            functionConfigBuilder.putCustomSerdeInputs(sourceTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -598,7 +598,7 @@ public class ApiV1ResourceTest {
     private Response updateDefaultFunction() throws InvalidProtocolBufferException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setSinkTopic(sinkTopic).putInputs(sourceTopic, inputSerdeClassName)
+                .setSinkTopic(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className).build();
         return resource.updateFunction(
@@ -870,7 +870,7 @@ public class ApiV1ResourceTest {
 
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setClassName(className)
-            .putInputs(sourceTopic, inputSerdeClassName)
+            .putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
             .setOutputSerdeClassName(outputSerdeClassName)
             .setName(function)
             .setNamespace(namespace)

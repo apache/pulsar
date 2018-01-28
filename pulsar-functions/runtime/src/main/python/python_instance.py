@@ -111,15 +111,25 @@ class PythonInstance(object):
 
   def run(self):
     # Setup consumers and input deserializers
-    for topic, serde in self.instance_config.function_config.inputs.items():
+    mode = pulsar._pulsar.ConsumerType.Exclusive
+    if self.atmost_once:
+      mode = pulsar._pulsar.ConsumerType.Shared
+    subscription_name = str(self.instance_config.function_config.tenant) + "/" + \
+                        str(self.instance_config.function_config.namespace) + "/" + \
+                        str(self.instance_config.function_config.name)
+    for topic, serde in self.instance_config.function_config.custom_serde_inputs.items():
       serde_kclass = util.import_class(os.path.dirname(self.user_code), serde, try_internal=True)
       self.input_serdes[topic] = serde_kclass()
-      mode = pulsar._pulsar.ConsumerType.Exclusive
-      if self.atmost_once:
-        mode = pulsar._pulsar.ConsumerType.Shared
-      subscription_name = str(self.instance_config.function_config.tenant) + "/" + \
-                          str(self.instance_config.function_config.namespace) + "/" + \
-                          str(self.instance_config.function_config.name)
+      Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
+      self.consumers[topic] = self.pulsar_client.subscribe(
+        str(topic), subscription_name,
+        consumer_type=mode,
+        message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
+      )
+
+    for topic in self.instance_config.function_config.inputs:
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), "pulsarfunction.IdentitySerDe", try_internal=True)
+      self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(
         str(topic), subscription_name,

@@ -42,7 +42,7 @@ public class FunctionConfigTest {
         assertEquals("test-function", fc.getName());
         assertEquals("test-sink-topic", fc.getSinkTopic());
         assertEquals(1, fc.getInputsCount());
-        assertTrue(fc.containsInputs("test-source-topic"));
+        assertEquals(fc.getInputs(0), "test-source-topic");
     }
 
 }

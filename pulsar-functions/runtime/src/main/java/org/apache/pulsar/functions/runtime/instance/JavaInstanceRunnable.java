@@ -26,6 +26,7 @@ import io.netty.buffer.ByteBuf;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.distributedlog.api.StorageClient;
 import org.apache.distributedlog.api.kv.Table;
 import org.apache.distributedlog.clients.StorageClientBuilder;
@@ -38,6 +39,7 @@ import org.apache.distributedlog.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
@@ -46,6 +48,7 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.SimpleSerDe;
 
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -129,9 +132,19 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
 
+            Object object = Reflections.createInstance(
+                    instanceConfig.getFunctionConfig().getClassName(),
+                    clsLoader);
+            if (!(object instanceof PulsarFunction)) {
+                throw new RuntimeException("User class must be PulsarFunction");
+            }
+
             // create the serde
             this.inputSerDe = new HashMap<>();
-            instanceConfig.getFunctionConfig().getInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
+            instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
+            for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+                this.inputSerDe.put(topicName, initializeDefaultSerDe((PulsarFunction)object));
+            }
 
             // start the state table
             setupStateTable();
@@ -142,7 +155,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
             this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
 
-            javaInstance = new JavaInstance(instanceConfig, clsLoader, client,
+            javaInstance = new JavaInstance(instanceConfig, (PulsarFunction)object, clsLoader, client,
                     new ArrayList(inputSerDe.values()), outputSerDe, sourceConsumers);
 
             while (true) {
@@ -283,38 +296,47 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private void startSourceConsumers() throws Exception {
         log.info("Consumer map {}", instanceConfig.getFunctionConfig());
         sourceConsumers = new HashMap<>();
-        for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
-            log.info("Starting Consumer for topic " + entry.getKey());
-            ConsumerConfiguration conf = new ConsumerConfiguration();
-            if (instanceConfig.getFunctionConfig().getSubscriptionType() == null
-                    || instanceConfig.getFunctionConfig().getSubscriptionType() == FunctionConfig.SubscriptionType.SHARED) {
-                conf.setSubscriptionType(SubscriptionType.Shared);
-            } else {
-                conf.setSubscriptionType(SubscriptionType.Exclusive);
-            }
-            SerDe inputSerde = inputSerDe.get(entry.getKey());
-            conf.setMessageListener((consumer, msg) -> {
-                try {
-                    InputMessage message = new InputMessage();
-                    message.setConsumer(consumer);
-                    message.setInputSerDe(inputSerde);
-                    message.setActualMessage(msg);
-                    message.setTopicName(entry.getKey());
-                    queue.put(message);
-                    if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
-                        if (instanceConfig.getFunctionConfig().getAutoAck()) {
-                            consumer.acknowledgeAsync(msg);
-                        }
-                    }
-                } catch (InterruptedException e) {
-                    log.error("Function container {} is interrupted on enqueuing messages",
-                            Thread.currentThread().getId(), e);
-                }
-            });
-
+        for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
+            ConsumerConfiguration conf = createConsumerConfiguration(entry.getKey());
             this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
                     FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
         }
+        for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+            ConsumerConfiguration conf = createConsumerConfiguration(topicName);
+            this.sourceConsumers.put(topicName, client.subscribe(topicName,
+                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
+        }
+    }
+
+    private ConsumerConfiguration createConsumerConfiguration(String topicName) {
+        log.info("Starting Consumer for topic " + topicName);
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        if (instanceConfig.getFunctionConfig().getSubscriptionType() == null
+                || instanceConfig.getFunctionConfig().getSubscriptionType() == FunctionConfig.SubscriptionType.SHARED) {
+            conf.setSubscriptionType(SubscriptionType.Shared);
+        } else {
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+        }
+        SerDe inputSerde = inputSerDe.get(topicName);
+        conf.setMessageListener((consumer, msg) -> {
+            try {
+                InputMessage message = new InputMessage();
+                message.setConsumer(consumer);
+                message.setInputSerDe(inputSerde);
+                message.setActualMessage(msg);
+                message.setTopicName(topicName);
+                queue.put(message);
+                if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATMOST_ONCE) {
+                    if (instanceConfig.getFunctionConfig().getAutoAck()) {
+                        consumer.acknowledgeAsync(msg);
+                    }
+                }
+            } catch (InterruptedException e) {
+                log.error("Function container {} is interrupted on enqueuing messages",
+                        Thread.currentThread().getId(), e);
+            }
+        });
+        return conf;
     }
 
     private void processResult(InputMessage msg,
@@ -456,5 +478,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     SerDe.class,
                     clsLoader);
         }
+    }
+
+    private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction) throws Exception {
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+        return new SimpleSerDe(typeArgs[0].newInstance(), false);
     }
 }

@@ -56,7 +56,6 @@ class ProcessFunctionContainer implements FunctionContainer {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private Timer alivenessTimer;
     private int alivenessCheckInterval;
-    private int nProcessStarts;
 
     ProcessFunctionContainer(InstanceConfig instanceConfig,
                              int maxBufferedTuples,
@@ -100,24 +99,38 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(instanceConfig.getFunctionConfig().getName());
         args.add("--function_classname");
         args.add(instanceConfig.getFunctionConfig().getClassName());
-        String sourceTopicString = "";
-        String inputSerdeClassNameString = "";
-        for (Map.Entry<String, String> entry: instanceConfig.getFunctionConfig().getInputsMap().entrySet()) {
-            if (sourceTopicString.isEmpty()) {
-                sourceTopicString = entry.getKey();
-            } else {
-                sourceTopicString = sourceTopicString + "," + entry.getKey();
+        if (instanceConfig.getFunctionConfig().getCustomSerdeInputsCount() > 0) {
+            String sourceTopicString = "";
+            String inputSerdeClassNameString = "";
+            for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
+                if (sourceTopicString.isEmpty()) {
+                    sourceTopicString = entry.getKey();
+                } else {
+                    sourceTopicString = sourceTopicString + "," + entry.getKey();
+                }
+                if (inputSerdeClassNameString.isEmpty()) {
+                    inputSerdeClassNameString = entry.getValue();
+                } else {
+                    inputSerdeClassNameString = inputSerdeClassNameString + "," + entry.getValue();
+                }
             }
-            if (inputSerdeClassNameString.isEmpty()) {
-                inputSerdeClassNameString = entry.getValue();
-            } else {
-                inputSerdeClassNameString = inputSerdeClassNameString + "," + entry.getValue();
-            }
+            args.add("--custom_serde_source_topics");
+            args.add(sourceTopicString);
+            args.add("--custom_serde_classnames");
+            args.add(inputSerdeClassNameString);
         }
-        args.add("--source_topics");
-        args.add(sourceTopicString);
-        args.add("--input_serde_classnames");
-        args.add(inputSerdeClassNameString);
+        if (instanceConfig.getFunctionConfig().getInputsCount() > 0) {
+            String sourceTopicString = "";
+            for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+                if (sourceTopicString.isEmpty()) {
+                    sourceTopicString = topicName;
+                } else {
+                    sourceTopicString = sourceTopicString + "," + topicName;
+                }
+            }
+            args.add("--source_topics");
+            args.add(sourceTopicString);
+        }
         args.add("--auto_ack");
         if (instanceConfig.getFunctionConfig().getAutoAck()) {
             args.add("true");
@@ -258,7 +271,6 @@ class ProcessFunctionContainer implements FunctionContainer {
     }
 
     private void startProcess() {
-        nProcessStarts++;
         try {
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();

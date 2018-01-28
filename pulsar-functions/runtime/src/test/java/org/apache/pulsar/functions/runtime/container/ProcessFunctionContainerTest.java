@@ -73,10 +73,8 @@ public class ProcessFunctionContainerTest {
         functionConfigBuilder.setNamespace(TEST_NAMESPACE);
         functionConfigBuilder.setName(TEST_NAME);
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
-        functionConfigBuilder.putInputs(TEST_NAME + "-source1",
-                "org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
-        functionConfigBuilder.putInputs(TEST_NAME + "-source2",
-                "org.apache.pulsar.functions.runtime.serde.JavaSerializer");
+        functionConfigBuilder.addInputs(TEST_NAME + "-source1");
+        functionConfigBuilder.addInputs(TEST_NAME + "-source2");
         functionConfigBuilder.setSinkTopic(TEST_NAME + "-sink");
         functionConfigBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         return functionConfigBuilder.build();
@@ -103,7 +101,7 @@ public class ProcessFunctionContainerTest {
 
         ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
-        assertEquals(args.size(), 41);
+        assertEquals(args.size(), 39);
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionId()
@@ -115,7 +113,6 @@ public class ProcessFunctionContainerTest {
                 + " --name " + config.getFunctionConfig().getName()
                 + " --function_classname " + config.getFunctionConfig().getClassName()
                 + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
-                + " --input_serde_classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
                 + " --auto_ack false"
                 + " --sink_topic " + config.getFunctionConfig().getSinkTopic()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
@@ -131,7 +128,7 @@ public class ProcessFunctionContainerTest {
 
         ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
-        assertEquals(args.size(), 40);
+        assertEquals(args.size(), 38);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
@@ -142,7 +139,6 @@ public class ProcessFunctionContainerTest {
                 + " --name " + config.getFunctionConfig().getName()
                 + " --function_classname " + config.getFunctionConfig().getClassName()
                 + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
-                + " --input_serde_classnames " + "org.apache.pulsar.functions.runtime.serde.Utf8Serializer,org.apache.pulsar.functions.runtime.serde.JavaSerializer"
                 + " --auto_ack false"
                 + " --sink_topic " + config.getFunctionConfig().getSinkTopic()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()

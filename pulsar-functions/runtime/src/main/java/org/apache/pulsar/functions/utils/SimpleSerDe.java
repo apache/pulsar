@@ -22,37 +22,30 @@ package org.apache.pulsar.functions.utils;
 import com.google.common.collect.Sets;
 import org.apache.pulsar.functions.api.SerDe;
 
-import java.io.*;
-import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 /**
  * Simplest form of SerDe.
  */
-public class SimpleSerDe implements SerDe {
+public class SimpleSerDe implements SerDe<Object> {
 
-    private static final Set<Type> supportedInputTypes = Sets.newHashSet(
+    private static final Set<Class> supportedInputTypes = Sets.newHashSet(
             Integer.class,
             Double.class,
             Long.class,
             String.class,
             Short.class,
             Byte.class,
-            Float.class,
-            Map.class,
-            List.class,
-            Object.class
+            Float.class
     );
-    private Type type;
+    private Class type;
     private boolean ser;
 
-    public SimpleSerDe(Type type, boolean ser) {
-        this.type = type;
+    public SimpleSerDe(Object obj, boolean ser) {
+        this.type = obj.getClass();
         this.ser = ser;
-        verifySupportedType(type, ser);
+        verifySupportedType(ser);
     }
 
     @Override
@@ -75,22 +68,6 @@ public class SimpleSerDe implements SerDe {
             return Byte.decode(data);
         } else if (type.equals(Float.class)) {
             return Float.valueOf(data);
-        } else if (type.equals(Map.class)) {
-            try {
-                ByteArrayInputStream byteIn = new ByteArrayInputStream(input);
-                ObjectInputStream in = new ObjectInputStream(byteIn);
-                return (Map<Object, Object>) in.readObject();
-            } catch (Exception ex) {
-                return null;
-            }
-        } else if (type.equals(List.class)) {
-            try {
-                ByteArrayInputStream byteIn = new ByteArrayInputStream(input);
-                ObjectInputStream in = new ObjectInputStream(byteIn);
-                return (List<Object>) in.readObject();
-            } catch (Exception ex) {
-                return null;
-            }
         } else {
             throw new RuntimeException("Unknown type " + type);
         }
@@ -115,21 +92,12 @@ public class SimpleSerDe implements SerDe {
             return ((Byte) input).toString().getBytes(StandardCharsets.UTF_8);
         } else if (type.equals(Float.class)) {
             return ((Float) input).toString().getBytes(StandardCharsets.UTF_8);
-        } else if (type.equals(Map.class) || type.equals(List.class)) {
-            try {
-                ByteArrayOutputStream byteOut = new ByteArrayOutputStream();
-                ObjectOutputStream out = new ObjectOutputStream(byteOut);
-                out.writeObject(input);
-                return byteOut.toByteArray();
-            } catch (Exception ex) {
-                return null;
-            }
         } else {
             throw new RuntimeException("Unknown type " + type);
         }
     }
 
-    public void verifySupportedType(Type type, boolean allowVoid) {
+    public void verifySupportedType(boolean allowVoid) {
         if (!allowVoid && !supportedInputTypes.contains(type)) {
             throw new RuntimeException("Non Basic types not yet supported: " + type);
         } else if (!(supportedInputTypes.contains(type) || type.equals(Void.class))) {
