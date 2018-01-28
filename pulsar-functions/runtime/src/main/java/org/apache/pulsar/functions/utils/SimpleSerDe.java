@@ -42,8 +42,8 @@ public class SimpleSerDe implements SerDe<Object> {
     private Class type;
     private boolean ser;
 
-    public SimpleSerDe(Object obj, boolean ser) {
-        this.type = obj.getClass();
+    public SimpleSerDe(Class type, boolean ser) {
+        this.type = type;
         this.ser = ser;
         verifySupportedType(ser);
     }

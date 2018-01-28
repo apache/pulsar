@@ -21,24 +21,16 @@ package org.apache.pulsar.functions.runtime.instance;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
 
-import lombok.Getter;
-import lombok.Setter;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
-import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.api.utils.JavaSerDe;
 import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.testng.annotations.Test;
 
-import java.util.Arrays;
 import java.util.HashMap;
 
 public class JavaInstanceTest {
@@ -52,50 +44,6 @@ public class JavaInstanceTest {
 
             }
             return input;
-        }
-    }
-
-    private byte[] serialize(String resultValue) {
-        return Utf8StringSerDe.of().serialize(resultValue);
-    }
-
-    @Getter
-    @Setter
-    private class ComplexUserDefinedType {
-        private String name;
-        private Integer age;
-    }
-
-    private class ComplexTypeHandler implements PulsarFunction<String, ComplexUserDefinedType> {
-        @Override
-        public ComplexUserDefinedType process(String input, Context context) throws Exception {
-            return new ComplexUserDefinedType();
-        }
-    }
-
-    private class ComplexSerDe implements SerDe<ComplexUserDefinedType> {
-        @Override
-        public ComplexUserDefinedType deserialize(byte[] input) {
-            return null;
-        }
-
-        @Override
-        public byte[] serialize(ComplexUserDefinedType input) {
-            return new byte[0];
-        }
-    }
-
-    private class VoidInputHandler implements PulsarFunction<Void, String> {
-        @Override
-        public String process(Void input, Context context) throws Exception {
-            return new String("Interesting");
-        }
-    }
-
-    private class VoidOutputHandler implements PulsarFunction<String, Void> {
-        @Override
-        public Void process(String input, Context context) throws Exception {
-            return null;
         }
     }
 
@@ -115,11 +63,11 @@ public class JavaInstanceTest {
      * @throws Exception
      */
     @Test
-    public void testLongRunningFunction() throws Exception {
+    public void testLongRunningFunction() {
         InstanceConfig config = createInstanceConfig();
         config.getLimitsConfig().setMaxTimeMs(2000);
         JavaInstance instance = new JavaInstance(
-            config, new LongRunningHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
+            config, new LongRunningHandler(), null, null, new HashMap<>());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
 
@@ -138,115 +86,10 @@ public class JavaInstanceTest {
         JavaInstance instance = new JavaInstance(
             config,
             (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
-            null, null,
-            Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
+            null, null, new HashMap<>());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);
         assertNotNull(result.getResult());
         assertEquals(new String(testString + "-lambda"), result.getResult());
-    }
-
-    /**
-     * Verify that JavaInstance does not support functions that are not native Java types
-     * @throws Exception
-     */
-    @Test
-    public void testComplexClasses() {
-        InstanceConfig config = createInstanceConfig();
-        try {
-            new JavaInstance(
-                config, new ComplexTypeHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), new ComplexSerDe(), new HashMap<>());
-        } catch (Exception ex) {
-            assertFalse(true);
-        }
-    }
-
-    /**
-     * Verify that JavaInstance does not support functions that take Void type as input
-     */
-    @Test
-    public void testVoidInputClasses() {
-        InstanceConfig config = createInstanceConfig();
-        try {
-            new JavaInstance(
-                config, new VoidInputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), null, new HashMap<>());
-            assertFalse(true);
-        } catch (RuntimeException ex) {
-            // Good
-        } catch (Exception ex) {
-            assertFalse(true);
-        }
-    }
-
-    /**
-     * Verify that JavaInstance does support functions that output Void type
-     */
-    @Test
-    public void testVoidOutputClasses() {
-        InstanceConfig config = createInstanceConfig();
-        config.getLimitsConfig().setMaxTimeMs(2000);
-        JavaInstance instance = new JavaInstance(
-            config, new VoidOutputHandler(), null, null, Arrays.asList(Utf8StringSerDe.of()), Utf8StringSerDe.of(), new HashMap<>());
-        String testString = "ABC123";
-        JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "r", testString);
-        assertNull(result.getUserException());
-        assertNull(result.getTimeoutException());
-        assertNull(result.getResult());
-    }
-
-    private class IntegerSerDe implements SerDe<Integer> {
-        @Override
-        public Integer deserialize(byte[] input) {
-            return null;
-        }
-
-        @Override
-        public byte[] serialize(Integer input) {
-            return new byte[0];
-        }
-    }
-
-    /**
-     * Verify that function input type should be consistent with input serde type.
-     */
-    @Test
-    public void testInconsistentInputType() {
-        InstanceConfig config = createInstanceConfig();
-        config.getLimitsConfig().setMaxTimeMs(2000);
-        config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
-                .putCustomSerdeInputs("TEST", IntegerSerDe.class.getName()).build());
-
-        try {
-            new JavaInstance(
-                config,
-                (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
-                    null, null,
-                    Arrays.asList(new IntegerSerDe()), Utf8StringSerDe.of(), new HashMap<>());
-            fail("Should fail constructing java instance if function type is inconsistent with serde type");
-        } catch (RuntimeException re) {
-            assertTrue(re.getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
-        }
-    }
-
-    /**
-     * Verify that function output type should be consistent with output serde type.
-     */
-    @Test
-    public void testInconsistentOutputType() {
-        InstanceConfig config = createInstanceConfig();
-        config.getLimitsConfig().setMaxTimeMs(2000);
-        config.setFunctionConfig(FunctionConfig.newBuilder(config.getFunctionConfig())
-                .setOutputSerdeClassName(IntegerSerDe.class.getName()).build());
-
-        try {
-            new JavaInstance(
-                config,
-                (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
-                    null, null,
-                    Arrays.asList(Utf8StringSerDe.of()), new IntegerSerDe(), new HashMap<>());
-            fail("Should fail constructing java instance if function type is inconsistent with serde type");
-        } catch (RuntimeException re) {
-            assertTrue(re.getMessage().startsWith("Inconsistent types found between function output type and output serde type:"));
-        }
     }
 }

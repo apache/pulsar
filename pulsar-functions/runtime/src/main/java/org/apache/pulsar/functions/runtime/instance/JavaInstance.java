@@ -28,17 +28,13 @@ import java.util.concurrent.TimeoutException;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
-import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
-import org.apache.pulsar.functions.utils.Reflections;
 
-import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -59,7 +55,7 @@ public class JavaInstance implements AutoCloseable {
     public JavaInstance(InstanceConfig config, PulsarFunction pulsarFunction,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
-                 List<SerDe> inputSerDe, SerDe outputSerDe, Map<String, Consumer> sourceConsumers) {
+                 Map<String, Consumer> sourceConsumers) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
 
@@ -67,35 +63,10 @@ public class JavaInstance implements AutoCloseable {
 
         // create the functions
         this.pulsarFunction = pulsarFunction;
-        verifyTypes(inputSerDe, outputSerDe);
-
 
         if (config.getLimitsConfig() != null && config.getLimitsConfig().getMaxTimeMs() > 0) {
             log.info("Spinning up a executor service since time budget is infinite");
             executorService = Executors.newFixedThreadPool(1);
-        }
-    }
-
-    private void verifyTypes(List<SerDe> inputSerDe, SerDe outputSerDe) {
-        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-
-        for (SerDe serDe : inputSerDe) {
-            Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-            if (!inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0])) {
-                throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
-                        + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
-            }
-        }
-
-        if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (outputSerDe == null) {
-                throw new RuntimeException("Output serde class is null even though return type is not Void!");
-            }
-            Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
-            if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
-                throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
-                    + " function type = " + typeArgs[1] + ", serde type = " + outputSerdeTypeArgs[0]);
-            }
         }
     }
 

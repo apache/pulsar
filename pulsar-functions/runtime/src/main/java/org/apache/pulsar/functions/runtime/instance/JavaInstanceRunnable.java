@@ -139,12 +139,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 throw new RuntimeException("User class must be PulsarFunction");
             }
 
-            // create the serde
-            this.inputSerDe = new HashMap<>();
-            instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
-            for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
-                this.inputSerDe.put(topicName, initializeDefaultSerDe((PulsarFunction)object));
-            }
+            PulsarFunction pulsarFunction = (PulsarFunction) object;
+
+            // setup serde
+            setupSerDe(pulsarFunction, clsLoader);
 
             // start the state table
             setupStateTable();
@@ -153,10 +151,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             // start the source consumer
             startSourceConsumers();
 
-            this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
-
-            javaInstance = new JavaInstance(instanceConfig, (PulsarFunction)object, clsLoader, client,
-                    new ArrayList(inputSerDe.values()), outputSerDe, sourceConsumers);
+            javaInstance = new JavaInstance(instanceConfig, pulsarFunction, clsLoader, client, sourceConsumers);
 
             while (true) {
                 JavaExecutionResult result;
@@ -480,8 +475,45 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction) throws Exception {
+    private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        return new SimpleSerDe(typeArgs[0].newInstance(), false);
+        return new SimpleSerDe(typeArgs[0], false);
+    }
+
+    private void setupSerDe(PulsarFunction pulsarFunction, ClassLoader clsLoader) {
+        this.inputSerDe = new HashMap<>();
+        instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
+        for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
+            this.inputSerDe.put(topicName, initializeDefaultSerDe(pulsarFunction));
+        }
+
+        if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
+            this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
+        }
+
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+
+        if (Void.class.equals(typeArgs[0])) {
+            throw new RuntimeException("Input type of Pulsar Function cannot be Void");
+        }
+
+        for (SerDe serDe : inputSerDe.values()) {
+            Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+            if (!inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0])) {
+                throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
+                        + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
+            }
+        }
+
+        if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
+            if (outputSerDe == null) {
+                outputSerDe = initializeDefaultSerDe(pulsarFunction);
+            }
+            Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
+            if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
+                throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
+                        + " function type = " + typeArgs[1] + ", serde type = " + outputSerdeTypeArgs[0]);
+            }
+        }
     }
 }
