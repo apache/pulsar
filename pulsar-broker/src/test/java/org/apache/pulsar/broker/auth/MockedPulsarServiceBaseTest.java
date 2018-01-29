@@ -185,7 +185,7 @@ public abstract class MockedPulsarServiceBaseTest {
         // Override default providers with mocked ones
         doReturn(mockZooKeeperClientFactory).when(pulsar).getZooKeeperClientFactory();
         doReturn(mockBookKeeperClientFactory).when(pulsar).getBookKeeperClientFactory();
-//        doReturn(new MockSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
+        doReturn(new MockSchemaRegistryService()).when(pulsar).getSchemaRegistryService();
 
         Supplier<NamespaceService> namespaceServiceSupplier = () -> spy(new NamespaceService(pulsar));
         doReturn(namespaceServiceSupplier).when(pulsar).getNamespaceServiceProvider();
