@@ -157,8 +157,6 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
 
-        admin.clusters().createCluster("without-service-discovery", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("without-service-discovery")));
         admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");

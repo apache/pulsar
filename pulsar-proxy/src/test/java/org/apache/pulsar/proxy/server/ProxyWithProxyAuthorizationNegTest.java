@@ -163,8 +163,6 @@ public class ProxyWithProxyAuthorizationNegTest extends ProducerConsumerBase {
 
         String namespaceName = "my-property/proxy-authorization-neg/my-ns";
         
-        admin.clusters().createCluster("proxy-authorization-neg", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization-neg")));
         admin.namespaces().createNamespace(namespaceName);

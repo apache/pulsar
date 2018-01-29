@@ -165,8 +165,6 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
         
-        admin.clusters().createCluster("proxy-authorization", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
         admin.namespaces().createNamespace(namespaceName);
