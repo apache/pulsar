@@ -44,7 +44,7 @@
         <include>**/*.txt</include>
         <include>docker/**</include>
         <include>dashboard/**</include>
-        <include>kubernetes/**</include>
+        <include>deployment/**</include>
       </includes>
       <excludes>
         <exclude>.git/**</exclude>

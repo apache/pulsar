@@ -158,7 +158,7 @@ Now you can access the web interface at [localhost:8001/ui](http://localhost:800
 
 Now that you've set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](/download).
 
-In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the `kubernetes/google-kubernetes-engine` folder and one for a custom Kubernetes cluster in the `kubernetes/generic` folder. To begin, `cd` into the appropriate folder.
+In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the `deployment/kubernetes/google-kubernetes-engine` folder and one for a custom Kubernetes cluster in the `deployment/kubernetes/generic` folder. To begin, `cd` into the appropriate folder.
 
 ### ZooKeeper
 

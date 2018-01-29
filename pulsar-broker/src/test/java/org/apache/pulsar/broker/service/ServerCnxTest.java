@@ -73,6 +73,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
@@ -158,7 +159,7 @@ public class ServerCnxTest {
         doReturn(Optional.empty()).when(zkDataCache).get(anyObject());
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(configCacheService).when(pulsar).getConfigurationCache();
-        
+
         LocalZooKeeperCacheService zkCache = mock(LocalZooKeeperCacheService.class);
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(any());
         doReturn(zkDataCache).when(zkCache).policiesCache();
@@ -571,7 +572,7 @@ public class ServerCnxTest {
                 .setProducerName("prod-name").setSequenceId(0).build();
         ByteBuf data = Unpooled.buffer(1024);
 
-        clientCommand = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
+        clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data));
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
 
@@ -1292,7 +1293,7 @@ public class ServerCnxTest {
                 .build();
         ByteBuf data = Unpooled.buffer(1024);
 
-        clientCommand = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
+        clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data));
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
         assertTrue(getResponse() instanceof CommandSendReceipt);
@@ -1326,7 +1327,7 @@ public class ServerCnxTest {
                 .build();
         ByteBuf data = Unpooled.buffer(1024);
 
-        clientCommand = Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data);
+        clientCommand = ByteBufPair.coalesce(Commands.newSend(1, 0, 1, ChecksumType.None, messageMetadata, data));
         channel.writeInbound(Unpooled.copiedBuffer(clientCommand));
         clientCommand.release();
         assertTrue(getResponse() instanceof CommandSendError);

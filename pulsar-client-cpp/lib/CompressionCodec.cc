@@ -62,14 +62,11 @@ proto::CompressionType CompressionCodecProvider::convertType(CompressionType typ
     }
 }
 
-SharedBuffer CompressionCodecNone::encode(const SharedBuffer& raw) {
-    return raw;
-}
+SharedBuffer CompressionCodecNone::encode(const SharedBuffer& raw) { return raw; }
 
 bool CompressionCodecNone::decode(const SharedBuffer& encoded, uint32_t uncompressedSize,
                                   SharedBuffer& decoded) {
     decoded = encoded;
     return true;
 }
-
-}
+}  // namespace pulsar

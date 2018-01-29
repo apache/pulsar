@@ -39,7 +39,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageExpiryMonitor;
 import org.apache.pulsar.broker.service.persistent.PersistentMessageFinder;
-import org.apache.pulsar.common.api.DoubleByteBuf;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
@@ -68,7 +68,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
         headers.writeInt(msgMetadataSize);
         messageMetadata.writeTo(outStream);
-        ByteBuf headersAndPayload = DoubleByteBuf.get(headers, data);
+        ByteBuf headersAndPayload = ByteBufPair.coalesce(ByteBufPair.get(headers, data));
         byte[] byteMessage = headersAndPayload.nioBuffer().array();
         headersAndPayload.release();
         return byteMessage;

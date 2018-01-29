@@ -128,8 +128,6 @@ const char* pulsar::strResult(Result result) {
 
 #pragma GCC visibility push(default)
 
-std::ostream& operator<<(std::ostream& s, Result result) {
-    return s << strResult(result);
-}
+std::ostream& operator<<(std::ostream& s, Result result) { return s << strResult(result); }
 
 #pragma GCC visibility pop

@@ -18,38 +18,35 @@
  */
 package org.apache.pulsar.common.api;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.common.api.DoubleByteBuf;
 import org.testng.annotations.Test;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
+import io.netty.channel.ChannelHandlerContext;
 
-public class DoubleByteBufTest {
+public class ByteBufPairTest {
 
-    /**
-     * Verify that readableBytes() returns writerIndex - readerIndex. In this case writerIndex is the end of the buffer
-     * and readerIndex is increased by 64.
-     *
-     * @throws Exception
-     */
     @Test
-    public void testReadableBytes() throws Exception {
-
+    public void testDoubleByteBuf() throws Exception {
         ByteBuf b1 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b1.writerIndex(b1.capacity());
         ByteBuf b2 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
         b2.writerIndex(b2.capacity());
-        ByteBuf buf = DoubleByteBuf.get(b1, b2);
+        ByteBufPair buf = ByteBufPair.get(b1, b2);
 
-        assertEquals(buf.readerIndex(), 0);
-        assertEquals(buf.writerIndex(), 256);
         assertEquals(buf.readableBytes(), 256);
+        assertEquals(buf.getFirst(), b1);
+        assertEquals(buf.getSecond(), b2);
 
-        for (int i = 0; i < 4; ++i) {
-            buf.skipBytes(64);
-            assertEquals(buf.readableBytes(), 256 - 64 * (i + 1));
-        }
+        assertEquals(buf.refCnt(), 1);
+        assertEquals(b1.refCnt(), 1);
+        assertEquals(b2.refCnt(), 1);
 
         buf.release();
 
@@ -59,21 +56,31 @@ public class DoubleByteBufTest {
     }
 
     @Test
-    public void testCapacity() throws Exception {
+    public void testEncoder() throws Exception {
+        ByteBuf b1 = Unpooled.wrappedBuffer("hello".getBytes());
+        ByteBuf b2 = Unpooled.wrappedBuffer("world".getBytes());
+        ByteBufPair buf = ByteBufPair.get(b1, b2);
 
-        ByteBuf b1 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
-        b1.writerIndex(b1.capacity());
-        ByteBuf b2 = PooledByteBufAllocator.DEFAULT.heapBuffer(128, 128);
-        b2.writerIndex(b2.capacity());
-        ByteBuf buf = DoubleByteBuf.get(b1, b2);
+        assertEquals(buf.readableBytes(), 10);
+        assertEquals(buf.getFirst(), b1);
+        assertEquals(buf.getSecond(), b2);
 
-        assertEquals(buf.capacity(), 256);
-        assertEquals(buf.maxCapacity(), 256);
+        assertEquals(buf.refCnt(), 1);
+        assertEquals(b1.refCnt(), 1);
+        assertEquals(b2.refCnt(), 1);
 
-        buf.release();
+        ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
+        when(ctx.write(any(), any())).then(invocation -> {
+            // Simulate a write on the context which releases the buffer
+            ((ByteBuf) invocation.getArguments()[0]).release();
+            return null;
+        });
+
+        ByteBufPair.ENCODER.write(ctx, buf, null);
 
         assertEquals(buf.refCnt(), 0);
         assertEquals(b1.refCnt(), 0);
         assertEquals(b2.refCnt(), 0);
     }
+
 }

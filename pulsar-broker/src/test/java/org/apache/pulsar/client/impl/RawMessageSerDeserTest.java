@@ -19,17 +19,16 @@
 package org.apache.pulsar.client.impl;
 
 
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.testng.Assert;
 import org.testng.annotations.Test;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 public class RawMessageSerDeserTest {
     static final Logger log = LoggerFactory.getLogger(RawMessageSerDeserTest.class);

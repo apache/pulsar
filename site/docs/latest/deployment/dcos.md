@@ -15,10 +15,10 @@ In order to run Pulsar on DC/OS, you will need the following:
 * DC/OS version [1.9](https://dcos.io/docs/1.9/) or higher
 * A [DC/OS cluster](https://dcos.io/install/) with at least three agent nodes
 * The [DC/OS CLI tool](https://dcos.io/docs/1.9/usage/cli/install/) installed
-* The [`PulsarGroups.json`](https://github.com/apache/incubator-pulsar/blob/master/deploy/dcos/PulsarGroups.json) configuration file from the Pulsar GitHub repo.
+* The [`PulsarGroups.json`](https://github.com/apache/incubator-pulsar/blob/master/deployment/dcos/PulsarGroups.json) configuration file from the Pulsar GitHub repo.
 
   ```bash
-  $ curl -O https://raw.githubusercontent.com/apache/incubator-pulsar/master/deploy/dcos/PulsarGroups.json
+  $ curl -O https://raw.githubusercontent.com/apache/incubator-pulsar/master/deployment/dcos/PulsarGroups.json
   ```
 
 Each node in the DC/OS-managed Mesos cluster must have at least:

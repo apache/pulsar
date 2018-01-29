@@ -106,7 +106,7 @@ public class PulsarStandaloneStarter {
         }
 
         this.config = PulsarConfigurationLoader.create((new FileInputStream(configFile)), ServiceConfiguration.class);
-        PulsarConfigurationLoader.isComplete(config);
+
         // Set ZK server's host to localhost
         config.setZookeeperServers("127.0.0.1:" + zkPort);
         config.setGlobalZookeeperServers("127.0.0.1:" + zkPort);
