@@ -1668,11 +1668,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         c1.skipEntries(1, IndividualDeletedEntries.Exclude);
         // let retention expire
         Thread.sleep(1000);
-        ml.close();
-        // sleep for trim
-        Thread.sleep(100);
+        ml.internalTrimConsumedLedgers();
+
         assertTrue(ml.getLedgersInfoAsList().size() <= 1);
         assertTrue(ml.getTotalSize() <= "shortmessage".getBytes().length);
+        ml.close();
     }
 
     @Test
