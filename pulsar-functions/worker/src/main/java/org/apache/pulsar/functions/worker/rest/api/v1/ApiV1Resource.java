@@ -288,9 +288,10 @@ public class ApiV1Resource extends BaseApiResource {
                 functionStatus = spawner.getFunctionStatus().get();
             } catch (Exception ex) {
                 log.error("Got Exception Getting Status from Spawner", ex);
-                return Response.status(Status.INTERNAL_SERVER_ERROR)
-                        .type(MediaType.APPLICATION_JSON)
-                        .entity(new ErrorData(ex.getMessage())).build();
+                FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+                functionStatusBuilder.setRunning(false);
+                String functionConfigJson = JsonFormat.printer().print(functionStatusBuilder.build());
+                return Response.status(Response.Status.OK).entity(functionConfigJson).build();
             }
         } else {
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
