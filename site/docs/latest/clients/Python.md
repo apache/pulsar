@@ -103,3 +103,19 @@ while True:
 
 client.close()
 ```
+
+### Reader interface example
+
+You can use the Pulsar Python API to use the Pulsar [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface). Here's an example:
+
+```python
+# MessageId taken from a previously fetched message
+msg_id = msg.message_id()
+
+reader = client.create_reader(TOPIC, msg_id)
+
+while True:
+    msg = reader.receive()
+    print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+    # No acknowledgment
+```
