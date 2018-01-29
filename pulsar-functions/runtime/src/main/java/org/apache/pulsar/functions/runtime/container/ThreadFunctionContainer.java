@@ -40,7 +40,9 @@ class ThreadFunctionContainer implements FunctionContainer {
     // The thread that invokes the function
     @Getter
     private final Thread fnThread;
-    
+
+    @Getter
+    private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
 
     ThreadFunctionContainer(InstanceConfig instanceConfig,
@@ -50,6 +52,7 @@ class ThreadFunctionContainer implements FunctionContainer {
                             String jarFile,
                             PulsarClient pulsarClient,
                             String stateStorageServiceUrl) {
+        this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");
         }
@@ -68,7 +71,8 @@ class ThreadFunctionContainer implements FunctionContainer {
      * The core logic that initialize the thread container and executes the function
      */
     @Override
-    public void start() throws Exception {
+    public void start() {
+        log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         this.fnThread.start();
     }
 
