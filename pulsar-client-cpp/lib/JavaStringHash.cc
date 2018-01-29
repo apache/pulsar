@@ -23,9 +23,9 @@ namespace pulsar {
 JavaStringHash::JavaStringHash() {}
 
 uint32_t JavaStringHash::makeHash(const std::string& key) {
-    auto len = key.length();
-    auto* val = key.c_str();
-    int32_t hash = 0;
+    uint64_t len = key.length();
+    const char* val = key.c_str();
+    uint32_t hash = 0;
 
     for (int i = 0; i < len; i++) {
         hash = 31 * hash + val[i];

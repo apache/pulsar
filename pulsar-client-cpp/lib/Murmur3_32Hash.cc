@@ -51,13 +51,13 @@ Murmur3_32Hash::Murmur3_32Hash() : seed(0) {}
 uint32_t Murmur3_32Hash::makeHash(const std::string &key) { return makeHash(&key.front(), key.length()); }
 
 uint32_t Murmur3_32Hash::makeHash(const void *key, const int64_t len) {
-    auto *data = reinterpret_cast<const uint8_t *>(key);
+    const uint8_t *data = reinterpret_cast<const uint8_t *>(key);
     const int nblocks = len / CHUNK_SIZE;
-    auto h1 = seed;
-    auto *blocks = reinterpret_cast<const uint32_t *>(data + nblocks * CHUNK_SIZE);
+    uint32_t h1 = seed;
+    const uint32_t *blocks = reinterpret_cast<const uint32_t *>(data + nblocks * CHUNK_SIZE);
 
     for (int i = -nblocks; i != 0; i++) {
-        auto k1 = BYTESPWAP(blocks[i]);
+        uint32_t k1 = BYTESPWAP(blocks[i]);
 
         k1 = mixK1(k1);
         h1 = mixH1(h1, k1);
