@@ -44,7 +44,7 @@ public class RawMessageSerDeserTest {
             .setPartition(10).setBatchIndex(20).build();
 
         RawMessage m = new RawMessageImpl(id, headersAndPayload);
-        ByteBuf serialized = ByteBufPair.coalesce(m.serialize());
+        ByteBuf serialized = m.serialize();
         byte[] bytes = new byte[serialized.readableBytes()];
         serialized.readBytes(bytes);
 
