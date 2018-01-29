@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-JavaStringHash::JavaStringHash(uint32_t seed) {}
+JavaStringHash::JavaStringHash() {}
 
 uint32_t JavaStringHash::makeHash(const std::string& key) {
     auto len = key.length();

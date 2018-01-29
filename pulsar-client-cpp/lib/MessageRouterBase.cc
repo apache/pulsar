@@ -26,14 +26,14 @@ namespace pulsar {
 MessageRouterBase::MessageRouterBase(ProducerConfiguration::HashingScheme hashingScheme) {
     switch (hashingScheme) {
         case ProducerConfiguration::BoostHash:
-            hash = HashPtr(new BoostHash(0));
+            hash = HashPtr(new BoostHash());
             break;
         case ProducerConfiguration::JavaStringHash:
-            hash = HashPtr(new JavaStringHash(0));
+            hash = HashPtr(new JavaStringHash());
             break;
         case ProducerConfiguration::Murmur3_32Hash:
         default:
-            hash = HashPtr(new Murmur3_32Hash(0));
+            hash = HashPtr(new Murmur3_32Hash());
             break;
     }
 }

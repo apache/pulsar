@@ -33,7 +33,7 @@ namespace pulsar {
 
 class Murmur3_32Hash : public Hash {
    public:
-    Murmur3_32Hash(uint32_t _seed);
+    Murmur3_32Hash();
 
     uint32_t makeHash(const std::string& key);
 

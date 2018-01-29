@@ -20,7 +20,7 @@
 
 namespace pulsar {
 
-BoostHash::BoostHash(uint32_t seed) : hash() {}
+BoostHash::BoostHash() : hash() {}
 
 uint32_t BoostHash::makeHash(const std::string& key) { return hash(key); }
 

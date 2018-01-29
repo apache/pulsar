@@ -46,7 +46,7 @@
 
 namespace pulsar {
 
-Murmur3_32Hash::Murmur3_32Hash(uint32_t _seed) : seed(_seed) {}
+Murmur3_32Hash::Murmur3_32Hash() : seed(0) {}
 
 uint32_t Murmur3_32Hash::makeHash(const std::string &key) { return makeHash(&key.front(), key.length()); }
 
