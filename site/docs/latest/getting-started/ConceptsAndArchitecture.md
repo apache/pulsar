@@ -325,7 +325,7 @@ The **reader interface** for Pulsar enables applications to manually manage curs
 
 The reader interface is helpful for use cases like using Pulsar to provide [effectively-once](https://streaml.io/blog/exactly-once/) processing semantics for a stream processing system. For this use case, it's essential that the stream processing system be able to "rewind" topics to a specific message and begin reading there. The reader interface provides Pulsar clients with the low-level abstraction necessary to "manually position" themselves within a topic.
 
-<img src="https://www.lucidchart.com/publicSegments/view/50675d85-c9bb-45a7-b908-c606cbbe8a0b/image.png" alt="The Pulsar consumer and reader interfaces" width="80%">
+<img src="/img/pulsar-reader-consumer-interfaces.png" alt="The Pulsar consumer and reader interfaces" width="80%">
 
 {% include admonition.html type="warning" title="Non-partitioned topics only"
 content="The reader interface for Pulsar cannot currently be used with [partitioned topics](#partitioned-topics)." %}
