@@ -320,7 +320,7 @@ class Client:
           Set the message routing mode for the partitioned producer.
         """
         _check_type(str, topic, 'topic')
-        _check_type(str, producer_name, 'producer_name')
+        _check_type_or_none(str, producer_name, 'producer_name')
         _check_type_or_none(int, initial_sequence_id, 'initial_sequence_id')
         _check_type(int, send_timeout_millis, 'send_timeout_millis')
         _check_type(CompressionType, compression_type, 'compression_type')
@@ -409,7 +409,7 @@ class Client:
         _check_type(str, subscription_name, 'subscription_name')
         _check_type(ConsumerType, consumer_type, 'consumer_type')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
-        _check_type_or_none(int, consumer_name, 'consumer_name')
+        _check_type_or_none(str, consumer_name, 'consumer_name')
         _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
         _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
 
@@ -480,7 +480,7 @@ class Client:
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
-        _check_type(str, reader_name, 'reader_name')
+        _check_type_or_none(str, reader_name, 'reader_name')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
