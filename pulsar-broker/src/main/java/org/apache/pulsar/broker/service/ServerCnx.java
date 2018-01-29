@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.PersistentTopics.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
@@ -27,6 +28,7 @@ import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -455,7 +457,7 @@ public class ServerCnx extends PulsarHandler {
                     if (consumerFuture.complete(consumer)) {
                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
                                 subscriptionName);
-                        ctx.writeAndFlush(Commands.newSuccess(requestId, schema.schema), ctx.voidPromise());
+                        ctx.writeAndFlush(Commands.newSuccess(requestId, isNull(schema) ? null : schema.schema), ctx.voidPromise());
                     } else {
                         // The consumer future was completed before by a close command
                         try {
@@ -626,7 +628,7 @@ public class ServerCnx extends PulsarHandler {
                             if (producerFuture.complete(producer)) {
                                 log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                 ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                        producer.getLastSequenceId(), tac.schema.schema));
+                                        producer.getLastSequenceId(), isNull(tac.schema) ? null : tac.schema.schema));
                                 return;
                             } else {
                                 // The producer's future was completed before by
