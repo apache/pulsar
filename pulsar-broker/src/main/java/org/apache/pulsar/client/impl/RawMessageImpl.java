@@ -65,15 +65,18 @@ public class RawMessageImpl implements RawMessage {
     }
 
     @Override
-    public ByteBufPair serialize() {
+    public ByteBuf serialize() {
+        ByteBuf headersAndPayload = this.headersAndPayload.slice();
+
         // Format: [IdSize][Id][PayloadAndMetadataSize][PayloadAndMetadata]
         int idSize = id.getSerializedSize();
         int headerSize = 4 /* IdSize */ + idSize + 4 /* PayloadAndMetadataSize */;
+        int totalSize = headerSize + headersAndPayload.readableBytes();
 
-        ByteBuf headers = PooledByteBufAllocator.DEFAULT.buffer(headerSize);
-        headers.writeInt(idSize);
+        ByteBuf buf = PooledByteBufAllocator.DEFAULT.buffer(totalSize);
+        buf.writeInt(idSize);
         try {
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(headers);
+            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(buf);
             id.writeTo(outStream);
             outStream.recycle();
         } catch (IOException e) {
@@ -81,9 +84,10 @@ public class RawMessageImpl implements RawMessage {
             log.error("IO exception serializing to ByteBuf (this shouldn't happen as operation is in-memory)", e);
             throw new RuntimeException(e);
         }
-        headers.writeInt(headersAndPayload.readableBytes());
+        buf.writeInt(headersAndPayload.readableBytes());
+        buf.writeBytes(headersAndPayload);
 
-        return ByteBufPair.get(headers, headersAndPayload);
+        return buf;
     }
 
     static public RawMessage deserializeFrom(ByteBuf buffer) {
