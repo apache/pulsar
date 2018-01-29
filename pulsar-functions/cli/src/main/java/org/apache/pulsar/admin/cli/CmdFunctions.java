@@ -30,6 +30,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
+import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
@@ -96,7 +97,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionConfigCommand extends FunctionCommand {
-        @Parameter(names = "--function-classname", description = "Function Class Name\n")
+        @Parameter(names = "--function-classname", description = "Function Class Name\n", required = true)
         protected String className;
         @Parameter(
                 names = "--jar",
@@ -183,9 +184,16 @@ public class CmdFunctions extends CmdBase {
                 // Can we do any checks here?
                 functionConfigBuilder.setRuntime(FunctionConfig.Runtime.PYTHON);
                 userCodeFile = pyFile;
+            } else {
+                throw new RuntimeException("Either jar name or python file need to be specified");
+            }
+
+            if (functionConfigBuilder.getInputsCount() == 0 && functionConfigBuilder.getCustomSerdeInputsCount() == 0) {
+                throw new RuntimeException("No input topics specified");
             }
 
             functionConfigBuilder.setAutoAck(true);
+            inferMissingArguments(functionConfigBuilder);
             functionConfig = functionConfigBuilder.build();
         }
 
@@ -219,6 +227,56 @@ public class CmdFunctions extends CmdBase {
                     }
                 }
             });
+        }
+
+        private void inferMissingArguments(FunctionConfig.Builder builder) {
+            if (builder.getName() == null || builder.getName().isEmpty()) {
+                inferMissingFunctionName(builder);
+            }
+            if (builder.getTenant() == null || builder.getTenant().isEmpty()) {
+                inferMissingTenant(builder);
+            }
+            if (builder.getNamespace() == null || builder.getNamespace().isEmpty()) {
+                inferMissingNamespace(builder);
+            }
+        }
+
+        private void inferMissingFunctionName(FunctionConfig.Builder builder) {
+            String [] domains = builder.getClassName().split(".");
+            if (domains.length == 0) {
+                builder.setName(builder.getClassName());
+            } else {
+                builder.setName(domains[domains.length - 1]);
+            }
+        }
+
+        private void inferMissingTenant(FunctionConfig.Builder builder) {
+            try {
+                String inputTopic = getUniqueInput(builder);
+                builder.setTenant(DestinationName.get(inputTopic).getProperty());
+            } catch (IllegalArgumentException ex) {
+                throw new RuntimeException("Missing tenant", ex);
+            }
+        }
+
+        private void inferMissingNamespace(FunctionConfig.Builder builder) {
+            try {
+                String inputTopic = getUniqueInput(builder);
+                builder.setNamespace(DestinationName.get(inputTopic).getNamespacePortion());
+            } catch (IllegalArgumentException ex) {
+                throw new RuntimeException("Missing Namespace");
+            }
+        }
+
+        private String getUniqueInput(FunctionConfig.Builder builder) {
+            if (builder.getInputsCount() + builder.getCustomSerdeInputsCount() != 1) {
+                throw new IllegalArgumentException();
+            }
+            if (builder.getInputsCount() == 1) {
+                return builder.getInputs(0);
+            } else {
+                return builder.getCustomSerdeInputsMap().keySet().iterator().next();
+            }
         }
     }
 

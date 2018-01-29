@@ -28,6 +28,7 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
+import static org.testng.Assert.assertTrue;
 
 import java.io.File;
 import java.net.URI;
@@ -161,6 +162,71 @@ public class CmdFunctionsTest {
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
+    }
+
+    @Test
+    public void testCreateWithoutTenant() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String sourceTopicName = "persistent://tenant/standalone/namespace/source-topic";
+        String sinkTopicName = "persistent://tenant/standalone/namespace/sink-topic";
+        cmd.run(new String[] {
+                "create",
+                "--function-name", fnName,
+                "--custom-serde-source-topics", sourceTopicName,
+                "--sink-topic", sinkTopicName,
+                "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
+                "--output-serde-classname", Utf8StringSerDe.class.getName(),
+                "--jar", "SomeJar.jar",
+                "--namespace", "ns1",
+                "--function-classname", "MyClass",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals("tenant", creater.getFunctionConfig().getTenant());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateWithoutNamespace() throws Exception {
+        String fnName = TEST_NAME + "-function";
+        String sourceTopicName = "persistent://tenant/standalone/namespace/source-topic";
+        String sinkTopicName = "persistent://tenant/standalone/namespace/sink-topic";
+        cmd.run(new String[] {
+                "create",
+                "--function-name", fnName,
+                "--custom-serde-source-topics", sourceTopicName,
+                "--sink-topic", sinkTopicName,
+                "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
+                "--output-serde-classname", Utf8StringSerDe.class.getName(),
+                "--jar", "SomeJar.jar",
+                "--function-classname", "MyClass",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals("tenant", creater.getFunctionConfig().getTenant());
+        assertEquals("namespace", creater.getFunctionConfig().getNamespace());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
+    public void testCreateWithoutFunctionName() throws Exception {
+        String sourceTopicName = TEST_NAME + "-source-topic";
+        String sinkTopicName = TEST_NAME + "-sink-topic";
+        cmd.run(new String[] {
+                "create",
+                "--custom-serde-source-topics", sourceTopicName,
+                "--sink-topic", sinkTopicName,
+                "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
+                "--output-serde-classname", Utf8StringSerDe.class.getName(),
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--function-classname", "MyClass",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals("MyClass", creater.getFunctionConfig().getName());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
     @Test
