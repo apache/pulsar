@@ -71,7 +71,7 @@ class ProcessFunctionContainer implements FunctionContainer {
             args.add(instanceFile);
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
-            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionId());
+            args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionConfig().getName());
             args.add("org.apache.pulsar.functions.runtime.instance.JavaInstanceMain");
             args.add("--jar");
             args.add(codeFile);
@@ -83,7 +83,7 @@ class ProcessFunctionContainer implements FunctionContainer {
             args.add("--logging_directory");
             args.add(logDirectory);
             args.add("--logging_file");
-            args.add(instanceConfig.getFunctionId());
+            args.add(instanceConfig.getFunctionConfig().getName());
         }
         args.add("--instance_id");
         args.add(instanceConfig.getInstanceId());

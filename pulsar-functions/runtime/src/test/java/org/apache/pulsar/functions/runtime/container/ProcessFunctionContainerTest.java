@@ -104,7 +104,7 @@ public class ProcessFunctionContainerTest {
         assertEquals(args.size(), 39);
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
-                + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionId()
+                + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionConfig().getName()
                 + " org.apache.pulsar.functions.runtime.instance.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
@@ -132,7 +132,7 @@ public class ProcessFunctionContainerTest {
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile
                 + " --py " + userJarFile + " --logging_directory "
-                + logDirectory + " --logging_file " + config.getFunctionId() + " --instance_id "
+                + logDirectory + " --logging_file " + config.getFunctionConfig().getName() + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
                 + " --namespace " + config.getFunctionConfig().getNamespace()
