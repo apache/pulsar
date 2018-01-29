@@ -26,12 +26,11 @@
 namespace pulsar {
 
 class CompressionCodecZLib : public CompressionCodec {
- public:
+   public:
     SharedBuffer encode(const SharedBuffer& raw);
 
     bool decode(const SharedBuffer& encoded, uint32_t uncompressedSize, SharedBuffer& decoded);
 };
-
-}
+}  // namespace pulsar
 
 #endif /* LIB_COMPRESSIONCODECZLIB_H_ */

@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotRea
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
+import org.apache.pulsar.client.impl.ClientCnx;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
@@ -102,7 +103,7 @@ public class ServerCnx extends PulsarHandler {
     private String originalPrincipal = null;
 
     enum State {
-        Start, Connected
+        Start, Connected, Failed
     }
 
     public ServerCnx(BrokerService service) {
@@ -164,7 +165,18 @@ public class ServerCnx extends PulsarHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.warn("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+        if (state != State.Failed) {
+            // No need to report stack trace for known exceptions that happen in disconnections
+            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                    ClientCnx.isKnownException(cause) ? null : cause);
+            state = State.Failed;
+        } else {
+            // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
+            // failed
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+            }
+        }
         ctx.close();
     }
 

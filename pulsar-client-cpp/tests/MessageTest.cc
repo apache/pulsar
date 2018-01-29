@@ -32,14 +32,14 @@ TEST(MessageTest, testMessageContents) {
     Message msg = msgBuilder1.build();
     ASSERT_EQ(content, msg.getDataAsString());
     ASSERT_EQ(content.length(), msg.getLength());
-    ASSERT_EQ(content, std::string((char * ) msg.getData(), msg.getLength()));
+    ASSERT_EQ(content, std::string((char*)msg.getData(), msg.getLength()));
 
     MessageBuilder msgBuilder2;
     std::string myContents = "mycontents";
     msgBuilder2.setContent(myContents.c_str(), myContents.length());
     msg = msgBuilder2.build();
-    ASSERT_EQ(myContents, std::string((char * ) msg.getData(), msg.getLength()));
-    ASSERT_NE(myContents.c_str(), (char * ) msg.getData());
+    ASSERT_EQ(myContents, std::string((char*)msg.getData(), msg.getLength()));
+    ASSERT_NE(myContents.c_str(), (char*)msg.getData());
     ASSERT_EQ(myContents, msg.getDataAsString());
     ASSERT_EQ(std::string("mycontents").length(), msg.getLength());
 }
@@ -47,16 +47,16 @@ TEST(MessageTest, testMessageContents) {
 TEST(MessageTest, testAllocatedContents) {
     MessageBuilder msgBuilder;
     std::string str = "content";
-    char *content = new char[str.size()];
+    char* content = new char[str.size()];
     strcpy(content, str.c_str());
     msgBuilder.setAllocatedContent(content, str.length());
     Message msg = msgBuilder.build();
-    ASSERT_FALSE(strncmp("content", (char * ) msg.getData(), msg.getLength()));
-    ASSERT_EQ(content, (char * ) msg.getData());
+    ASSERT_FALSE(strncmp("content", (char*)msg.getData(), msg.getLength()));
+    ASSERT_EQ(content, (char*)msg.getData());
     delete[] content;
 }
 
-template<typename Map>
+template <typename Map>
 bool compareMaps(const Map& lhs, const Map& rhs) {
     return lhs.size() == rhs.size() && std::equal(lhs.begin(), lhs.end(), rhs.begin());
 }

@@ -37,8 +37,9 @@ class PulsarWrapper;
  * Class that holds the configuration for a producer
  */
 class ProducerConfiguration {
- public:
-    enum PartitionsRoutingMode {
+   public:
+    enum PartitionsRoutingMode
+    {
         UseSinglePartition,
         RoundRobinDistribution,
         CustomPartition
@@ -80,20 +81,18 @@ class ProducerConfiguration {
     const unsigned int& getBatchingMaxMessages() const;
 
     ProducerConfiguration& setBatchingMaxAllowedSizeInBytes(
-            const unsigned long& batchingMaxAllowedSizeInBytes);
+        const unsigned long& batchingMaxAllowedSizeInBytes);
     const unsigned long& getBatchingMaxAllowedSizeInBytes() const;
 
-    ProducerConfiguration& setBatchingMaxPublishDelayMs(
-            const unsigned long& batchingMaxPublishDelayMs);
+    ProducerConfiguration& setBatchingMaxPublishDelayMs(const unsigned long& batchingMaxPublishDelayMs);
     const unsigned long& getBatchingMaxPublishDelayMs() const;
 
     friend class PulsarWrapper;
 
- private:
+   private:
     struct Impl;
     boost::shared_ptr<ProducerConfigurationImpl> impl_;
 };
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif /* PULSAR_PRODUCERCONFIGURATION_H_ */
-

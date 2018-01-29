@@ -26,13 +26,15 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 /**
- * 
+ *
  * This plugin requires these parameters
- * 
+ *
  * tlsCertFile: A file path for a client certificate. tlsKeyFile: A file path for a client private key.
  *
  */
 public class AuthenticationTls implements Authentication {
+
+    private static final long serialVersionUID = 1L;
 
     private String certFilePath;
     private String keyFilePath;

@@ -25,19 +25,12 @@ namespace pulsar {
 struct CountIsZero {
     const int& count_;
 
-    CountIsZero(const int& count)
-            : count_(count) {
-    }
+    CountIsZero(const int& count) : count_(count) {}
 
-    bool operator()() const {
-        return count_ == 0;
-    }
+    bool operator()() const { return count_ == 0; }
 };
 
-Latch::Latch(int count)
-        : state_(boost::make_shared<InternalState>()) {
-    state_->count = count;
-}
+Latch::Latch(int count) : state_(boost::make_shared<InternalState>()) { state_->count = count; }
 
 void Latch::countdown() {
     Lock lock(state_->mutex);
@@ -53,7 +46,6 @@ int Latch::getCount() {
     Lock lock(state_->mutex);
 
     return state_->count;
-
 }
 
 void Latch::wait() {

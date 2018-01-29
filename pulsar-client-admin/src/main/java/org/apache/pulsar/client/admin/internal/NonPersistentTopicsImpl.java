@@ -20,22 +20,24 @@ package org.apache.pulsar.client.admin.internal;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
+import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
@@ -181,7 +183,68 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
         return asyncPutRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("unload"),
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
-    
+
+    @Override
+    public List<String> getListInBundle(String namespace, String bundleRange) throws PulsarAdminException {
+        try {
+            return getListInBundleAsync(namespace, bundleRange).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        asyncGetRequest(nonPersistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                .path(bundleRange), new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> response) {
+                        future.complete(response);
+                    }
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
+    @Override
+    public List<String> getList(String namespace) throws PulsarAdminException {
+        try {
+            return getListAsync(namespace).get();
+        } catch (ExecutionException e) {
+            throw (PulsarAdminException) e.getCause();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarAdminException(e.getCause());
+        }
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getListAsync(String namespace) {
+        NamespaceName ns = NamespaceName.get(namespace);
+        final CompletableFuture<List<String>> future = new CompletableFuture<>();
+        asyncGetRequest(nonPersistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()),
+                new InvocationCallback<List<String>>() {
+                    @Override
+                    public void completed(List<String> response) {
+                        future.complete(response);
+                    }
+
+                    @Override
+                    public void failed(Throwable throwable) {
+                        future.completeExceptionally(getApiException(throwable.getCause()));
+                    }
+                });
+        return future;
+    }
+
     /*
      * returns destination name with encoded Local Name
      */

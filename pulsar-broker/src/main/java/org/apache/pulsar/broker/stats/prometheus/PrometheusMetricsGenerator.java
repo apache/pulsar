@@ -39,8 +39,9 @@ import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
 
 /**
- * Generate metrics aggregated at the namespace level and formats them out in a text format suitable to be consumed by
- * Prometheus. Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
+ * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
+ * in a text format suitable to be consumed by Prometheus.
+ * Format specification can be found at {@link https://prometheus.io/docs/instrumenting/exposition_formats/}
  */
 public class PrometheusMetricsGenerator {
 
@@ -63,14 +64,14 @@ public class PrometheusMetricsGenerator {
         }).register(CollectorRegistry.defaultRegistry);
     }
 
-    public static void generate(PulsarService pulsar, OutputStream out) throws IOException {
+    public static void generate(PulsarService pulsar, boolean includeTopicMetrics, OutputStream out) throws IOException {
         ByteBuf buf = ByteBufAllocator.DEFAULT.heapBuffer();
         try {
             SimpleTextOutputStream stream = new SimpleTextOutputStream(buf);
 
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
-            NamespaceStatsAggregator.generate(pulsar, stream);
+            NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, stream);
 
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {

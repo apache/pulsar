@@ -27,10 +27,10 @@ namespace pulsar {
 
 bool crc32cSupported();
 uint32_t computeChecksum(uint32_t previousChecksum, const void *data, int length);
-uint32_t crc32cHw(uint32_t previousChecksum, const void * data, int length);
-uint32_t crc32cSw(uint32_t previousChecksum, const void * data, int length);
-}
+uint32_t crc32cHw(uint32_t previousChecksum, const void *data, int length);
+uint32_t crc32cSw(uint32_t previousChecksum, const void *data, int length);
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif // _CHECKSUM_PROVIDER_H_
+#endif  // _CHECKSUM_PROVIDER_H_

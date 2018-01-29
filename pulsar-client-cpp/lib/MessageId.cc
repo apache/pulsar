@@ -30,12 +30,7 @@
 
 namespace pulsar {
 
-
-MessageId::MessageId()
-        : ledgerId_(-1),
-          entryId_(-1),
-          partition_(-1) {
-}
+MessageId::MessageId() : ledgerId_(-1), entryId_(-1), partition_(-1) {}
 
 MessageId& MessageId::operator=(const MessageId& m) {
     entryId_ = m.entryId_;
@@ -45,11 +40,9 @@ MessageId& MessageId::operator=(const MessageId& m) {
 }
 
 MessageId::MessageId(int64_t ledgerId, int64_t entryId)
-        : ledgerId_(ledgerId),
-          entryId_(entryId),
-          partition_(-1) {
-     // partition is set explicitly in consumerImpl when message is received
-     // consumer's partition is assigned to this partition
+    : ledgerId_(ledgerId), entryId_(entryId), partition_(-1) {
+    // partition is set explicitly in consumerImpl when message is received
+    // consumer's partition is assigned to this partition
 }
 
 int64_t MessageId::getBatchIndex() const {
@@ -64,8 +57,7 @@ const MessageId& MessageId::earliest() {
 
 const MessageId& MessageId::latest() {
     // For entry-id we only have 48bits
-    static const BatchMessageId _latest(std::numeric_limits<int64_t>::max(),
-                                        (int64_t)(pow(2, 47) - 1));
+    static const BatchMessageId _latest(std::numeric_limits<int64_t>::max(), (int64_t)(pow(2, 47) - 1));
     return _latest;
 }
 
@@ -89,10 +81,8 @@ boost::shared_ptr<MessageId> MessageId::deserialize(const std::string& serialize
         throw "Failed to parse serialized message id";
     }
 
-    return boost::make_shared<BatchMessageId>(idData.ledgerid(), idData.entryid(),
-                                              idData.batch_index());
+    return boost::make_shared<BatchMessageId>(idData.ledgerid(), idData.entryid(), idData.batch_index());
 }
-
 
 #pragma GCC visibility push(default)
 std::ostream& operator<<(std::ostream& s, const pulsar::MessageId& messageId) {
@@ -119,5 +109,4 @@ bool MessageId::operator==(const MessageId& other) const {
 }
 
 #pragma GCC visibility pop
-
-}
+}  // namespace pulsar

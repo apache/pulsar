@@ -20,73 +20,62 @@
 
 namespace pulsar {
 
-    MessageImpl::MessageImpl()
-        : metadata(),
-          payload(),
-          messageId(),
-          cnx_(0) {
-    }
+MessageImpl::MessageImpl() : metadata(), payload(), messageId(), cnx_(0) {}
 
-    const Message::StringMap& MessageImpl::properties() {
-        if (properties_.size() == 0) {
-            for (int i = 0; i < metadata.properties_size(); i++) {
-                const std::string& key = metadata.properties(i).key();
-                const std::string& value = metadata.properties(i).value();
-                properties_.insert(std::make_pair(key, value));
-            }
-        }
-        return properties_;
-    }
-
-    const std::string& MessageImpl::getPartitionKey() const {
-            return metadata.partition_key();
-    }
-
-    bool MessageImpl::hasPartitionKey() const {
-        return metadata.has_partition_key();
-    }
-
-    uint64_t MessageImpl::getPublishTimestamp() const {
-        if (metadata.has_publish_time()) {
-            return metadata.publish_time();
-        } else {
-            return 0ull;
+const Message::StringMap& MessageImpl::properties() {
+    if (properties_.size() == 0) {
+        for (int i = 0; i < metadata.properties_size(); i++) {
+            const std::string& key = metadata.properties(i).key();
+            const std::string& value = metadata.properties(i).value();
+            properties_.insert(std::make_pair(key, value));
         }
     }
+    return properties_;
+}
 
-    uint64_t MessageImpl::getEventTimestamp() const {
-        if (metadata.has_event_time()) {
-            return metadata.event_time();
-        } else {
-            return 0ull;
-        }
-    }
+const std::string& MessageImpl::getPartitionKey() const { return metadata.partition_key(); }
 
-    void MessageImpl::setReplicationClusters(const std::vector<std::string>& clusters) {
-        google::protobuf::RepeatedPtrField<std::string> r(clusters.begin(), clusters.end());
-        r.Swap(metadata.mutable_replicate_to());
-    }
+bool MessageImpl::hasPartitionKey() const { return metadata.has_partition_key(); }
 
-    void MessageImpl::disableReplication(bool flag) {
-        google::protobuf::RepeatedPtrField<std::string> r;
-        if (flag) {
-            r.AddAllocated(new std::string("__local__"));
-        }
-        r.Swap(metadata.mutable_replicate_to());
-    }
-
-    void MessageImpl::setProperty(const std::string& name, const std::string& value) {
-        proto::KeyValue *keyValue = proto::KeyValue().New();
-        keyValue->set_key(name);
-        keyValue->set_value(value);
-        metadata.mutable_properties()->AddAllocated(keyValue);
-    }
-
-    void MessageImpl::setPartitionKey(const std::string& partitionKey) {
-        metadata.set_partition_key(partitionKey);
-    }
-
-    void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) {
-        metadata.set_event_time(eventTimestamp);
+uint64_t MessageImpl::getPublishTimestamp() const {
+    if (metadata.has_publish_time()) {
+        return metadata.publish_time();
+    } else {
+        return 0ull;
     }
 }
+
+uint64_t MessageImpl::getEventTimestamp() const {
+    if (metadata.has_event_time()) {
+        return metadata.event_time();
+    } else {
+        return 0ull;
+    }
+}
+
+void MessageImpl::setReplicationClusters(const std::vector<std::string>& clusters) {
+    google::protobuf::RepeatedPtrField<std::string> r(clusters.begin(), clusters.end());
+    r.Swap(metadata.mutable_replicate_to());
+}
+
+void MessageImpl::disableReplication(bool flag) {
+    google::protobuf::RepeatedPtrField<std::string> r;
+    if (flag) {
+        r.AddAllocated(new std::string("__local__"));
+    }
+    r.Swap(metadata.mutable_replicate_to());
+}
+
+void MessageImpl::setProperty(const std::string& name, const std::string& value) {
+    proto::KeyValue* keyValue = proto::KeyValue().New();
+    keyValue->set_key(name);
+    keyValue->set_value(value);
+    metadata.mutable_properties()->AddAllocated(keyValue);
+}
+
+void MessageImpl::setPartitionKey(const std::string& partitionKey) {
+    metadata.set_partition_key(partitionKey);
+}
+
+void MessageImpl::setEventTimestamp(uint64_t eventTimestamp) { metadata.set_event_time(eventTimestamp); }
+}  // namespace pulsar

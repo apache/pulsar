@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.broker.zookeeper;
 
-import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -29,7 +29,7 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
 public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseTest {
 
@@ -52,11 +52,11 @@ public class ZooKeeperSessionExpireRecoveryTest extends MockedPulsarServiceBaseT
     public void testSessionExpired() throws Exception {
         admin.clusters().createCluster("my-cluster", new ClusterData("test-url"));
 
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("my-cluster"));
+        assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
 
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("my-cluster"));
+        assertTrue(Sets.newHashSet(admin.clusters().getClusters()).contains("my-cluster"));
 
         try {
             admin.clusters().createCluster("my-cluster-2", new ClusterData("test-url"));

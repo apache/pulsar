@@ -169,3 +169,12 @@ config.setAuth(auth);
 
 Client client("pulsar+ssl://my-broker.com:6651",config);
 ```
+
+## Code formatting
+After you changed code, run auto-formatting by the following command.
+
+```bash
+make format
+```
+You need to have the following installed to use the auto-formatting.
+* [clang-format 5.0](https://clang.llvm.org/)
