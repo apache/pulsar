@@ -137,11 +137,13 @@ class ProcessFunctionContainer implements FunctionContainer {
         } else {
             args.add("false");
         }
-        if (instanceConfig.getFunctionConfig().getSinkTopic() != null) {
+        if (instanceConfig.getFunctionConfig().getSinkTopic() != null
+                && !instanceConfig.getFunctionConfig().getSinkTopic().isEmpty()) {
             args.add("--sink_topic");
             args.add(instanceConfig.getFunctionConfig().getSinkTopic());
         }
-        if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
+        if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null
+                && !instanceConfig.getFunctionConfig().getOutputSerdeClassName().isEmpty()) {
             args.add("--output_serde_classname");
             args.add(instanceConfig.getFunctionConfig().getOutputSerdeClassName());
         }
