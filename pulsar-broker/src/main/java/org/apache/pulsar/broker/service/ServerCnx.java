@@ -73,6 +73,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -355,6 +356,11 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
+    static class TopicAndConsumer {
+        Topic topic;
+        Consumer consumer;
+    }
+
     @Override
     protected void handleSubscribe(final CommandSubscribe subscribe) {
         checkArgument(state == State.Connected);
@@ -422,52 +428,59 @@ public class ServerCnx extends PulsarHandler {
                     }
                 }
 
-                service.getTopic(topicName).thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName,
-                        consumerId, subType, priorityLevel, consumerName, isDurable, startMessageId, metadata))
-                        .thenAccept(consumer -> {
-                            if (consumerFuture.complete(consumer)) {
-                                log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
-                                        subscriptionName);
-                                ctx.writeAndFlush(Commands.newSuccess(requestId), ctx.voidPromise());
-                            } else {
-                                // The consumer future was completed before by a close command
-                                try {
-                                    consumer.close();
-                                    log.info("[{}] Cleared consumer created after timeout on client side {}",
-                                            remoteAddress, consumer);
-                                } catch (BrokerServiceException e) {
-                                    log.warn("[{}] Error closing consumer created after timeout on client side {}: {}",
-                                            remoteAddress, consumer, e.getMessage());
-                                }
-                                consumers.remove(consumerId, consumerFuture);
-                            }
+                service.getTopic(topicName).thenCompose(topic ->
+                        topic.subscribe(ServerCnx.this, subscriptionName, consumerId, subType, priorityLevel,
+                                consumerName, isDurable, startMessageId, metadata)
+                                .thenApply(consumer -> {
+                                    TopicAndConsumer tac = new TopicAndConsumer();
+                                    tac.topic = topic;
+                                    tac.consumer = consumer;
+                                    return tac;
+                                })
+                ).thenAccept(topicAndConsumer -> {
+                    Consumer consumer = topicAndConsumer.consumer;
+                    Topic topic = topicAndConsumer.topic;
+                    if (consumerFuture.complete(consumer)) {
+                        log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
+                                subscriptionName);
+                        ctx.writeAndFlush(Commands.newSuccess(requestId, topic.getSchema()), ctx.voidPromise());
+                    } else {
+                        // The consumer future was completed before by a close command
+                        try {
+                            consumer.close();
+                            log.info("[{}] Cleared consumer created after timeout on client side {}",
+                                    remoteAddress, consumer);
+                        } catch (BrokerServiceException e) {
+                            log.warn("[{}] Error closing consumer created after timeout on client side {}: {}",
+                                    remoteAddress, consumer, e.getMessage());
+                        }
+                        consumers.remove(consumerId, consumerFuture);
+                    }
+                }).exceptionally(exception -> {
+                    if (exception.getCause() instanceof ConsumerBusyException) {
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                    "[{}][{}][{}] Failed to create consumer because exclusive consumer is already connected: {}",
+                                    remoteAddress, topicName, subscriptionName,
+                                    exception.getCause().getMessage());
+                        }
+                    } else {
+                        log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
+                                subscriptionName, exception.getCause().getMessage(), exception);
+                    }
 
-                        }) //
-                        .exceptionally(exception -> {
-                            if (exception.getCause() instanceof ConsumerBusyException) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug(
-                                            "[{}][{}][{}] Failed to create consumer because exclusive consumer is already connected: {}",
-                                            remoteAddress, topicName, subscriptionName,
-                                            exception.getCause().getMessage());
-                                }
-                            } else {
-                                log.warn("[{}][{}][{}] Failed to create consumer: {}", remoteAddress, topicName,
-                                        subscriptionName, exception.getCause().getMessage(), exception);
-                            }
+                    // If client timed out, the future would have been completed by subsequent close. Send error
+                    // back to client, only if not completed already.
+                    if (consumerFuture.completeExceptionally(exception)) {
+                        ctx.writeAndFlush(Commands.newError(requestId,
+                                BrokerServiceException.getClientErrorCode(exception.getCause()),
+                                exception.getCause().getMessage()));
+                    }
+                    consumers.remove(consumerId, consumerFuture);
 
-                            // If client timed out, the future would have been completed by subsequent close. Send error
-                            // back to client, only if not completed already.
-                            if (consumerFuture.completeExceptionally(exception)) {
-                                ctx.writeAndFlush(Commands.newError(requestId,
-                                        BrokerServiceException.getClientErrorCode(exception.getCause()),
-                                        exception.getCause().getMessage()));
-                            }
-                            consumers.remove(consumerId, consumerFuture);
+                    return null;
 
-                            return null;
-
-                        });
+                });
             } else {
                 String msg = "Client is not authorized to subscribe";
                 log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
@@ -589,7 +602,7 @@ public class ServerCnx extends PulsarHandler {
                             if (producerFuture.complete(producer)) {
                                 log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                 ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                        producer.getLastSequenceId()));
+                                        producer.getLastSequenceId(), topic.getSchema()));
                                 return;
                             } else {
                                 // The producer's future was completed before by
