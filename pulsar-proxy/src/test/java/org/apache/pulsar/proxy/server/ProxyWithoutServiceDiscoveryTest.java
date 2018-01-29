@@ -91,7 +91,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("without-service-discovery");
 
         super.init();
 
@@ -157,20 +157,20 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
 
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().createCluster("without-service-discovery", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("without-service-discovery")));
+        admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+        Consumer consumer = proxyClient.subscribe("persistent://my-property/without-service-discovery/my-ns/my-topic1", "my-subscriber-name",
                 conf);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
 
-        Producer producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer producer = proxyClient.createProducer("persistent://my-property/without-service-discovery/my-ns/my-topic1", producerConf);
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;

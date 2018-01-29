@@ -99,7 +99,7 @@ public class ProxyWithProxyAuthorizationNegTest extends ProducerConsumerBase {
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName("use");
+        conf.setClusterName("proxy-authorization-neg");
 
         super.init();
 
@@ -161,12 +161,12 @@ public class ProxyWithProxyAuthorizationNegTest extends ProducerConsumerBase {
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(proxyServiceUrl);
 
-        String namespaceName = "my-property/use/my-ns";
+        String namespaceName = "my-property/proxy-authorization-neg/my-ns";
         
-        admin.clusters().createCluster("use", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().createCluster("proxy-authorization-neg", new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization-neg")));
         admin.namespaces().createNamespace(namespaceName);
         
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce));
@@ -177,23 +177,23 @@ public class ProxyWithProxyAuthorizationNegTest extends ProducerConsumerBase {
         conf.setSubscriptionType(SubscriptionType.Exclusive);
         Consumer consumer;
         try {
-            consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+            consumer = proxyClient.subscribe("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1", "my-subscriber-name",
                     conf);
         } catch (Exception ex) {
             // expected
             admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.consume));
             log.info("-- Admin permissions {} ---", admin.namespaces().getPermissions(namespaceName));
-            consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+            consumer = proxyClient.subscribe("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1", "my-subscriber-name",
                     conf);
         }
         ProducerConfiguration producerConf = new ProducerConfiguration();
         Producer producer;
         try {
-            producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+            producer = proxyClient.createProducer("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1", producerConf);
         } catch(Exception ex) {
             // expected
             admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy", Sets.newHashSet(AuthAction.produce, AuthAction.consume));
-            producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+            producer = proxyClient.createProducer("persistent://my-property/proxy-authorization-neg/my-ns/my-topic1", producerConf);
         }
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
