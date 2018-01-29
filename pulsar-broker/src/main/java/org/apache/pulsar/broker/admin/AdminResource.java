@@ -19,6 +19,8 @@
 package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -45,6 +47,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
@@ -65,7 +68,6 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public abstract class AdminResource extends PulsarWebResource {
     private static final Logger log = LoggerFactory.getLogger(AdminResource.class);
@@ -335,6 +337,14 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().namespaceIsolationPoliciesCache();
     }
 
+    protected ZooKeeperDataCache<FailureDomain> failureDomainCache() {
+        return pulsar().getConfigurationCache().failureDomainCache();
+    }
+
+    protected ZooKeeperChildrenCache failureDomainListCache() {
+        return pulsar().getConfigurationCache().failureDomainListCache();
+    }
+
     protected PartitionedTopicMetadata getPartitionedTopicMetadata(DestinationName destinationName,
             boolean authoritative) {
         validateClusterOwnership(destinationName.getCluster());
@@ -402,4 +412,31 @@ public abstract class AdminResource extends PulsarWebResource {
         return metadataFuture;
     }
 
+    protected void validateClusterExists(String cluster) {
+        try {
+            if (!clustersCache().get(path("clusters", cluster)).isPresent()) {
+                throw new RestException(Status.PRECONDITION_FAILED, "Cluster " + cluster + " does not exist.");
+            }
+        } catch (Exception e) {
+            throw new RestException(e);
+        }
+    }
+
+    protected Policies getNamespacePolicies(String property, String cluster, String namespace) {
+        try {
+            Policies policies = policiesCache().get(AdminResource.path(POLICIES, property, cluster, namespace))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            // fetch bundles from LocalZK-policies
+            NamespaceBundles bundles = pulsar().getNamespaceService().getNamespaceBundleFactory()
+                    .getBundles(NamespaceName.get(property, cluster, namespace));
+            BundlesData bundleData = NamespaceBundleFactory.getBundlesData(bundles);
+            policies.bundles = bundleData != null ? bundleData : policies.bundles;
+            return policies;
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace policies {}/{}/{}", clientAppId(), property, cluster, namespace, e);
+            throw new RestException(e);
+        }
+    }
 }

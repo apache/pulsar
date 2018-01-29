@@ -144,6 +144,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfiguration conf2 = new ServiceConfiguration();
         conf2.setBrokerServicePort(PortManager.nextFreePort());
         conf2.setBrokerServicePortTls(PortManager.nextFreePort());
+        conf2.setAdvertisedAddress("localhost");
         conf2.setWebServicePort(PortManager.nextFreePort());
         conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
@@ -222,6 +223,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String newCluster = "use2";
         final String property = "my-property2";
         ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
         conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
@@ -315,6 +317,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
         conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
@@ -390,6 +393,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
 		/**** start broker-2 ****/
 		ServiceConfiguration conf2 = new ServiceConfiguration();
+		conf2.setAdvertisedAddress("localhost");
 		conf2.setBrokerServicePort(PortManager.nextFreePort());
 		conf2.setBrokerServicePortTls(PortManager.nextFreePort());
 		conf2.setWebServicePort(PortManager.nextFreePort());
@@ -796,6 +800,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String namespace = "my-property/use/my-ns";
         // (1) Start broker-1
         ServiceConfiguration conf2 = new ServiceConfiguration();
+        conf2.setAdvertisedAddress("localhost");
         conf2.setBrokerServicePort(PortManager.nextFreePort());
         conf2.setBrokerServicePortTls(PortManager.nextFreePort());
         conf2.setWebServicePort(PortManager.nextFreePort());
@@ -899,6 +904,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             final String namespace = "my-property/use/my-ns";
             // (1) Start broker-1
             ServiceConfiguration conf2 = new ServiceConfiguration();
+            conf2.setAdvertisedAddress("localhost");
             conf2.setBrokerServicePort(PortManager.nextFreePort());
             conf2.setBrokerServicePortTls(PortManager.nextFreePort());
             conf2.setWebServicePort(PortManager.nextFreePort());

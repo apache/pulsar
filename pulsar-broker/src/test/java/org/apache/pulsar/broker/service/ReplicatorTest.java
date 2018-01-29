@@ -92,7 +92,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         super.shutdown();
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testConfigChange() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
         // This test is to verify that the config change on global namespace is successfully applied in broker during
@@ -177,7 +177,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testConcurrentReplicator() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
@@ -220,7 +220,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, timeOut = 30000)
     public void testConfigChangeNegativeCases() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChangeNegativeCases ---");
         // Negative test cases for global namespace config change. Verify that the namespace config change can not be
@@ -254,7 +254,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ownerCache.tryAcquiringOwnership(globalNsBundle);
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testReplication() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplication ---");
@@ -355,7 +355,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, timeOut = 30000)
     public void testReplicationOverrides() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicationOverrides ---");
@@ -438,7 +438,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testFailures() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testFailures ---");
@@ -459,7 +459,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testReplicatePeekAndSkip() throws Exception {
 
         SortedSet<String> testDests = new TreeSet<String>();
@@ -482,7 +482,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.close();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
@@ -509,7 +509,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.close();
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -555,7 +555,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.persistentTopics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testReplicationForBatchMessages() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicationForBatchMessages ---");
@@ -629,7 +629,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 30000)
     public void testDeleteReplicatorFailure() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
@@ -666,7 +666,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
-    @Test(priority = 5)
+    @Test(priority = 5, timeOut = 30000)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";

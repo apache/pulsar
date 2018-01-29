@@ -117,6 +117,7 @@ public class ReplicatorTestBase {
         // completely
         // independent config objects instead of referring to the same properties object
         config1.setClusterName("r1");
+        config1.setAdvertisedAddress("localhost");
         config1.setWebServicePort(webServicePort1);
         config1.setWebServicePortTls(webServicePortTls1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
@@ -149,6 +150,7 @@ public class ReplicatorTestBase {
         int webServicePort2 = PortManager.nextFreePort();
         int webServicePortTls2 = PortManager.nextFreePort();
         config2.setClusterName("r2");
+        config2.setAdvertisedAddress("localhost");
         config2.setWebServicePort(webServicePort2);
         config2.setWebServicePortTls(webServicePortTls2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
@@ -181,6 +183,7 @@ public class ReplicatorTestBase {
         int webServicePort3 = PortManager.nextFreePort();
         int webServicePortTls3 = PortManager.nextFreePort();
         config3.setClusterName("r3");
+        config3.setAdvertisedAddress("localhost");
         config3.setWebServicePort(webServicePort3);
         config3.setWebServicePortTls(webServicePortTls3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
@@ -203,11 +206,11 @@ public class ReplicatorTestBase {
         admin3 = new PulsarAdmin(url3, (Authentication) null);
 
         // Provision the global namespace
-        admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
+        admin1.clusters().updateCluster("r1", new ClusterData(url1.toString(), urlTls1.toString(),
                 pulsar1.getBrokerServiceUrl(), pulsar1.getBrokerServiceUrlTls()));
-        admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), urlTls2.toString(),
+        admin1.clusters().updateCluster("r2", new ClusterData(url2.toString(), urlTls2.toString(),
                 pulsar2.getBrokerServiceUrl(), pulsar2.getBrokerServiceUrlTls()));
-        admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
+        admin1.clusters().updateCluster("r3", new ClusterData(url3.toString(), urlTls3.toString(),
                 pulsar3.getBrokerServiceUrl(), pulsar3.getBrokerServiceUrlTls()));
 
         admin1.clusters().createCluster("global", new ClusterData("http://global:8080", "https://global:8443"));

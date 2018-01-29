@@ -28,7 +28,7 @@
 namespace pulsar {
 
 class Latch {
- public:
+   public:
     Latch(int count);
 
     void countdown();
@@ -39,7 +39,7 @@ class Latch {
 
     int getCount();
 
- private:
+   private:
     struct InternalState {
         boost::mutex mutex;
         boost::condition_variable condition;

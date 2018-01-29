@@ -200,7 +200,7 @@ add_subdirectory(tests)
 add_subdirectory(python)
 
 # `make format` option
-set(CLANG_FORMAT_VERSION "4.0")
+set(CLANG_FORMAT_VERSION "5.0")
 find_package(ClangTools)
 set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
 add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py

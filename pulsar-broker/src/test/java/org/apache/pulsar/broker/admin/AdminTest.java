@@ -90,10 +90,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private BrokerStats brokerStats;
 
     private Field uriField;
+    private final String configClusterName = "use";
 
     public AdminTest() {
         super();
-        conf.setClusterName("use");
+        conf.setClusterName(configClusterName);
     }
 
     @Override
@@ -184,10 +185,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void clusters() throws Exception {
-        assertEquals(clusters.getClusters(), new ArrayList<String>());
+        assertEquals(clusters.getClusters(), Lists.newArrayList(configClusterName));
         verify(clusters, never()).validateSuperUserAccess();
 
-        clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
+        clusters.updateCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
         verify(clusters, times(1)).validateSuperUserAccess();
         // ensure to read from ZooKeeper directly
         clusters.clustersListCache().clear();
@@ -445,7 +446,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getProperties(), Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
-        clusters.createCluster("use", new ClusterData());
+        clusters.updateCluster("use", new ClusterData());
         newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), Sets.newHashSet("use"));
         properties.createProperty("my-property", newPropertyAdmin);
 
@@ -472,7 +473,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void brokers() throws Exception {
-        clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com",
+        clusters.updateCluster("use", new ClusterData("http://broker.messaging.use.example.com",
                 "https://broker.messaging.use.example.com:4443"));
 
         URI requestUri = new URI(
