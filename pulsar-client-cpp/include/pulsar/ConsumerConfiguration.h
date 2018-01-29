@@ -55,11 +55,11 @@ class ConsumerConfiguration {
      * only a single consumer is allowed to attach to the subscription. Other consumers
      * will get an error message. In Shared subscription, multiple consumers will be
      * able to use the same subscription name and the messages will be dispatched in a
-     * round robin fashion. In Failover subscription, a master-slave subscription model
+     * round robin fashion. In Failover subscription, a primary-failover subscription model
      * allows for multiple consumers to attach to a single subscription, though only one
-     * of them will be “master” at a given time. Only the master consumer will receive
-     * messages. When the master gets disconnected, one among the slaves will be promoted
-     * to master and will start getting messages.
+     * of them will be “master” at a given time. Only the primary consumer will receive
+     * messages. When the primary consumer gets disconnected, one among the failover
+     * consumers will be promoted to primary and will start getting messages.
      */
     ConsumerConfiguration& setConsumerType(ConsumerType consumerType);
     ConsumerType getConsumerType() const;
