@@ -153,7 +153,7 @@ public class TwoPhaseCompactor extends Compactor {
                     if (exception != null) {
                         deleteLedger(bk, ledger)
                             .whenComplete((res2, exception2) -> {
-                                    if (exception2) {
+                                    if (exception2 != null) {
                                         log.warn("Cleanup of ledger {} for failed", ledger, exception2);
                                     }
                                     // complete with original exception
