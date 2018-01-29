@@ -23,26 +23,27 @@ import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.testng.annotations.Test;
 
 
 import static org.testng.Assert.*;
 
 /**
- * Unit test of {@link SimpleSerDe}.
+ * Unit test of {@link DefaultSerDe}.
  */
-public class SimpleSerDeTest {
+public class DefaultSerDeTest {
     @Test
     public void testStringSerDe() {
-        SimpleSerDe serializer = new SimpleSerDe(String.class, true);
-        SimpleSerDe deserializer = new SimpleSerDe(String.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(String.class, true);
+        DefaultSerDe deserializer = new DefaultSerDe(String.class, false);
         String input = new String("input");
         byte[] output = serializer.serialize(input);
         String result = (String) deserializer.deserialize(output);
         assertEquals(result, input);
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(String.class, false);
+            DefaultSerDe serDe = new DefaultSerDe(String.class, false);
             serDe.serialize(new String("input"));
             assertFalse(true);
         } catch (Exception ex) {
@@ -50,7 +51,7 @@ public class SimpleSerDeTest {
         }
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(String.class, true);
+            DefaultSerDe serDe = new DefaultSerDe(String.class, true);
             serDe.deserialize(new byte[10]);
             assertFalse(true);
         } catch (Exception ex) {
@@ -60,15 +61,15 @@ public class SimpleSerDeTest {
 
     @Test
     public void testLongSerDe() {
-        SimpleSerDe serializer = new SimpleSerDe(Long.class, true);
-        SimpleSerDe deserializer = new SimpleSerDe(Long.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Long.class, true);
+        DefaultSerDe deserializer = new DefaultSerDe(Long.class, false);
         Long input = new Long(648292);
         byte[] output = serializer.serialize(input);
         Long result = (Long) deserializer.deserialize(output);
         assertEquals(result, input);
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Long.class, false);
+            DefaultSerDe serDe = new DefaultSerDe(Long.class, false);
             serDe.serialize(new Long(34242));
             assertFalse(true);
         } catch (Exception ex) {
@@ -76,7 +77,7 @@ public class SimpleSerDeTest {
         }
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Long.class, true);
+            DefaultSerDe serDe = new DefaultSerDe(Long.class, true);
             serDe.deserialize(new byte[10]);
             assertFalse(true);
         } catch (Exception ex) {
@@ -86,15 +87,15 @@ public class SimpleSerDeTest {
 
     @Test
     public void testDoubleSerDe() {
-        SimpleSerDe serializer = new SimpleSerDe(Double.class, true);
-        SimpleSerDe deserializer = new SimpleSerDe(Double.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Double.class, true);
+        DefaultSerDe deserializer = new DefaultSerDe(Double.class, false);
         Double input = new Double(648292.32432);
         byte[] output = serializer.serialize(input);
         Double result = (Double) deserializer.deserialize(output);
         assertEquals(result, input);
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Double.class, false);
+            DefaultSerDe serDe = new DefaultSerDe(Double.class, false);
             serDe.serialize(new Double(34242));
             assertFalse(true);
         } catch (Exception ex) {
@@ -102,7 +103,7 @@ public class SimpleSerDeTest {
         }
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Double.class, true);
+            DefaultSerDe serDe = new DefaultSerDe(Double.class, true);
             serDe.deserialize(new byte[10]);
             assertFalse(true);
         } catch (Exception ex) {
@@ -112,15 +113,15 @@ public class SimpleSerDeTest {
 
     @Test
     public void testFloatSerDe() {
-        SimpleSerDe serializer = new SimpleSerDe(Float.class, true);
-        SimpleSerDe deserializer = new SimpleSerDe(Float.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Float.class, true);
+        DefaultSerDe deserializer = new DefaultSerDe(Float.class, false);
         Float input = new Float(354353.54654);
         byte[] output = serializer.serialize(input);
         Float result = (Float) deserializer.deserialize(output);
         assertEquals(result, input);
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Float.class, false);
+            DefaultSerDe serDe = new DefaultSerDe(Float.class, false);
             serDe.serialize(new Float(34242));
             assertFalse(true);
         } catch (Exception ex) {
@@ -128,7 +129,7 @@ public class SimpleSerDeTest {
         }
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Float.class, true);
+            DefaultSerDe serDe = new DefaultSerDe(Float.class, true);
             serDe.deserialize(new byte[10]);
             assertFalse(true);
         } catch (Exception ex) {
@@ -138,15 +139,15 @@ public class SimpleSerDeTest {
 
     @Test
     public void testIntegerSerDe() {
-        SimpleSerDe serializer = new SimpleSerDe(Integer.class, true);
-        SimpleSerDe deserializer = new SimpleSerDe(Integer.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Integer.class, true);
+        DefaultSerDe deserializer = new DefaultSerDe(Integer.class, false);
         Integer input = new Integer(2542352);
         byte[] output = serializer.serialize(input);
         Integer result = (Integer) deserializer.deserialize(output);
         assertEquals(result, input);
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Integer.class, false);
+            DefaultSerDe serDe = new DefaultSerDe(Integer.class, false);
             serDe.serialize(new Integer(34242));
             assertFalse(true);
         } catch (Exception ex) {
@@ -154,7 +155,7 @@ public class SimpleSerDeTest {
         }
 
         try {
-            SimpleSerDe serDe = new SimpleSerDe(Integer.class, true);
+            DefaultSerDe serDe = new DefaultSerDe(Integer.class, true);
             serDe.deserialize(new byte[10]);
             assertFalse(true);
         } catch (Exception ex) {
@@ -173,7 +174,7 @@ public class SimpleSerDeTest {
     public void testPulsarFunction() {
         SimplePulsarFunction pulsarFunction = new SimplePulsarFunction();
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        SerDe serDe = new SimpleSerDe(String.class, false);
+        SerDe serDe = new DefaultSerDe(String.class, false);
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
         assertTrue(inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0]));
     }

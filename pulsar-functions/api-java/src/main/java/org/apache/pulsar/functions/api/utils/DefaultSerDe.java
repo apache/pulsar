@@ -17,20 +17,21 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.functions.api.utils;
 
-import com.google.common.collect.Sets;
 import org.apache.pulsar.functions.api.SerDe;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
  * Simplest form of SerDe.
  */
-public class SimpleSerDe implements SerDe<Object> {
+public class DefaultSerDe implements SerDe<Object> {
 
-    private static final Set<Class> supportedInputTypes = Sets.newHashSet(
+    private static final Set<Class> supportedInputTypes = new HashSet<>(Arrays.asList(
             Integer.class,
             Double.class,
             Long.class,
@@ -38,11 +39,11 @@ public class SimpleSerDe implements SerDe<Object> {
             Short.class,
             Byte.class,
             Float.class
-    );
+    ));
     private Class type;
     private boolean ser;
 
-    public SimpleSerDe(Class type, boolean ser) {
+    public DefaultSerDe(Class type, boolean ser) {
         this.type = type;
         this.ser = ser;
         verifySupportedType(ser);

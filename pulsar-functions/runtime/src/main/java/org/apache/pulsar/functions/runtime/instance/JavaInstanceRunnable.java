@@ -40,6 +40,7 @@ import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
@@ -48,7 +49,6 @@ import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
-import org.apache.pulsar.functions.utils.SimpleSerDe;
 
 import java.util.*;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -477,7 +477,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
     private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        return new SimpleSerDe(typeArgs[0], false);
+        return new DefaultSerDe(typeArgs[0], false);
     }
 
     private void setupSerDe(PulsarFunction pulsarFunction, ClassLoader clsLoader) {
