@@ -19,8 +19,6 @@
 #ifndef PULSAR_RR_MESSAGE_ROUTER_HEADER_
 #define PULSAR_RR_MESSAGE_ROUTER_HEADER_
 
-#include <memory>
-
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/ProducerConfiguration.h>
 #include <pulsar/TopicMetadata.h>
@@ -38,7 +36,6 @@ class RoundRobinMessageRouter : public MessageRouterBase {
    private:
     boost::mutex mutex_;
     unsigned int prevPartition_;
-    std::unique_ptr<Hash> hash;
 };
 typedef boost::unique_lock<boost::mutex> Lock;
 }  // namespace pulsar

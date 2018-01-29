@@ -17,9 +17,6 @@
  * under the License.
  */
 #include "RoundRobinMessageRouter.h"
-#include "Murmur3_32Hash.h"
-#include "BoostHash.h"
-#include "JavaStringHash.h"
 
 namespace pulsar {
 RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme)

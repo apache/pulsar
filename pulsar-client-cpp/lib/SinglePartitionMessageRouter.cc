@@ -17,11 +17,6 @@
  * under the License.
  */
 #include "SinglePartitionMessageRouter.h"
-#include <cstdlib>  // rand()
-#include <boost/algorithm/string.hpp>
-#include "Murmur3_32Hash.h"
-#include "BoostHash.h"
-#include "JavaStringHash.h"
 
 namespace pulsar {
 SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}

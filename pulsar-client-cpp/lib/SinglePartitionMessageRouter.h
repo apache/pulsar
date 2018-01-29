@@ -19,7 +19,6 @@
 #ifndef PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
 #define PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
 
-#include <memory>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <include/pulsar/ProducerConfiguration.h>
 #include "Hash.h"
