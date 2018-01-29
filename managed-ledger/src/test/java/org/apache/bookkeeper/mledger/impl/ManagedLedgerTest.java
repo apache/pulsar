@@ -1676,6 +1676,30 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
+    public void testInfiniteRetention() throws Exception {
+        ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setRetentionSizeInMB(-1);
+        config.setRetentionTime(-1, TimeUnit.HOURS);
+        config.setMaxEntriesPerLedger(1);
+
+        ManagedLedgerImpl ml = (ManagedLedgerImpl) factory.open("retention_test_ledger", config);
+        ManagedCursor c1 = ml.openCursor("c1");
+        ml.addEntry("iamaverylongmessagethatshouldberetained".getBytes());
+        c1.skipEntries(1, IndividualDeletedEntries.Exclude);
+        ml.close();
+
+        // reopen ml
+        ml = (ManagedLedgerImpl) factory.open("retention_test_ledger", config);
+        c1 = ml.openCursor("c1");
+        ml.addEntry("shortmessage".getBytes());
+        c1.skipEntries(1, IndividualDeletedEntries.Exclude);
+        ml.close();
+        assertTrue(ml.getLedgersInfoAsList().size() > 1);
+        assertTrue(ml.getTotalSize() > "shortmessage".getBytes().length);
+    }
+
+    @Test
     public void testTimestampOnWorkingLedger() throws Exception {
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedgerConfig conf = new ManagedLedgerConfig();

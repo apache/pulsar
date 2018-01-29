@@ -232,7 +232,7 @@ public class CmdNamespaces extends CmdBase {
     private class GetAntiAffinityGroup extends CliCommand {
         @Parameter(description = "property/cluster/namespace\n", required = true)
         private java.util.List<String> params;
-        
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
@@ -263,14 +263,14 @@ public class CmdNamespaces extends CmdBase {
     private class DeleteAntiAffinityGroup extends CliCommand {
         @Parameter(description = "property/cluster/namespace\n", required = true)
         private java.util.List<String> params;
-        
+
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
             admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
         }
     }
-    
+
 
     @Parameters(commandDescription = "Enable or disable deduplication for a namespace")
     private class SetDeduplication extends CliCommand {
@@ -300,10 +300,12 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = true)
+                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
+                        + "0 means no retention and -1 means infinite time retention", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G)", required = true)
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+                + "0 means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
         @Override
@@ -625,6 +627,10 @@ public class CmdNamespaces extends CmdBase {
         case 'G':
             return Long.parseLong(subStr) * 1024 * 1024 * 1024;
 
+        case 't':
+        case 'T':
+            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
+
         default:
             return Long.parseLong(s);
         }
@@ -680,7 +686,7 @@ public class CmdNamespaces extends CmdBase {
 
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
-        
+
         jcommander.addCommand("get-anti-affinity-group", new GetAntiAffinityGroup());
         jcommander.addCommand("set-anti-affinity-group", new SetAntiAffinityGroup());
         jcommander.addCommand("get-anti-affinity-namespaces", new GetAntiAffinityNamespaces());
