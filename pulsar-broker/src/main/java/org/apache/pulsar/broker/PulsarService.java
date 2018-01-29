@@ -225,6 +225,7 @@ public class PulsarService implements AutoCloseable {
 
             if (schemaRegistryService != null) {
                 schemaRegistryService.close();
+                schemaRegistryService = null;
             }
 
             state = State.Closed;
