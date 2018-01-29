@@ -26,6 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -281,18 +282,29 @@ public class DestinationLookup extends PulsarWebResource {
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 true /* authoritative */, LookupType.Connect, requestId, false));
                             }
-                        }).exceptionally(e -> {
-                            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
-                                    e.getMessage(), e);
+                        }).exceptionally(ex -> {
+                            if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+                                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                                        ex.getCause().getMessage());
+                            } else {
+                                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                                        ex.getMessage(), ex);
+                            }
                             lookupfuture.complete(
-                                    newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
+                                    newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
                             return null;
                         });
             }
 
         }).exceptionally(ex -> {
-            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(), ex.getMessage(),
-                    ex);
+            if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                        ex.getCause().getMessage());
+            } else {
+                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                        ex.getMessage(), ex);
+            }
+
             lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
             return null;
         });
