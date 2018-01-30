@@ -230,6 +230,25 @@ public class CmdFunctionsTest {
     }
 
     @Test
+    public void testCreateWithoutSinkTopic() throws Exception {
+        String sourceTopicName = TEST_NAME + "-source-topic";
+        cmd.run(new String[] {
+                "create",
+                "--custom-serde-source-topics", sourceTopicName,
+                "--custom-serde-classnames", DefaultSerDe.class.getName(),
+                "--output-serde-classname", DefaultSerDe.class.getName(),
+                "--jar", "SomeJar.jar",
+                "--tenant", "sample",
+                "--namespace", "ns1",
+                "--function-classname", "MyClass",
+        });
+
+        CreateFunction creater = cmd.getCreater();
+        assertEquals(sourceTopicName + "-MyClass-output", creater.getFunctionConfig().getSinkTopic());
+        verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
+    }
+
+    @Test
     public void testGetFunction() throws Exception {
         String tenant = TEST_NAME + "-tenant";
         String namespace = TEST_NAME + "-namespace";
