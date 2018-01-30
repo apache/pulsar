@@ -242,7 +242,7 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void inferMissingFunctionName(FunctionConfig.Builder builder) {
-            String [] domains = builder.getClassName().split(".");
+            String [] domains = builder.getClassName().split("\\.");
             if (domains.length == 0) {
                 builder.setName(builder.getClassName());
             } else {
