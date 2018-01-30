@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.ArrayList;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ThreadLocalRandom;
 
@@ -57,7 +58,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
             log.warn("Broker {} is overloaded: max usage={}", brokerData.getLocalData().getWebServiceUrl(), maxUsage);
             return Double.POSITIVE_INFINITY;
         }
-        
+
         double totalMessageRate = 0;
         for (BundleData bundleData : brokerData.getPreallocatedBundleData().values()) {
             final TimeAverageMessageData longTermData = bundleData.getLongTermData();
@@ -79,7 +80,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
 
     /**
      * Find a suitable broker to assign the given bundle to.
-     * 
+     *
      * @param candidates
      *            The candidates for which the bundle may be assigned.
      * @param bundleToAssign
@@ -91,7 +92,7 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
      * @return The name of the selected broker as it appears on ZooKeeper.
      */
     @Override
-    public String selectBroker(final Set<String> candidates, final BundleData bundleToAssign, final LoadData loadData,
+    public Optional<String> selectBroker(final Set<String> candidates, final BundleData bundleToAssign, final LoadData loadData,
             final ServiceConfiguration conf) {
         bestBrokers.clear();
         double minScore = Double.POSITIVE_INFINITY;
@@ -125,6 +126,12 @@ public class LeastLongTermMessageRate implements ModularLoadManagerStrategy {
             // Assign randomly in this case.
             bestBrokers.addAll(candidates);
         }
-        return bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size()));
+
+        if (bestBrokers.isEmpty()) {
+            // If still, it means there are no available brokers at this point
+            return Optional.empty();
+        }
+
+        return Optional.of(bestBrokers.get(ThreadLocalRandom.current().nextInt(bestBrokers.size())));
     }
 }
