@@ -139,18 +139,8 @@ class PythonInstance(object):
         message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
       )
 
-    # See if we need to setup output producers
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.className, try_internal=True)
     self.function_class = function_kclass()
-    if self.instance_config.function_config.sinkTopic != None and \
-      len(self.instance_config.function_config.sinkTopic) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_config.sinkTopic)
-      self.producer = self.pulsar_client.create_producer(
-        str(self.instance_config.function_config.sinkTopic),
-        block_if_queue_full=True,
-        batching_enabled=True,
-        batching_max_publish_delay_ms=1,
-        max_pending_messages=100000)
 
     self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers)
     # Now launch a thread that does execution
@@ -199,6 +189,8 @@ class PythonInstance(object):
       output_bytes = None
       if self.output_serde is None:
         self.setup_output_serde()
+      if self.producer is None:
+        self.setup_producer()
       try:
         output_bytes = self.output_serde.serialize(output)
       except:
@@ -222,6 +214,17 @@ class PythonInstance(object):
       global DEFAULT_SERIALIZER
       serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER, try_internal=True)
       self.output_serde = serde_kclass()
+
+  def setup_producer(self):
+    if self.instance_config.function_config.sinkTopic != None and \
+            len(self.instance_config.function_config.sinkTopic) > 0:
+      Log.info("Setting up producer for topic %s" % self.instance_config.function_config.sinkTopic)
+      self.producer = self.pulsar_client.create_producer(
+        str(self.instance_config.function_config.sinkTopic),
+        block_if_queue_full=True,
+        batching_enabled=True,
+        batching_max_publish_delay_ms=1,
+        max_pending_messages=100000)
 
   def message_listener(self, topic, serde, consumer, message):
     item = InternalMessage(message, topic, serde, consumer)

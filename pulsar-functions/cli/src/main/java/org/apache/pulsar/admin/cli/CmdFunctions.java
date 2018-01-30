@@ -239,6 +239,9 @@ public class CmdFunctions extends CmdBase {
             if (builder.getNamespace() == null || builder.getNamespace().isEmpty()) {
                 inferMissingNamespace(builder);
             }
+            if (builder.getSinkTopic() == null || builder.getSinkTopic().isEmpty()) {
+                inferMissingSinkTopic(builder);
+            }
         }
 
         private void inferMissingFunctionName(FunctionConfig.Builder builder) {
@@ -265,6 +268,16 @@ public class CmdFunctions extends CmdBase {
                 builder.setNamespace(DestinationName.get(inputTopic).getNamespacePortion());
             } catch (IllegalArgumentException ex) {
                 throw new RuntimeException("Missing Namespace");
+            }
+        }
+
+        private void inferMissingSinkTopic(FunctionConfig.Builder builder) {
+            try {
+                String inputTopic = getUniqueInput(builder);
+                builder.setSinkTopic(inputTopic + "-" + builder.getName() + "-output");
+            } catch (IllegalArgumentException ex) {
+                // It might be that we really don't need an output topic
+                // So we cannot really throw an exception
             }
         }
 

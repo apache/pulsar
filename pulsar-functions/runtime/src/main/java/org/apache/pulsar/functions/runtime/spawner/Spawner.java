@@ -121,9 +121,11 @@ public class Spawner implements AutoCloseable {
     public void close() {
         if (null != functionContainer) {
             functionContainer.stop();
+            functionContainer = null;
         }
         if (metricsCollectionTimer != null) {
             metricsCollectionTimer.cancel();
+            metricsCollectionTimer = null;
         }
     }
 

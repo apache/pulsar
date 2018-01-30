@@ -276,7 +276,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void startSinkProducer() throws Exception {
-        if (instanceConfig.getFunctionConfig().getSinkTopic() != null && !instanceConfig.getFunctionConfig().getSinkTopic().isEmpty()) {
+        if (instanceConfig.getFunctionConfig().getSinkTopic() != null
+                && !instanceConfig.getFunctionConfig().getSinkTopic().isEmpty()
+                && this.outputSerDe != null) {
             log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getSinkTopic());
             ProducerConfiguration conf = new ProducerConfiguration();
             conf.setBlockIfQueueFull(true);
