@@ -25,6 +25,8 @@ DEFAULT_WORKER_CONF=$PULSAR_HOME/conf/function_worker.yml
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yml
 DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
 JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
+DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
+PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -71,6 +73,19 @@ if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
     fi
 fi
 
+# find the python instance location
+if [ ! -f "${PY_INSTANCE_FILE}" ]; then
+    # didn't find a released python instance, then search the built python instance
+    BUILT_PY_INSTANCE_FILE="${PULSAR_HOME}/runtime/target/python-instance/python_instance_main.py"
+    if [ -f "${BUILT_PY_INSTANCE_FILE}" ]; then
+        PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
+    else
+        echo "\nCouldn't find pulsar python instance.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
+fi
+
 pulsar_help() {
     cat <<EOF
 Usage: pulsar <command>
@@ -89,6 +104,7 @@ Environment variables:
    PULSAR_PID_DIR                Folder where the pulsar server PID file should be stored
    PULSAR_STOP_TIMEOUT           Wait time before forcefully kill the pulsar server instance, if the stop is not successful
    PULSAR_JAVA_INSTANCE_JAR      The java instance jar that pulsar worker uses to run functions (default: $DEFAULT_JAVA_INSTANCE_JAR)
+   PULSAR_PY_INSTANCE_FILE       The python instance that pulsar worker uses to run functions (default: $DEFAULT_PY_INSTANCE_FILE)
 
 These variable can also be set in conf/pulsar_env.sh
 EOF
@@ -159,9 +175,11 @@ OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.level=$PULSAR_LOG_LEVEL"
 OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
+OPTS="$OPTS -Dpulsar.functions.process.container.log.dir=$PULSAR_LOG_DIR"
 
 # instance
 OPTS="$OPTS -Dpulsar.functions.java.instance.jar=${JAVA_INSTANCE_JAR}"
+OPTS="$OPTS -Dpulsar.functions.python.instance.file=${PY_INSTANCE_FILE}"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

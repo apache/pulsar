@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,4 +18,12 @@
 # under the License.
 #
 
-java -jar runtime-benchmark/target/runtime-benchmarks.jar -t 1 -i 10 -wi 10 -f 2 -prof stack
+
+from pulsarfunction import pulsar_function
+
+class Exclamation(pulsar_function.PulsarFunction):
+ def __init__(self):
+   pass
+
+ def process(self, input, context):
+   return input + ‘!’
