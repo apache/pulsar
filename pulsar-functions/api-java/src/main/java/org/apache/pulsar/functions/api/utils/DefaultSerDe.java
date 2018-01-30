@@ -41,19 +41,14 @@ public class DefaultSerDe implements SerDe<Object> {
             Float.class
     ));
     private Class type;
-    private boolean ser;
 
-    public DefaultSerDe(Class type, boolean ser) {
+    public DefaultSerDe(Class type) {
         this.type = type;
-        this.ser = ser;
-        verifySupportedType(ser);
+        verifySupportedType();
     }
 
     @Override
     public Object deserialize(byte[] input) {
-        if (ser) {
-            throw new RuntimeException("Serializer function cannot deserialize");
-        }
         String data = new String(input, StandardCharsets.UTF_8);
         if (type.equals(Integer.class)) {
             return Integer.valueOf(data);
@@ -76,9 +71,6 @@ public class DefaultSerDe implements SerDe<Object> {
 
     @Override
     public byte[] serialize(Object input) {
-        if (!ser) {
-            throw new RuntimeException("DeSerializer function cannot serialize");
-        }
         if (type.equals(Integer.class)) {
             return ((Integer) input).toString().getBytes(StandardCharsets.UTF_8);
         } else if (type.equals(Double.class)) {
@@ -98,10 +90,8 @@ public class DefaultSerDe implements SerDe<Object> {
         }
     }
 
-    public void verifySupportedType(boolean allowVoid) {
-        if (!allowVoid && !supportedInputTypes.contains(type)) {
-            throw new RuntimeException("Non Basic types not yet supported: " + type);
-        } else if (!(supportedInputTypes.contains(type) || type.equals(Void.class))) {
+    public void verifySupportedType() {
+        if (!supportedInputTypes.contains(type)) {
             throw new RuntimeException("Non Basic types not yet supported: " + type);
         }
     }

@@ -464,9 +464,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         bldr.putMetrics(metricName, digest);
     }
 
-    private static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader) {
+    private static SerDe initializeSerDe(String serdeClassName, ClassLoader clsLoader,
+                                         PulsarFunction pulsarFunction, boolean inputArgs) {
         if (null == serdeClassName || serdeClassName.isEmpty()) {
             return null;
+        } else if (serdeClassName.equals(DefaultSerDe.class.getName())) {
+            return initializeDefaultSerDe(pulsarFunction, inputArgs);
         } else {
             return Reflections.createInstance(
                     serdeClassName,
@@ -475,20 +478,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
     }
 
-    private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction) {
+    private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction, boolean inputArgs) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        return new DefaultSerDe(typeArgs[0], false);
+        if (inputArgs) {
+            return new DefaultSerDe(typeArgs[0]);
+        } else {
+            return new DefaultSerDe(typeArgs[1]);
+        }
     }
 
     private void setupSerDe(PulsarFunction pulsarFunction, ClassLoader clsLoader) {
         this.inputSerDe = new HashMap<>();
-        instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader)));
+        instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().forEach((k, v) -> this.inputSerDe.put(k, initializeSerDe(v, clsLoader, pulsarFunction, true)));
         for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
-            this.inputSerDe.put(topicName, initializeDefaultSerDe(pulsarFunction));
+            this.inputSerDe.put(topicName, initializeDefaultSerDe(pulsarFunction, true));
         }
 
         if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
-            this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader);
+            this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader, pulsarFunction, false);
         }
 
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
@@ -507,7 +514,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
             if (outputSerDe == null) {
-                outputSerDe = initializeDefaultSerDe(pulsarFunction);
+                outputSerDe = initializeDefaultSerDe(pulsarFunction, false);
             }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
             if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
