@@ -24,7 +24,6 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
@@ -33,9 +32,7 @@ import org.testng.annotations.Test;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
-import static org.testng.AssertJUnit.fail;
+import static org.testng.AssertJUnit.*;
 
 public class JavaInstanceRunnableTest {
 
@@ -127,7 +124,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testVoidInputClasses() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, Utf8StringSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
             Method method = makeAccessible(runnable);
             VoidInputHandler pulsarFunction = new VoidInputHandler();
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
@@ -146,7 +143,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testVoidOutputClasses() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(false, Utf8StringSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             VoidOutputHandler pulsarFunction = new VoidOutputHandler();
@@ -162,7 +159,7 @@ public class JavaInstanceRunnableTest {
     @Test
     public void testInconsistentInputType() {
         try {
-            JavaInstanceRunnable runnable = createRunnable(true, Utf8StringSerDe.class.getName());
+            JavaInstanceRunnable runnable = createRunnable(true, DefaultSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";

@@ -494,10 +494,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             this.inputSerDe.put(topicName, initializeDefaultSerDe(pulsarFunction, true));
         }
 
-        if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
-            this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader, pulsarFunction, false);
-        }
-
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
 
         if (Void.class.equals(typeArgs[0])) {
@@ -513,6 +509,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
+            if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
+                this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader, pulsarFunction, false);
+            }
             if (outputSerDe == null) {
                 outputSerDe = initializeDefaultSerDe(pulsarFunction, false);
             }

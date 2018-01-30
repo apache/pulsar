@@ -42,8 +42,8 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -147,8 +147,8 @@ public class CmdFunctionsTest {
             "--function-name", fnName,
             "--custom-serde-source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
-            "--output-serde-classname", Utf8StringSerDe.class.getName(),
+            "--custom-serde-classnames", DefaultSerDe.class.getName(),
+            "--output-serde-classname", DefaultSerDe.class.getName(),
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",
@@ -174,8 +174,8 @@ public class CmdFunctionsTest {
                 "--function-name", fnName,
                 "--custom-serde-source-topics", sourceTopicName,
                 "--sink-topic", sinkTopicName,
-                "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
-                "--output-serde-classname", Utf8StringSerDe.class.getName(),
+                "--custom-serde-classnames", DefaultSerDe.class.getName(),
+                "--output-serde-classname", DefaultSerDe.class.getName(),
                 "--jar", "SomeJar.jar",
                 "--namespace", "ns1",
                 "--function-classname", "MyClass",
@@ -196,8 +196,8 @@ public class CmdFunctionsTest {
                 "--function-name", fnName,
                 "--custom-serde-source-topics", sourceTopicName,
                 "--sink-topic", sinkTopicName,
-                "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
-                "--output-serde-classname", Utf8StringSerDe.class.getName(),
+                "--custom-serde-classnames", DefaultSerDe.class.getName(),
+                "--output-serde-classname", DefaultSerDe.class.getName(),
                 "--jar", "SomeJar.jar",
                 "--function-classname", "MyClass",
         });
@@ -216,8 +216,8 @@ public class CmdFunctionsTest {
                 "create",
                 "--custom-serde-source-topics", sourceTopicName,
                 "--sink-topic", sinkTopicName,
-                "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
-                "--output-serde-classname", Utf8StringSerDe.class.getName(),
+                "--custom-serde-classnames", DefaultSerDe.class.getName(),
+                "--output-serde-classname", DefaultSerDe.class.getName(),
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
@@ -284,8 +284,8 @@ public class CmdFunctionsTest {
             "--function-name", fnName,
             "--custom-serde-source-topics", sourceTopicName,
             "--sink-topic", sinkTopicName,
-            "--custom-serde-classnames", Utf8StringSerDe.class.getName(),
-            "--output-serde-classname", Utf8StringSerDe.class.getName(),
+            "--custom-serde-classnames", DefaultSerDe.class.getName(),
+            "--output-serde-classname", DefaultSerDe.class.getName(),
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",

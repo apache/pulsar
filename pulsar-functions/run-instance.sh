@@ -23,8 +23,8 @@ java -cp runtime/target/java-instance.jar -Dlog4j.configurationFile=java_instanc
     --namespace test-namespace \
     --source_topics persistent://sample/standalone/ns1/test_src \
     --sink_topic persistent://sample/standalone/ns1/test_result \
-    --input_serde_classnames org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
-    --output_serde_classname org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
+    --input_serde_classnames org.apache.pulsar.functions.api.utils.DefaultSerDe \
+    --output_serde_classname org.apache.pulsar.functions.api.utils.DefaultSerDe \
     --processing_guarantees ATMOST_ONCE \
     --instance_id test-instance-id \
     --function_id test-function-id \

@@ -25,9 +25,9 @@ import static org.testng.Assert.assertNull;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.testng.annotations.Test;
 
@@ -51,7 +51,7 @@ public class JavaInstanceTest {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         LimitsConfig limitsConfig = new LimitsConfig();
         functionConfigBuilder.addInputs("TEST");
-        functionConfigBuilder.setOutputSerdeClassName(Utf8StringSerDe.class.getName());
+        functionConfigBuilder.setOutputSerdeClassName(DefaultSerDe.class.getName());
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());
         instanceConfig.setLimitsConfig(limitsConfig);
