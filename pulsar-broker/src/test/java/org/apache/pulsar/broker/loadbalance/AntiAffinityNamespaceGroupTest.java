@@ -189,7 +189,7 @@ public class AntiAffinityNamespaceGroupTest {
      * It verifies anti-affinity-namespace assignment with failure-domain
      * 
      * <pre>
-     * Domain     BrokersBase-count
+     * Domain     Brokers-count
      * ________  ____________
      * domain-0   broker-0,broker-1
      * domain-1   broker-2,broker-3
