@@ -284,7 +284,7 @@ public class DestinationName implements ServiceUnitId {
     }
 
     public boolean isGlobal() {
-        return cluster == null || "global".equals(cluster);
+        return cluster == null || Constants.GLOBAL_CLUSTER.equalsIgnoreCase(cluster);
     }
 
     @Override

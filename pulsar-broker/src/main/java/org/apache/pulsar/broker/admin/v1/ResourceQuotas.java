@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.v1;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -39,7 +39,7 @@ import io.swagger.annotations.ApiResponses;
 @Produces(MediaType.APPLICATION_JSON)
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/resource-quotas", description = "Quota admin APIs", tags = "resource-quotas")
-public class ResourceQuotasLegacy extends ResourceQuotasBase {
+public class ResourceQuotas extends ResourceQuotasBase {
 
     @GET
     @Path("/{property}/{cluster}/{namespace}/{bundle}")

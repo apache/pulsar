@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.v1;
 
 import java.util.List;
 import java.util.Map;
@@ -57,7 +57,7 @@ import io.swagger.annotations.ApiResponses;
 @Path("/persistent")
 @Produces(MediaType.APPLICATION_JSON)
 @Api(value = "/persistent", description = "Persistent topic admin apis", tags = "persistent topic")
-public class PersistentTopicsLegacy extends PersistentTopicsBase {
+public class PersistentTopics extends PersistentTopicsBase {
     @GET
     @Path("/{property}/{cluster}/{namespace}")
     @ApiOperation(hidden = true, value = "Get the list of topics under a namespace.", response = String.class, responseContainer = "List")

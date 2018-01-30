@@ -501,7 +501,7 @@ public class CmdPersistentTopics extends CmdBase {
                     System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
                 }
                 if (msg.getProperties().size() > 0) {
-                    System.out.println("Properties:");
+                    System.out.println("PropertiesBase:");
                     print(msg.getProperties());
                 }
                 ByteBuf data = Unpooled.wrappedBuffer(msg.getData());

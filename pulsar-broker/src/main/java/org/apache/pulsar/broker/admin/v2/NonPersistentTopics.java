@@ -16,12 +16,9 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.v2;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -42,9 +39,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.util.FutureUtil;
-import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -145,8 +140,8 @@ public class NonPersistentTopics extends PersistentTopics {
     @ApiOperation(value = "Unload a topic")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
-    public void unloadTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String encodedTopic,
+    public void unloadTopic(@PathParam("property") String property, @PathParam("namespace") String namespace,
+            @PathParam("destination") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateDestinationName(property, namespace, encodedTopic);
         log.info("[{}] Unloading topic {}", clientAppId(), destinationName);
@@ -154,99 +149,6 @@ public class NonPersistentTopics extends PersistentTopics {
             validateGlobalNamespaceOwnership(namespaceName);
         }
         unloadTopic(destinationName, authoritative);
-    }
-
-    @GET
-    @Path("/{property}/{cluster}/{namespace}")
-    @ApiOperation(value = "Get the list of non-persistent topics under a namespace.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getList(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace) {
-        log.info("[{}] list of topics on namespace {}/{}/{}/{}", clientAppId(), property, cluster, namespace);
-        validateAdminAccessOnProperty(property);
-        Policies policies = getNamespacePolicies(property, cluster, namespace);
-        NamespaceName nsName = NamespaceName.get(property, cluster, namespace);
-
-        if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateClusterOwnership(cluster);
-            validateClusterForProperty(property, cluster);
-        } else {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(nsName);
-        }
-        final List<CompletableFuture<List<String>>> futures = Lists.newArrayList();
-        final List<String> boundaries = policies.bundles.getBoundaries();
-        for (int i = 0; i < boundaries.size() - 1; i++) {
-            final String bundle = String.format("%s_%s", boundaries.get(i), boundaries.get(i + 1));
-            try {
-                futures.add(pulsar().getAdminClient().nonPersistentTopics().getListInBundleAsync(nsName.toString(),
-                        bundle));
-            } catch (PulsarServerException e) {
-                log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s/%s/%s", clientAppId(),
-                        property, cluster, namespace, bundle), e);
-                throw new RestException(e);
-            }
-        }
-        final List<String> topics = Lists.newArrayList();
-        try {
-            FutureUtil.waitForAll(futures).get();
-            futures.forEach(topicListFuture -> {
-                try {
-                    if (topicListFuture.isDone() && topicListFuture.get() != null) {
-                        topics.addAll(topicListFuture.get());
-                    }
-                } catch (InterruptedException | ExecutionException e) {
-                    log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s/%s", clientAppId(),
-                            property, cluster, namespace), e);
-                }
-            });
-        } catch (InterruptedException | ExecutionException e) {
-            log.error(String.format("[%s] Failed to get list of topics under namespace %s/%s/%s", clientAppId(),
-                    property, cluster, namespace), e);
-            throw new RestException(e instanceof ExecutionException ? e.getCause() : e);
-        }
-        return topics;
-    }
-    
-    @GET
-    @Path("/{property}/{cluster}/{namespace}/{bundle}")
-    @ApiOperation(value = "Get the list of non-persistent topics under a namespace bundle.", response = String.class, responseContainer = "List")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Namespace doesn't exist") })
-    public List<String> getListFromBundle(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("bundle") String bundleRange) {
-        log.info("[{}] list of topics on namespace bundle {}/{}/{}/{}", clientAppId(), property, cluster, namespace,
-                bundleRange);
-        validateAdminAccessOnProperty(property);
-        Policies policies = getNamespacePolicies(property, cluster, namespace);
-        if (!cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
-            validateClusterOwnership(cluster);
-            validateClusterForProperty(property, cluster);
-        } else {
-            // check cluster ownership for a given global namespace: redirect if peer-cluster owns it
-            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
-        }
-        NamespaceName fqnn = NamespaceName.get(property, cluster, namespace);
-        if (!isBundleOwnedByAnyBroker(fqnn, policies.bundles, bundleRange)) {
-            log.info("[{}] Namespace bundle is not owned by any broker {}/{}/{}/{}", clientAppId(), property, cluster,
-                    namespace, bundleRange);
-            return null;
-        }
-        NamespaceBundle nsBundle = validateNamespaceBundleOwnership(fqnn, policies.bundles, bundleRange, true, true);
-        try {
-            final List<String> topicList = Lists.newArrayList();
-            pulsar().getBrokerService().getTopics().forEach((name, topicFuture) -> {
-                DestinationName topicName = DestinationName.get(name);
-                if (nsBundle.includes(topicName)) {
-                    topicList.add(name);
-                }
-            });
-            return topicList;
-        } catch (Exception e) {
-            log.error("[{}] Failed to unload namespace bundle {}/{}", clientAppId(), fqnn.toString(), bundleRange, e);
-            throw new RestException(e);
-        }
     }
 
     protected void validateAdminOperationOnDestination(DestinationName fqdn, boolean authoritative) {

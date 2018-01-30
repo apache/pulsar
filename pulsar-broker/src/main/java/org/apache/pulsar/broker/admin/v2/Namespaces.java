@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.v2;
 
 import java.util.List;
 import java.util.Map;
@@ -58,8 +58,6 @@ import io.swagger.annotations.ApiResponses;
 @Consumes(MediaType.APPLICATION_JSON)
 @Api(value = "/namespaces", description = "Namespaces admin apis", tags = "namespaces")
 public class Namespaces extends NamespacesBase {
-
-    public static final String GLOBAL_CLUSTER = "global";
 
     @GET
     @Path("/{property}")
@@ -129,19 +127,6 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{property}/{cluster}/{namespace}")
-    @ApiOperation(hidden = true, value = "Delete a namespace and all the destinations under it.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Namespace is not empty") })
-    public void deleteNamespaceLegacy(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, cluster, namespace);
-        internalDeleteNamespace(authoritative);
-    }
-
-    @DELETE
     @Path("/{property}/{namespace}/bundle/{bundle}")
     @ApiOperation(value = "Delete a namespace bundle and all the topics under it.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
@@ -151,20 +136,6 @@ public class Namespaces extends NamespacesBase {
             @PathParam("bundle") String bundleRange,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(property, namespace);
-        internalDeleteNamespaceBundle(bundleRange, authoritative);
-    }
-
-    @DELETE
-    @Path("/{property}/{cluster}/{namespace}/{bundle}")
-    @ApiOperation(hidden = true, value = "Delete a namespace bundle and all the destinations under it.")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
-            @ApiResponse(code = 409, message = "Namespace bundle is not empty") })
-    public void deleteNamespaceBundleLegacy(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
-            @PathParam("bundle") String bundleRange,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
-        validateNamespaceName(property, cluster, namespace);
         internalDeleteNamespaceBundle(bundleRange, authoritative);
     }
 
@@ -196,7 +167,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @DELETE
-    @Path("/{property}/{cluster}/{namespace}/permissions/{role}")
+    @Path("/{property}/{namespace}/permissions/{role}")
     @ApiOperation(value = "Revoke all permissions to a role on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
@@ -436,12 +407,11 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{property}/{cluster}/{namespace}/clearBacklog")
+    @Path("/{property}/{namespace}/clearBacklog")
     @ApiOperation(value = "Clear backlog for all destinations on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist") })
-    public void clearNamespaceBacklog(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace,
+    public void clearNamespaceBacklog(@PathParam("property") String property, @PathParam("namespace") String namespace,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
         validateNamespaceName(property, namespace);
         internalClearNamespaceBacklog(authoritative);

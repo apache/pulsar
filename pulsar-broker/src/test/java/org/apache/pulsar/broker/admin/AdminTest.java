@@ -48,6 +48,13 @@ import javax.ws.rs.core.UriInfo;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.admin.v1.BrokerStats;
+import org.apache.pulsar.broker.admin.v1.Brokers;
+import org.apache.pulsar.broker.admin.v1.Clusters;
+import org.apache.pulsar.broker.admin.v1.Properties;
+import org.apache.pulsar.broker.admin.v1.Namespaces;
+import org.apache.pulsar.broker.admin.v1.PersistentTopics;
+import org.apache.pulsar.broker.admin.v1.ResourceQuotas;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -83,10 +90,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     private Clusters clusters;
     private Properties properties;
-    private NamespacesLegacy namespaces;
-    private PersistentTopicsLegacy persistentTopics;
+    private Namespaces namespaces;
+    private PersistentTopics persistentTopics;
     private Brokers brokers;
-    private ResourceQuotasLegacy resourceQuotas;
+    private ResourceQuotas resourceQuotas;
     private BrokerStats brokerStats;
 
     private Field uriField;
@@ -121,7 +128,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn("test").when(properties).clientAppId();
         doNothing().when(properties).validateSuperUserAccess();
 
-        namespaces = spy(new NamespacesLegacy());
+        namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(namespaces).globalZk();
@@ -146,7 +153,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         uriField = PulsarWebResource.class.getDeclaredField("uri");
         uriField.setAccessible(true);
 
-        persistentTopics = spy(new PersistentTopicsLegacy());
+        persistentTopics = spy(new PersistentTopics());
         persistentTopics.setServletContext(new MockServletContext());
         persistentTopics.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(persistentTopics).globalZk();
@@ -160,7 +167,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doNothing().when(persistentTopics).validateAdminAccessOnProperty("other-property");
         doNothing().when(persistentTopics).validateAdminAccessOnProperty("prop-xyz");
 
-        resourceQuotas = spy(new ResourceQuotasLegacy());
+        resourceQuotas = spy(new ResourceQuotas());
         resourceQuotas.setServletContext(new MockServletContext());
         resourceQuotas.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(resourceQuotas).globalZk();

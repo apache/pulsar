@@ -47,6 +47,8 @@ import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.pulsar.broker.admin.v1.Namespaces;
+import org.apache.pulsar.broker.admin.v1.PersistentTopics;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
 import org.apache.pulsar.broker.namespace.NamespaceService;
@@ -83,7 +85,7 @@ import com.google.common.collect.Sets;
 @Test
 public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
-    private NamespacesLegacy namespaces;
+    private Namespaces namespaces;
 
     private List<NamespaceName> testLocalNamespaces;
     private List<NamespaceName> testGlobalNamespaces;
@@ -121,7 +123,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
     public void setup() throws Exception {
         super.internalSetup();
 
-        namespaces = spy(new NamespacesLegacy());
+        namespaces = spy(new Namespaces());
         namespaces.setServletContext(new MockServletContext());
         namespaces.setPulsar(pulsar);
         doReturn(mockZookKeeper).when(namespaces).globalZk();
@@ -1064,20 +1066,14 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
             doReturn(false).when(topics).isRequestHttps();
             doReturn("test").when(topics).clientAppId();
             mockWebUrl(localWebServiceUrl, testNs);
+            doReturn("persistent").when(topics).domain();
 
             try {
                 topics.validateDestinationName(topicName.getProperty(), topicName.getCluster(),
-                        topicName.getNamespace(), topicName.getEncodedLocalName());
+                        topicName.getNamespacePortion(), topicName.getEncodedLocalName());
                 topics.validateAdminOperationOnDestination(false);
             } catch (RestException e) {
                 fail("validateAdminAccessOnProperty failed");
-            }
-
-            try {
-                topics.validateAdminOperationOnDestination(false);
-                fail("validateAdminAccessOnProperty failed");
-            } catch (Exception e) {
-                // OK
             }
 
         } catch (RestException e) {

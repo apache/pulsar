@@ -119,7 +119,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     public boolean isGlobal() {
-        return cluster == null || "global".equals(cluster);
+        return cluster == null || Constants.GLOBAL_CLUSTER.equalsIgnoreCase(cluster);
     }
 
     public String getPersistentTopicName(String localTopic) {

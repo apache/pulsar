@@ -216,6 +216,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
+    @Deprecated
     protected void validateNamespaceName(String property, String cluster, String namespace) {
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
@@ -241,6 +242,7 @@ public abstract class AdminResource extends PulsarWebResource {
         this.destinationName = DestinationName.get(domain(), namespaceName, topic);
     }
 
+    @Deprecated
     protected void validateDestinationName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
@@ -305,7 +307,7 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().policiesCache();
     }
 
-    ZooKeeperDataCache<LocalPolicies> localPoliciesCache() {
+    protected ZooKeeperDataCache<LocalPolicies> localPoliciesCache() {
         return pulsar().getLocalZkCacheService().policiesCache();
     }
 
@@ -325,7 +327,7 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    ZooKeeperChildrenCache clustersListCache() {
+    protected ZooKeeperChildrenCache clustersListCache() {
         return pulsar().getConfigurationCache().clustersListCache();
     }
 
