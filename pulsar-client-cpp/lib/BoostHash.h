@@ -29,7 +29,7 @@ namespace pulsar {
 class BoostHash : public Hash {
    public:
     BoostHash();
-    uint32_t makeHash(const std::string &key);
+    int32_t makeHash(const std::string &key);
 
    private:
     boost::hash<std::string> hash;

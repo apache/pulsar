@@ -25,7 +25,12 @@
 namespace pulsar {
 class Hash {
    public:
-    virtual uint32_t makeHash(const std::string& key) = 0;
+    /**
+     * Generate the hash of a given String
+     *
+     * @return The hash of {@param key}, which is non-negative integer.
+     */
+    virtual int32_t makeHash(const std::string& key) = 0;
 };
 }  // namespace pulsar
 

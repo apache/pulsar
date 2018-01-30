@@ -29,7 +29,7 @@ namespace pulsar {
 class JavaStringHash : public Hash {
    public:
     JavaStringHash();
-    uint32_t makeHash(const std::string &key);
+    int32_t makeHash(const std::string &key);
 };
 }  // namespace pulsar
 

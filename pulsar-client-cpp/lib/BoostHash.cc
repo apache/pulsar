@@ -22,6 +22,8 @@ namespace pulsar {
 
 BoostHash::BoostHash() : hash() {}
 
-uint32_t BoostHash::makeHash(const std::string& key) { return hash(key); }
+int32_t BoostHash::makeHash(const std::string& key) {
+    return static_cast<int32_t>(hash(key) & std::numeric_limits<int32_t>::max());
+}
 
 }  // namespace pulsar

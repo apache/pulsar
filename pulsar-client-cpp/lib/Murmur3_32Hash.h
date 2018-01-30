@@ -35,7 +35,7 @@ class Murmur3_32Hash : public Hash {
    public:
     Murmur3_32Hash();
 
-    uint32_t makeHash(const std::string& key);
+    int32_t makeHash(const std::string& key);
 
    private:
     static constexpr int32_t CHUNK_SIZE = 4;

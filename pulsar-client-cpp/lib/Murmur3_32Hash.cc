@@ -24,6 +24,7 @@
 #include "Murmur3_32Hash.h"
 
 #include <boost/predef.h>
+#include <limits>
 
 #if BOOST_COMP_MSVC
 #include <stdlib.h>
@@ -48,7 +49,9 @@ namespace pulsar {
 
 Murmur3_32Hash::Murmur3_32Hash() : seed(0) {}
 
-uint32_t Murmur3_32Hash::makeHash(const std::string &key) { return makeHash(&key.front(), key.length()); }
+int32_t Murmur3_32Hash::makeHash(const std::string &key) {
+    return static_cast<int32_t>(makeHash(&key.front(), key.length()) & std::numeric_limits<int32_t>::max());
+}
 
 uint32_t Murmur3_32Hash::makeHash(const void *key, const int64_t len) {
     const uint8_t *data = reinterpret_cast<const uint8_t *>(key);
