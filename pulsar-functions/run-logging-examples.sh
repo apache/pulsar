@@ -20,6 +20,6 @@
 bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
     --function-config conf/example.yml \
     --sink-topic persistent://sample/standalone/ns1/test_result \
-    --output-serde-classname org.apache.pulsar.functions.api.utils.Utf8StringSerDe \
+    --output-serde-classname org.apache.pulsar.functions.api.utils.DefaultSerDe \
     --function-classname org.apache.pulsar.functions.api.examples.LoggingFunction \
     --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar

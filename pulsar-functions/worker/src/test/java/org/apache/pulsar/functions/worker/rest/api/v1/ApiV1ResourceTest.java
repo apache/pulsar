@@ -48,10 +48,10 @@ import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.Utils;
@@ -91,8 +91,8 @@ public class ApiV1ResourceTest {
     private static final String function = "test-function";
     private static final String sinkTopic = "test-sink-topic";
     private static final String sourceTopic = "test-source-topic";
-    private static final String inputSerdeClassName = Utf8StringSerDe.class.getName();
-    private static final String outputSerdeClassName = Utf8StringSerDe.class.getName();
+    private static final String inputSerdeClassName = DefaultSerDe.class.getName();
+    private static final String outputSerdeClassName = DefaultSerDe.class.getName();
     private static final String className = TestFunction.class.getName();
     private static final LimitsConfig limitsConfig = new LimitsConfig()
         .setMaxTimeMs(1234)

@@ -17,13 +17,12 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.utils;
+package org.apache.pulsar.functions.api.utils;
 
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.testng.annotations.Test;
 
 
