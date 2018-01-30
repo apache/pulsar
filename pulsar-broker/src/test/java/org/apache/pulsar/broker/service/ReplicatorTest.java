@@ -81,13 +81,13 @@ import org.testng.collections.Lists;
 public class ReplicatorTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass
+    @BeforeClass(timeOut = 30000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(timeOut = 30000)
     void shutdown() throws Exception {
         super.shutdown();
     }
