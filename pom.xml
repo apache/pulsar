@@ -178,10 +178,6 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>log4j</artifactId>
             <groupId>log4j</groupId>
           </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
         </exclusions>
       </dependency>
 
@@ -198,10 +194,6 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <artifactId>log4j</artifactId>
             <groupId>log4j</groupId>
-          </exclusion>
-          <exclusion>
-            <groupId>io.netty</groupId>
-            <artifactId>netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
