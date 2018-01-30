@@ -67,7 +67,7 @@ spec:
                 env:
                  - name: advertisedAddress
                    valueFrom:
-                       fieldRef:
+                        fieldRef:
                            fieldPath: status.podIP
 ---
 
@@ -95,8 +95,6 @@ spec:
         component: broker
 
 ---
-
-###
 
 apiVersion: v1
 kind: Pod
