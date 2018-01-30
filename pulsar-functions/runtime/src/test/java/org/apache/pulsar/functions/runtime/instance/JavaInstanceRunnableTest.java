@@ -20,23 +20,19 @@ package org.apache.pulsar.functions.runtime.instance;
 
 import lombok.Getter;
 import lombok.Setter;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.api.utils.Utf8StringSerDe;
 import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
-import org.apache.pulsar.functions.utils.Reflections;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
 
-import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertFalse;
 import static org.testng.AssertJUnit.assertTrue;
 import static org.testng.AssertJUnit.fail;
@@ -63,7 +59,9 @@ public class JavaInstanceRunnableTest {
         } else {
             functionConfigBuilder.putCustomSerdeInputs("TEST", IntegerSerDe.class.getName());
         }
-        functionConfigBuilder.setOutputSerdeClassName(outputSerde);
+        if (outputSerde != null) {
+            functionConfigBuilder.setOutputSerdeClassName(outputSerde);
+        }
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());
         instanceConfig.setLimitsConfig(limitsConfig);
@@ -172,6 +170,38 @@ public class JavaInstanceRunnableTest {
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (InvocationTargetException ex) {
             assertTrue(ex.getCause().getMessage().startsWith("Inconsistent types found between function input type and input serde type:"));
+        } catch (Exception ex) {
+            assertTrue(false);
+        }
+    }
+
+    /**
+     * Verify that Default Serializer works fine.
+     */
+    @Test
+    public void testDefaultSerDe() {
+        try {
+            JavaInstanceRunnable runnable = createRunnable(false, null);
+            Method method = makeAccessible(runnable);
+            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+            PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";
+            method.invoke(runnable, pulsarFunction, clsLoader);
+        } catch (Exception ex) {
+            assertTrue(false);
+        }
+    }
+
+    /**
+     * Verify that Explicit setting of Default Serializer works fine.
+     */
+    @Test
+    public void testExplicitDefaultSerDe() {
+        try {
+            JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
+            Method method = makeAccessible(runnable);
+            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+            PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";
+            method.invoke(runnable, pulsarFunction, clsLoader);
         } catch (Exception ex) {
             assertTrue(false);
         }

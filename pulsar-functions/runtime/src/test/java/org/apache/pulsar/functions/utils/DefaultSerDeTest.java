@@ -35,132 +35,52 @@ import static org.testng.Assert.*;
 public class DefaultSerDeTest {
     @Test
     public void testStringSerDe() {
-        DefaultSerDe serializer = new DefaultSerDe(String.class, true);
-        DefaultSerDe deserializer = new DefaultSerDe(String.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(String.class);
+        DefaultSerDe deserializer = new DefaultSerDe(String.class);
         String input = new String("input");
         byte[] output = serializer.serialize(input);
         String result = (String) deserializer.deserialize(output);
         assertEquals(result, input);
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(String.class, false);
-            serDe.serialize(new String("input"));
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(String.class, true);
-            serDe.deserialize(new byte[10]);
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
     }
 
     @Test
     public void testLongSerDe() {
-        DefaultSerDe serializer = new DefaultSerDe(Long.class, true);
-        DefaultSerDe deserializer = new DefaultSerDe(Long.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Long.class);
+        DefaultSerDe deserializer = new DefaultSerDe(Long.class);
         Long input = new Long(648292);
         byte[] output = serializer.serialize(input);
         Long result = (Long) deserializer.deserialize(output);
         assertEquals(result, input);
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Long.class, false);
-            serDe.serialize(new Long(34242));
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Long.class, true);
-            serDe.deserialize(new byte[10]);
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
     }
 
     @Test
     public void testDoubleSerDe() {
-        DefaultSerDe serializer = new DefaultSerDe(Double.class, true);
-        DefaultSerDe deserializer = new DefaultSerDe(Double.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Double.class);
+        DefaultSerDe deserializer = new DefaultSerDe(Double.class);
         Double input = new Double(648292.32432);
         byte[] output = serializer.serialize(input);
         Double result = (Double) deserializer.deserialize(output);
         assertEquals(result, input);
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Double.class, false);
-            serDe.serialize(new Double(34242));
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Double.class, true);
-            serDe.deserialize(new byte[10]);
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
     }
 
     @Test
     public void testFloatSerDe() {
-        DefaultSerDe serializer = new DefaultSerDe(Float.class, true);
-        DefaultSerDe deserializer = new DefaultSerDe(Float.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Float.class);
+        DefaultSerDe deserializer = new DefaultSerDe(Float.class);
         Float input = new Float(354353.54654);
         byte[] output = serializer.serialize(input);
         Float result = (Float) deserializer.deserialize(output);
         assertEquals(result, input);
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Float.class, false);
-            serDe.serialize(new Float(34242));
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Float.class, true);
-            serDe.deserialize(new byte[10]);
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
     }
 
     @Test
     public void testIntegerSerDe() {
-        DefaultSerDe serializer = new DefaultSerDe(Integer.class, true);
-        DefaultSerDe deserializer = new DefaultSerDe(Integer.class, false);
+        DefaultSerDe serializer = new DefaultSerDe(Integer.class);
+        DefaultSerDe deserializer = new DefaultSerDe(Integer.class);
         Integer input = new Integer(2542352);
         byte[] output = serializer.serialize(input);
         Integer result = (Integer) deserializer.deserialize(output);
         assertEquals(result, input);
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Integer.class, false);
-            serDe.serialize(new Integer(34242));
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
-
-        try {
-            DefaultSerDe serDe = new DefaultSerDe(Integer.class, true);
-            serDe.deserialize(new byte[10]);
-            assertFalse(true);
-        } catch (Exception ex) {
-            // This is good
-        }
     }
 
     private class SimplePulsarFunction implements PulsarFunction<String, String> {
@@ -174,7 +94,7 @@ public class DefaultSerDeTest {
     public void testPulsarFunction() {
         SimplePulsarFunction pulsarFunction = new SimplePulsarFunction();
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        SerDe serDe = new DefaultSerDe(String.class, false);
+        SerDe serDe = new DefaultSerDe(String.class);
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
         assertTrue(inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0]));
     }
