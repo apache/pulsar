@@ -59,6 +59,7 @@ InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_
 # This is the message that the consumers put on the queue for the function thread to process
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
+DEFAULT_SERIALIZER = "pulsarfunction.serde.IdentitySerDe"
 
 # We keep track of the following metrics
 class Stats(object):
@@ -128,7 +129,8 @@ class PythonInstance(object):
       )
 
     for topic in self.instance_config.function_config.inputs:
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), "pulsarfunction.IdentitySerDe", try_internal=True)
+      global DEFAULT_SERIALIZER
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER, try_internal=True)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
       self.consumers[topic] = self.pulsar_client.subscribe(
@@ -137,11 +139,7 @@ class PythonInstance(object):
         message_listener=partial(self.message_listener, topic, self.input_serdes[topic])
       )
 
-    # See if we need to setup output producers/output serializers
-    if self.instance_config.function_config.outputSerdeClassName != None and \
-      len(self.instance_config.function_config.outputSerdeClassName) > 0:
-      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.outputSerdeClassName, try_internal=True)
-      self.output_serde = serde_kclass()
+    # See if we need to setup output producers
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.className, try_internal=True)
     self.function_class = function_kclass()
     if self.instance_config.function_config.sinkTopic != None and \
@@ -199,6 +197,8 @@ class PythonInstance(object):
   def process_result(self, output, msg):
     if output is not None and self.producer is not None:
       output_bytes = None
+      if self.output_serde is None:
+        self.setup_output_serde()
       try:
         output_bytes = self.output_serde.serialize(output)
       except:
@@ -212,6 +212,16 @@ class PythonInstance(object):
           self.total_stats.nsystemexceptions += 1
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
+
+  def setup_output_serde(self):
+    if self.instance_config.function_config.outputSerdeClassName != None and \
+            len(self.instance_config.function_config.outputSerdeClassName) > 0:
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.outputSerdeClassName, try_internal=True)
+      self.output_serde = serde_kclass()
+    else:
+      global DEFAULT_SERIALIZER
+      serde_kclass = util.import_class(os.path.dirname(self.user_code), DEFAULT_SERIALIZER, try_internal=True)
+      self.output_serde = serde_kclass()
 
   def message_listener(self, topic, serde, consumer, message):
     item = InternalMessage(message, topic, serde, consumer)
