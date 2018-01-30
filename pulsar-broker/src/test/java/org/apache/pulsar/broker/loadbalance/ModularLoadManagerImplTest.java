@@ -225,7 +225,7 @@ public class ModularLoadManagerImplTest {
         // After 2 selections, the load balancer should select both brokers due to preallocation.
         for (int i = 0; i < 2; ++i) {
             final ServiceUnitId serviceUnit = makeBundle(Integer.toString(i));
-            final String broker = primaryLoadManager.selectBrokerForAssignment(serviceUnit);
+            final String broker = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
             if (broker.equals(primaryHost)) {
                 foundFirst = true;
             } else {
@@ -289,13 +289,13 @@ public class ModularLoadManagerImplTest {
     /**
      * It verifies that once broker owns max-number of topics: load-manager doesn't allocates new bundles to that broker
      * unless all the brokers are in same state.
-     * 
+     *
      * <pre>
      * 1. Create a bundle whose bundle-resource-quota will contain max-topics
      * 2. Load-manager assigns broker to this bundle so, assigned broker is overloaded with max-topics
      * 3. For any new further bundles: broker assigns different brokers.
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -313,13 +313,13 @@ public class ModularLoadManagerImplTest {
         final String firstBundleDataPath = String.format("%s/%s", ModularLoadManagerImpl.BUNDLE_DATA_ZPATH, bundles[0]);
         ZkUtils.createFullPathOptimistic(pulsar1.getZkClient(), firstBundleDataPath, bundleData.getJsonBytes(),
                 ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
-        String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]);
+        String maxTopicOwnedBroker = primaryLoadManager.selectBrokerForAssignment(bundles[0]).get();
 
         for (int i = 1; i < totalBundles; i++) {
             assertNotEquals(primaryLoadManager.selectBrokerForAssignment(bundles[i]), maxTopicOwnedBroker);
         }
     }
-    
+
     // Test that load shedding works
     @Test
     public void testLoadShedding() throws Exception {
@@ -429,7 +429,7 @@ public class ModularLoadManagerImplTest {
         currentData.getCpu().usage = 106;
         currentData.getCpu().limit = 1000;
         assert (!needUpdate.get());
-        
+
         // Minimally test other absolute values to ensure they are included.
         lastData.getCpu().usage = 100;
         lastData.getCpu().limit = 1000;
@@ -452,10 +452,10 @@ public class ModularLoadManagerImplTest {
         currentData.setNumBundles(100);
         assert (!needUpdate.get());
     }
-    
+
     /**
      * It verifies that deletion of broker-znode on broker-stop will invalidate availableBrokerCache list
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -471,23 +471,23 @@ public class ModularLoadManagerImplTest {
         Set<String> avaialbeBrokers = loadManager.getAvailableBrokers();
         assertEquals(avaialbeBrokers.size(), 1);
     }
-    
+
     /**
      * It verifies namespace-isolation policies with primary and secondary brokers.
-     * 
+     *
      * usecase:
-     * 
+     *
      * <pre>
      *  1. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 1
-     *     a. available-brokers: broker1, broker2, broker3 => result: broker1 
+     *     a. available-brokers: broker1, broker2, broker3 => result: broker1
      *     b. available-brokers: broker2, broker3          => result: broker2
      *     c. available-brokers: broker3                   => result: NULL
      *  2. Namespace: primary=broker1, secondary=broker2, shared=broker3, min_limit = 2
-     *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2 
+     *     a. available-brokers: broker1, broker2, broker3 => result: broker1, broker2
      *     b. available-brokers: broker2, broker3          => result: broker2
      *     c. available-brokers: broker3                   => result: NULL
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -587,11 +587,11 @@ public class ModularLoadManagerImplTest {
         assertEquals(brokerCandidateCache.size(), 0);
 
     }
-    
+
     /**
      * It verifies that pulsar-service fails if load-manager tries to create ephemeral znode for broker which is already
      * created by other zk-session-id.
-     * 
+     *
      * @throws Exception
      */
     @Test
