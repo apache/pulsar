@@ -309,23 +309,28 @@ Whenever the TCP connection breaks, the client will immediately re-initiate this
 
 ## Pulsar proxy
 
-One way for Pulsar clients to interact with a Pulsar [cluster](#clusters) is by connecting to Pulsar message [brokers](#brokers) directly. In some cases, however, this kind of direct connection is either infeasible or undesirable because the client doesn't have direct access to broker addresses, for example if you're running Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.
+One way for Pulsar clients to interact with a Pulsar [cluster](#clusters) is by connecting to Pulsar message [brokers](#brokers) directly. In some cases, however, this kind of direct connection is either infeasible or undesirable because the client doesn't have direct access to broker addresses. If you're running Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform, for example, then direct client connections to brokers are likely not possible.
 
-The **Pulsar proxy** provides a solution to this problem by acting as a gateway for all brokers in a cluster. If you run the (optional) Pulsar proxy, all client connections with Pulsar will flow through the proxy rather than communicating with brokers.
-
-Architecturally, the Pulsar proxy gets all the information it needs from ZooKeeper. When starting the proxy on a machine, you only need to provide the ZooKeeper connection strings. Here's an example:
-
-```bash
-$ bin/pulsar proxy \
-  --zookeeper-servers localhost \
-  --global-zookeeper-servers localhost
-```
+The **Pulsar proxy** provides a solution to this problem by acting as a single gateway for all of the brokers in a cluster. If you run the Pulsar proxy (which, again, is optional), all client connections with the Pulsar {% popover cluster %} will flow through the proxy rather than communicating with brokers.
 
 {% include admonition.html type="success" content="For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you'd like." %}
 
+Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and {% popover global ZooKeeper %} clusters. Here's an example:
+
+```bash
+$ bin/pulsar proxy \
+  --zookeeper-servers zk-0,zk-1,zk-2 \
+  --global-zookeeper-servers zk-0,zk-1,zk-2
+```
+
 {% include admonition.html type="info" title="Pulsar proxy docs" content='
-For documentation on using the Pulsar proxy, see the [Pulsar proxy](../../admin/Proxy) admin documentation.
+For documentation on using the Pulsar proxy, see the [Pulsar proxy admin documentation](../../admin/Proxy).
 ' %}
+
+Some important things to know about the Pulsar proxy:
+
+* Connecting clients don't need to provide *any* specific configuration to use the Pulsar proxy. You won't need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you're running a load balancer over the Pulsar proxy).
+* [TLS encryption and authentication](../../admin/Authz/#tls-client-auth) is supported by the Pulsar proxy
 
 ## Service discovery
 
