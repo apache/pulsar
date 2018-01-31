@@ -73,6 +73,7 @@ flexible messaging model and an intuitive client API.</description>
   </ciManagement>
 
   <modules>
+    <module>buildtools</module>
     <module>managed-ledger</module>
     <module>pulsar-common</module>
     <module>pulsar-broker-common</module>
@@ -119,6 +120,7 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>1.7.25</slf4j.version>
     <bouncycastle.version>1.55</bouncycastle.version>
     <jackson.version>2.9.3</jackson.version>
+    <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
   </properties>
 
   <dependencyManagement>
@@ -584,6 +586,17 @@ flexible messaging model and an intuitive client API.</description>
     <finalName>${project.artifactId}</finalName>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>buildtools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <source>1.8</source>
@@ -844,6 +857,16 @@ flexible messaging model and an intuitive client API.</description>
       </build>
       <reporting>
         <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>3.0.0</version>
+            <configuration>
+              <configLocation>pulsar/checkstyle.xml</configLocation>
+              <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>
+              <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+            </configuration>
+          </plugin>
           <plugin>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>
