@@ -16,24 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "SinglePartitionMessageRouter.h"
+#include "BoostHash.h"
 
 namespace pulsar {
-SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
-                                                           ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme) {
-    selectedSinglePartition_ = partitionIndex;
+
+BoostHash::BoostHash() : hash() {}
+
+int32_t BoostHash::makeHash(const std::string& key) {
+    return static_cast<int32_t>(hash(key) & std::numeric_limits<int32_t>::max());
 }
 
-// override
-int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        // else pick the next partition
-        return selectedSinglePartition_;
-    }
-}
 }  // namespace pulsar

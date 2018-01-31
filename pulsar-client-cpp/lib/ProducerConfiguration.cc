@@ -104,6 +104,15 @@ const MessageRoutingPolicyPtr& ProducerConfiguration::getMessageRouterPtr() cons
     return impl_->messageRouter;
 }
 
+ProducerConfiguration& ProducerConfiguration::setHashingScheme(const HashingScheme& scheme) {
+    impl_->hashingScheme = scheme;
+    return *this;
+}
+
+ProducerConfiguration::HashingScheme ProducerConfiguration::getHashingScheme() const {
+    return impl_->hashingScheme;
+}
+
 ProducerConfiguration& ProducerConfiguration::setBlockIfQueueFull(bool flag) {
     impl_->blockIfQueueFull = flag;
     return *this;

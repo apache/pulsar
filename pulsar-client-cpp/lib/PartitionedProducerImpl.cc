@@ -56,14 +56,14 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client,
 MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
     switch (conf_.getPartitionsRoutingMode()) {
         case ProducerConfiguration::RoundRobinDistribution:
-            return boost::make_shared<RoundRobinMessageRouter>();
+            return boost::make_shared<RoundRobinMessageRouter>(conf_.getHashingScheme());
         case ProducerConfiguration::CustomPartition:
             return conf_.getMessageRouterPtr();
         case ProducerConfiguration::UseSinglePartition:
         default:
             unsigned int random = rand();
-            return boost::make_shared<SinglePartitionMessageRouter>(random %
-                                                                    topicMetadata_->getNumPartitions());
+            return boost::make_shared<SinglePartitionMessageRouter>(
+                random % topicMetadata_->getNumPartitions(), conf_.getHashingScheme());
     }
 }
 
@@ -160,8 +160,7 @@ int64_t PartitionedProducerImpl::getLastSequenceId() const {
 
 /*
  * if createProducerCallback is set, it means the closeAsync is called from CreateProducer API which failed to
- * create
- * one or many producers for partitions. So, we have to notify with ERROR on createProducerFailure
+ * create one or many producers for partitions. So, we have to notify with ERROR on createProducerFailure
  */
 void PartitionedProducerImpl::closeAsync(CloseCallback closeCallback) {
     int producerIndex = 0;

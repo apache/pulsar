@@ -16,24 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "SinglePartitionMessageRouter.h"
+#ifndef PULSAR_CPP_MESSAGEROUTERBASE_H
+#define PULSAR_CPP_MESSAGEROUTERBASE_H
+
+#include <boost/interprocess/smart_ptr/unique_ptr.hpp>
+#include <boost/checked_delete.hpp>
+
+#include <pulsar/MessageRoutingPolicy.h>
+#include <pulsar/ProducerConfiguration.h>
+#include "Hash.h"
 
 namespace pulsar {
-SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
-                                                           ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme) {
-    selectedSinglePartition_ = partitionIndex;
-}
+typedef boost::interprocess::unique_ptr<Hash, boost::checked_deleter<Hash> > HashPtr;
 
-// override
-int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        // else pick the next partition
-        return selectedSinglePartition_;
-    }
-}
+class MessageRouterBase : public MessageRoutingPolicy {
+   public:
+    MessageRouterBase(ProducerConfiguration::HashingScheme hashingScheme);
+
+   protected:
+    HashPtr hash;
+};
 }  // namespace pulsar
+
+#endif  // PULSAR_CPP_MESSAGEROUTERBASE_H

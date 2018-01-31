@@ -16,24 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "SinglePartitionMessageRouter.h"
+#ifndef HASH_HPP_
+#define HASH_HPP_
+
+#include <cstdint>
+#include <string>
 
 namespace pulsar {
-SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
-                                                           ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme) {
-    selectedSinglePartition_ = partitionIndex;
-}
-
-// override
-int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        // else pick the next partition
-        return selectedSinglePartition_;
-    }
-}
+class Hash {
+   public:
+    /**
+     * Generate the hash of a given String
+     *
+     * @return The hash of {@param key}, which is non-negative integer.
+     */
+    virtual int32_t makeHash(const std::string& key) = 0;
+};
 }  // namespace pulsar
+
+#endif /* HASH_HPP_ */

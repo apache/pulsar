@@ -20,14 +20,16 @@
 #define PULSAR_RR_MESSAGE_ROUTER_HEADER_
 
 #include <pulsar/MessageRoutingPolicy.h>
+#include <pulsar/ProducerConfiguration.h>
 #include <pulsar/TopicMetadata.h>
-#include <boost/functional/hash.hpp>
 #include <boost/thread/mutex.hpp>
+#include "Hash.h"
+#include "MessageRouterBase.h"
 
 namespace pulsar {
-class RoundRobinMessageRouter : public MessageRoutingPolicy {
+class RoundRobinMessageRouter : public MessageRouterBase {
    public:
-    RoundRobinMessageRouter();
+    RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme);
     virtual ~RoundRobinMessageRouter();
     virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
 
@@ -35,7 +37,6 @@ class RoundRobinMessageRouter : public MessageRoutingPolicy {
     boost::mutex mutex_;
     unsigned int prevPartition_;
 };
-typedef boost::hash<std::string> StringHash;
 typedef boost::unique_lock<boost::mutex> Lock;
 }  // namespace pulsar
 #endif  // PULSAR_RR_MESSAGE_ROUTER_HEADER_

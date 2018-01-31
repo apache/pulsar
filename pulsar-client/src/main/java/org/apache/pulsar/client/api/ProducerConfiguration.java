@@ -45,6 +45,7 @@ public class ProducerConfiguration implements Serializable {
     private int maxPendingMessages = 1000;
     private int maxPendingMessagesAcrossPartitions = 50000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
+    private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
@@ -62,6 +63,11 @@ public class ProducerConfiguration implements Serializable {
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
+    }
+
+    public enum HashingScheme {
+        JavaStringHash,
+        Murmur3_32Hash
     }
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
@@ -136,6 +142,15 @@ public class ProducerConfiguration implements Serializable {
         return this;
     }
 
+    public HashingScheme getHashingScheme() {
+        return hashingScheme;
+    }
+
+    public ProducerConfiguration setHashingScheme(HashingScheme hashingScheme) {
+        this.hashingScheme = hashingScheme;
+        return this;
+    }
+
     /**
      *
      * @return the maximum number of pending messages allowed across all the partitions
@@ -171,7 +186,7 @@ public class ProducerConfiguration implements Serializable {
      * message queue is full.
      * <p>
      * Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
-     * {@link ProducerQueueIsFullError} when there is no space left in pending queue.
+     * {@link PulsarClientException.ProducerQueueIsFullError} when there is no space left in pending queue.
      *
      * @param blockIfQueueFull
      *            whether to block {@link Producer#send} and {@link Producer#sendAsync} operations on queue full
@@ -481,7 +496,8 @@ public class ProducerConfiguration implements Serializable {
             ProducerConfiguration other = (ProducerConfiguration) obj;
             return Objects.equal(this.sendTimeoutMs, other.sendTimeoutMs)
                     && Objects.equal(maxPendingMessages, other.maxPendingMessages)
-                    && Objects.equal(this.messageRouteMode, other.messageRouteMode);
+                    && Objects.equal(this.messageRouteMode, other.messageRouteMode)
+                    && Objects.equal(this.hashingScheme, other.hashingScheme);
         }
 
         return false;

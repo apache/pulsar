@@ -16,27 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
-#define PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
-
-#include <pulsar/MessageRoutingPolicy.h>
-#include <include/pulsar/ProducerConfiguration.h>
-#include "Hash.h"
-#include <pulsar/TopicMetadata.h>
 #include "MessageRouterBase.h"
 
+#include "BoostHash.h"
+#include "JavaStringHash.h"
+#include "Murmur3_32Hash.h"
+
 namespace pulsar {
-
-class SinglePartitionMessageRouter : public MessageRouterBase {
-   public:
-    SinglePartitionMessageRouter(const int partitionIndex,
-                                 ProducerConfiguration::HashingScheme hashingScheme);
-    virtual ~SinglePartitionMessageRouter();
-    virtual int getPartition(const Message& msg, const TopicMetadata& topicMetadata);
-
-   private:
-    int selectedSinglePartition_;
-};
-
+MessageRouterBase::MessageRouterBase(ProducerConfiguration::HashingScheme hashingScheme) {
+    switch (hashingScheme) {
+        case ProducerConfiguration::BoostHash:
+            hash = HashPtr(new BoostHash());
+            break;
+        case ProducerConfiguration::JavaStringHash:
+            hash = HashPtr(new JavaStringHash());
+            break;
+        case ProducerConfiguration::Murmur3_32Hash:
+        default:
+            hash = HashPtr(new Murmur3_32Hash());
+            break;
+    }
+}
 }  // namespace pulsar
-#endif  // PULSAR_SINGLE_PARTITION_MESSAGE_ROUTER_HEADER_
