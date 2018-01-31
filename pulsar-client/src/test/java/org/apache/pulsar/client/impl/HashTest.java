@@ -18,27 +18,32 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.TopicMetadata;
+import org.testng.annotations.Test;
 
-public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
+import static org.testng.Assert.*;
 
-    private final int partitionIndex;
+public class HashTest {
+    @Test
+    public void javaStringHashTest() {
+        Hash h = JavaStringHash.getInstance();
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex, ProducerConfiguration.HashingScheme hashingScheme) {
-        super(hashingScheme);
-        this.partitionIndex = partitionIndex;
+        // Calculating `hashCode()` makes overflow as unsigned int32.
+        String key1 = "keykeykeykeykey1";
+
+        // `hashCode()` is negative as signed int32.
+        String key2 = "keykeykey2";
+
+        // Same value as C++ client
+        assertEquals(434058482, h.makeHash(key1));
+        assertEquals(42978643, h.makeHash(key2));
     }
 
-    @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
-        // If the message has a key, it supersedes the single partition routing policy
-        if (msg.hasKey()) {
-            return hash.makeHash(msg.getKey()) % metadata.numPartitions();
-        }
+    @Test
+    public void murmur3_32HashTest() {
+        Hash h = Murmur3_32Hash.getInstance();
 
-        return partitionIndex;
+        // Same value as C++ client
+        assertEquals(462881061, h.makeHash("key1"));
+        assertEquals(1936800180, h.makeHash("key2"));
     }
-
 }

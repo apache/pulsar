@@ -16,24 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "SinglePartitionMessageRouter.h"
+#ifndef JAVA_DEFAULT_HASH_HPP_
+#define JAVA_DEFAULT_HASH_HPP_
+
+#include "Hash.h"
+
+#include <cstdint>
+#include <string>
+#include <boost/functional/hash.hpp>
 
 namespace pulsar {
-SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
-                                                           ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme) {
-    selectedSinglePartition_ = partitionIndex;
-}
-
-// override
-int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        // else pick the next partition
-        return selectedSinglePartition_;
-    }
-}
+class JavaStringHash : public Hash {
+   public:
+    JavaStringHash();
+    int32_t makeHash(const std::string &key);
+};
 }  // namespace pulsar
+
+#endif /* JAVA_DEFAULT_HASH_HPP_ */

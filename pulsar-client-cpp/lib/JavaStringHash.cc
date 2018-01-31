@@ -16,24 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "SinglePartitionMessageRouter.h"
+#include "JavaStringHash.h"
 
 namespace pulsar {
-SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
-                                                           ProducerConfiguration::HashingScheme hashingScheme)
-    : MessageRouterBase(hashingScheme) {
-    selectedSinglePartition_ = partitionIndex;
+
+JavaStringHash::JavaStringHash() {}
+
+int32_t JavaStringHash::makeHash(const std::string& key) {
+    uint64_t len = key.length();
+    const char* val = key.c_str();
+    uint32_t hash = 0;
+
+    for (int i = 0; i < len; i++) {
+        hash = 31 * hash + val[i];
+    }
+
+    hash &= std::numeric_limits<int32_t>::max();
+
+    return hash;
 }
 
-// override
-int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
-    // if message has a key, hash the key and return the partition
-    if (msg.hasPartitionKey()) {
-        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
-    } else {
-        // else pick the next partition
-        return selectedSinglePartition_;
-    }
-}
 }  // namespace pulsar

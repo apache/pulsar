@@ -18,27 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.TopicMetadata;
+public class JavaStringHash implements Hash {
+    private static final JavaStringHash instance = new JavaStringHash();
 
-public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
+    private JavaStringHash(){ }
 
-    private final int partitionIndex;
-
-    public SinglePartitionMessageRouterImpl(int partitionIndex, ProducerConfiguration.HashingScheme hashingScheme) {
-        super(hashingScheme);
-        this.partitionIndex = partitionIndex;
+    public static Hash getInstance() {
+        return instance;
     }
 
     @Override
-    public int choosePartition(Message msg, TopicMetadata metadata) {
-        // If the message has a key, it supersedes the single partition routing policy
-        if (msg.hasKey()) {
-            return hash.makeHash(msg.getKey()) % metadata.numPartitions();
-        }
-
-        return partitionIndex;
+    public int makeHash(String s) {
+        return s.hashCode() & Integer.MAX_VALUE;
     }
-
 }

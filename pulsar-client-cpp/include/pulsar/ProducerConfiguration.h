@@ -44,6 +44,12 @@ class ProducerConfiguration {
         RoundRobinDistribution,
         CustomPartition
     };
+    enum HashingScheme
+    {
+        Murmur3_32Hash,
+        BoostHash,
+        JavaStringHash
+    };
     ProducerConfiguration();
     ~ProducerConfiguration();
     ProducerConfiguration(const ProducerConfiguration&);
@@ -85,6 +91,9 @@ class ProducerConfiguration {
 
     ProducerConfiguration& setMessageRouter(const MessageRoutingPolicyPtr& router);
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
+
+    ProducerConfiguration& setHashingScheme(const HashingScheme& scheme);
+    HashingScheme getHashingScheme() const;
 
     ProducerConfiguration& setBlockIfQueueFull(bool);
     bool getBlockIfQueueFull() const;
