@@ -181,7 +181,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
-    
+
     @Override
     public PartitionedTopicMetadata getPartitionedTopicMetadata(String destination) throws PulsarAdminException {
         try {
@@ -586,8 +586,8 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         peekMessagesAsync(destination, subName, numMessages, Lists.newArrayList(), future, 1);
         return future;
     }
-    
-    
+
+
     private void peekMessagesAsync(String destination, String subName, int numMessages,
             List<Message> messages, CompletableFuture<List<Message>> future, int nthMessage) {
         if (numMessages <= 0) {
@@ -598,8 +598,8 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         // if peeking first message succeeds, we know that the topic and subscription exists
         peekNthMessage(destination, subName, nthMessage).handle((r, ex) -> {
             if (ex != null) {
-                // if we get a not found exception, it means that the position for the message we are trying to get        
-                // does not exist. At this point, we can return the already found messages.       
+                // if we get a not found exception, it means that the position for the message we are trying to get
+                // does not exist. At this point, we can return the already found messages.
                 if (ex instanceof NotFoundException) {
                     log.warn("Exception '{}' occured while trying to peek Messages.", ex.getMessage());
                     future.complete(messages);
@@ -614,6 +614,28 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
             peekMessagesAsync(destination, subName, numMessages - r.size(), messages, future, nthMessage + 1);
             return null;
         });
+    }
+
+    @Override
+    public void createSubscription(String destination, String subscriptionName, MessageId messageId)
+            throws PulsarAdminException {
+        try {
+            DestinationName ds = validateTopic(destination);
+            String encodedSubName = Codec.encode(subscriptionName);
+            request(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
+                    .path(encodedSubName)).put(Entity.entity(messageId, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Void> createSubscriptionAsync(String destination, String subscriptionName,
+            MessageId messageId) {
+        DestinationName ds = validateTopic(destination);
+        String encodedSubName = Codec.encode(subscriptionName);
+        return asyncPutRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName())
+                .path("subscription").path(encodedSubName), Entity.entity(messageId, MediaType.APPLICATION_JSON));
     }
 
     @Override
@@ -769,7 +791,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }
             buf.release();
-            singleMessageMetadataBuilder.recycle();          
+            singleMessageMetadataBuilder.recycle();
         }
         return ret;
     }
