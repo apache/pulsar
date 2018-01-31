@@ -27,8 +27,8 @@ destination: ../generated-site/content
 
 current_version: 1.21.0-incubating
 archived_releases:
-  - 1.19.0-incubating
   - 1.20.0-incubating
+  - 1.19.0-incubating
 
 markdown: kramdown
 kramdown:
