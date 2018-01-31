@@ -307,6 +307,26 @@ When an application wants to create a producer/consumer, the Pulsar client libra
 
 Whenever the TCP connection breaks, the client will immediately re-initiate this setup phase and will keep trying with exponential backoff to re-establish the producer or consumer until the operation succeeds.
 
+## Pulsar proxy
+
+One way for Pulsar clients to interact with a Pulsar [cluster](#clusters) is by connecting to Pulsar message [brokers](#brokers) directly. In some cases, however, this kind of direct connection is either infeasible or undesirable because the client doesn't have direct access to broker addresses, for example if you're running Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.
+
+The **Pulsar proxy** provides a solution to this problem by acting as a gateway for all brokers in a cluster. If you run the (optional) Pulsar proxy, all client connections with Pulsar will flow through the proxy rather than communicating with brokers.
+
+Architecturally, the Pulsar proxy gets all the information it needs from ZooKeeper. When starting the proxy on a machine, you only need to provide the ZooKeeper connection strings. Here's an example:
+
+```bash
+$ bin/pulsar proxy \
+  --zookeeper-servers localhost \
+  --global-zookeeper-servers localhost
+```
+
+{% include admonition.html type="success" content="For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you'd like." %}
+
+{% include admonition.html type="info" title="Pulsar proxy docs" content='
+For documentation on using the Pulsar proxy, see the [Pulsar proxy](../../admin/Proxy) admin documentation.
+' %}
+
 ## Service discovery
 
 [Clients](../../getting-started/Clients) connecting to Pulsar {% popover brokers %} need to be able to communicate with an entire Pulsar {% popover instance %} using a single URL. Pulsar provides a built-in service discovery mechanism that you can set up using the instructions in the [Deploying a Pulsar instance](../../deployment/InstanceSetup#service-discovery-setup) guide.
