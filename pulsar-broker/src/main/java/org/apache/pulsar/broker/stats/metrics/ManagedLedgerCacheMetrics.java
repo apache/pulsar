@@ -66,7 +66,7 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         long totalAllocated = 0;
         long totalUsed = 0;
 
-        for (PoolArenaMetric arena : allocator.directArenas()) {
+        for (PoolArenaMetric arena : allocator.metric().directArenas()) {
             activeAllocations += arena.numActiveAllocations();
             activeAllocationsTiny += arena.numActiveTinyAllocations();
             activeAllocationsSmall += arena.numActiveSmallAllocations();
