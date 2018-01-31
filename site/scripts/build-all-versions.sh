@@ -19,7 +19,7 @@
 #
 
 
-BUNDLER_VERSION=1.15.1
+BUNDLER_VERSION=1.16.0
 
 for version in $(cat VERSIONS); do
   JEKYLL_ENV=production bundle _${BUNDLER_VERSION}_ exec jekyll build \
