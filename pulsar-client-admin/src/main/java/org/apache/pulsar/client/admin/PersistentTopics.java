@@ -196,7 +196,7 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the partitioned topic is created
      */
     CompletableFuture<Void> createPartitionedTopicAsync(String destination, int numPartitions);
-    
+
     /**
      * Update number of partitions of a non-global partitioned topic.
      * <p>
@@ -208,7 +208,7 @@ public interface PersistentTopics {
      *            Destination name
      * @param numPartitions
      *            Number of new partitions of already exist partitioned-topic
-     * 
+     *
      * @return a future that can be used to track when the partitioned topic is updated
      */
     void updatePartitionedTopic(String destination, int numPartitions) throws PulsarAdminException;
@@ -224,7 +224,7 @@ public interface PersistentTopics {
      *            Destination name
      * @param numPartitions
      *            Number of new partitions of already exist partitioned-topic
-     * 
+     *
      * @return a future that can be used to track when the partitioned topic is updated
      */
     CompletableFuture<Void> updatePartitionedTopicAsync(String destination, int numPartitions);
@@ -311,7 +311,7 @@ public interface PersistentTopics {
      * @return a future that can be used to track when the topic is deleted
      */
     CompletableFuture<Void> deleteAsync(String destination);
-    
+
     /**
      * Unload a topic.
      * <p>
@@ -798,6 +798,42 @@ public interface PersistentTopics {
     CompletableFuture<List<Message>> peekMessagesAsync(String destination, String subName, int numMessages);
 
     /**
+     * Create a new subscription on a topic
+     *
+     * @param destination
+     *            Destination name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws ConflictException
+     *             Subscription already exists
+     * @throws NotAllowedException
+     *             Command disallowed for requested resource
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void createSubscription(String destination, String subscriptionName, MessageId messageId)
+            throws PulsarAdminException;
+
+    /**
+     * Create a new subscription on a topic
+     *
+     * @param destination
+     *            Destination name
+     * @param subscriptionName
+     *            Subscription name
+     * @param messageId
+     *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
+     *            {@link MessageId#earliest} or a specific message id.
+     */
+    CompletableFuture<Void> createSubscriptionAsync(String destination, String subscriptionName, MessageId messageId);
+
+    /**
      * Reset cursor position on a topic subscription
      *
      * @param destination
@@ -829,7 +865,7 @@ public interface PersistentTopics {
      *            reset subscription to position closest to time in ms since epoch
      */
     CompletableFuture<Void> resetCursorAsync(String destination, String subName, long timestamp);
-    
+
     /**
      * Reset cursor position on a topic subscription
      *
