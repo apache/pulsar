@@ -73,6 +73,18 @@ ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendi
 
 int ProducerConfiguration::getMaxPendingMessages() const { return impl_->maxPendingMessages; }
 
+ProducerConfiguration& ProducerConfiguration::setMaxPendingMessagesAcrossPartitions(int maxPendingMessages) {
+    if (maxPendingMessages <= 0) {
+        throw "maxPendingMessages needs to be greater than 0";
+    }
+    impl_->maxPendingMessagesAcrossPartitions = maxPendingMessages;
+    return *this;
+}
+
+int ProducerConfiguration::getMaxPendingMessagesAcrossPartitions() const {
+    return impl_->maxPendingMessagesAcrossPartitions;
+}
+
 ProducerConfiguration& ProducerConfiguration::setPartitionsRoutingMode(const PartitionsRoutingMode& mode) {
     impl_->routingMode = mode;
     return *this;

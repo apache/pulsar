@@ -170,6 +170,12 @@ void PartitionedConsumerImpl::start() {
     config.setBrokerConsumerStatsCacheTimeInMs(conf_.getBrokerConsumerStatsCacheTimeInMs());
     config.setMessageListener(
         boost::bind(&PartitionedConsumerImpl::messageReceived, shared_from_this(), _1, _2));
+
+    // Apply total limit of receiver queue size across partitions
+    config.setReceiverQueueSize(
+        std::min(conf_.getReceiverQueueSize(),
+                 (int)(conf_.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions_)));
+
     // create consumer on each partition
     for (unsigned int i = 0; i < numPartitions_; i++) {
         std::string topicPartitionName = destinationName_->getTopicPartitionName(i);
