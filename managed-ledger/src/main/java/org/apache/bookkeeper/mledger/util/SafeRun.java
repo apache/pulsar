@@ -21,6 +21,9 @@ package org.apache.bookkeeper.mledger.util;
 import java.util.function.Consumer;
 import org.apache.bookkeeper.util.SafeRunnable;
 
+/**
+ * Static builders for {@link SafeRunnable}s.
+ */
 public class SafeRun {
     public static SafeRunnable safeRun(Runnable runnable) {
         return new SafeRunnable() {

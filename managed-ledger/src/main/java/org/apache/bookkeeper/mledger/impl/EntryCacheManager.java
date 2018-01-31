@@ -42,6 +42,7 @@ import org.apache.bookkeeper.mledger.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("checkstyle:javadoctype")
 public class EntryCacheManager {
 
     private final long maxSize;
@@ -238,6 +239,6 @@ public class EntryCacheManager {
     public static Entry create(long ledgerId, long entryId, ByteBuf data) {
         return EntryImpl.create(ledgerId, entryId, data);
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(EntryCacheManager.class);
 }

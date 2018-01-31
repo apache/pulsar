@@ -155,7 +155,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     /**
-     * Helper for getting stats
+     * Helper for getting stats.
      *
      * @return
      */

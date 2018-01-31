@@ -21,6 +21,9 @@
     <suppress checks="JavadocPackage" files=".*[\\/]maven-archetypes[\\/].*"/>
     <suppress checks="JavadocPackage" files=".*[\\/]examples[\\/].*"/>
 
+    <!-- suppress javadoc check for impl classes -->
+    <suppress checks="JavadocType" files=".*Impl\.java$" />
+
     <!-- suppress all checks in the generated directories -->
     <suppress checks=".*" files=".+[\\/]generated[\\/].+\.java" />
     <suppress checks=".*" files=".+[\\/]generated-sources[\\/].+\.java" />
@@ -28,4 +31,5 @@
 
     <!-- suppress all checks in the copied code -->
     <suppress checks=".*" files=".+[\\/]com[\\/]scurrilous[\\/]circe[\\/].+\.java" />
+    <suppress checks=".*" files="MLDataFormats.java" />
 </suppressions>

@@ -33,7 +33,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class OpReadEntry implements ReadEntriesCallback {
+class OpReadEntry implements ReadEntriesCallback {
 
     ManagedCursorImpl cursor;
     PositionImpl readPosition;

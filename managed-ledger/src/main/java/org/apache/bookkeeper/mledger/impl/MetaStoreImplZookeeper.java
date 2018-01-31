@@ -43,6 +43,7 @@ import org.apache.zookeeper.data.ACL;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@SuppressWarnings("checkstyle:javadoctype")
 public class MetaStoreImplZookeeper implements MetaStore {
 
     private static final Charset Encoding = Charsets.UTF_8;

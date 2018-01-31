@@ -76,7 +76,7 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     }
 
     /**
-     * String representation of virtual cursor - LedgerId:EntryId
+     * String representation of virtual cursor - LedgerId:EntryId.
      */
     @Override
     public String toString() {

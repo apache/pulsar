@@ -158,7 +158,8 @@ public class ManagedLedgerOfflineBacklog {
                                             BKException.getMessage(rc));
                                 }
                                 if (rc == BKException.Code.OK) {
-                                    MLDataFormats.ManagedLedgerInfo.LedgerInfo info = MLDataFormats.ManagedLedgerInfo.LedgerInfo
+                                    MLDataFormats.ManagedLedgerInfo.LedgerInfo info =
+                                        MLDataFormats.ManagedLedgerInfo.LedgerInfo
                                             .newBuilder().setLedgerId(id).setEntries(lh.getLastAddConfirmed() + 1)
                                             .setSize(lh.getLength()).setTimestamp(System.currentTimeMillis()).build();
                                     ledgers.put(id, info);
@@ -298,8 +299,8 @@ public class ManagedLedgerOfflineBacklog {
                                             positionInfo = MLDataFormats.PositionInfo.parseFrom(entry.getEntry());
                                         } catch (InvalidProtocolBufferException e) {
                                             log.warn(
-                                                    "[{}] Error reading position from metadata ledger {} for cursor {}: {}",
-                                                    managedLedgerName, ledgerId, cursorName, e);
+                                                "[{}] Error reading position from metadata ledger {} for cursor {}: {}",
+                                                managedLedgerName, ledgerId, cursorName, e);
                                             offlineTopicStats.addCursorDetails(cursorName, errorInReadingCursor,
                                                     lh.getId());
                                             return;

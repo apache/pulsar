@@ -156,7 +156,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     final static long WaitTimeAfterLedgerCreationFailureMs = 10000;
 
     volatile PositionImpl lastConfirmedEntry;
-    
+
     protected static final int DEFAULT_LEDGER_DELETE_RETRIES = 3;
     protected static final int DEFAULT_LEDGER_DELETE_BACKOFF_TIME_SEC = 60;
 
@@ -1110,8 +1110,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                     if (e instanceof BadVersionException) {
                         synchronized (ManagedLedgerImpl.this) {
                             log.error(
-                                    "[{}] Failed to udpate ledger list. z-node version mismatch. Closing managed ledger",
-                                    name);
+                                "[{}] Failed to udpate ledger list. z-node version mismatch. Closing managed ledger",
+                                name);
                             STATE_UPDATER.set(ManagedLedgerImpl.this, State.Fenced);
                             clearPendingAddEntries(e);
                             return;
@@ -1485,7 +1485,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * Checks whether there are ledger that have been fully consumed and deletes them
+     * Checks whether there are ledger that have been fully consumed and deletes them.
      *
      * @throws Exception
      */
@@ -1532,13 +1532,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-                boolean overRetentionQuota = TOTAL_SIZE_UPDATER.get(this) > ((long) config.getRetentionSizeInMB()) * 1024 * 1024;
+                boolean overRetentionQuota = TOTAL_SIZE_UPDATER.get(this) > config.getRetentionSizeInMB() * 1024 * 1024;
 
                 if (log.isDebugEnabled()) {
                     log.debug(
-                            "[{}] Checking ledger {} -- time-old: {} sec -- expired: {} -- over-quota: {} -- current-ledger: {}",
-                            name, ls.getLedgerId(), (System.currentTimeMillis() - ls.getTimestamp()) / 1000.0, expired,
-                            overRetentionQuota, currentLedger.getId());
+                        "[{}] Checking ledger {} -- time-old: {} sec -- "
+                            + "expired: {} -- over-quota: {} -- current-ledger: {}",
+                        name, ls.getLedgerId(), (System.currentTimeMillis() - ls.getTimestamp()) / 1000.0, expired,
+                        overRetentionQuota, currentLedger.getId());
                 }
                 if (ls.getLedgerId() == currentLedger.getId() || (!expired && !overRetentionQuota)) {
                     if (log.isDebugEnabled()) {
@@ -1709,7 +1710,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }
         }, null);
     }
-    
+
+    @SuppressWarnings("checkstyle:fallthrough")
     private void deleteAllLedgers(DeleteLedgerCallback callback, Object ctx) {
         List<LedgerInfo> ledgers = Lists.newArrayList(ManagedLedgerImpl.this.ledgers.values());
         AtomicInteger ledgersToDelete = new AtomicInteger(ledgers.size());
@@ -1769,7 +1771,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * Get the number of entries between a contiguous range of two positions
+     * Get the number of entries between a contiguous range of two positions.
      *
      * @param range
      *            the position range
@@ -1812,7 +1814,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * Get the entry position at a given distance from a given position
+     * Get the entry position at a given distance from a given position.
      *
      * @param startPosition
      *            starting position
@@ -1991,7 +1993,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * Get the last position written in the managed ledger, alongside with the associated counter
+     * Get the last position written in the managed ledger, alongside with the associated counter.
      */
     Pair<PositionImpl, Long> getLastPositionAndCounter() {
         PositionImpl pos;
@@ -2084,7 +2086,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * Throws an exception if the managed ledger has been previously fenced
+     * Throws an exception if the managed ledger has been previously fenced.
      *
      * @throws ManagedLedgerException
      */
@@ -2120,10 +2122,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         this.cursors.forEach(c -> c.setThrottleMarkDelete(config.getThrottleMarkDelete()));
     }
 
-    static interface ManagedLedgerInitializeLedgerCallback {
-        public void initializeComplete();
+    interface ManagedLedgerInitializeLedgerCallback {
+        void initializeComplete();
 
-        public void initializeFailed(ManagedLedgerException e);
+        void initializeFailed(ManagedLedgerException e);
     }
 
     // Expose internal values for debugging purposes
@@ -2172,7 +2174,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     /**
-     * return BK error codes that are considered not likely to be recoverable
+     * return BK error codes that are considered not likely to be recoverable.
      */
     private static boolean isBkErrorNotRecoverable(int rc) {
         switch (rc) {
@@ -2194,7 +2196,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             return new ManagedLedgerException(BKException.getMessage(bkErrorCode));
         }
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ManagedLedgerImpl.class);
 
 }
