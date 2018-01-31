@@ -62,10 +62,10 @@ class InstanceCommunicationServicer(InstanceCommunication_pb2_grpc.InstanceContr
 
 
 def serve(port, pyinstance):
-  server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
+  server_instance = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
   InstanceCommunication_pb2_grpc.add_InstanceControlServicer_to_server(
-    InstanceCommunicationServicer(pyinstance), server)
-  server.add_insecure_port('[::]:%d' % port)
+    InstanceCommunicationServicer(pyinstance), server_instance)
+  server_instance.add_insecure_port('[::]:%d' % port)
   Log.info("Serving InstanceCommunication on port %d" % int(port))
-  server.start()
-  return server
+  server_instance.start()
+  return server_instance
