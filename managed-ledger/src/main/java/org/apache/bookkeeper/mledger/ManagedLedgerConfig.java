@@ -20,13 +20,11 @@ package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
-
 import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 
 /**
  * Configuration class for a ManagedLedger

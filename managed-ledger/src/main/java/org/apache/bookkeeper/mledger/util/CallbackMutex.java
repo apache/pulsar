@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.mledger.util;
 
 import java.util.concurrent.Semaphore;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

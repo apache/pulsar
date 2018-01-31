@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.annotations.Beta;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-
-import com.google.common.annotations.Beta;
 
 /**
  * A factory to open/create managed ledgers and delete them.
