@@ -185,7 +185,7 @@ class PythonInstance(object):
       consumer.acknowledge(orig_message)
 
   def process_result(self, output, msg):
-    if output is not None and self.producer is not None:
+    if output is not None:
       output_bytes = None
       if self.output_serde is None:
         self.setup_output_serde()
