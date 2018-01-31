@@ -75,7 +75,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-admin</artifactId>
+      <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -246,7 +246,6 @@
         </configuration>
         <executions>
           <execution>
-            <phase>process-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>

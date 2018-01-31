@@ -19,7 +19,8 @@
 #include "RoundRobinMessageRouter.h"
 
 namespace pulsar {
-RoundRobinMessageRouter::RoundRobinMessageRouter() : prevPartition_(0) {}
+RoundRobinMessageRouter::RoundRobinMessageRouter(ProducerConfiguration::HashingScheme hashingScheme)
+    : MessageRouterBase(hashingScheme), prevPartition_(0) {}
 
 RoundRobinMessageRouter::~RoundRobinMessageRouter() {}
 
@@ -27,12 +28,12 @@ RoundRobinMessageRouter::~RoundRobinMessageRouter() {}
 int RoundRobinMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
     // if message has a key, hash the key and return the partition
     if (msg.hasPartitionKey()) {
-        static StringHash hash;
-        return hash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
+        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
     } else {
         Lock lock(mutex_);
         // else pick the next partition
         return prevPartition_++ % topicMetadata.getNumPartitions();
     }
 }
+
 }  // namespace pulsar

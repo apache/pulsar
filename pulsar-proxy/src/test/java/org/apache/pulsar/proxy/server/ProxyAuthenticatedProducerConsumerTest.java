@@ -61,7 +61,8 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-
+    private final String DUMMY_VALUE = "DUMMY_VALUE";
+    
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private final String configClusterName = "use";
@@ -117,10 +118,12 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         proxyConfig.setAuthenticationProviders(providers);
+        
+        proxyConfig.setZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
-
         proxyService.start();
     }
 

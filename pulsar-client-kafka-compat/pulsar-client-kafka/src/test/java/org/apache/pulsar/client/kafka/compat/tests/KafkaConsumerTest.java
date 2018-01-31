@@ -27,6 +27,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.kafka.clients.consumer.Consumer;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -82,13 +83,14 @@ public class KafkaConsumerTest extends BrokerTestBase {
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();
@@ -119,13 +121,14 @@ public class KafkaConsumerTest extends BrokerTestBase {
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+                received.incrementAndGet();
             });
         }
 
@@ -162,18 +165,19 @@ public class KafkaConsumerTest extends BrokerTestBase {
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
 
                 Map<TopicPartition, OffsetAndMetadata> offsets = new HashMap<>();
                 offsets.put(new TopicPartition(record.topic(), record.partition()),
                         new OffsetAndMetadata(record.offset()));
                 consumer.commitSync(offsets);
+
+                received.incrementAndGet();
             });
         }
 
@@ -225,9 +229,10 @@ public class KafkaConsumerTest extends BrokerTestBase {
 
         consumers.forEach(consumer -> {
             int expectedMessaged = N / consumers.size();
-            for (int i = 0; i < expectedMessaged; i++) {
+
+            for (int i = 0; i < expectedMessaged;) {
                 ConsumerRecords<String, String> records = consumer.poll(100);
-                assertEquals(records.count(), 1);
+                i += records.count();
             }
 
             // No more messages for this consumer
@@ -260,13 +265,14 @@ public class KafkaConsumerTest extends BrokerTestBase {
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();
@@ -277,13 +283,14 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Thread.sleep(500);
 
         // Messages should be available again
-        for (int i = 0; i < 10; i++) {
+        received.set(0);
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();
@@ -314,13 +321,14 @@ public class KafkaConsumerTest extends BrokerTestBase {
             pulsarProducer.send(msg);
         }
 
-        for (int i = 0; i < 10; i++) {
+        AtomicInteger received = new AtomicInteger();
+        while (received.get() < 10) {
             ConsumerRecords<String, String> records = consumer.poll(100);
-            assertEquals(records.count(), 1);
-            int idx = i;
             records.forEach(record -> {
-                assertEquals(record.key(), Integer.toString(idx));
-                assertEquals(record.value(), "hello-" + idx);
+                assertEquals(record.key(), Integer.toString(received.get()));
+                assertEquals(record.value(), "hello-" + received.get());
+
+                received.incrementAndGet();
             });
 
             consumer.commitSync();

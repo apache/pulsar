@@ -32,8 +32,10 @@ struct ProducerConfigurationImpl {
     int sendTimeoutMs;
     CompressionType compressionType;
     int maxPendingMessages;
+    int maxPendingMessagesAcrossPartitions;
     ProducerConfiguration::PartitionsRoutingMode routingMode;
     MessageRoutingPolicyPtr messageRouter;
+    ProducerConfiguration::HashingScheme hashingScheme;
     bool blockIfQueueFull;
     bool batchingEnabled;
     unsigned int batchingMaxMessages;
@@ -43,7 +45,9 @@ struct ProducerConfigurationImpl {
         : sendTimeoutMs(30000),
           compressionType(CompressionNone),
           maxPendingMessages(1000),
+          maxPendingMessagesAcrossPartitions(50000),
           routingMode(ProducerConfiguration::UseSinglePartition),
+          hashingScheme(ProducerConfiguration::BoostHash),
           blockIfQueueFull(false),
           batchingEnabled(false),
           batchingMaxMessages(1000),
