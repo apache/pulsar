@@ -735,6 +735,20 @@ public class ConsumerImpl extends ConsumerBase {
         }
     }
 
+    void consumerGroupChanged(long activeConsumerId) {
+        if (consumerGroupListener == null) {
+            return;
+        }
+
+        listenerExecutor.submit(() -> {
+            if (consumerId == activeConsumerId) {
+                consumerGroupListener.becomeActive(this, partitionIndex);
+            } else {
+                consumerGroupListener.becomeInactive(this, partitionIndex);
+            }
+        });
+    }
+
     void messageReceived(MessageIdData messageId, ByteBuf headersAndPayload, ClientCnx cnx) {
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Received message: {}/{}", topic, subscription, messageId.getLedgerId(),

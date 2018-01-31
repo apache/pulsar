@@ -21,24 +21,30 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.matches;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandlerContext;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
@@ -57,17 +63,18 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.ZooKeeper;
 import org.mockito.invocation.InvocationOnMock;
@@ -83,9 +90,12 @@ public class PersistentDispatcherFailoverConsumerTest {
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
+    private ServerCnx serverCnxWithOldVersion;
     private ManagedLedger ledgerMock;
     private ManagedCursor cursorMock;
     private ConfigurationCacheService configCacheService;
+    private ChannelHandlerContext channelCtx;
+    private LinkedBlockingQueue<CommandConsumerGroupChange> consumerChanges;
 
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
@@ -115,10 +125,50 @@ public class PersistentDispatcherFailoverConsumerTest {
         brokerService = spy(new BrokerService(pulsar));
         doReturn(brokerService).when(pulsar).getBrokerService();
 
+        consumerChanges = new LinkedBlockingQueue<>();
+        this.channelCtx = mock(ChannelHandlerContext.class);
+        doAnswer(invocationOnMock -> {
+            ByteBuf buf = invocationOnMock.getArgumentAt(0, ByteBuf.class);
+
+            ByteBuf cmdBuf = buf.retainedSlice(4, buf.writerIndex() - 4);
+            try {
+                int cmdSize = (int) cmdBuf.readUnsignedInt();
+                int writerIndex = cmdBuf.writerIndex();
+                cmdBuf.writerIndex(cmdBuf.readerIndex() + cmdSize);
+                ByteBufCodedInputStream cmdInputStream = ByteBufCodedInputStream.get(cmdBuf);
+
+                BaseCommand.Builder cmdBuilder = BaseCommand.newBuilder();
+                BaseCommand cmd = cmdBuilder.mergeFrom(cmdInputStream, null).build();
+                cmdBuilder.recycle();
+                cmdBuf.writerIndex(writerIndex);
+                cmdInputStream.recycle();
+
+                if (cmd.hasConsumerGroupChange()) {
+                    consumerChanges.put(cmd.getConsumerGroupChange());
+                }
+                cmd.recycle();
+            } finally {
+                cmdBuf.release();
+            }
+
+            return null;
+        }).when(channelCtx).write(any());
+
         serverCnx = spy(new ServerCnx(brokerService));
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
+        when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v11.getNumber());
+        when(serverCnx.ctx()).thenReturn(channelCtx);
+
+        serverCnxWithOldVersion = spy(new ServerCnx(brokerService));
+        doReturn(true).when(serverCnxWithOldVersion).isActive();
+        doReturn(true).when(serverCnxWithOldVersion).isWritable();
+        doReturn(new InetSocketAddress("localhost", 1234))
+            .when(serverCnxWithOldVersion).clientAddress();
+        when(serverCnxWithOldVersion.getRemoteEndpointProtocolVersion())
+            .thenReturn(ProtocolVersion.v10.getNumber());
+        when(serverCnxWithOldVersion.ctx()).thenReturn(channelCtx);
 
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
@@ -193,6 +243,51 @@ public class PersistentDispatcherFailoverConsumerTest {
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
     }
 
+    private void verifyConsumerGroupChange(CommandConsumerGroupChange change,
+                                           long consumerId,
+                                           long activeConsumerId) {
+        assertEquals(consumerId, change.getConsumerId());
+        assertEquals(activeConsumerId, change.getActiveConsumerId());
+        change.recycle();
+    }
+
+    @Test
+    public void testConsumerGroupChangesWithOldNewConsumers() throws Exception {
+        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
+        PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
+
+        int partitionIndex = 0;
+        PersistentDispatcherSingleActiveConsumer pdfc = new PersistentDispatcherSingleActiveConsumer(cursorMock,
+                SubType.Failover, partitionIndex, topic);
+
+        // 1. Verify no consumers connected
+        assertFalse(pdfc.isConsumerConnected());
+
+        // 2. Add old consumer
+        Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0,
+                "Cons1"/* consumer name */, 50000, serverCnxWithOldVersion, "myrole-1", Collections.emptyMap());
+        pdfc.addConsumer(consumer1);
+        List<Consumer> consumers = pdfc.getConsumers();
+        assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
+        assertEquals(1, consumers.size());
+        assertNull(consumerChanges.poll());
+
+        verify(channelCtx, times(0)).write(any());
+
+        // 3. Add new consumer
+        Consumer consumer2 = new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0,
+                "Cons2"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap());
+        pdfc.addConsumer(consumer2);
+        consumers = pdfc.getConsumers();
+        assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
+        assertEquals(2, consumers.size());
+
+        CommandConsumerGroupChange change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 2, 1);
+
+        verify(channelCtx, times(1)).write(any());
+    }
+
     @Test
     public void testAddRemoveConsumer() throws Exception {
         log.info("--- Starting PersistentDispatcherFailoverConsumerTest::testAddConsumer ---");
@@ -208,12 +303,15 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertFalse(pdfc.isConsumerConnected());
 
         // 2. Add consumer
-        Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0,
-                "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap());
+        Consumer consumer1 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0,
+                "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap()));
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
         assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
         assertEquals(1, consumers.size());
+        CommandConsumerGroupChange change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 1, 1);
+        verify(consumer1, times(1)).notifyConsumerGroupChange(eq(1L));
 
         // 3. Add again, duplicate allowed
         pdfc.addConsumer(consumer1);
@@ -223,30 +321,56 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 4. Verify active consumer
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
+        // get the notified with who is the leader
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 1, 1);
+        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
 
         // 5. Add another consumer which does not change active consumer
-        Consumer consumer2 = new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                50000, serverCnx, "myrole-1", Collections.emptyMap());
+        Consumer consumer2 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
+                50000, serverCnx, "myrole-1", Collections.emptyMap()));
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
         assertEquals(3, consumers.size());
+        // get notified with who is the leader
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 2, 1);
+        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
+        verify(consumer2, times(1)).notifyConsumerGroupChange(eq(1L));
 
         // 6. Add a consumer which changes active consumer
-        Consumer consumer0 = new Consumer(sub, SubType.Exclusive, topic.getName(), 0 /* consumer id */, 0,
-                "Cons0"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap());
+        Consumer consumer0 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 0 /* consumer id */, 0,
+                "Cons0"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap()));
         pdfc.addConsumer(consumer0);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());
         assertEquals(4, consumers.size());
+
+        // all consumers will receive notifications
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 0, 0);
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 1, 0);
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 1, 0);
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 2, 0);
+        verify(consumer0, times(1)).notifyConsumerGroupChange(eq(0L));
+        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
+        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(0L));
+        verify(consumer2, times(1)).notifyConsumerGroupChange(eq(1L));
+        verify(consumer2, times(1)).notifyConsumerGroupChange(eq(0L));
 
         // 7. Remove last consumer
         pdfc.removeConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());
         assertEquals(3, consumers.size());
+        // not consumer group changes
+        assertNull(consumerChanges.poll());
 
-        // 8. Verify if we can unsubscribe when more than one consumer is connected
+        // 8. Verify if we cannot unsubscribe when more than one consumer is connected
         assertFalse(pdfc.canUnsubscribe(consumer0));
 
         // 9. Remove active consumer
@@ -254,6 +378,12 @@ public class PersistentDispatcherFailoverConsumerTest {
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
         assertEquals(2, consumers.size());
+
+        // the remaining consumers will receive notifications
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 1, 1);
+        change = consumerChanges.take();
+        verifyConsumerGroupChange(change, 1, 1);
 
         // 10. Attempt to remove already removed consumer
         String cause = "";
@@ -269,10 +399,11 @@ public class PersistentDispatcherFailoverConsumerTest {
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
         assertEquals(1, consumers.size());
+        // not consumer group changes
+        assertNull(consumerChanges.poll());
 
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
-
     }
     
     @Test

@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -143,6 +144,19 @@ public class Consumer {
 
     public String consumerName() {
         return consumerName;
+    }
+
+    void notifyConsumerGroupChange(long activeConsumerId) {
+        if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
+            // if the client is older than `v11`, we don't need to send consumer group changes.
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
+                consumerId, topicName, subscription.getName(), activeConsumerId);
+        }
+        cnx.ctx().write(Commands.newConsumerGroupChange(consumerId, activeConsumerId));
     }
 
     /**

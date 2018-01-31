@@ -46,6 +46,8 @@ public class ConsumerConfiguration implements Serializable {
 
     private MessageListener messageListener;
 
+    private ConsumerGroupListener consumerGroupListener;
+
     private int receiverQueueSize = 1000;
 
     private String consumerName = null;
@@ -124,6 +126,33 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
         checkNotNull(messageListener);
         this.messageListener = messageListener;
+        return this;
+    }
+
+    /**
+     * @return this configured {@link ConsumerGroupListener} for the consumer.
+     * @see #setConsumerGroupListener(ConsumerGroupListener)
+     * @since 1.22.0
+     */
+    public ConsumerGroupListener getConsumerGroupListener() {
+        return this.consumerGroupListener;
+    }
+
+    /**
+     * Sets a {@link ConsumerGroupListener} for the consumer.
+     *
+     * <p>The consumer group listener is used for receiving consumer state change in a consumer group for failover
+     * subscription. Application can then react to the consumer state changes.
+     *
+     * <p>This change is experimental. It is subject to changes coming in release 2.0.
+     *
+     * @param listener the consumer group listener object
+     * @return consumer configuration
+     * @since 1.22.0
+     */
+    public ConsumerConfiguration setConsumerGroupListener(ConsumerGroupListener listener) {
+        checkNotNull(listener);
+        this.consumerGroupListener = listener;
         return this;
     }
 

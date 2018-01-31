@@ -26,6 +26,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
@@ -51,7 +52,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -253,6 +253,12 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
                 cmd.getReachedEndOfTopic().recycle();
                 break;
+
+            case CONSUMER_GROUP_CHANGE:
+                handleConsumerGroupChange(cmd.getConsumerGroupChange());
+                cmd.getConsumerGroupChange().recycle();
+                break;
+
             }
         } finally {
             if (cmdBuilder != null) {
@@ -334,6 +340,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleSeek(CommandSeek seek) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleConsumerGroupChange(CommandConsumerGroupChange change) {
         throw new UnsupportedOperationException();
     }
 

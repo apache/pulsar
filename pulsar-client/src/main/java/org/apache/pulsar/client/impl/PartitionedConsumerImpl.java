@@ -438,6 +438,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        if (null != conf.getConsumerGroupListener()) {
+            internalConsumerConfig.setConsumerGroupListener(conf.getConsumerGroupListener());
+        }
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());

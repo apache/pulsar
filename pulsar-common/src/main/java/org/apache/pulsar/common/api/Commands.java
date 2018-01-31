@@ -37,6 +37,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
@@ -347,6 +348,19 @@ public class Commands {
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.UNSUBSCRIBE).setUnsubscribe(unsubscribe));
         unsubscribeBuilder.recycle();
         unsubscribe.recycle();
+        return res;
+    }
+
+    public static ByteBuf newConsumerGroupChange(long consumerId, long activeConsumerId) {
+        CommandConsumerGroupChange.Builder changeBuilder = CommandConsumerGroupChange.newBuilder()
+            .setConsumerId(consumerId)
+            .setActiveConsumerId(activeConsumerId);
+
+        CommandConsumerGroupChange change = changeBuilder.build();
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.CONSUMER_GROUP_CHANGE).setConsumerGroupChange(change));
+        changeBuilder.recycle();
+        change.recycle();
         return res;
     }
 

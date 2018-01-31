@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -222,6 +223,19 @@ public class ClientCnx extends PulsarHandler {
         ConsumerImpl consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
             consumer.messageReceived(cmdMessage.getMessageId(), headersAndPayload, this);
+        }
+    }
+
+    @Override
+    protected void handleConsumerGroupChange(CommandConsumerGroupChange change) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received a consumer group change message from the server : {}", ctx.channel(), change);
+        }
+        ConsumerImpl consumer = consumers.get(change.getConsumerId());
+        if (consumer != null) {
+            consumer.consumerGroupChanged(change.getActiveConsumerId());
         }
     }
 

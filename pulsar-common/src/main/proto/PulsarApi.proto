@@ -131,6 +131,7 @@ enum ProtocolVersion {
 	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
+        v11 = 11;// Added CommandConsumerGroupChange
 }
 
 message CommandConnect {
@@ -292,6 +293,12 @@ message CommandAck {
 
 	optional ValidationError validation_error = 4;
         repeated KeyLongValue properties = 5;
+}
+
+// changes on consumer group
+message CommandConsumerGroupChange {
+        required uint64 consumer_id             = 1;
+        optional uint64 active_consumer_id      = 2;
 }
 
 message CommandFlow {
@@ -457,6 +464,8 @@ message BaseCommand {
 		REACHED_END_OF_TOPIC = 27;
 
 		SEEK = 28;
+
+                CONSUMER_GROUP_CHANGE = 29;
 	}
 
 	required Type type = 1;
@@ -497,4 +506,6 @@ message BaseCommand {
 	optional CommandReachedEndOfTopic reachedEndOfTopic  = 27;
 	
 	optional CommandSeek seek = 28;
+
+        optional CommandConsumerGroupChange consumer_group_change = 29;
 }
