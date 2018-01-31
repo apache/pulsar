@@ -48,7 +48,7 @@ public class WorkerConfig implements Serializable {
     private String functionMetadataTopicName;
     private String pulsarServiceUrl;
     private String pulsarWebServiceUrl;
-    private String clusterCoordinateTopicName;
+    private String clusterCoordinationTopicName;
     private String functionMetadataSnapshotsTopicPath;
     private String pulsarFunctionsNamespace;
     private int numFunctionPackageReplicas;
@@ -57,13 +57,15 @@ public class WorkerConfig implements Serializable {
     private MetricsConfig metricsConfig;
     private long snapshotFreqMs;
     private String stateStorageServiceUrl;
+    private String functionAssignmentTopicName;
+    private String schedulerClassName;
 
     @Data
     @Setter
     @Getter
     @EqualsAndHashCode
     @ToString
-    class ThreadContainerFactory {
+    static class ThreadContainerFactory {
         private String threadGroupName;
     }
     private ThreadContainerFactory threadContainerFactory;
@@ -73,7 +75,7 @@ public class WorkerConfig implements Serializable {
     @Getter
     @EqualsAndHashCode
     @ToString
-    class ProcessContainerFactory {
+    static class ProcessContainerFactory {
         private String javaInstanceJarLocation;
         private String pythonInstanceLocation;
         private String logDirectory;
@@ -86,9 +88,13 @@ public class WorkerConfig implements Serializable {
     }
 
     public String getClusterCoordinationTopic() {
-        return String.format("persistent://%s/%s", pulsarFunctionsNamespace, clusterCoordinateTopicName);
+        return String.format("persistent://%s/%s", pulsarFunctionsNamespace, clusterCoordinationTopicName);
     }
 
+    public String getFunctionAssignmentTopic() {
+        return String.format("persistent://%s/%s", pulsarFunctionsNamespace, functionAssignmentTopicName);
+    }
+    
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);

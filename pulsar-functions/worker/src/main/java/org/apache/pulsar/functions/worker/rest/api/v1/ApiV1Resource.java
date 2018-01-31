@@ -31,6 +31,8 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.Utils;
@@ -84,9 +86,9 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        if (functionRuntimeManager.containsFunction(tenant, namespace, functionName)) {
+        if (functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
             log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
@@ -109,8 +111,7 @@ public class ApiV1Resource extends BaseApiResource {
             functionName,
             Utils.getUniquePackageName(fileDetail.getFileName())));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-        functionMetaDataBuilder.setWorkerId(workerConfig.getWorkerId());
-        
+
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
 
@@ -137,9 +138,9 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        if (!functionRuntimeManager.containsFunction(tenant, namespace, functionName)) {
+        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
@@ -161,7 +162,6 @@ public class ApiV1Resource extends BaseApiResource {
                         functionName,
                         Utils.getUniquePackageName(fileDetail.getFileName())));
         functionMetaDataBuilder.setPackageLocation(packageLocationMetaDataBuilder);
-        functionMetaDataBuilder.setWorkerId(workerConfig.getWorkerId());
 
         return updateRequest(functionMetaDataBuilder.build(), uploadedInputStream);
     }
@@ -184,8 +184,8 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
-        if (!functionRuntimeManager.containsFunction(tenant, namespace, functionName)) {
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
             log.error("Function to deregister does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
@@ -194,7 +194,7 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         CompletableFuture<RequestResult> completableFuture
-                = functionRuntimeManager.deregisterFunction(tenant, namespace, functionName);
+                = functionMetaDataManager.deregisterFunction(tenant, namespace, functionName);
 
         RequestResult requestResult = null;
         try {
@@ -240,8 +240,8 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
-        if (!functionRuntimeManager.containsFunction(tenant, namespace, functionName)) {
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
             log.error("Function in getFunction does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
@@ -249,61 +249,65 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-        FunctionMetaData functionMetaData = functionRuntimeManager.getFunction(tenant, namespace, functionName).getFunctionMetaData();
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
         String functionConfigJson = JsonFormat.printer().print(functionMetaData.getFunctionConfig());
         return Response.status(Response.Status.OK).entity(functionConfigJson).build();
     }
 
-    @GET
-    @Path("/{tenant}/{namespace}/{functionName}/status")
-    public Response getFunctionStatus(final @PathParam("tenant") String tenant,
-                                    final @PathParam("namespace") String namespace,
-                                    final @PathParam("functionName") String functionName) throws InvalidProtocolBufferException {
-
-        // validate parameters
-        try {
-            validateGetFunctionRequestParams(tenant, namespace, functionName);
-        } catch (IllegalArgumentException e) {
-            log.error("Invalid getFunctionStatus request @ /{}/{}/{}",
-                    tenant, namespace, functionName, e);
-            return Response.status(Response.Status.BAD_REQUEST)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(e.getMessage())).build();
-        }
-
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
-        if (!functionRuntimeManager.containsFunction(tenant, namespace, functionName)) {
-            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
-                    tenant, namespace, functionName);
-            return Response.status(Status.NOT_FOUND)
-                    .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
-        }
-
-        FunctionRuntimeInfo functionRuntimeInfo = functionRuntimeManager.getFunction(tenant, namespace, functionName);
-        Spawner spawner = functionRuntimeInfo.getSpawner();
-        FunctionStatus functionStatus;
-        if (spawner != null) {
-            try {
-                functionStatus = spawner.getFunctionStatus().get();
-            } catch (Exception ex) {
-                log.error("Got Exception Getting Status from Spawner", ex);
-                FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-                functionStatusBuilder.setRunning(false);
-                String functionConfigJson = JsonFormat.printer().print(functionStatusBuilder.build());
-                return Response.status(Response.Status.OK).entity(functionConfigJson).build();
-            }
-        } else {
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
-            functionStatusBuilder.setRunning(false);
-            if (functionRuntimeInfo.getStartupException() != null) {
-                functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
-            }
-            functionStatus = functionStatusBuilder.build();
-        }
-        String functionConfigJson = JsonFormat.printer().print(functionStatus);
-        return Response.status(Response.Status.OK).entity(functionConfigJson).build();
-    }
+// TODO: write start up status back to FMT
+//    @GET
+//    @Path("/{tenant}/{namespace}/{functionName}/status")
+//    public Response getFunctionStatus(final @PathParam("tenant") String tenant,
+//                                      final @PathParam("namespace") String namespace,
+//                                      final @PathParam("functionName") String functionName) throws InvalidProtocolBufferException {
+//
+//        // validate parameters
+//        try {
+//            validateGetFunctionRequestParams(tenant, namespace, functionName);
+//        } catch (IllegalArgumentException e) {
+//            log.error("Invalid getFunctionStatus request @ /{}/{}/{}",
+//                    tenant, namespace, functionName, e);
+//            return Response.status(Response.Status.BAD_REQUEST)
+//                    .type(MediaType.APPLICATION_JSON)
+//                    .entity(new ErrorData(e.getMessage())).build();
+//        }
+//
+//        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+//        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
+//            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
+//                    tenant, namespace, functionName);
+//            return Response.status(Status.NOT_FOUND)
+//                    .type(MediaType.APPLICATION_JSON)
+//                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+//        }
+//
+//        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
+//        FunctionRuntimeInfo functionRuntimeInfo = functionRuntimeManager.getFunctionRuntimeInfo(
+//                FunctionConfigUtils.getFullyQualifiedName(tenant, namespace, functionName));
+//
+//        Spawner spawner = functionRuntimeInfo.getSpawner();
+//        FunctionStatus functionStatus;
+//        if (spawner != null) {
+//            try {
+//                functionStatus = spawner.getFunctionStatus().get();
+//            } catch (Exception ex) {
+//                log.error("Got Exception Getting Status from Spawner", ex);
+//                FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+//                functionStatusBuilder.setRunning(false);
+//                String functionConfigJson = JsonFormat.printer().print(functionStatusBuilder.build());
+//                return Response.status(Response.Status.OK).entity(functionConfigJson).build();
+//            }
+//        } else {
+//            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+//            functionStatusBuilder.setRunning(false);
+//            if (functionRuntimeInfo.getStartupException() != null) {
+//                functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
+//            }
+//            functionStatus = functionStatusBuilder.build();
+//        }
+//        String functionConfigJson = JsonFormat.printer().print(functionStatus);
+//        return Response.status(Response.Status.OK).entity(functionConfigJson).build();
+//    }
 
     @GET
     @Path("/{tenant}/{namespace}")
@@ -321,9 +325,9 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        Collection<String> functionStateList = functionRuntimeManager.listFunctions(tenant, namespace);
+        Collection<String> functionStateList = functionMetaDataManager.listFunctions(tenant, namespace);
 
         return Response.status(Response.Status.OK).entity(new Gson().toJson(functionStateList.toArray())).build();
     }
@@ -347,10 +351,10 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         // Submit to FMT
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
         CompletableFuture<RequestResult> completableFuture
-                = functionRuntimeManager.updateFunction(functionMetaData);
+                = functionMetaDataManager.updateFunction(functionMetaData);
 
         RequestResult requestResult = null;
         try {

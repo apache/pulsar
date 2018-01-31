@@ -18,43 +18,55 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.util.LinkedList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CompletionStage;
-import java.util.function.Function;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 
 /**
  * A simple implementation of leader election using a pulsar topic.
  */
 @Slf4j
-public class LeaderElector implements AutoCloseable {
+public class MembershipManager implements AutoCloseable {
 
     private final Producer producer;
     private final Consumer consumer;
-    private String workerId;
+    private WorkerConfig workerConfig;
+    private PulsarAdmin pulsarAdminClient;
 
-    LeaderElector(String workerId, String topic, PulsarClient client) throws PulsarClientException {
-        producer = client.createProducer(topic);
-        consumer = client.subscribe(topic, "participants",
+    // need to trigger when membership changes
+    private SchedulerManager schedulerManager;
+
+    private static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
+
+    MembershipManager(WorkerConfig workerConfig, SchedulerManager schedulerManager, PulsarClient client)
+            throws PulsarClientException {
+        producer = client.createProducer(workerConfig.getClusterCoordinationTopic());
+        consumer = client.subscribe(workerConfig.getClusterCoordinationTopic(), COORDINATION_TOPIC_SUBSCRIPTION,
                 new ConsumerConfiguration()
-                        .setSubscriptionType(SubscriptionType.Failover));
-        this.workerId = workerId;
+                        .setSubscriptionType(SubscriptionType.Failover)
+                        .setConsumerName(workerConfig.getWorkerId()));
+        this.workerConfig = workerConfig;
+        this.schedulerManager = schedulerManager;
     }
 
     public CompletableFuture<Boolean> becomeLeader() {
         long time = System.currentTimeMillis();
-        String str = String.format("%s-%d", this.workerId, time);
+        String str = String.format("%s-%d", this.workerConfig.getWorkerId(), time);
         return producer.sendAsync(str.getBytes())
-                .thenCompose(messageId -> LeaderElector.this.receiveTillMessage((MessageIdImpl) messageId))
+                .thenCompose(messageId -> MembershipManager.this.receiveTillMessage((MessageIdImpl) messageId))
                 .exceptionally(cause -> false);
     }
 
@@ -68,6 +80,7 @@ public class LeaderElector implements AutoCloseable {
         consumer.receiveAsync()
                 .thenAccept(message -> {
                     MessageIdImpl idReceived = (MessageIdImpl) message.getMessageId();
+
                     int compareResult = idReceived.compareTo(endMsgId);
                     if (compareResult < 0) {
                         // drop the message
@@ -93,10 +106,39 @@ public class LeaderElector implements AutoCloseable {
                 });
     }
 
+    public List<String> getCurrentMembership() {
+
+        List<String> workerIds = new LinkedList<>();
+        PersistentTopicStats persistentTopicStats = null;
+        PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
+        try {
+            persistentTopicStats = pulsarAdmin.persistentTopics().getStats(
+                    this.workerConfig.getClusterCoordinationTopic());
+        } catch (PulsarAdminException e) {
+            e.printStackTrace();
+        }
+
+        for (ConsumerStats consumerStats : persistentTopicStats.subscriptions
+                .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
+            workerIds.add(consumerStats.consumerName);
+        }
+        return workerIds;
+    }
+
+    private PulsarAdmin getPulsarAdminClient() {
+        if (this.pulsarAdminClient == null) {
+            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+        }
+        return this.pulsarAdminClient;
+    }
+
     @Override
     public void close() throws PulsarClientException {
         producer.close();
         consumer.close();
+        if (this.pulsarAdminClient != null) {
+            this.pulsarAdminClient.close();
+        }
     }
 
 }

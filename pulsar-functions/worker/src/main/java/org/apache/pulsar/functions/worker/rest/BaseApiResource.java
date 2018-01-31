@@ -19,6 +19,7 @@
 package org.apache.pulsar.functions.worker.rest;
 
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
@@ -29,9 +30,11 @@ public class BaseApiResource {
 
     public static final String ATTRIBUTE_WORKER_CONFIG = "config";
     public static final String ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER = "function-state-manager";
+    public static final String ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER = "function-runtime-manager";
     public static final String ATTRIBUTE_WORKER_DLOG_NAMESPACE = "distributedlog-namespace";
 
     private WorkerConfig workerConfig;
+    private FunctionMetaDataManager functionMetaDataManager;
     private FunctionRuntimeManager functionRuntimeManager;
     private Namespace dlogNamespace;
 
@@ -45,9 +48,18 @@ public class BaseApiResource {
         return this.workerConfig;
     }
 
-    public FunctionRuntimeManager getWorkerFunctionStateManager() {
+    public FunctionMetaDataManager getWorkerFunctionStateManager() {
+        if (this.functionMetaDataManager == null) {
+            this.functionMetaDataManager
+                    = (FunctionMetaDataManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER);
+        }
+        return this.functionMetaDataManager;
+    }
+
+    public FunctionRuntimeManager getWorkerFunctionRuntimeManager() {
         if (this.functionRuntimeManager == null) {
-            this.functionRuntimeManager = (FunctionRuntimeManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER);
+            this.functionRuntimeManager
+                    = (FunctionRuntimeManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER);
         }
         return this.functionRuntimeManager;
     }

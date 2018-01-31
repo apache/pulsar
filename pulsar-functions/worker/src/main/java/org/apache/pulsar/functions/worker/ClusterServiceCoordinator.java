@@ -22,7 +22,6 @@ package org.apache.pulsar.functions.worker;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 import java.util.HashMap;
@@ -51,17 +50,12 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     private final String workerId;
     private final Map<String, TimerTaskInfo> tasks = new HashMap<>();
     private final Timer timer;
-    private final LeaderElector leaderElector;
+    private final MembershipManager membershipManager;
 
-    public ClusterServiceCoordinator(String workerId, String coordinationTopic, PulsarClient client) {
+    public ClusterServiceCoordinator(String workerId, MembershipManager membershipManager) {
         this.workerId = workerId;
         this.timer = new Timer();
-        try {
-            this.leaderElector = new LeaderElector(this.workerId, coordinationTopic, client);
-        } catch (PulsarClientException e) {
-            log.error("Error creating leader elector", e);
-            throw new RuntimeException(e);
-        }
+        this.membershipManager = membershipManager;
     }
 
     public void addTask(String taskName, long interval, Runnable task) {
@@ -77,7 +71,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
                 public void run() {
                     boolean isLeader = false;
                     try {
-                        isLeader = leaderElector.becomeLeader().get(30, TimeUnit.SECONDS);
+                        isLeader = membershipManager.becomeLeader().get(30, TimeUnit.SECONDS);
                     } catch (InterruptedException | ExecutionException | TimeoutException e) {
                         log.warn("Failed to attempt becoming leader", e);
                     }
@@ -97,12 +91,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
     @Override
     public void close() {
         log.info("Stopping Cluster Service Coordinator for worker {}", this.workerId);
-        try {
-            this.leaderElector.close();
-            this.timer.cancel();
-        } catch (PulsarClientException e) {
-            log.error("Failed to stop Cluster Service Coordinator for worker {}", this.workerId, e);
-        }
+        this.timer.cancel();
         log.info("Stopped Cluster Service Coordinator for worker", this.workerId);
     }
 }

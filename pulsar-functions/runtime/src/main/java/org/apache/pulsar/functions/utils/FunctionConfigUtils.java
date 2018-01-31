@@ -47,7 +47,11 @@ public class FunctionConfigUtils {
     }
 
     public static String getFullyQualifiedName(FunctionConfig functionConfig) {
-        return String.format("%s/%s/%s", functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+        return getFullyQualifiedName(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+    }
+
+    public static String getFullyQualifiedName(String tenant, String namespace, String functionName) {
+        return String.format("%s/%s/%s", tenant, namespace, functionName);
     }
 
     public static String extractTenantFromFQN(String fullyQualifiedName) {
