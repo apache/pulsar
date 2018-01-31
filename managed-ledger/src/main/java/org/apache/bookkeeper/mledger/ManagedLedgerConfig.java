@@ -319,6 +319,16 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * Set the retention time for the ManagedLedger
+     * <p>
+     * Retention time will prevent data from being deleted for at least the specified amount of time, even if no cursors
+     * are created, or if all the cursors have marked the data for deletion.
+     * <p>
+     * A retention time of 0 (the default), will to have no time based retention.
+     * <p>
+     * Specifying a negative retention time will make the data to be retained indefinitely, based on the
+     * {@link #setRetentionSizeInMB(long)} value.
+     *
      * @param retentionTime
      *            duration for which messages should be retained
      * @param unit
@@ -338,6 +348,15 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * The retention size is used to set a maximum retention size quota on the ManagedLedger.
+     * <p>
+     * This setting works in conjuction with {@link #setRetentionSizeInMB(long)} and places a max size for retention,
+     * after which the data is deleted.
+     * <p>
+     * A retention size of 0, will make data to be deleted immediately.
+     * <p>
+     * A retention size of -1, means to have an unlimited retention size.
+     *
      * @param retentionSizeInMB
      *            quota for message retention
      */
@@ -357,7 +376,7 @@ public class ManagedLedgerConfig {
     /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
      * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
-     * 
+     *
      * @param autoSkipNonRecoverableData
      */
     public boolean isAutoSkipNonRecoverableData() {
@@ -384,10 +403,10 @@ public class ManagedLedgerConfig {
         this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
         return this;
     }
-    
+
     /**
      * @return max unacked message ranges up to which it can store in Zookeeper
-     * 
+     *
      */
     public int getMaxUnackedRangesToPersistInZk() {
         return maxUnackedRangesToPersistInZk;
