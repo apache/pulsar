@@ -77,7 +77,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;
 
-    public List<String> getPropertyNamespaces(String property) {
+    protected List<String> internalGetPropertyNamespaces(String property) {
         validateAdminAccessOnProperty(property);
 
         try {

@@ -77,7 +77,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property doesn't exist") })
     public List<String> getPropertyNamespaces(@PathParam("property") String property) {
-        return super.getPropertyNamespaces(property);
+        return internalGetPropertyNamespaces(property);
     }
 
     @GET

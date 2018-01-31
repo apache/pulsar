@@ -65,7 +65,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property doesn't exist") })
     public List<String> getPropertyNamespaces(@PathParam("property") String property) {
-        return super.getPropertyNamespaces(property);
+        return internalGetPropertyNamespaces(property);
     }
 
     @GET
@@ -369,7 +369,7 @@ public class Namespaces extends NamespacesBase {
     }
 
     @POST
-    @Path("/{property/{namespace}/retention")
+    @Path("/{property}/{namespace}/retention")
     @ApiOperation(value = " Set retention configuration on a namespace.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Namespace does not exist"),

@@ -190,11 +190,22 @@ public abstract class AdminResource extends PulsarWebResource {
     protected List<String> getListOfNamespaces(String property) throws Exception {
         List<String> namespaces = Lists.newArrayList();
 
-        for (String cluster : globalZk().getChildren(path(POLICIES, property), false)) {
+        // this will return a cluster in v1 and a namespace in v2
+        for (String clusterOrNamespace : globalZk().getChildren(path(POLICIES, property), false)) {
             // Then get the list of namespaces
             try {
-                for (String namespace : globalZk().getChildren(path(POLICIES, property, cluster), false)) {
-                    namespaces.add(String.format("%s/%s/%s", property, cluster, namespace));
+                final List<String> children = globalZk().getChildren(path(POLICIES, property, clusterOrNamespace), false);
+                if (children == null || children.isEmpty()) {
+                    String namespace = NamespaceName.get(property, clusterOrNamespace).toString();
+                    // if the length is 0 then this is probably a leftover cluster from namespace created
+                    // with the v1 admin format (prop/cluster/ns) and then deleted, so no need to add it to the list
+                    if (globalZk().getData(path(POLICIES, namespace), false, null).length != 0) {
+                        namespaces.add(namespace);
+                    }
+                } else {
+                    children.forEach(ns -> {
+                        namespaces.add(NamespaceName.get(property, clusterOrNamespace, ns).toString());
+                    });
                 }
             } catch (KeeperException.NoNodeException e) {
                 // A cluster was deleted between the 2 getChildren() calls, ignoring
