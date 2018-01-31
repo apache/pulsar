@@ -23,21 +23,31 @@ title: The Pulsar proxy
 
 -->
 
-[`proxy`](../../reference/CliTools#pulsar-proxy) command
+The [Pulsar proxy](../../getting-started/ConceptsAndArchitecture#pulsar-proxy) is an optional gateway that you can run over the {% popover brokers %} in a Pulsar {% popover cluster %}. We recommend running a Pulsar proxy in cases when direction connections between clients and Pulsar brokers are either infeasible, undesirable, or both, for example when running Pulsar in a cloud environment or on [Kubernetes](https://kubernetes.io) or an analogous platform.
+
+## Running the proxy
+
+In order to run the Pulsar proxy, you need to have both a local and global [ZooKeeper](https://zookeeper.apache.org) quorum set up for use by your Pulsar cluster. For instructions, see [this document](../../deployment/cluster). Once you have ZooKeeper set up and have connection strings for both ZooKeeper quorums, you can use the [`proxy`](../../reference/CliTools#pulsar-proxy) command of the [`pulsar`](../../reference/CliTools#pulsar) CLI tool to start up the proxy (preferably on its own machine or in its own VM):
 
 To start the proxy:
 
 ```bash
+$ cd /path/to/pulsar/directory
 $ bin/pulsar proxy \
   --zookeeper-servers zk-0,zk-1,zk-2 \
   --global-zookeeper-servers zk-0,zk-1,zk-2
 ```
 
-## Notes
+{% include admonition.html type="success" content="You can run as many instances of the Pulsar proxy in a cluster as you would like." %}
 
-* You can run multiple proxy nodes
-* Stateless proxy over multiple brokers (all brokers in a cluster)
-* Helpful when direct connectivity between clients and brokers is either not possible or not desirable (good way to avoid administrative overhead)
-* Example: Kubernetes (clients can't access individual brokers and thus require a proxy to connect)
-* All lookup and data connections flow through a proxy instance; those instances can be exposed via, for example, a load balancer
-* Minimal interaction between client and broker
+## Stopping the proxy
+
+The Pulsar proxy runs by default in the foreground. To stop the proxy, simply stop the process in which it's running.
+
+## Proxy frontends
+
+We recommend running the Pulsar proxy behind some kind of load-distributing frontend, such as an [HAProxy](https://www.digitalocean.com/community/tutorials/an-introduction-to-haproxy-and-load-balancing-concepts) load balancer.
+
+## Using Pulsar clients with the proxy
+
+Once your Pulsar proxy is up and running, preferably behind a load-distributing [frontend](#proxy-frontends), clients can connect to the proxy via whichever address is used by the frontend. If the address were the DNS address `pulsar.cluster.default`, for example, then the connection URL for clients would be `pulsar://pulsar.cluster.default:6650`.
