@@ -18,19 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import io.netty.channel.EventLoopGroup;
-import io.netty.util.HashedWheelTimer;
-import io.netty.util.Timer;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -38,6 +30,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -55,6 +48,14 @@ import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+
+import io.netty.channel.EventLoopGroup;
+import io.netty.util.HashedWheelTimer;
+import io.netty.util.Timer;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 public class PulsarClientImpl implements PulsarClient {
 
@@ -309,16 +310,11 @@ public class PulsarClientImpl implements PulsarClient {
         if (topics == null || topics.isEmpty()) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Empty topics name"));
         }
-        if (topics.size() == 1) {
-            return subscribeAsync(topics.stream().findFirst().get(), subscription, conf);
-        }
 
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
-        if (topicsNameInvalid(topics)) {
-            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
-        }
+
         if (isBlank(subscription)) {
             return FutureUtil
                 .failedFuture(new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
@@ -338,35 +334,6 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         return consumerSubscribedFuture;
-    }
-
-    // Check topics are valid.
-    // - each topic is valid,
-    // - every topic has same namespace.
-    private boolean topicsNameInvalid(Collection<String> topics) {
-        checkState(topics != null && topics.size() > 1,
-            "topics should should contain more than 1 topics");
-
-        final String namespace = DestinationName.get(topics.stream().findFirst().get()).getNamespace();
-
-        Optional<String> result = topics.stream()
-            .filter(topic -> {
-                boolean topicInvalid = !DestinationName.isValid(topic);
-                if (topicInvalid) {
-                    return true;
-                }
-
-                String newNamespace =  DestinationName.get(topic).getNamespace();
-                if (!namespace.equals(newNamespace)) {
-                    return true;
-                } else {
-                    return false;
-                }
-            }).findFirst();
-        if (result.isPresent()) {
-            log.warn("[{}] Received invalid topic name.  {}/{}", result.get());
-        }
-        return result.isPresent();
     }
 
     @Override

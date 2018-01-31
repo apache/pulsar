@@ -26,6 +26,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Predicate;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.slf4j.Logger;
@@ -173,6 +174,30 @@ public class UnAckedMessageTracker implements Closeable {
         try {
             int currentSetRemovedMsgCount = currentSet.removeIf(m -> (m.compareTo(msgId) <= 0));
             int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> (m.compareTo(msgId) <= 0));
+
+            return currentSetRemovedMsgCount + oldSetRemovedMsgCount;
+        } finally {
+            readLock.unlock();
+        }
+    }
+
+    public int removeTopicMessages(String topicName) {
+        readLock.lock();
+        try {
+            int currentSetRemovedMsgCount = currentSet.removeIf(m -> {
+                if (m instanceof TopicMessageIdImpl) {
+                    return m.getTopicName().contains(topicName);
+                } else {
+                    return false;
+                }
+            });
+            int oldSetRemovedMsgCount = oldOpenSet.removeIf(m -> {
+                if (m instanceof TopicMessageIdImpl) {
+                    return m.getTopicName().contains(topicName);
+                } else {
+                    return false;
+                }
+            });
 
             return currentSetRemovedMsgCount + oldSetRemovedMsgCount;
         } finally {
