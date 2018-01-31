@@ -1225,9 +1225,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/advanced/PartitionedTopics/">Partitioned topics</a></li>
-          
-          
           
           
           
@@ -1368,17 +1368,16 @@
   <li>Create your ECDSA or RSA public/private key pair.</li>
 </ol>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>    openssl ecparam -name secp521r1 -genkey -param_enc explicit -out test_ecdsa_privkey.pem
-    openssl ec -in test_ecdsa_privkey.pem -pubout -outform pkcs8 -out test_ecdsa_pubkey.pem
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    openssl ecparam <span class="nt">-name</span> secp521r1 <span class="nt">-genkey</span> <span class="nt">-param_enc</span> explicit <span class="nt">-out</span> test_ecdsa_privkey.pem
+    openssl ec <span class="nt">-in</span> test_ecdsa_privkey.pem <span class="nt">-pubout</span> <span class="nt">-outform</span> pkcs8 <span class="nt">-out</span> test_ecdsa_pubkey.pem
+</code></pre></div></div>
 <ol>
   <li>Add the public and private key to the key management and configure your producers to retrieve public keys and consumers clients to retrieve private keys.</li>
   <li>Implement CryptoKeyReader::getPublicKey() interface from producer and CryptoKeyReader::getPrivateKey() interface from consumer, which will be invoked by Pulsar client to load the key.</li>
   <li>Add encryption key to producer configuration: conf.addEncryptionKey(“myapp.key”)</li>
   <li>Add CryptoKeyReader implementation to producer/consumer config: conf.setCryptoKeyReader(keyReader)</li>
   <li>Sample producer application:
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
 
          <span class="n">String</span> <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
          <span class="n">String</span> <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
@@ -1425,11 +1424,10 @@
      <span class="o">}</span>
 
      <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
   <li>Sample Consumer Application:
-    <div class="language-java highlighter-rouge"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
+    <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>     <span class="kd">class</span> <span class="nc">RawFileKeyReader</span> <span class="kd">implements</span> <span class="n">CryptoKeyReader</span> <span class="o">{</span>
 
          <span class="n">String</span> <span class="n">publicKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
          <span class="n">String</span> <span class="n">privateKeyFile</span> <span class="o">=</span> <span class="s">""</span><span class="o">;</span>
@@ -1479,8 +1477,7 @@
      <span class="c1">// Acknowledge the consumption of all messages at once</span>
      <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledgeCumulative</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
      <span class="n">pulsarClient</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ol>
 
@@ -1497,10 +1494,9 @@
 <p>In some cases, the producer may want to encrypt the messages with multiple keys. For this, add all such keys to the config. Consumer will be able to decrypt the message, as long as it has access to at least one of the keys.</p>
 
 <p>E.g: If messages needs to be encrypted using 2 keys myapp.messagekey1 and myapp.messagekey2,</p>
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey1"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey1"</span><span class="o">);</span>
 <span class="n">conf</span><span class="o">.</span><span class="na">addEncryptionKey</span><span class="o">(</span><span class="s">"myapp.messagekey2"</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 <h2 id="decrypting-encrypted-messages-at-the-consumer-application">Decrypting encrypted messages at the consumer application:</h2>
 <p>Consumers require access one of the private keys to decrypt messages produced by the producer. If you would like to receive encrypted messages, create a public/private key and give your public key to the producer application to encrypt messages using your public key.</p>
 

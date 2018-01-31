@@ -784,9 +784,8 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-create"><code class="highlighter-rouge">create</code></a> subcommand and specify the namespace by name:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces create <span class="nb">test</span>-property/cl1/ns1
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces create test-property/cl1/ns1
+</code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
@@ -796,9 +795,8 @@
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">createNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">createNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="get-policies">Get policies</h3>
 
@@ -808,7 +806,7 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-policies"><code class="highlighter-rouge">policies</code></a> subcommand and specify the namespace:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces policies <span class="nb">test</span>-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces policies test-property/cl1/ns1
 <span class="o">{</span>
   <span class="s2">"auth_policies"</span>: <span class="o">{</span>
     <span class="s2">"namespace_auth"</span>: <span class="o">{}</span>,
@@ -830,8 +828,7 @@
   <span class="s2">"retention_policies"</span>: null,
   <span class="s2">"deleted"</span>: <span class="nb">false</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -841,9 +838,8 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPolicies</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPolicies</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="list-namespaces-within-a-property">List namespaces within a property</h3>
 
@@ -853,11 +849,10 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list"><code class="highlighter-rouge">list</code></a> subcommand and specify the property:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces list <span class="nb">test</span>-property
-<span class="nb">test</span>-property/cl1/ns1
-<span class="nb">test</span>-property/cl2/ns2
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list test-property
+test-property/cl1/ns1
+test-property/cl2/ns2
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -867,9 +862,8 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="list-namespaces-within-a-cluster">List namespaces within a cluster</h3>
 
@@ -879,11 +873,10 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-list-cluster"><code class="highlighter-rouge">list-cluster</code></a> subcommand and specify the cluster:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces list-cluster <span class="nb">test</span>-property/cl1
-<span class="nb">test</span>-property/cl1/ns1
-<span class="nb">test</span>-property/cl1/ns1
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces list-cluster test-property/cl1
+test-property/cl1/ns1
+test-property/cl1/ns1
+</code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
@@ -893,9 +886,8 @@
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">cluster</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaces</span><span class="o">(</span><span class="n">property</span><span class="o">,</span> <span class="n">cluster</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="delete">Delete</h3>
 
@@ -905,9 +897,8 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the namespace:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces delete <span class="nb">test</span>-property/cl1/ns1
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces delete test-property/cl1/ns1
+</code></pre></div></div>
 
 <h4 id="rest">REST</h4>
 
@@ -917,9 +908,8 @@
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">deleteNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h4 id="set-replication-cluster">set replication cluster</h4>
 
@@ -927,22 +917,19 @@
 
 <h6 id="cli">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-clusters test-property/cl1/ns1 \
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-clusters test-property/cl1/ns1 \
   --clusters cl2
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h6 id="rest-1">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:property&lt;/span&gt;/&lt;span class="endpoint"&gt;:cluster&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>&lt;div class="highlighter-rouge endpoint"&gt;&lt;pre class="highlight"&gt;&lt;code class="method post"&gt;POST&lt;/code&gt;&lt;code class="url"&gt;/admin/namespaces/&lt;span class="endpoint"&gt;:property&lt;/span&gt;/&lt;span class="endpoint"&gt;:cluster&lt;/span&gt;/&lt;span class="endpoint"&gt;:namespace&lt;/span&gt;/replication&lt;/code&gt;&lt;/pre&gt;&lt;/div&gt;
+</code></pre></div></div>
 
 <h6 id="java-5">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">clusters</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="get-replication-cluster">get replication cluster</h4>
 
@@ -950,25 +937,21 @@
 
 <h6 id="cli-1">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-clusters test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-clusters test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>cl2
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>cl2
+</code></pre></div></div>
 
 <h6 id="rest-2">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/replication
+</code></pre></div></div>
 
 <h6 id="java-6">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="set-backlog-quota-policies">set backlog quota policies</h4>
 
@@ -990,25 +973,21 @@
 
 <h6 id="cli-2">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-backlog-quota --limit 10 --policy producer_request_hold test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-3">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+</code></pre></div></div>
 
 <h6 id="java-7">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">limit</span><span class="o">,</span> <span class="n">policy</span><span class="o">))</span>
+</code></pre></div></div>
 
 <h4 id="get-backlog-quota-policies">get backlog quota policies</h4>
 
@@ -1016,30 +995,26 @@
 
 <h6 id="cli-3">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-backlog-quotas test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-backlog-quotas test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"destination_storage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-        </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
-        </span><span class="nt">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="s2">"destination_storage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+        </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+        </span><span class="s2">"policy"</span><span class="p">:</span><span class="w"> </span><span class="s2">"producer_request_hold"</span><span class="w">
     </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">          
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <h6 id="rest-4">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuotaMap
+</code></pre></div></div>
 
 <h6 id="java-8">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotaMap</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="remove-backlog-quota-policies">remove backlog quota policies</h4>
 
@@ -1047,25 +1022,21 @@
 
 <h6 id="cli-4">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces remove-backlog-quota test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces remove-backlog-quota test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-5">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>DELETE /admin/namespaces/{property}/{cluster}/{namespace}/backlogQuota
+</code></pre></div></div>
 
 <h6 id="java-9">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">backlogQuotaType</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="set-persistence-policies">set persistence policies</h4>
 
@@ -1088,25 +1059,21 @@
 
 <h6 id="cli-5">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-persistence --bookkeeper-ack-quorum 2 --bookkeeper-ensemble 3 --bookkeeper-write-quorum 2 --ml-mark-delete-max-rate 0 test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-6">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/persistent/{property}/{cluster}/{namespace}/persistence
+</code></pre></div></div>
 
 <h6 id="java-10">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span><span class="k">new</span> <span class="n">PersistencePolicies</span><span class="o">(</span><span class="n">bookkeeperEnsemble</span><span class="o">,</span> <span class="n">bookkeeperWriteQuorum</span><span class="o">,</span><span class="n">bookkeeperAckQuorum</span><span class="o">,</span><span class="n">managedLedgerMaxMarkDeleteRate</span><span class="o">))</span>
+</code></pre></div></div>
 
 <h4 id="get-persistence-policies">get persistence policies</h4>
 
@@ -1114,30 +1081,26 @@
 
 <h6 id="cli-6">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-persistence test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-persistence test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"bookkeeperEnsemble"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"bookkeeperWriteQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"bookkeeperAckQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"managedLedgerMaxMarkDeleteRate"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"bookkeeperEnsemble"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"bookkeeperWriteQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"bookkeeperAckQuorum"</span><span class="p">:</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"managedLedgerMaxMarkDeleteRate"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <h6 id="rest-7">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/persistence
+</code></pre></div></div>
 
 <h6 id="java-11">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="unload-namespace-bundle">unload namespace bundle</h4>
 
@@ -1145,25 +1108,21 @@
 
 <h6 id="cli-7">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-property/pstg-gq1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces unload --bundle 0x00000000_0xffffffff test-property/pstg-gq1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-8">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/unload
+</code></pre></div></div>
 
 <h6 id="java-12">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">unloadNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="set-message-ttl">set message-ttl</h4>
 
@@ -1171,25 +1130,21 @@
 
 <h6 id="cli-8">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-message-ttl --messageTTL 100 test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-9">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+</code></pre></div></div>
 
 <h6 id="java-13">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">messageTTL</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="get-message-ttl">get message-ttl</h4>
 
@@ -1197,25 +1152,21 @@
 
 <h6 id="cli-9">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-message-ttl test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-message-ttl test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>100
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>100
+</code></pre></div></div>
 
 <h6 id="rest-10">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/messageTTL
+</code></pre></div></div>
 
 <h6 id="java-14">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getNamespaceReplicationClusters</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="split-bundle">split bundle</h4>
 
@@ -1223,25 +1174,21 @@
 
 <h6 id="cli-10">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces split-bundle --bundle 0x00000000_0xffffffff test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-11">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>PUT /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/split
+</code></pre></div></div>
 
 <h6 id="java-15">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">splitNamespaceBundle</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="clear-backlog">clear backlog</h4>
 
@@ -1249,25 +1196,21 @@
 
 <h6 id="cli-11">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog --sub my-subscription test-property/pstg-gq1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog --sub my-subscription test-property/pstg-gq1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-12">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/clearBacklog
+</code></pre></div></div>
 
 <h6 id="java-16">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="clear-bundle-backlog">clear bundle backlog</h4>
 
@@ -1275,25 +1218,21 @@
 
 <h6 id="cli-12">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-property/pstg-gq1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces clear-backlog  --bundle 0x00000000_0xffffffff  --sub my-subscription test-property/pstg-gq1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-13">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/{bundle}/clearBacklog
+</code></pre></div></div>
 
 <h6 id="java-17">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">clearNamespaceBundleBacklogForSubscription</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">bundle</span><span class="o">,</span> <span class="n">subscription</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="set-retention">set retention</h4>
 
@@ -1301,25 +1240,21 @@
 
 <h6 id="cli-13">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin set-retention --size 10 --time 100 test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin set-retention --size 10 --time 100 test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>N/A
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>N/A
+</code></pre></div></div>
 
 <h6 id="rest-14">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/retention
+</code></pre></div></div>
 
 <h6 id="java-18">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTimeInMin</span><span class="o">,</span> <span class="n">retentionSizeInMB</span><span class="o">))</span>
+</code></pre></div></div>
 
 <h4 id="get-retention">get retention</h4>
 
@@ -1327,28 +1262,24 @@
 
 <h6 id="cli-14">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-retention test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-retention test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-    </span><span class="nt">"retentionTimeInMinutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"retentionSizeInMB"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+    </span><span class="s2">"retentionTimeInMinutes"</span><span class="p">:</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"retentionSizeInMB"</span><span class="p">:</span><span class="w"> </span><span class="mi">100</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <h6 id="rest-15">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/retention
+</code></pre></div></div>
 
 <h6 id="java-19">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="set-dispatch-throttling">set dispatch throttling</h4>
 
@@ -1359,21 +1290,18 @@ disables the throttling.</p>
 
 <h6 id="cli-15">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces set-dispatch-rate test-property/cl1/ns1 --msg-dispatch-rate 1000 --byte-dispatch-rate 1048576 --dispatch-rate-period 1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces set-dispatch-rate test-property/cl1/ns1 --msg-dispatch-rate 1000 --byte-dispatch-rate 1048576 --dispatch-rate-period 1
+</code></pre></div></div>
 
 <h6 id="rest-16">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>POST /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+</code></pre></div></div>
 
 <h6 id="java-20">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="mi">1000</span><span class="o">,</span> <span class="mi">1048576</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="mi">1000</span><span class="o">,</span> <span class="mi">1048576</span><span class="o">,</span> <span class="mi">1</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="get-configured-message-rate">get configured message-rate</h4>
 
@@ -1381,29 +1309,25 @@ disables the throttling.</p>
 
 <h6 id="cli-16">CLI</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin namespaces get-dispatch-rate test-property/cl1/ns1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin namespaces get-dispatch-rate test-property/cl1/ns1
+</code></pre></div></div>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"dispatchThrottlingRatePerTopicInMsg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"dispatchThrottlingRatePerTopicInByte"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1048576</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"ratePeriodInSecond"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"dispatchThrottlingRatePerTopicInMsg"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1000</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"dispatchThrottlingRatePerTopicInByte"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1048576</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"ratePeriodInSecond"</span><span class="w"> </span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <h6 id="rest-17">REST</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>GET /admin/namespaces/{property}/{cluster}/{namespace}/dispatchRate
+</code></pre></div></div>
 
 <h6 id="java-21">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getDispatchRate</span><span class="o">(</span><span class="n">namespace</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h3 id="namespace-isolation">Namespace isolation</h3>
 
@@ -1419,9 +1343,8 @@ disables the throttling.</p>
 
 <h5 id="example">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces unload my-prop/my-cluster/my-ns
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces unload my-prop/my-cluster/my-ns
+</code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>
 

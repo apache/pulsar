@@ -841,11 +841,10 @@
 
 <p>At creation time, specify all the intended clusters:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
-  --admin-roles my-admin-role <span class="se">\</span>
-  --allowed-clusters us-west,us-east,us-cent
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">--admin-roles</span> my-admin-role <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-west,us-east,us-cent
+</code></pre></div></div>
 
 <p>To update permissions of an existing property, use <code class="highlighter-rouge">update</code> instead of <code class="highlighter-rouge">create</code>.</p>
 
@@ -855,16 +854,14 @@
 
 <p>Global namespaces need to be created in the <code class="highlighter-rouge">global</code> virtual cluster. For example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create my-property/global/my-namespace
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create my-property/global/my-namespace
+</code></pre></div></div>
 
 <p>Initially, the namespace is not assigned to any cluster. You can assign the namespace to clusters using the <code class="highlighter-rouge">set-clusters</code> subcommand:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces <span class="nb">set</span>-clusters my-property/global/my-namespace <span class="se">\</span>
-  --clusters us-west,us-east,us-cent
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces set-clusters my-property/global/my-namespace <span class="se">\</span>
+  <span class="nt">--clusters</span> us-west,us-east,us-cent
+</code></pre></div></div>
 
 <p>The replication clusters for a namespace can be changed at any time, with no disruption to ongoing traffic. Replication channels will be immediately set up or stopped in all the clusters as soon as the configuration changes.</p>
 
@@ -878,7 +875,7 @@
 
 <p>Below is an example for the <a href="../../clients/Java">Java API</a>. Note the use of the <code class="highlighter-rouge">setReplicationClusters</code> method when constructing the <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a> object:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
 <span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-west"</span><span class="o">);</span>
 <span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-east"</span><span class="o">);</span>
 
@@ -888,16 +885,14 @@
         <span class="o">.</span><span class="na">build</span><span class="o">();</span>
 
 <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">message</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="topic-stats">Topic stats</h4>
 
 <p>Topic-specific statistics for global topics are available via the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool and <a href="../../reference/RestApi">REST API</a>:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://my-property/global/my-namespace/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://my-property/global/my-namespace/my-topic
+</code></pre></div></div>
 
 <p>Each cluster reports its own local stats, including incoming and outgoing replication rates and backlogs.</p>
 

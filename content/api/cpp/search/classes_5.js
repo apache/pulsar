@@ -1,5 +1,5 @@
 var searchData=
 [
-  ['reader',['Reader',['../classpulsar_1_1_reader.html',1,'pulsar']]],
-  ['readerconfiguration',['ReaderConfiguration',['../classpulsar_1_1_reader_configuration.html',1,'pulsar']]]
+  ['producer',['Producer',['../classpulsar_1_1_producer.html',1,'pulsar']]],
+  ['producerconfiguration',['ProducerConfiguration',['../classpulsar_1_1_producer_configuration.html',1,'pulsar']]]
 ];

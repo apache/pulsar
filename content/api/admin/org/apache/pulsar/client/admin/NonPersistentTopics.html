@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -145,36 +145,62 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i4" class="altColor">
+<td class="colFirst"><code>List&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getList-java.lang.String-">getList</a></span>(String&nbsp;namespace)</code>
+<div class="block">Get list of topics exist into given namespace</div>
+</td>
+</tr>
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;List&lt;String&gt;&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getListAsync-java.lang.String-">getListAsync</a></span>(String&nbsp;namespace)</code>
+<div class="block">Get list of topics exist into given namespace asynchronously.</div>
+</td>
+</tr>
+<tr id="i6" class="altColor">
+<td class="colFirst"><code>List&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundle-java.lang.String-java.lang.String-">getListInBundle</a></span>(String&nbsp;namespace,
+               String&nbsp;bundleRange)</code>
+<div class="block">Get list of topics exist into given bundle</div>
+</td>
+</tr>
+<tr id="i7" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;List&lt;String&gt;&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundleAsync-java.lang.String-java.lang.String-">getListInBundleAsync</a></span>(String&nbsp;namespace,
+                    String&nbsp;bundleRange)</code>
+<div class="block">Get list of topics exist into given bundle asynchronously.</div>
+</td>
+</tr>
+<tr id="i8" class="altColor">
 <td class="colFirst"><code>PartitionedTopicMetadata</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata</a></span>(String&nbsp;destination)</code>
 <div class="block">Get metadata of a partitioned topic.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i9" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;PartitionedTopicMetadata&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync</a></span>(String&nbsp;destination)</code>
 <div class="block">Get metadata of a partitioned topic asynchronously.</div>
 </td>
 </tr>
-<tr id="i6" class="altColor">
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats</a></span>(String&nbsp;destination)</code>
 <div class="block">Get the stats for the topic.</div>
 </td>
 </tr>
-<tr id="i7" class="rowColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync</a></span>(String&nbsp;destination)</code>
 <div class="block">Get the stats for the topic asynchronously.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unload-java.lang.String-">unload</a></span>(String&nbsp;destination)</code>
 <div class="block">Unload a topic.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync</a></span>(String&nbsp;destination)</code>
 <div class="block">Unload a topic asynchronously.</div>
@@ -438,7 +464,7 @@ var activeTableTab = "activeTableTab";
 <a name="unloadAsync-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>unloadAsync</h4>
 <pre>CompletableFuture&lt;Void&gt;&nbsp;unloadAsync(String&nbsp;destination)</pre>
@@ -449,6 +475,77 @@ var activeTableTab = "activeTableTab";
 <dd><code>destination</code> - Destination name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the topic is unloaded</dd>
+</dl>
+</li>
+</ul>
+<a name="getListInBundle-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getListInBundle</h4>
+<pre>List&lt;String&gt;&nbsp;getListInBundle(String&nbsp;namespace,
+                             String&nbsp;bundleRange)
+                      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get list of topics exist into given bundle</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - </dd>
+<dd><code>bundleRange</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getListInBundleAsync-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getListInBundleAsync</h4>
+<pre>CompletableFuture&lt;List&lt;String&gt;&gt;&nbsp;getListInBundleAsync(String&nbsp;namespace,
+                                                     String&nbsp;bundleRange)</pre>
+<div class="block">Get list of topics exist into given bundle asynchronously.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - </dd>
+<dd><code>bundleRange</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+</dl>
+</li>
+</ul>
+<a name="getList-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getList</h4>
+<pre>List&lt;String&gt;&nbsp;getList(String&nbsp;namespace)
+              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get list of topics exist into given namespace</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getListAsync-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getListAsync</h4>
+<pre>CompletableFuture&lt;List&lt;String&gt;&gt;&nbsp;getListAsync(String&nbsp;namespace)</pre>
+<div class="block">Get list of topics exist into given namespace asynchronously.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - </dd>
+<dd><code>bundleRange</code> - </dd>
+<dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
 </ul>

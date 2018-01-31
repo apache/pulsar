@@ -744,9 +744,9 @@
           
           
           
-          
-          
           <li><a href="/ja/adaptors/PulsarSpark/">Spark Streaming Pulsar Receiver</a></li>
+          
+          
           
           
           
@@ -936,9 +936,9 @@
           
           
           
-          
-          
           <li><a href="/ja/adaptors/PulsarSpark/">Spark Streaming Pulsar Receiver</a></li>
+          
+          
           
           
           
@@ -1053,8 +1053,6 @@
           
           
           <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
-          
-          
           
           
           
@@ -1213,6 +1211,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1258,7 +1258,7 @@
 
 <p>Mavenの場合は、<code class="highlighter-rouge">pom.xml</code>に下記を追加します:</p>
 
-<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
 <span class="nt">&lt;pulsar.version&gt;</span>1.21.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
@@ -1267,26 +1267,24 @@
   <span class="nt">&lt;artifactId&gt;</span>pulsar-spark<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="gradle">Gradle</h3>
 
 <p>Gradleの場合は、<code class="highlighter-rouge">build.gradle</code>に下記を追加します:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"1.21.0-incubating"</span>
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"1.21.0-incubating"</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="利用方法">利用方法</h2>
 
 <p><code class="highlighter-rouge">JavaStreamingContext</code>クラスの<code class="highlighter-rouge">receiverStream</code>メソッドに<code class="highlighter-rouge">SparkStreamingPulsarReceiver</code>インスタンスを渡します:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">SparkConf</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SparkConf</span><span class="o">().</span><span class="na">setMaster</span><span class="o">(</span><span class="s">"local[*]"</span><span class="o">).</span><span class="na">setAppName</span><span class="o">(</span><span class="s">"pulsar-spark"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">SparkConf</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SparkConf</span><span class="o">().</span><span class="na">setMaster</span><span class="o">(</span><span class="s">"local[*]"</span><span class="o">).</span><span class="na">setAppName</span><span class="o">(</span><span class="s">"pulsar-spark"</span><span class="o">);</span>
 <span class="n">JavaStreamingContext</span> <span class="n">jssc</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JavaStreamingContext</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="n">Durations</span><span class="o">.</span><span class="na">seconds</span><span class="o">(</span><span class="mi">5</span><span class="o">));</span>
 
 <span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
@@ -1297,8 +1295,7 @@
 
 <span class="n">JavaReceiverInputDStream</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgs</span> <span class="o">=</span> <span class="n">jssc</span>
         <span class="o">.</span><span class="na">receiverStream</span><span class="o">(</span><span class="k">new</span> <span class="n">SparkStreamingPulsarReceiver</span><span class="o">(</span><span class="n">clientConf</span><span class="o">,</span> <span class="n">consConf</span><span class="o">,</span> <span class="n">url</span><span class="o">,</span> <span class="n">topic</span><span class="o">,</span> <span class="n">subs</span><span class="o">));</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="実装例">実装例</h2>
 

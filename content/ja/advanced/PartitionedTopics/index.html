@@ -738,9 +738,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -930,9 +930,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -1056,8 +1056,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -1069,6 +1067,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1132,9 +1132,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -1158,9 +1158,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -1328,9 +1328,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -1469,7 +1469,7 @@
 
 <p>以下に例を示します:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
@@ -1477,32 +1477,29 @@
 <span class="n">config</span><span class="o">.</span><span class="na">setMessageRoutingMode</span><span class="o">(</span><span class="n">ProducerConfiguration</span><span class="o">.</span><span class="na">MessageRoutingMode</span><span class="o">.</span><span class="na">SinglePartition</span><span class="o">);</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
 <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"Partitioned topic message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="カスタムメッセージルータ">カスタムメッセージルータ</h4>
 
 <p>カスタムメッセージルータを使用するためには、<a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageRouter.html"><code class="highlighter-rouge">MessageRouter</code></a>インターフェースの実装を提供する必要があります。これには、<code class="highlighter-rouge">choosePartition</code>メソッド1つしかありません:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MessageRouter</span> <span class="kd">extends</span> <span class="n">Serializable</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">MessageRouter</span> <span class="kd">extends</span> <span class="n">Serializable</span> <span class="o">{</span>
     <span class="kt">int</span> <span class="nf">choosePartition</span><span class="o">(</span><span class="n">Message</span> <span class="n">msg</span><span class="o">);</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>以下は、全てのメッセージをパーティション10にルーティングするルータ (あまり有用ではありません) です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">AlwaysTenRouter</span> <span class="kd">implements</span> <span class="n">MessageRouter</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">class</span> <span class="nc">AlwaysTenRouter</span> <span class="kd">implements</span> <span class="n">MessageRouter</span> <span class="o">{</span>
     <span class="kd">public</span> <span class="kt">int</span> <span class="nf">choosePartition</span><span class="o">(</span><span class="n">Message</span> <span class="n">msg</span><span class="o">)</span> <span class="o">{</span>
         <span class="k">return</span> <span class="mi">10</span><span class="o">;</span>
     <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>この実装を用いてメッセージを送信するには次のようにします:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
@@ -1510,8 +1507,7 @@
 <span class="n">config</span><span class="o">.</span><span class="na">setMessageRouter</span><span class="o">(</span><span class="n">AlwaysTenRouter</span><span class="o">);</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
 <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"Partitioned topic message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pulsar-adminのセットアップ">Pulsar adminのセットアップ</h2>
 
@@ -1633,7 +1629,7 @@
 
 <p>Java admin APIを利用するために、Pulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>のURLと<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>を指定して<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a>オブジェクトをインスタンス化します。 以下は<code class="highlighter-rouge">localhost</code>を利用した最小限の例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
 <span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//認証が有効な場合にauth-pluginクラスの完全修飾名を渡します。</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span> <span class="c1">//auth-pluginクラスが要求しているパラメータを渡します。</span>
 <span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
@@ -1647,8 +1643,7 @@
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
 
 <span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="パーティションドトピックの管理">パーティションドトピックの管理</h2>
 
@@ -1739,11 +1734,10 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-persistent-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></a>コマンドを使用する事でパーティションドトピックの作成が可能です。この時、引数としてトピック名を、<code class="highlighter-rouge">-p</code>または<code class="highlighter-rouge">--partitions</code>オプションでパーティション数を指定できます。以下はその例となります:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent create-partitioned-topic <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent create-partitioned-topic <span class="se">\</span>
   persistent://my-property/my-cluster-my-namespace/my-topic <span class="se">\</span>
-  --partitions 4
-</code></pre>
-</div>
+  <span class="nt">--partitions</span> 4
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -1753,11 +1747,10 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">numPartitions</span> <span class="o">=</span> <span class="mi">4</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">createPartitionedTopic</span><span class="o">(</span><span class="n">topicName</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="メタデータの取得">メタデータの取得</h3>
 
@@ -1782,13 +1775,12 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-persistent-get-partitioned-topic"><code class="highlighter-rouge">get-partitioned-topic-metadata</code></a>サブコマンドを使用する事で、パーティションドトピックのパーティション数を確認できます。以下はその例となります:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent get-partitioned-topic-metadata <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent get-partitioned-topic-metadata <span class="se">\</span>
   persistent://my-property/my-cluster-my-namespace/my-topic
 <span class="o">{</span>
   <span class="s2">"partitions"</span>: 4
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -1798,10 +1790,9 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topicName</span> <span class="o">=</span> <span class="s">"persistent://my-property/my-cluster-my-namespace/my-topic"</span><span class="o">;</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getPartitionedTopicMetadata</span><span class="o">(</span><span class="n">topicName</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="更新">更新</h3>
 
@@ -1815,11 +1806,10 @@
 
 <p>パーティションドトピックは<a href="../../reference/CliTools#pulsar-admin-persistent-update-partitioned-topic"><code class="highlighter-rouge">update-partitioned-topic</code></a>コマンドを使用する事で更新可能です。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent update-partitioned-topic <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent update-partitioned-topic <span class="se">\</span>
   persistent://my-property/my-cluster-my-namespace/my-topic <span class="se">\</span>
-  --partitions 8
-</code></pre>
-</div>
+  <span class="nt">--partitions</span> 8
+</code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
@@ -1829,9 +1819,8 @@
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">updatePartitionedTopic</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">updatePartitionedTopic</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">,</span> <span class="n">numPartitions</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="削除">削除</h3>
 
@@ -1839,10 +1828,9 @@
 
 <p>パーティションドトピックは<a href="../../reference/CliTools#pulsar-admin-persistent-delete-partitioned-topic"><code class="highlighter-rouge">delete-partitioned-topic</code></a>コマンドを使用し、トピック名を指定する事で削除可能です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent delete-partitioned-topic <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent delete-partitioned-topic <span class="se">\</span>
   persistent://my-property/my-cluster-my-namespace/my-topic
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>
 
@@ -1852,9 +1840,8 @@
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">delete</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="リストの取得">リストの取得</h3>
 
@@ -1862,11 +1849,10 @@
 
 <h4 id="pulsar-admin-5">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent list prop-1/cluster-1/namespace
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent list prop-1/cluster-1/namespace
 persistent://property/cluster/namespace/topic
 persistent://property/cluster/namespace/topic
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-5">REST API</h4>
 
@@ -1876,46 +1862,44 @@ persistent://property/cluster/namespace/topic
 
 <h4 id="java-5">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getList</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="統計情報">統計情報</h3>
 
 <p>指定されたパーティションドトピックの現在の統計情報を表示します。以下はペイロードの例となります:</p>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">4641.528542257553</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">44663039.74947473</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">1232439.816728665</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">135532389160</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">4641.528542257553</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">44663039.74947473</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">1232439.816728665</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">135532389160</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
     </span><span class="p">{</span><span class="w">
-      </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">57.855383881403576</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">558994.7078932219</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">613135</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
+      </span><span class="s2">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">57.855383881403576</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">558994.7078932219</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">613135</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"address"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="w">
     </span><span class="p">}</span><span class="w">
   </span><span class="p">],</span><span class="w">
-  </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nt">"my-topic_subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-      </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">116632</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">36.98245516804671</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
+  </span><span class="s2">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="s2">"my-topic_subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="s2">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">116632</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"type"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">36.98245516804671</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[]</span><span class="w">
     </span><span class="p">}</span><span class="w">
   </span><span class="p">},</span><span class="w">
-  </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
+  </span><span class="s2">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{}</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <p>統計情報には次のようなものが含まれます:</p>
 
@@ -2100,11 +2084,10 @@ persistent://property/cluster/namespace/topic
 
 <p><a href="../../reference/CliTools#pulsar-admin-persistent-partitioned-stats"><code class="highlighter-rouge">partitioned-stats</code></a></p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent partitioned-stats <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent partitioned-stats <span class="se">\</span>
   persistent://test-property/cl1/ns1/tp1 <span class="se">\</span>
-  --per-partition        
-</code></pre>
-</div>
+  <span class="nt">--per-partition</span>        
+</code></pre></div></div>
 
 <h4 id="rest-api-6">REST API</h4>
 
@@ -2114,9 +2097,8 @@ persistent://property/cluster/namespace/topic
 
 <h4 id="java-6">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="詳細な統計情報">詳細な統計情報</h3>
 
@@ -2287,49 +2269,47 @@ persistent://property/cluster/namespace/topic
   </tbody>
 </table>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"entriesAddedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449518</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"numberOfEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"totalSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"currentLedgerEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"currentLedgerSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"lastLedgerCreatedTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 03:00:23.825"</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"lastLedgerCreationFailureTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"waitingCursorsCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"pendingAddEntriesCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"lastConfirmedEntry"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3232"</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"LedgerOpened"</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"ledgers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"entriesAddedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449518</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"numberOfEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"totalSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"currentLedgerEntries"</span><span class="p">:</span><span class="w"> </span><span class="mi">3233</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"currentLedgerSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">331482</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"lastLedgerCreatedTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 03:00:23.825"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"lastLedgerCreationFailureTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"waitingCursorsCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"pendingAddEntriesCount"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"lastConfirmedEntry"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3232"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"LedgerOpened"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"ledgers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
     </span><span class="p">{</span><span class="w">
-      </span><span class="nt">"ledgerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">324711539</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"entries"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+      </span><span class="s2">"ledgerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">324711539</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"entries"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"size"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
     </span><span class="p">}</span><span class="w">
   </span><span class="p">],</span><span class="w">
-  </span><span class="nt">"cursors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nt">"my-subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-      </span><span class="nt">"markDeletePosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3133"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"readPosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3233"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"waitingReadOp"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"pendingReadOps"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"messagesConsumedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449501</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"cursorLedger"</span><span class="p">:</span><span class="w"> </span><span class="mi">324702104</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"cursorLedgerLastEntry"</span><span class="p">:</span><span class="w"> </span><span class="mi">21</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"individuallyDeletedMessages"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"lastLedgerSwitchTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 01:30:19.313"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Open"</span><span class="w">
+  </span><span class="s2">"cursors"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="s2">"my-subscription"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="s2">"markDeletePosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3133"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"readPosition"</span><span class="p">:</span><span class="w"> </span><span class="s2">"324711539:3233"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"waitingReadOp"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"pendingReadOps"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"messagesConsumedCounter"</span><span class="p">:</span><span class="w"> </span><span class="mi">20449501</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"cursorLedger"</span><span class="p">:</span><span class="w"> </span><span class="mi">324702104</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"cursorLedgerLastEntry"</span><span class="p">:</span><span class="w"> </span><span class="mi">21</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"individuallyDeletedMessages"</span><span class="p">:</span><span class="w"> </span><span class="s2">"[(324711539:3134‥324711539:3136], (324711539:3137‥324711539:3140], ]"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"lastLedgerSwitchTimestamp"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-06-29 01:30:19.313"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"state"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Open"</span><span class="w">
     </span><span class="p">}</span><span class="w">
   </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <h4 id="pulsar-admin-7">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin persistent stats-internal <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent stats-internal <span class="se">\</span>
   persistent://test-property/cl1/ns1/tp1
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-7">REST API</h4>
 
@@ -2339,9 +2319,8 @@ persistent://property/cluster/namespace/topic
 
 <h4 id="java-7">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">persistentTopics</span><span class="o">().</span><span class="na">getInternalStats</span><span class="o">(</span><span class="n">persistentTopic</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h2 id="コンセプト">コンセプト</h2>
 

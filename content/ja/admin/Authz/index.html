@@ -672,8 +672,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -685,6 +683,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -748,9 +748,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -774,9 +774,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -876,9 +876,9 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
           
           
           
@@ -1068,9 +1068,9 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
           
           
           
@@ -1260,9 +1260,9 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
           
           
           
@@ -1452,9 +1452,9 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
+          
+          
           
           
           
@@ -1646,8 +1646,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -1803,6 +1801,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1844,8 +1844,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -1879,6 +1877,8 @@
           
           
           <li><a href="/ja/clients/Cpp/">Pulsar C++クライアント</a></li>
+          
+          
           
           
           
@@ -2062,15 +2062,13 @@
 
 <h6 id="linux">Linux</h6>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>CA.pl -newca
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>CA.pl <span class="nt">-newca</span>
+</code></pre></div></div>
 
 <h6 id="macos">MacOS</h6>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ /System/Library/OpenSSL/misc/CA.pl -newca
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ /System/Library/OpenSSL/misc/CA.pl -newca
+</code></pre></div></div>
 
 <p>質問のプロンプトに回答すると、CA関連のファイルが<code class="highlighter-rouge">./demoCA</code>ディレクトリに保存されます。このディレクトリには次のファイルが含まれます:</p>
 
@@ -2085,34 +2083,31 @@
 
 <p>次のコマンドを実行するといくつかの質問が表示されてから証明書が作成されます。コモンネームを尋ねられた際にはBrokerのホスト名と一致するものにする必要があります。また、Brokerのホスト名のグループにマッチさせるためにワイルドカードを使用する事もできます (例えば<code class="highlighter-rouge">*.broker.usw.example.com</code>など) 。これによって、複数のマシンで同じ証明書の再利用が可能になります。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl req <span class="se">\</span>
-  -newkey rsa:2048 <span class="se">\</span>
-  -sha256 <span class="se">\</span>
-  -nodes <span class="se">\</span>
-  -out broker-cert.csr <span class="se">\</span>
-  -outform PEM
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl req <span class="se">\</span>
+  <span class="nt">-newkey</span> rsa:2048 <span class="se">\</span>
+  <span class="nt">-sha256</span> <span class="se">\</span>
+  <span class="nt">-nodes</span> <span class="se">\</span>
+  <span class="nt">-out</span> broker-cert.csr <span class="se">\</span>
+  <span class="nt">-outform</span> PEM
+</code></pre></div></div>
 
 <p>鍵は<a href="https://ja.wikipedia.org/wiki/PKCS">PKCS 8</a>フォーマットに変換してください:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl pkcs8 <span class="se">\</span>
-  -topk8 <span class="se">\</span>
-  -inform PEM <span class="se">\</span>
-  -outform PEM <span class="se">\</span>
-  -in privkey.pem <span class="se">\</span>
-  -out broker-key.pem <span class="se">\</span>
-  -nocrypt
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl pkcs8 <span class="se">\</span>
+  <span class="nt">-topk8</span> <span class="se">\</span>
+  <span class="nt">-inform</span> PEM <span class="se">\</span>
+  <span class="nt">-outform</span> PEM <span class="se">\</span>
+  <span class="nt">-in</span> privkey.pem <span class="se">\</span>
+  <span class="nt">-out</span> broker-key.pem <span class="se">\</span>
+  <span class="nt">-nocrypt</span>
+</code></pre></div></div>
 
 <p>これによって、Broker証明書用の2つのファイル<code class="highlighter-rouge">broker-cert.csr</code>と<code class="highlighter-rouge">broker-key.pem</code>が作成されます。これで署名付き証明書が作成できるようになります:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>openssl ca <span class="se">\</span>
-  -out broker-cert.pem <span class="se">\</span>
-  -infiles broker-cert.csr
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>openssl ca <span class="se">\</span>
+  <span class="nt">-out</span> broker-cert.pem <span class="se">\</span>
+  <span class="nt">-infiles</span> broker-cert.csr
+</code></pre></div></div>
 
 <p>この時点で<code class="highlighter-rouge">broker-cert.pem</code>と<code class="highlighter-rouge">broker-key.pem</code>というファイルができたはずです。これらはBrokerに必要となります。</p>
 
@@ -2128,7 +2123,7 @@
 
 <p>これらの値を設定ファイルに追加してください (必要であれば適切な証明書のパスに置き換えてください) :</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># TLSを有効化しBrokerに正しい証明書を指定
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># TLSを有効化しBrokerに正しい証明書を指定
 </span><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker-cert.pem</span>
 <span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker-key.pem</span>
@@ -2138,8 +2133,7 @@
 </span><span class="py">authenticationEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">authenticationProviders</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authentication.AuthenticationProviderTls</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -2174,11 +2168,10 @@
 
 <p>Pulsar Brokerが使用する<span class="popover-term" tabindex="0" title="Pulsarでの (サービス) ディスカバリとは？" data-placement="top" data-content="接続しているクライアントにクラスタ内の全てのBrokerとやり取りするために単一のURLだけ使用することを可能にするPulsarのメカニズムです。" data-toggle="popover" data-trigger="focus">ディスカバリ</span>サービスは全てのHTTPSリクエストをリダイレクトする必要があり、Brokerと同様にクライアントに信頼される必要があります。次の設定を<code class="highlighter-rouge">conf/discovery.conf</code>に追加してください:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker-cert.pem</span>
 <span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker-key.pem</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="クライアントの設定">クライアントの設定</h4>
 
@@ -2195,14 +2188,13 @@
 
 <p>PulsarのCLIツールでTLSを使用するには、そのファイルに次の認証パラメータを追加する必要があります:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
 <span class="py">authPlugin</span><span class="p">=</span><span class="s">org.apache.pulsar.client.impl.auth.AuthenticationTls</span>
 <span class="py">authParams</span><span class="p">=</span><span class="s">tlsCertFile:/path/to/client-cert.pem,tlsKeyFile:/path/to/client-key.pem</span>
 <span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
 <span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/cacert.pem</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="athenz">Athenz</h3>
 
@@ -2276,7 +2268,7 @@
 
 <p>設定ファイル<code class="highlighter-rouge">conf/broker.conf</code>において、Athenzの認証プロバイダのクラス名と、カンマで区切られたプロバイダドメイン名のリストを指定する必要があります。</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Add the Athenz auth provider
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Add the Athenz auth provider
 </span><span class="py">authenticationEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">authorizationEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">authenticationProviders</span><span class="p">=</span><span class="s">org.apache.pulsar.broker.authentication.AuthenticationProviderAthenz</span>
@@ -2286,8 +2278,7 @@
 </span><span class="py">tlsEnabled</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsCertificateFilePath</span><span class="p">=</span><span class="s">/path/to/broker-cert.pem</span>
 <span class="py">tlsKeyFilePath</span><span class="p">=</span><span class="s">/path/to/broker-key.pem</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -2332,7 +2323,7 @@
 
 <p>PulsarのCLIツールでAthenzを使用するには、そのファイルに次の認証パラメータを追加する必要があります:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># BrokerのURL
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># BrokerのURL
 </span><span class="py">serviceUrl</span><span class="p">=</span><span class="s">https://broker.example.com:8443/</span>
 
 <span class="c"># Athenzの認証プラグインとそのパラメータをセット
@@ -2343,8 +2334,7 @@
 </span><span class="py">useTls</span><span class="p">=</span><span class="s">true</span>
 <span class="py">tlsAllowInsecureConnection</span><span class="p">=</span><span class="s">false</span>
 <span class="py">tlsTrustCertsFilePath</span><span class="p">=</span><span class="s">/path/to/cacert.pem</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="認可">認可</h2>
 
@@ -2387,11 +2377,10 @@
 
 <p>プロパティは<a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>ツールを使用する事で管理できます。以下はプロパティを作成するコマンドの例です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
-  --admin-roles my-admin-role <span class="se">\</span>
-  --allowed-clusters us-west,us-east
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">--admin-roles</span> my-admin-role <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-west,us-east
+</code></pre></div></div>
 
 <p>このコマンドは、クラスタ<code class="highlighter-rouge">us-west</code>と<code class="highlighter-rouge">us-east</code>を利用可能な新しいプロパティ<code class="highlighter-rouge">my-property</code>を作成します。</p>
 
@@ -2456,29 +2445,26 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a>サブコマンドを使用し、ネームスペースと、<code class="highlighter-rouge">--actions</code>オプションでアクションを、<code class="highlighter-rouge">--role</code>オプションでロールを指定してください:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-  --actions produce,consume <span class="se">\</span>
-  --role admin10
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+  <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+  <span class="nt">--role</span> admin10
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">broker.conf</code>で<code class="highlighter-rouge">authorizationAllowWildcardsMatching</code>が<code class="highlighter-rouge">true</code>に設定されている場合、ワイルドカードを用いた認可が行われます。</p>
 
 <p>例:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'my.role.*'</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'my.role.*'</span>
+</code></pre></div></div>
 
 <p>この時、<code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>などのロールがproduce/consume可能となります。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'*.role.my'</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'*.role.my'</span>
+</code></pre></div></div>
 
 <p>この時、<code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>などのロールがproduce/consume可能となります。</p>
 
@@ -2486,11 +2472,10 @@
 
 <p>例:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'my.*.role'</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'my.*.role'</span>
+</code></pre></div></div>
 
 <p>この場合、ロール<code class="highlighter-rouge">my.*.role</code>のみがパーミッションを持っています。<code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>のようなロールはproduce/consumeが<strong>できません</strong>。</p>
 
@@ -2502,9 +2487,8 @@
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
+</code></pre></div></div>
 
 <h3 id="パーミッションの取得">パーミッションの取得</h3>
 
@@ -2514,15 +2498,14 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a>サブコマンドを使用しネームスペースを指定してください:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces permissions <span class="nb">test</span>-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces permissions test-property/cl1/ns1
 <span class="o">{</span>
   <span class="s2">"admin10"</span>: <span class="o">[</span>
     <span class="s2">"produce"</span>,
     <span class="s2">"consume"</span>
   <span class="o">]</span>
 <span class="o">}</span>   
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -2532,9 +2515,8 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="パーミッションの剥奪">パーミッションの剥奪</h3>
 
@@ -2544,10 +2526,9 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a>サブコマンドを使用し、ネームスペースと、<code class="highlighter-rouge">--role</code>オプションでロールを指定してください:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces revoke-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-  --role admin10
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces revoke-permission test-property/cl1/ns1 <span class="se">\</span>
+  <span class="nt">--role</span> admin10
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -2557,9 +2538,8 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h2 id="スーパーユーザ">スーパーユーザ</h2>
 
@@ -2567,9 +2547,8 @@
 
 <p>スーパーユーザは、Brokerの設定ファイル<a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a>の中で<a href="../../reference/Configuration#broker-superUserRoles"><code class="highlighter-rouge">superUserRoles</code></a>パラメータを使用して設定できます。</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">superUserRoles</span><span class="p">=</span><span class="s">my-super-user-1,my-super-user-2</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">superUserRoles</span><span class="p">=</span><span class="s">my-super-user-1,my-super-user-2</span>
+</code></pre></div></div>
 
 <!--
 
@@ -2604,7 +2583,7 @@
 
 <h2 id="pulsar-adminの認証">Pulsar adminの認証</h2>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span>
 <span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
 <span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
@@ -2617,12 +2596,11 @@
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
 
 <span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>TLSを使用するには次のようにします:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1=value1"</span><span class="o">;</span>
 <span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
 <span class="kt">boolean</span> <span class="n">tlsAllowInsecureConnection</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
@@ -2635,8 +2613,7 @@
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
 
 <span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

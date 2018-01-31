@@ -776,18 +776,16 @@
 
 <p>To generate the Docker image:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker build -t pulsar-dashboard dashboard
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>docker build <span class="nt">-t</span> pulsar-dashboard dashboard
+</code></pre></div></div>
 
 <p>To run the dashboard:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nv">SERVICE_URL</span><span class="o">=</span>http://broker.example.com:8080/
-<span class="gp">$ </span>docker run -p 80:80 <span class="se">\</span>
-  -e <span class="nv">SERVICE_URL</span><span class="o">=</span><span class="nv">$SERVICE_URL</span> <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ SERVICE_URL</span><span class="o">=</span>http://broker.example.com:8080/
+<span class="nv">$ </span>docker run <span class="nt">-p</span> 80:80 <span class="se">\</span>
+  <span class="nt">-e</span> <span class="nv">SERVICE_URL</span><span class="o">=</span><span class="nv">$SERVICE_URL</span> <span class="se">\</span>
   apachepulsar/pulsar-dashboard
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you’re connecting the dashboard to Pulsar running in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode, the URL will be <code class="highlighter-rouge">http://localhost:8080</code> by default.</p>
 

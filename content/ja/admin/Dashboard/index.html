@@ -675,18 +675,16 @@
 
 <p>Dockerイメージを生成するには次のようにします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker build -t pulsar-dashboard dashboard
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>docker build <span class="nt">-t</span> pulsar-dashboard dashboard
+</code></pre></div></div>
 
 <p>ダッシュボードを実行するには次のようにします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nv">SERVICE_URL</span><span class="o">=</span>http://broker.example.com:8080/
-<span class="gp">$ </span>docker run -p 80:80 <span class="se">\</span>
-  -e <span class="nv">SERVICE_URL</span><span class="o">=</span><span class="nv">$SERVICE_URL</span> <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ SERVICE_URL</span><span class="o">=</span>http://broker.example.com:8080/
+<span class="nv">$ </span>docker run <span class="nt">-p</span> 80:80 <span class="se">\</span>
+  <span class="nt">-e</span> <span class="nv">SERVICE_URL</span><span class="o">=</span><span class="nv">$SERVICE_URL</span> <span class="se">\</span>
   pulsar-dashboard
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>ここではPulsarクラスタのサービスURLを1つだけ指定する必要があります。これだけで、内部的にコレクタは存在している全てのクラスタとメトリクスを取得する必要のあるBrokerを把握できます。ダッシュボードを<span class="popover-term" tabindex="0" title="スタンドアローンのPulsar Brokerとは？" data-placement="top" data-content="単一のJVMプロセス上で全てのコンポーネントが起動される軽量なPulsar Brokerのことです。スタンドアローンのクラスタは単一のマシン上で実行され、開発時に役立ちます。" data-toggle="popover" data-trigger="focus">スタンドアローン</span>モードで実行しているPulsarに接続している場合、URLはデフォルトで<code class="highlighter-rouge">http://localhost:8080</code>になります。</p>
 

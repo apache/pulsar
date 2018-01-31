@@ -674,9 +674,9 @@
           
           
           
-          
-          
           <li><a href="/ja/project/BinaryProtocol/">Pulsarのバイナリプロトコルの仕様</a></li>
+          
+          
           
           
           
@@ -866,9 +866,9 @@
           
           
           
-          
-          
           <li><a href="/ja/project/BinaryProtocol/">Pulsarのバイナリプロトコルの仕様</a></li>
+          
+          
           
           
           
@@ -1332,14 +1332,13 @@
 
 <p>例:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnect</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnect</span> <span class="p">{</span>
   <span class="s">"client_version"</span> <span class="o">:</span> <span class="s">"Pulsar-Client-Java-v1.15.2"</span><span class="p">,</span>
   <span class="s">"auth_method_name"</span> <span class="o">:</span> <span class="s">"my-authentication-plugin"</span><span class="p">,</span>
   <span class="s">"auth_data"</span> <span class="o">:</span> <span class="s">"my-auth-data"</span><span class="p">,</span>
   <span class="s">"protocol_version"</span> <span class="o">:</span> <span class="mi">6</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>フィールド:</p>
 <ul>
@@ -1351,12 +1350,11 @@
  Brokerは最低限のバージョンを要求する可能性があります。</li>
 </ul>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnected</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnected</span> <span class="p">{</span>
   <span class="s">"server_version"</span> <span class="o">:</span> <span class="s">"Pulsar-Broker-v1.15.2"</span><span class="p">,</span>
   <span class="s">"protocol_version"</span> <span class="o">:</span> <span class="mi">6</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>フィールド:</p>
 <ul>
@@ -1383,13 +1381,12 @@
 
 <h5 id="producerコマンド">Producerコマンド</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducer</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducer</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1405,12 +1402,11 @@
 
 <h5 id="producersuccessコマンド">ProducerSuccessコマンド</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducerSuccess</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducerSuccess</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span>  <span class="mi">1</span><span class="p">,</span>
   <span class="s">"producer_name"</span> <span class="o">:</span> <span class="s">"generated-unique-producer-name"</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1422,13 +1418,12 @@
 
 <p><code class="highlighter-rouge">Send</code>コマンドは既に存在するProducerのコンテキスト内で新しいメッセージを発行する時に使用されます。このコマンドはコマンドだけでなくペイロードを含むフレーム内で使用されます。ペイロードは<a href="#ペイロードを持つコマンド">ペイロードを持つコマンド</a>のセクションに記されている完全なフォーマットで記述されます。</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSend</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSend</span> <span class="p">{</span>
   <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"sequence_id"</span> <span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
   <span class="s">"num_messages"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1442,7 +1437,7 @@
 
 <p>メッセージが設定されたレプリカの数に応じて永続化されたあと、BrokerはProducerにメッセージを受け取ったことを示すAckを返します。</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSendReceipt</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSendReceipt</span> <span class="p">{</span>
   <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"sequence_id"</span> <span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
   <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
@@ -1450,8 +1445,7 @@
     <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1488,15 +1482,14 @@
 
 <h5 id="subscribeコマンド">Subscribeコマンド</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSubscribe</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSubscribe</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"subscription"</span> <span class="o">:</span> <span class="s">"my-subscription-name"</span><span class="p">,</span>
   <span class="s">"subType"</span> <span class="o">:</span> <span class="s">"Exclusive"</span><span class="p">,</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1513,12 +1506,11 @@
 
 <h5 id="flowコマンド">Flowコマンド</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandFlow</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandFlow</span> <span class="p">{</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"messagePermits"</span> <span class="o">:</span> <span class="mi">1000</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1532,15 +1524,14 @@
 
 <p>このコマンドはコマンドだけでなくペイロードを含むフレーム内で使用されます。ペイロードは<a href="#ペイロードを持つコマンド">ペイロードを持つコマンド</a>のセクションに記されている完全なフォーマットで記述されます。</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandMessage</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandMessage</span> <span class="p">{</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
     <span class="s">"ledgerId"</span> <span class="o">:</span> <span class="mi">123</span><span class="p">,</span>
     <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="ackコマンド">Ackコマンド</h4>
 
@@ -1548,7 +1539,7 @@
 
 <p>加えて、Brokerは<code class="highlighter-rouge">Ack</code>の返されたメッセージに基いてConsumerの購読位置を管理します。</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandAck</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandAck</span> <span class="p">{</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"ack_type"</span> <span class="o">:</span> <span class="s">"Individual"</span><span class="p">,</span>
   <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
@@ -1556,8 +1547,7 @@
     <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>パラメータ:</p>
 <ul>
@@ -1610,13 +1600,12 @@
 
 <p><img src="/img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="トピックのルックアップ" /></p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">false</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>フィールド:</p>
 <ul>
@@ -1629,27 +1618,25 @@
 
 <p>成功時のレスポンス例:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Connect"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrl"</span> <span class="o">:</span> <span class="s">"pulsar://broker-1.example.com:6650"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrlTls"</span> <span class="o">:</span> <span class="s">"pulsar+ssl://broker-1.example.com:6651"</span><span class="p">,</span>
   <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">true</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>リダイレクト時のレスポンス例:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Redirect"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrl"</span> <span class="o">:</span> <span class="s">"pulsar://broker-2.example.com:6650"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrlTls"</span> <span class="o">:</span> <span class="s">"pulsar+ssl://broker-2.example.com:6651"</span><span class="p">,</span>
   <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">true</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>後者の場合、<code class="highlighter-rouge">LookupTopic</code>コマンドリクエストを<code class="highlighter-rouge">broker-2.example.com</code> に対して再発行する必要があります。このBrokerはルックアップリクエストに対して決定的なレスポンスを返すことができます。</p>
 
@@ -1665,12 +1652,11 @@
 
 <h5 id="partitionedtopicmetadataコマンド">PartitionedTopicMetadataコマンド</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadata</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadata</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>フィールド:</p>
 <ul>
@@ -1682,13 +1668,12 @@
 
 <p>メタデータ付きのレスポンスの例:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadataResponse</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadataResponse</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Success"</span><span class="p">,</span>
   <span class="s">"partitions"</span> <span class="o">:</span> <span class="mi">32</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="protobufインターフェース">Protobufインターフェース</h2>
 
@@ -3026,6 +3011,16 @@ of any number previously specified</td>
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">original_principal</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -3232,6 +3227,16 @@ lookup has been completed.</td>
               <td class="wrap">uint64</td>
               
               <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">original_principal</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>optional</td>
               <td></td>
               <td></td>
             </tr>

@@ -106,6 +106,8 @@
 <dd>
 <div class="block">Address of this publisher</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#antiAffinityGroup">antiAffinityGroup</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicies.html#assignBroker-NamespaceName-org.apache.pulsar.common.policies.data.BrokerStatus-java.util.SortedSet-java.util.SortedSet-java.util.SortedSet-">assignBroker(NamespaceName, BrokerStatus, SortedSet&lt;BrokerStatus&gt;, SortedSet&lt;BrokerStatus&gt;, SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicies.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#auth_policies">auth_policies</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
@@ -193,6 +195,8 @@
 <div class="block">Admin interface for brokers management.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#brokers--">brokers()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FailureDomain.html#brokers">brokers</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data">FailureDomain</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/BrokerStats.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">BrokerStats</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
@@ -306,6 +310,10 @@
 <dd>
 <div class="block">Create a new cluster.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#createFailureDomain-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.FailureDomain-">createFailureDomain(String, String, FailureDomain)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Create a domain into cluster</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#createNamespace-java.lang.String-int-">createNamespace(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Create a new namespace.</div>
@@ -394,9 +402,17 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#deleted">deleted</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#deleteFailureDomain-java.lang.String-java.lang.String-">deleteFailureDomain(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Delete a domain in cluster</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#deleteNamespace-java.lang.String-">deleteNamespace(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
 <div class="block">Delete an existing namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#deleteNamespaceAntiAffinityGroup-java.lang.String-">deleteNamespaceAntiAffinityGroup(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Delete anti-affinity group name for a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#deleteNamespaceBundle-java.lang.String-java.lang.String-">deleteNamespaceBundle(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -468,6 +484,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FailureDomain.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data">FailureDomain</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/LocalPolicies.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/LocalPolicies.html" title="class in org.apache.pulsar.common.policies.data">LocalPolicies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">NamespaceIsolationData</a></dt>
@@ -516,6 +534,10 @@
 </a>
 <h2 class="title">F</h2>
 <dl>
+<dt><a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data"><span class="typeNameLink">FailureDomain</span></a> - Class in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FailureDomain.html#FailureDomain--">FailureDomain()</a></span> - Constructor for class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data">FailureDomain</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#findPrimaryBrokers-java.util.List-NamespaceName-">findPrimaryBrokers(List&lt;URL&gt;, NamespaceName)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html#findPrimaryBrokers-java.util.List-NamespaceName-">findPrimaryBrokers(List&lt;URL&gt;, NamespaceName)</a></span> - Method in interface org.apache.pulsar.common.policies.<a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html" title="interface in org.apache.pulsar.common.policies">NamespaceIsolationPolicy</a></dt>
@@ -552,6 +574,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html#getAllowedClusters--">getAllowedClusters()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PropertyAdmin.html" title="class in org.apache.pulsar.common.policies.data">PropertyAdmin</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getAntiAffinityNamespaces-java.lang.String-java.lang.String-java.lang.String-">getAntiAffinityNamespaces(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get all namespaces that grouped with given anti-affinity group</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#getAvailablePrimaryBrokers-java.util.SortedSet-">getAvailablePrimaryBrokers(SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html#getAvailablePrimaryBrokers-java.util.SortedSet-">getAvailablePrimaryBrokers(SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in interface org.apache.pulsar.common.policies.<a href="org/apache/pulsar/common/policies/NamespaceIsolationPolicy.html" title="interface in org.apache.pulsar.common.policies">NamespaceIsolationPolicy</a></dt>
@@ -579,6 +605,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#getBoundaries--">getBoundaries()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerStatus.html#getBrokerAddress--">getBrokerAddress()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerStatus.html" title="class in org.apache.pulsar.common.policies.data">BrokerStatus</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FailureDomain.html#getBrokers--">getBrokers()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data">FailureDomain</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#getBrokerServiceUrl--">getBrokerServiceUrl()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
@@ -620,6 +648,14 @@
 <dd>
 <div class="block">Get list of updatable configuration name</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getFailureDomain-java.lang.String-java.lang.String-">getFailureDomain(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Get the domain registered into a cluster</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getFailureDomains-java.lang.String-">getFailureDomains(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Get all registered domains in cluster</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.html#getHttpError--">getHttpError()</a></span> - Method in exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getInternalInfo-java.lang.String-">getInternalInfo(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
@@ -650,9 +686,25 @@
 <dd>
 <div class="block">Gets quota limit in bytes</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getList-java.lang.String-">getList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get list of topics exist into given namespace</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getList-java.lang.String-">getList(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
 <div class="block">Get the list of topics under a namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getListAsync-java.lang.String-">getListAsync(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get list of topics exist into given namespace asynchronously.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundle-java.lang.String-java.lang.String-">getListInBundle(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get list of topics exist into given bundle</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/NonPersistentTopics.html#getListInBundleAsync-java.lang.String-java.lang.String-">getListInBundleAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/NonPersistentTopics.html" title="interface in org.apache.pulsar.client.admin">NonPersistentTopics</a></dt>
+<dd>
+<div class="block">Get list of topics exist into given bundle asynchronously.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerStatus.html#getLoadFactor--">getLoadFactor()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerStatus.html" title="class in org.apache.pulsar.common.policies.data">BrokerStatus</a></dt>
 <dd>&nbsp;</dd>
@@ -679,6 +731,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#getMsgRateOut--">getMsgRateOut()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
 <div class="block">Get outgoing message rate quota</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getNamespaceAntiAffinityGroup-java.lang.String-">getNamespaceAntiAffinityGroup(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get anti-affinity group name for a namespace</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/ResourceQuotas.html#getNamespaceBundleResourceQuota-java.lang.String-java.lang.String-">getNamespaceBundleResourceQuota(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></dt>
 <dd>
@@ -1472,6 +1528,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BundlesData.html#setBoundaries-java.util.List-">setBoundaries(List&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BundlesData.html" title="class in org.apache.pulsar.common.policies.data">BundlesData</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FailureDomain.html#setBrokers-java.util.Set-">setBrokers(Set&lt;String&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data">FailureDomain</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#setBrokerServiceUrl-java.lang.String-">setBrokerServiceUrl(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#setBrokerServiceUrlTls-java.lang.String-">setBrokerServiceUrlTls(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
@@ -1513,6 +1571,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#setMsgRateOut-double-">setMsgRateOut(double)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
 <div class="block">Set outgoing message rate quota</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setNamespaceAntiAffinityGroup-java.lang.String-java.lang.String-">setNamespaceAntiAffinityGroup(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set anti-affinity group name for a namespace</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/ResourceQuotas.html#setNamespaceBundleResourceQuota-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.ResourceQuota-">setNamespaceBundleResourceQuota(String, String, ResourceQuota)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></dt>
 <dd>
@@ -1670,6 +1732,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/DispatchRate.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/FailureDomain.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/FailureDomain.html" title="class in org.apache.pulsar.common.policies.data">FailureDomain</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceIsolationData.html" title="class in org.apache.pulsar.common.policies.data">NamespaceIsolationData</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html#toString--">toString()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a></dt>
@@ -1753,6 +1817,10 @@
 <div class="block">It updates dynamic configuration value in to Zk that triggers watch on
  brokers and all brokers can update <code>ServiceConfiguration</code> value
  locally</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#updateFailureDomain-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.FailureDomain-">updateFailureDomain(String, String, FailureDomain)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
+<dd>
+<div class="block">Update a domain into cluster</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#updateNamespaceIsolationPolicy-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.NamespaceIsolationData-">updateNamespaceIsolationPolicy(String, String, NamespaceIsolationData)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>

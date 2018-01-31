@@ -672,8 +672,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -685,6 +683,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -748,9 +748,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -774,9 +774,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -1143,27 +1143,25 @@
   <li>
     <p><a href="https://www.gnu.org/software/wget">wget</a>を使ってダウンロードする:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># ソースリリース</span>
-<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># ソースリリース</span>
+<span class="nv">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
 
 <span class="c"># バイナリリリース</span>
-<span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
-</code></pre>
-    </div>
+<span class="nv">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
+</code></pre></div>    </div>
   </li>
 </ul>
 
 <p>tarballをダウンロードしたら、解凍して解凍結果のディレクトリに<code class="highlighter-rouge">cd</code>してください:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="c"># ソースリリース</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># ソースリリース</span>
+<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
 
 <span class="c"># バイナリリリース</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
-</code></pre>
-</div>
+<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+</code></pre></div></div>
 
 <h2 id="パッケージに含まれるもの">パッケージに含まれるもの</h2>
 
@@ -1240,11 +1238,10 @@
 
 <p>まず、全てのZooKeeperサーバを<a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a>ファイルで指定されたクォーラム設定に追加します。クラスタにおける各ノードに対応する<code class="highlighter-rouge">server.N</code>の行を追加してください。<code class="highlighter-rouge">N</code>はZooKeeperノードの番号です。以下は3つのノードでのZooKeeperクラスタの例です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>それぞれのホストでは、<code class="highlighter-rouge">myid</code>ファイルでそのノードのIDを指定する必要があります。このファイルはデフォルトでは<code class="highlighter-rouge">data/zookeeper</code>フォルダに存在します (<a href="../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a>パラメータで変更可能) 。</p>
 
@@ -1279,18 +1276,16 @@
 
 <p>例えば、ZooKeeperサーバ<code class="highlighter-rouge">zk1.us-west.example.com</code>では次のようにして<code class="highlighter-rouge">myid</code>の値をセットできます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p data/zookeeper
-<span class="gp">$ </span><span class="nb">echo </span>1 &gt; data/zookeeper/myid
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir</span> <span class="nt">-p</span> data/zookeeper
+<span class="nv">$ </span><span class="nb">echo </span>1 <span class="o">&gt;</span> data/zookeeper/myid
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">zk2.us-west.example.com</code>ではコマンドは<code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code>になります。</p>
 
 <p>各サーバが<code class="highlighter-rouge">zookeeper.conf</code>の設定に追加され、適切な<code class="highlighter-rouge">myid</code>エントリを持っていれば、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLIツールで (nohupを使用してバックグラウンドで) 全てのホストでZooKeeperを起動できます。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre></div></div>
 
 <h3 id="global-zookeeperのデプロイ">Global ZooKeeperのデプロイ</h3>
 
@@ -1333,12 +1328,11 @@
 
 <p>単一クラスタのインスタンスにGlobal ZooKeeperをデプロイするには、ローカルクォーラムに使用されているのと同じZooKeeperサーバを、<a href="#local-zookeeper">Local ZooKeeper</a>と同様の方法で設定ファイル<a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a>に追加してください。方法は<a href="#local-zookeeper">Local ZooKeeper</a>の場合と同様ですが、異なるポート (ZooKeeperのデフォルトは2181) を使用してください。以下は2184番ポートを使用する3つのノードから構成されるZooKeeperクラスタの例です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>これまでと同様に、各サーバの<code class="highlighter-rouge">data/global-zookeeper/myid</code>に<code class="highlighter-rouge">myid</code>ファイルを作成します。</p>
 
@@ -1352,9 +1346,8 @@
 
 <p>例として、<code class="highlighter-rouge">us-west</code>, <code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code>というクラスタを持つPulsarインスタンスを想定します。また、各クラスタには次のような名前のLocal ZooKeeperサーバが存在しているとします:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre></div></div>
 
 <p>このシナリオでは、いくつかのクラスタからクォーラムの参加者を選び、それ以外の全てをZKのオブザーバにします。例えば、7台のサーバクォーラムを形成するには、<code class="highlighter-rouge">us-west</code>から3台、<code class="highlighter-rouge">us-central</code>から2台、<code class="highlighter-rouge">us-east</code>から2台のサーバを選ぶ事ができます。</p>
 
@@ -1362,7 +1355,7 @@
 
 <p>全てのサーバのZKの設定は次のようになります:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
@@ -1378,22 +1371,19 @@
 <span class="py">server.13</span><span class="p">=</span><span class="s">zk1.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.14</span><span class="p">=</span><span class="s">zk2.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.15</span><span class="p">=</span><span class="s">zk3.ap-south.example.com:2185:2186:observer</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>さらにZKのオブザーバには次の設定が必要です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
+</code></pre></div></div>
 
 <h5 id="サービスの起動">サービスの起動</h5>
 
 <p>Global ZooKeeperの設定が完了したら、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>を使用してサービスを起動できます。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start global-zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre></div></div>
 
 <h2 id="クラスタメタデータの初期化">クラスタメタデータの初期化</h2>
 
@@ -1401,16 +1391,15 @@
 
 <p>このメタデータは、<a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLIツールの<a href="../../reference/CliTools#pulsar-initialize-cluster-metadata"><code class="highlighter-rouge">initialize-cluster-metadata</code></a>コマンドを使用して初期化できます。以下は例となります:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-  --cluster us-west <span class="se">\</span>
-  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
-  --web-service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
-  --web-service-url-tls https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  <span class="nt">--cluster</span> us-west <span class="se">\</span>
+  <span class="nt">--zookeeper</span> zk1.us-west.example.com:2181 <span class="se">\</span>
+  <span class="nt">--global-zookeeper</span> zk1.us-west.example.com:2184 <span class="se">\</span>
+  <span class="nt">--web-service-url</span> http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
+  <span class="nt">--web-service-url-tls</span> https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
+  <span class="nt">--broker-service-url</span> pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
+  <span class="nt">--broker-service-url-tls</span> pulsar+ssl://pulsar.us-west.example.com:6651/
+</code></pre></div></div>
 
 <p>上の例からもわかるように、次の要素を指定する必要があります:</p>
 
@@ -1493,15 +1482,13 @@
 
 <p>バックグラウンドデーモンとしてBookieを起動するには<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>ツールを使います</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start bookie
+</code></pre></div></div>
 
 <p><a href="../../reference/CliTools#bookkeeper-shell">BookKeeper shell</a>の<code class="highlighter-rouge">bookiesanity</code>コマンドでBookieが起動しているか確認できます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre></div></div>
 
 <p>これはローカルのBookie上に新しいLedgerを作成し、いくつかのエントリを追加し、それらを読み込み、最終的には作成したLedgerを削除します。</p>
 
@@ -1535,15 +1522,14 @@
 
 <p>設定の例を以下に示します:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Local ZooKeeperをカンマで連結した文字列
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Local ZooKeeperをカンマで連結した文字列
 </span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 
 <span class="c"># Global Zookeeperをカンマで連結した文字列
 </span><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
 
 <span class="py">clusterName</span><span class="p">=</span><span class="s">us-west</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="brokerのハードウェア">Brokerのハードウェア</h3>
 
@@ -1553,15 +1539,13 @@
 
 <p><a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLIツールで<a href="https://en.wikipedia.org/wiki/Nohup">nohup</a>を使用してバックグラウンドでBrokerを起動できます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start broker
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start broker
+</code></pre></div></div>
 
 <p>また、<a href="../../reference/CliTools#pulsar-broker"><code class="highlighter-rouge">pulsar broker</code></a>を使用する事でフォアグラウンドでもBrokerを起動できます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar broker
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar broker
+</code></pre></div></div>
 
 <h2 id="サービスディスカバリ">サービスディスカバリ</h2>
 
@@ -1626,19 +1610,17 @@
 
 <p>Pulsarの組み込みサービスディスカバリを設定するには、設定ファイルである<a href="../../reference/Configuration#サービスディスカバリ"><code class="highlighter-rouge">conf/discovery.conf</code></a>のいくつかのパラメータを変更する必要があります。Zookeeperクォーラムに接続するための文字列である<a href="../../reference/Configuration#サービスディスカバリ"><code class="highlighter-rouge">zookeeperServers</code></a>とGlobal ZooKeeperクォーラムに接続するための文字列である<a href="../../reference/Configuration#サービスディスカバリ"><code class="highlighter-rouge">globalZookeeperServers</code></a>をセットしてください。</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Zookeeperクォーラムに接続するための文字列
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Zookeeperクォーラムに接続するための文字列
 </span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 
 <span class="c"># Global Zookeeperクォーラムに接続するための文字列
 </span><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>サービスディスカバリを起動する:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start discovery
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start discovery
+</code></pre></div></div>
 
 <h2 id="adminクライアントと検証">adminクライアントと検証</h2>
 
@@ -1646,9 +1628,8 @@
 
 <p>最も重要な点は、<a href="../../reference/Configuration#クライアント"><code class="highlighter-rouge">serviceUrl</code></a>パラメータにクラスタの正しいサービスURLを指定する事です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">http://pulsar.us-west.example.com:8080/</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">http://pulsar.us-west.example.com:8080/</span>
+</code></pre></div></div>
 
 <h2 id="新しいテナントのプロビジョニング">新しいテナントのプロビジョニング</h2>
 
@@ -1656,11 +1637,10 @@
 
 <p>新しいテナントがシステムを利用できるようにするには、新しい<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>を作成する必要があります。新しいプロパティは<a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">pulsar-admin</code></a> CLIツールを使用する事で作成できます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create <span class="nb">test</span>-prop <span class="se">\</span>
-  --allowed-clusters us-west <span class="se">\</span>
-  --admin-roles <span class="nb">test</span>-admin-role
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin properties create test-prop <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-west <span class="se">\</span>
+  <span class="nt">--admin-roles</span> test-admin-role
+</code></pre></div></div>
 
 <p>これによって、<code class="highlighter-rouge">test-admin-role</code>ロールを持つユーザが<code class="highlighter-rouge">us-west</code>クラスタのみを使用できる<code class="highlighter-rouge">test</code>プロパティの設定を管理できるようになります。これ以降は、テナントはリソースを自分自身で管理できます。</p>
 
@@ -1668,9 +1648,8 @@
 
 <p>最初のステップはネームスペースを作成する事です。ネームスペースは多くのトピックを含む事のできる管理単位です。一般的な方法は、単一のテナントからユースケースごとにネームスペースを作成するというものです。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
+</code></pre></div></div>
 
 <h5 id="producerとconsumerのテスト">ProducerとConsumerのテスト</h5>
 
@@ -1706,21 +1685,18 @@
 
 <p>トピックのサブスクリプションを作成し、メッセージを待ち受けるConsumerを開始します:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+</code></pre></div></div>
 
 <p>一定のレートでメッセージを送信し、10秒ごとに統計情報をレポートするProducerを開始します:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+</code></pre></div></div>
 
 <p>トピックの統計情報を閲覧するには次のコマンドを実行します:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+</code></pre></div></div>
 
       </section>
     </article>

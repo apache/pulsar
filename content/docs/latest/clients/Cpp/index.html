@@ -779,6 +779,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -926,8 +928,6 @@
           
           
           
-          
-          
         </ul>
       </div>
     </div>
@@ -969,6 +969,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -1002,8 +1004,6 @@
           
           
           <li><a href="/docs/latest/clients/Cpp/">The Pulsar C++ client</a></li>
-          
-          
           
           
           
@@ -1209,35 +1209,31 @@
 
 <p>There are separate compilation instructions for <a href="#macos">MacOS</a> and <a href="#linux">Linux</a>. For both systems, start by cloning the Pulsar repository:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/apache/incubator-pulsar/tree/master
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/apache/incubator-pulsar/tree/master
+</code></pre></div></div>
 
 <h3 id="linux">Linux</h3>
 
 <p>First, install all of the necessary dependencies:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>apt-get <span class="nb">install </span>cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev <span class="se">\</span>
   libprotobuf-dev libboost-all-dev libgtest-dev libjsoncpp-dev
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Then compile and install <a href="https://github.com/google/googletest">Google Test</a>:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/google/googletest.git <span class="o">&amp;&amp;</span> <span class="nb">cd </span>googletest
-<span class="gp">$ </span>sudo cmake .
-<span class="gp">$ </span>sudo make
-<span class="gp">$ </span>sudo cp <span class="k">*</span>.a /usr/lib
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/google/googletest.git <span class="o">&amp;&amp;</span> <span class="nb">cd </span>googletest
+<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span><span class="nb">sudo </span>make
+<span class="nv">$ </span><span class="nb">sudo cp</span> <span class="k">*</span>.a /usr/lib
+</code></pre></div></div>
 
 <p>Finally, compile the Pulsar client library for C++ inside the Pulsar repo:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="gp">$ </span>cmake .
-<span class="gp">$ </span>make
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>pulsar-client-cpp
+<span class="nv">$ </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span>make
+</code></pre></div></div>
 
 <p>The resulting files, <code class="highlighter-rouge">libpulsar.so</code> and <code class="highlighter-rouge">libpulsar.a</code>, will be placed in the <code class="highlighter-rouge">lib</code> folder of the repo while two tools, <code class="highlighter-rouge">perfProducer</code> and <code class="highlighter-rouge">perfConsumer</code>, will be placed in the <code class="highlighter-rouge">perf</code> directory.</p>
 
@@ -1245,32 +1241,30 @@
 
 <p>First, install all of the necessary dependencies:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># OpenSSL installation</span>
-<span class="gp">$ </span>brew install openssl
-<span class="gp">$ </span><span class="nb">export </span><span class="nv">OPENSSL_INCLUDE_DIR</span><span class="o">=</span>/usr/local/opt/openssl/include/
-<span class="gp">$ </span><span class="nb">export </span><span class="nv">OPENSSL_ROOT_DIR</span><span class="o">=</span>/usr/local/opt/openssl/
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># OpenSSL installation</span>
+<span class="nv">$ </span>brew <span class="nb">install </span>openssl
+<span class="nv">$ </span><span class="nb">export </span><span class="nv">OPENSSL_INCLUDE_DIR</span><span class="o">=</span>/usr/local/opt/openssl/include/
+<span class="nv">$ </span><span class="nb">export </span><span class="nv">OPENSSL_ROOT_DIR</span><span class="o">=</span>/usr/local/opt/openssl/
 
 <span class="c"># Protocol Buffers installation</span>
-<span class="gp">$ </span>brew tap homebrew/versions
-<span class="gp">$ </span>brew install protobuf260
-<span class="gp">$ </span>brew install boost
-<span class="gp">$ </span>brew install log4cxx
+<span class="nv">$ </span>brew tap homebrew/versions
+<span class="nv">$ </span>brew <span class="nb">install </span>protobuf260
+<span class="nv">$ </span>brew <span class="nb">install </span>boost
+<span class="nv">$ </span>brew <span class="nb">install </span>log4cxx
 
 <span class="c"># Google Test installation</span>
-<span class="gp">$ </span>git clone https://github.com/google/googletest.git
-<span class="gp">$ </span><span class="nb">cd </span>googletest
-<span class="gp">$ </span>cmake .
-<span class="gp">$ </span>make install
-</code></pre>
-</div>
+<span class="nv">$ </span>git clone https://github.com/google/googletest.git
+<span class="nv">$ </span><span class="nb">cd </span>googletest
+<span class="nv">$ </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span>make <span class="nb">install</span>
+</code></pre></div></div>
 
 <p>Then compile the Pulsar client library in the repo that you cloned:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="gp">$ </span>cmake .
-<span class="gp">$ </span>make
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>pulsar-client-cpp
+<span class="nv">$ </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span>make
+</code></pre></div></div>
 
 <h2 id="connection-urls">Connection URLs</h2>
 
@@ -1299,21 +1293,18 @@
 
 <p>Pulsar protocol URLs are assigned to specific <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span>, use the <code class="highlighter-rouge">pulsar</code> scheme and have a default port of 6650. Here’s an example for <code class="highlighter-rouge">localhost</code>:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://localhost:6650
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre></div></div>
 
 <p>A URL for a production Pulsar cluster may look something like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre></div></div>
 
 <p>If you’re using <a href="../../admin/Authz#tls-client-auth">TLS</a> authentication, the URL will look like something like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre></div></div>
 
 <h3 id="global-vs-cluster-specific-topics">Global vs. cluster-specific topics</h3>
 
@@ -1375,7 +1366,7 @@
 
 <h2 id="consumer">Consumer</h2>
 
-<div class="language-c++ highlighter-rouge"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 
 <span class="n">Consumer</span> <span class="n">consumer</span><span class="p">;</span>
 <span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="s">"my-subscribtion-name"</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
@@ -1394,12 +1385,11 @@
 <span class="p">}</span>
 
 <span class="n">client</span><span class="p">.</span><span class="n">close</span><span class="p">();</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="producer">Producer</h2>
 
-<div class="language-cpp highlighter-rouge"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 
 <span class="n">Producer</span> <span class="n">producer</span><span class="p">;</span>
 <span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">createProducer</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="n">producer</span><span class="p">);</span>
@@ -1408,19 +1398,18 @@
     <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 <span class="p">}</span>
 
-<span class="c1">// Publish 10 messages to the topic
-</span><span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">){</span>
+<span class="c1">// Publish 10 messages to the topic</span>
+<span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">){</span>
     <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="p">().</span><span class="n">setContent</span><span class="p">(</span><span class="s">"my-message"</span><span class="p">).</span><span class="n">build</span><span class="p">();</span>
     <span class="n">Result</span> <span class="n">res</span> <span class="o">=</span> <span class="n">producer</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
     <span class="n">LOG_INFO</span><span class="p">(</span><span class="s">"Message sent: "</span> <span class="o">&lt;&lt;</span> <span class="n">res</span><span class="p">);</span>
 <span class="p">}</span>
 <span class="n">client</span><span class="p">.</span><span class="n">close</span><span class="p">();</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="authentication">Authentication</h2>
 
-<div class="language-cpp highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">();</span>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">();</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setUseTls</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
 <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">certfile</span> <span class="o">=</span> <span class="s">"/path/to/cacert.pem"</span><span class="p">;</span>
 
@@ -1433,8 +1422,7 @@
 <span class="n">config</span><span class="p">.</span><span class="n">setAuth</span><span class="p">(</span><span class="n">auth</span><span class="p">);</span>
 
 <span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="p">,</span><span class="n">config</span><span class="p">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

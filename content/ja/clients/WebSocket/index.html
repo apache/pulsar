@@ -772,9 +772,9 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -964,9 +964,9 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -1136,8 +1136,6 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/Python/">Pulsar Pythonクライアント</a></li>
           
           
@@ -1161,6 +1159,8 @@
           
           
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -1285,9 +1285,8 @@
 
 <p>このモードでは、WebSocketサービスはBrokerですでに起動されている同じHTTPサービス内に起動します。このモードを有効にするには、 <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a>ファイルに<a href="../../reference/Configuration#broker-webSocketServiceEnabled"><code class="highlighter-rouge">webSocketServiceEnabled</code></a>パラメータをセットします。</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">webSocketServiceEnabled</span><span class="p">=</span><span class="s">true</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">webSocketServiceEnabled</span><span class="p">=</span><span class="s">true</span>
+</code></pre></div></div>
 
 <h3 id="独立したコンポーネントとして起動">独立したコンポーネントとして起動</h3>
 
@@ -1301,19 +1300,17 @@
 
 <p>こちらは設定例です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1:2181,zk2:2181,zk3:2181</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1:2181,zk2:2181,zk3:2181</span>
 <span class="py">webServicePort</span><span class="p">=</span><span class="s">8080</span>
 <span class="py">clusterName</span><span class="p">=</span><span class="s">my-cluster</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="websocketサービスの起動-1">WebSocketサービスの起動</h3>
 
 <p>設定を行なったら、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>ツールを利用してサービスを起動できます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start websocket
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start websocket
+</code></pre></div></div>
 
 <h2 id="apiリファレンス">APIリファレンス</h2>
 
@@ -1328,13 +1325,12 @@
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method "></code><code class="url">ws://broker-service-url<span class="endpoint">:8080</span>/ws/producer/persistent/<span class="endpoint">:property</span>/<span class="endpoint">:cluster</span>/<span class="endpoint">:namespace</span>/<span class="endpoint">:topic</span></code></pre></div>
 
 <h4 id="メッセージの送信">メッセージの送信</h4>
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
-  </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="s2">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="s2">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <table>
   <thead>
@@ -1381,22 +1377,20 @@
 
 <h5 id="成功時のレスポンス例">成功時のレスポンス例</h5>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-   </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span><span class="w">
-   </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
-   </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+   </span><span class="s2">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ok"</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
  </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 <h5 id="失敗時のレスポンス例">失敗時のレスポンス例</h5>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
-   </span><span class="nt">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"send-error:3"</span><span class="p">,</span><span class="w">
-   </span><span class="nt">"errorMsg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Failed to de-serialize from JSON"</span><span class="p">,</span><span class="w">
-   </span><span class="nt">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="s2">"result"</span><span class="p">:</span><span class="w"> </span><span class="s2">"send-error:3"</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"errorMsg"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Failed to de-serialize from JSON"</span><span class="p">,</span><span class="w">
+   </span><span class="s2">"context"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1"</span><span class="w">
  </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <table>
   <thead>
@@ -1439,14 +1433,13 @@
 
 <p>WebSocketセッション上でサーバからメッセージがプッシュされます:</p>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="nt">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
-  </span><span class="nt">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"payload"</span><span class="p">:</span><span class="w"> </span><span class="s2">"SGVsbG8gV29ybGQ="</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"properties"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="s2">"key1"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value1"</span><span class="p">,</span><span class="w"> </span><span class="s2">"key2"</span><span class="p">:</span><span class="w"> </span><span class="s2">"value2"</span><span class="p">},</span><span class="w">
+  </span><span class="s2">"publishTime"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2016-08-30 16:45:57.785"</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <table>
   <thead>
@@ -1495,11 +1488,10 @@
 
 <p>Pulsar Brokerがメッセージを削除できるように、Consumerはメッセージが正常に処理できたというAckを返す必要があります。</p>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"messageId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"CAAQAw=="</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
 <table>
   <thead>
@@ -1602,9 +1594,8 @@
 
 <p>この例では<a href="https://pypi.python.org/pypi/websocket-client"><code class="highlighter-rouge">websocket-client</code></a>パッケージを利用します。<a href="https://pypi.python.org/pypi/pip">pip</a>を利用してインストールできます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install websocket-client
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pip <span class="nb">install </span>websocket-client
+</code></pre></div></div>
 
 <p><a href="https://pypi.python.org/pypi/websocket-client">PyPI</a>から直接ダウンロードすることもできます。</p>
 
@@ -1612,7 +1603,7 @@
 
 <p>Pulsarの<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に簡単なメッセージを送信するPython <span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>の実装例です。</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
 
 <span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'</span>
 
@@ -1634,14 +1625,13 @@
 <span class="k">else</span><span class="p">:</span>
     <span class="k">print</span> <span class="s">'Failed to publish message:'</span><span class="p">,</span> <span class="n">response</span>
 <span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="python-consumer">Python Consumer</h4>
 
 <p>Pulsar <span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>をリッスンしてメッセージを受信するたびにそのメッセージIDを表示するPython <span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>の実装例です:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="o">,</span> <span class="nn">base64</span><span class="o">,</span> <span class="nn">json</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">websocket</span><span class="p">,</span> <span class="n">base64</span><span class="p">,</span> <span class="n">json</span>
 
 <span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'</span>
 
@@ -1657,22 +1647,20 @@
     <span class="n">ws</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s">'messageId'</span> <span class="p">:</span> <span class="n">msg</span><span class="p">[</span><span class="s">'messageId'</span><span class="p">]}))</span>
 
 <span class="n">ws</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="nodejs">Node.js</h3>
 
 <p>この例では <a href="https://websockets.github.io/ws/"><code class="highlighter-rouge">ws</code></a>パッケージを利用します。<a href="https://www.npmjs.com/">npm</a>を利用してインストールできます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>npm install ws
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>npm <span class="nb">install </span>ws
+</code></pre></div></div>
 
 <h4 id="nodejs-producer">Node.js Producer</h4>
 
 <p>Pulsarの<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に簡単なメッセージを送信するNode.jsの実装例です。</p>
 
-<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
     <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
@@ -1694,11 +1682,10 @@
   <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="s1">'received ack: %s'</span><span class="p">,</span> <span class="nx">message</span><span class="p">);</span>
 <span class="p">});</span>
 
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="nodejs-consumer">NodeJS Consumer</h4>
-<div class="language-javascript highlighter-rouge"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
+<div class="language-javascript highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">var</span> <span class="nx">WebSocket</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s1">'ws'</span><span class="p">),</span>
     <span class="nx">topic</span> <span class="o">=</span> <span class="s2">"ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub"</span><span class="p">,</span>
     <span class="nx">ws</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocket</span><span class="p">(</span><span class="nx">topic</span><span class="p">);</span>
 
@@ -1707,8 +1694,7 @@
 	<span class="kd">var</span> <span class="nx">ackMsg</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"messageId"</span> <span class="p">:</span> <span class="nx">receiveMsg</span><span class="p">.</span><span class="nx">messageId</span><span class="p">};</span>
 	<span class="nx">socket</span><span class="p">.</span><span class="nx">send</span><span class="p">(</span><span class="nx">JSON</span><span class="p">.</span><span class="nx">stringify</span><span class="p">(</span><span class="nx">ackMsg</span><span class="p">));</span>      
 <span class="p">};</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

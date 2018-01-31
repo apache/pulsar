@@ -818,13 +818,11 @@
 
 <h4 id="pulsar-admin">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers list use
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers list use
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>broker1.use.org.com:8080
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>broker1.use.org.com:8080
+</code></pre></div></div>
 
 <h6 id="rest">REST</h6>
 
@@ -834,9 +832,8 @@
 
 <h6 id="java">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getActiveBrokers</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getActiveBrokers</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="list-of-namespaces-owned-by-a-given-broker">list of namespaces owned by a given broker</h4>
 
@@ -844,29 +841,26 @@
 
 <h6 id="cli">CLI</h6>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers namespaces use <span class="se">\</span>
-  --url broker1.use.org.com:8080
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers namespaces use <span class="se">\</span>
+  <span class="nt">--url</span> broker1.use.org.com:8080
+</code></pre></div></div>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"my-property/use/my-ns/0x00000000_0xffffffff"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nt">"broker_assignment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shared"</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"is_controlled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"is_active"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"my-property/use/my-ns/0x00000000_0xffffffff"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="s2">"broker_assignment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shared"</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"is_controlled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"is_active"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
   </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 <h6 id="rest-1">REST</h6>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/<span class="endpoint">:cluster</span>/<span class="endpoint">:broker</span>:/ownedNamespaces</code></pre></div>
 
 <h6 id="java-1">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getOwnedNamespaces</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span><span class="n">brokerUrl</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getOwnedNamespaces</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span><span class="n">brokerUrl</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="dynamic-broker-configuration">Dynamic broker configuration</h3>
 
@@ -885,9 +879,8 @@
 
 <p>The <a href="../../reference/CliTools#pulsar-admin-brokers-update-dynamic-config"><code class="highlighter-rouge">update-dynamic-config</code></a> subcommand will update existing configuration. It takes two arguments: the name of the parameter and the new value. Here’s an example for the <a href="../../reference/Configuration#broker-brokerShutdownTimeoutMs"><code class="highlighter-rouge">brokerShutdownTimeoutMs</code></a> parameter:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+</code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
@@ -897,9 +890,8 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">updateDynamicConfiguration</span><span class="o">(</span><span class="n">configName</span><span class="o">,</span> <span class="n">configValue</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">updateDynamicConfiguration</span><span class="o">(</span><span class="n">configName</span><span class="o">,</span> <span class="n">configValue</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="list-updated-values">List updated values</h3>
 
@@ -907,10 +899,9 @@
 
 <h4 id="pulsar-admin-2">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers list-dynamic-config
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers list-dynamic-config
 brokerShutdownTimeoutMs
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -920,9 +911,8 @@ brokerShutdownTimeoutMs
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getDynamicConfigurationNames</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getDynamicConfigurationNames</span><span class="o">();</span>
+</code></pre></div></div>
 
 <h3 id="list-all">List all</h3>
 
@@ -930,10 +920,9 @@ brokerShutdownTimeoutMs
 
 <h4 id="pulsar-admin-3">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers get-all-dynamic-config
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers get-all-dynamic-config
 brokerShutdownTimeoutMs:100
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -943,9 +932,8 @@ brokerShutdownTimeoutMs:100
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getAllDynamicConfigurations</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getAllDynamicConfigurations</span><span class="o">();</span>
+</code></pre></div></div>
 
       </section>
     </article>

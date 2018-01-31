@@ -775,9 +775,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
-          
-          
           
           
           
@@ -967,9 +967,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/project/BinaryProtocol/">Pulsar binary protocol specification</a></li>
-          
-          
           
           
           
@@ -1441,14 +1441,13 @@ close the TCP connection.</p>
 
 <p>Example:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnect</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnect</span> <span class="p">{</span>
   <span class="s">"client_version"</span> <span class="o">:</span> <span class="s">"Pulsar-Client-Java-v1.15.2"</span><span class="p">,</span>
   <span class="s">"auth_method_name"</span> <span class="o">:</span> <span class="s">"my-authentication-plugin"</span><span class="p">,</span>
   <span class="s">"auth_data"</span> <span class="o">:</span> <span class="s">"my-auth-data"</span><span class="p">,</span>
   <span class="s">"protocol_version"</span> <span class="o">:</span> <span class="mi">6</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Fields:</p>
 <ul>
@@ -1461,12 +1460,11 @@ client. Broker will not send commands introduced in newer revisions of the
 protocol. Broker might be enforcing a minimum version</li>
 </ul>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnected</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandConnected</span> <span class="p">{</span>
   <span class="s">"server_version"</span> <span class="o">:</span> <span class="s">"Pulsar-Broker-v1.15.2"</span><span class="p">,</span>
   <span class="s">"protocol_version"</span> <span class="o">:</span> <span class="mi">6</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Fields:</p>
 <ul>
@@ -1504,13 +1502,12 @@ messages to the broker, referring to the producer id negotiated before.</p>
 
 <h5 id="command-producer">Command Producer</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducer</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducer</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1531,12 +1528,11 @@ messages to the broker, referring to the producer id negotiated before.</p>
 
 <h5 id="command-producersuccess">Command ProducerSuccess</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducerSuccess</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandProducerSuccess</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span>  <span class="mi">1</span><span class="p">,</span>
   <span class="s">"producer_name"</span> <span class="o">:</span> <span class="s">"generated-unique-producer-name"</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1552,13 +1548,12 @@ already existing producer. This command is used in a frame that includes command
 as well as message payload, for which the complete format is specified in the
 <a href="#payload-commands">payload commands</a> section.</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSend</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSend</span> <span class="p">{</span>
   <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"sequence_id"</span> <span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
   <span class="s">"num_messages"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1576,7 +1571,7 @@ once.</li>
 <p>After a message has been persisted on the configured number of replicas, the
 broker will send the acknowledgment receipt to the producer.</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSendReceipt</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSendReceipt</span> <span class="p">{</span>
   <span class="s">"producer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"sequence_id"</span> <span class="o">:</span> <span class="mi">0</span><span class="p">,</span>
   <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
@@ -1584,8 +1579,7 @@ broker will send the acknowledgment receipt to the producer.</p>
     <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1635,15 +1629,14 @@ send additional number of permits to allow the broker to push more messages.</p>
 
 <h5 id="command-subscribe">Command Subscribe</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSubscribe</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandSubscribe</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"subscription"</span> <span class="o">:</span> <span class="s">"my-subscription-name"</span><span class="p">,</span>
   <span class="s">"subType"</span> <span class="o">:</span> <span class="s">"Exclusive"</span><span class="p">,</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1663,12 +1656,11 @@ send additional number of permits to allow the broker to push more messages.</p>
 
 <h5 id="command-flow">Command Flow</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandFlow</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandFlow</span> <span class="p">{</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"messagePermits"</span> <span class="o">:</span> <span class="mi">1000</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1686,15 +1678,14 @@ within the limits of the given permits.</p>
 which the complete format is specified in the <a href="#payload-commands">payload commands</a>
 section.</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandMessage</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandMessage</span> <span class="p">{</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
     <span class="s">"ledgerId"</span> <span class="o">:</span> <span class="mi">123</span><span class="p">,</span>
     <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h5 id="command-ack">Command Ack</h5>
 
@@ -1704,7 +1695,7 @@ successfully processed by the application and can be discarded by the broker.</p
 <p>In addition, the broker will also maintain the consumer position based on the
 acknowledged messages.</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandAck</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandAck</span> <span class="p">{</span>
   <span class="s">"consumer_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"ack_type"</span> <span class="o">:</span> <span class="s">"Individual"</span><span class="p">,</span>
   <span class="s">"message_id"</span> <span class="o">:</span> <span class="p">{</span>
@@ -1712,8 +1703,7 @@ acknowledged messages.</p>
     <span class="s">"entryId"</span> <span class="o">:</span> <span class="mi">456</span>
   <span class="p">}</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Parameters:</p>
 <ul>
@@ -1808,13 +1798,12 @@ gone through the <code class="highlighter-rouge">Connect</code> / <code class="h
 
 <p><img src="/img/Binary%20Protocol%20-%20Topic%20lookup.png" alt="Topic lookup" /></p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopic</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">false</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Fields:</p>
 <ul>
@@ -1829,27 +1818,25 @@ redirect response, client should pass the same value contained in the
 
 <p>Example of response with successful lookup:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Connect"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrl"</span> <span class="o">:</span> <span class="s">"pulsar://broker-1.example.com:6650"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrlTls"</span> <span class="o">:</span> <span class="s">"pulsar+ssl://broker-1.example.com:6651"</span><span class="p">,</span>
   <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">true</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Example of lookup response with redirection:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandLookupTopicResponse</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Redirect"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrl"</span> <span class="o">:</span> <span class="s">"pulsar://broker-2.example.com:6650"</span><span class="p">,</span>
   <span class="s">"brokerServiceUrlTls"</span> <span class="o">:</span> <span class="s">"pulsar+ssl://broker-2.example.com:6651"</span><span class="p">,</span>
   <span class="s">"authoritative"</span> <span class="o">:</span> <span class="kc">true</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>In this second case, we need to reissue the <code class="highlighter-rouge">LookupTopic</code> command request
 to <code class="highlighter-rouge">broker-2.example.com</code> and this broker will be able to give a definitive
@@ -1873,12 +1860,11 @@ response will contain actual metadata.</p>
 
 <h5 id="command-partitionedtopicmetadata">Command PartitionedTopicMetadata</h5>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadata</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadata</span> <span class="p">{</span>
   <span class="s">"topic"</span> <span class="o">:</span> <span class="s">"persistent://my-property/my-cluster/my-namespace/my-topic"</span><span class="p">,</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Fields:</p>
 <ul>
@@ -1890,13 +1876,12 @@ response will contain actual metadata.</p>
 
 <p>Example of response with metadata:</p>
 
-<div class="language-protobuf highlighter-rouge"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadataResponse</span> <span class="p">{</span>
+<div class="language-protobuf highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">message</span> <span class="nc">CommandPartitionedTopicMetadataResponse</span> <span class="p">{</span>
   <span class="s">"request_id"</span> <span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
   <span class="s">"response"</span> <span class="o">:</span> <span class="s">"Success"</span><span class="p">,</span>
   <span class="s">"partitions"</span> <span class="o">:</span> <span class="mi">32</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="protobuf-interface">Protobuf interface</h2>
 
@@ -3234,6 +3219,16 @@ of any number previously specified</td>
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">original_principal</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -3440,6 +3435,16 @@ lookup has been completed.</td>
               <td class="wrap">uint64</td>
               
               <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">original_principal</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>optional</td>
               <td></td>
               <td></td>
             </tr>

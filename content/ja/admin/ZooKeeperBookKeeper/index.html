@@ -739,11 +739,10 @@
 
 <p>まず、全てのZooKeeperサーバを<a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a>ファイルで指定されたクォーラム設定に追加します。クラスタにおける各ノードに対応する<code class="highlighter-rouge">server.N</code>の行を追加してください。<code class="highlighter-rouge">N</code>はZooKeeperノードの番号です。以下は3つのノードでのZooKeeperクラスタの例です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>それぞれのホストでは、<code class="highlighter-rouge">myid</code>ファイルでそのノードのIDを指定する必要があります。このファイルはデフォルトでは<code class="highlighter-rouge">data/zookeeper</code>フォルダに存在します (<a href="../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a>パラメータで変更可能) 。</p>
 
@@ -778,18 +777,16 @@
 
 <p>例えば、ZooKeeperサーバ<code class="highlighter-rouge">zk1.us-west.example.com</code>では次のようにして<code class="highlighter-rouge">myid</code>の値をセットできます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p data/zookeeper
-<span class="gp">$ </span><span class="nb">echo </span>1 &gt; data/zookeeper/myid
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir</span> <span class="nt">-p</span> data/zookeeper
+<span class="nv">$ </span><span class="nb">echo </span>1 <span class="o">&gt;</span> data/zookeeper/myid
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">zk2.us-west.example.com</code>ではコマンドは<code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code>になります。</p>
 
 <p>各サーバが<code class="highlighter-rouge">zookeeper.conf</code>の設定に追加され、適切な<code class="highlighter-rouge">myid</code>エントリを持っていれば、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLIツールで (nohupを使用してバックグラウンドで) 全てのホストでZooKeeperを起動できます。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre></div></div>
 
 <h3 id="global-zookeeperのデプロイ">Global ZooKeeperのデプロイ</h3>
 
@@ -832,12 +829,11 @@
 
 <p>単一クラスタのインスタンスにGlobal ZooKeeperをデプロイするには、ローカルクォーラムに使用されているのと同じZooKeeperサーバを、<a href="#local-zookeeper">Local ZooKeeper</a>と同様の方法で設定ファイル<a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a>に追加してください。方法は<a href="#local-zookeeper">Local ZooKeeper</a>の場合と同様ですが、異なるポート (ZooKeeperのデフォルトは2181) を使用してください。以下は2184番ポートを使用する3つのノードから構成されるZooKeeperクラスタの例です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>これまでと同様に、各サーバの<code class="highlighter-rouge">data/global-zookeeper/myid</code>に<code class="highlighter-rouge">myid</code>ファイルを作成します。</p>
 
@@ -851,9 +847,8 @@
 
 <p>例として、<code class="highlighter-rouge">us-west</code>, <code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code>というクラスタを持つPulsarインスタンスを想定します。また、各クラスタには次のような名前のLocal ZooKeeperサーバが存在しているとします:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre></div></div>
 
 <p>このシナリオでは、いくつかのクラスタからクォーラムの参加者を選び、それ以外の全てをZKのオブザーバにします。例えば、7台のサーバクォーラムを形成するには、<code class="highlighter-rouge">us-west</code>から3台、<code class="highlighter-rouge">us-central</code>から2台、<code class="highlighter-rouge">us-east</code>から2台のサーバを選ぶ事ができます。</p>
 
@@ -861,7 +856,7 @@
 
 <p>全てのサーバのZKの設定は次のようになります:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
@@ -877,22 +872,19 @@
 <span class="py">server.13</span><span class="p">=</span><span class="s">zk1.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.14</span><span class="p">=</span><span class="s">zk2.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.15</span><span class="p">=</span><span class="s">zk3.ap-south.example.com:2185:2186:observer</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>さらにZKのオブザーバには次の設定が必要です:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
+</code></pre></div></div>
 
 <h5 id="サービスの起動">サービスの起動</h5>
 
 <p>Global ZooKeeperの設定が完了したら、<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>を使用してサービスを起動できます。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start global-zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre></div></div>
 
 <h3 id="zookeeperの設定">ZooKeeperの設定</h3>
 
@@ -1156,15 +1148,13 @@
 
 <p>バックグラウンドデーモンとしてBookieを起動するには<a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a>ツールを使います</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start bookie
+</code></pre></div></div>
 
 <p><a href="../../reference/CliTools#bookkeeper-shell">BookKeeper shell</a>の<code class="highlighter-rouge">bookiesanity</code>コマンドでBookieが起動しているか確認できます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre></div></div>
 
 <p>これはローカルのBookie上に新しいLedgerを作成し、いくつかのエントリを追加し、それらを読み込み、最終的には作成したLedgerを削除します。</p>
 
@@ -1190,7 +1180,7 @@
 
 <p><code class="highlighter-rouge">conf/bookkeeper.conf</code>において必要とされる最小の設定変更：</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Journal用ディスクのマウントポイントを変更してください
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Journal用ディスクのマウントポイントを変更してください
 </span><span class="py">journalDirectory</span><span class="p">=</span><span class="s">data/bookkeeper/journal</span>
 
 <span class="c"># Ledger用ストレージディスクのマウントポイントを指定してください
@@ -1201,8 +1191,7 @@
 
 <span class="c"># Ledgerのマネージャータイプを変更してください
 </span><span class="py">ledgerManagerType</span><span class="p">=</span><span class="s">hierarchical</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -1285,11 +1274,10 @@
 
 <h5 id="例">例</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
-  --bookkeeper-ack-quorom 3 <span class="se">\</span>
-  --bookeeper-ensemble 2
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--bookkeeper-ack-quorom</span> 3 <span class="se">\</span>
+  <span class="nt">--bookeeper-ensemble</span> 2
+</code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
@@ -1299,15 +1287,14 @@
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">bkQuorum</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">bkAckQuorum</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
 <span class="kt">double</span> <span class="n">markDeleteRate</span> <span class="o">=</span> <span class="mf">0.7</span><span class="o">;</span>
 <span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span>
   <span class="k">new</span> <span class="nf">PersistencePolicies</span><span class="o">(</span><span class="n">ensemble</span><span class="o">,</span> <span class="n">quorum</span><span class="o">,</span> <span class="n">ackQuorum</span><span class="o">,</span> <span class="n">markDeleteRate</span><span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="永続性ポリシーの取得">永続性ポリシーの取得</h3>
 
@@ -1319,15 +1306,14 @@
 
 <h5 id="例-1">例</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
 <span class="o">{</span>
   <span class="s2">"bookkeeperEnsemble"</span>: 1,
   <span class="s2">"bookkeeperWriteQuorum"</span>: 1,
   <span class="s2">"bookkeeperAckQuorum"</span>, 1,
   <span class="s2">"managedLedgerMaxMarkDeleteRate"</span>: 0
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -1337,9 +1323,8 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h2 id="pulsarはzookeeperとbookkeeperをどのように利用しているか">PulsarはZooKeeperとBookKeeperをどのように利用しているか</h2>
 

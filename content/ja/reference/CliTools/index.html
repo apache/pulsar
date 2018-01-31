@@ -672,8 +672,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -685,6 +683,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -748,9 +748,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -774,9 +774,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -886,9 +886,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1078,8 +1078,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -1227,6 +1225,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1276,9 +1276,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1468,9 +1468,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1660,9 +1660,9 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1877,9 +1877,8 @@
     
 <p>CLIツールのコマンド、サブコマンドは<code class="highlighter-rouge">--help</code>あるいは<code class="highlighter-rouge">-h</code>を使用することで確認できます。以下その一例です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin clusters --help
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin clusters <span class="nt">--help</span>
+</code></pre></div></div>
 
   </div>
 </div>
@@ -5828,7 +5827,7 @@
                       
                        <!-- for flag in option.flags -->
                     </td>
-                    <td><p>A bundle of the form <code class="highlighter-rouge"><span class="p">{</span><span class="err">start-boundary</span><span class="p">}</span><span class="err">_</span><span class="p">{</span><span class="err">end_boundary</span><span class="p">}</span></code>. This must be specified together with <code class="highlighter-rouge">-n</code>/<code class="highlighter-rouge">--namespace</code>.</p>
+                    <td><p>A bundle of the form <code class="highlighter-rouge">{start-boundary}_{end_boundary}</code>. This must be specified together with <code class="highlighter-rouge">-n</code>/<code class="highlighter-rouge">--namespace</code>.</p>
 </td>
                     <td>
                       
@@ -5925,7 +5924,7 @@
                       
                        <!-- for flag in option.flags -->
                     </td>
-                    <td><p>A bundle of the form <code class="highlighter-rouge"><span class="p">{</span><span class="err">start-boundary</span><span class="p">}</span><span class="err">_</span><span class="p">{</span><span class="err">end_boundary</span><span class="p">}</span></code>. This must be specified together with <code class="highlighter-rouge">-n</code>/<code class="highlighter-rouge">--namespace</code>.</p>
+                    <td><p>A bundle of the form <code class="highlighter-rouge">{start-boundary}_{end_boundary}</code>. This must be specified together with <code class="highlighter-rouge">-n</code>/<code class="highlighter-rouge">--namespace</code>.</p>
 </td>
                     <td>
                       
@@ -6058,7 +6057,7 @@
                       
                        <!-- for flag in option.flags -->
                     </td>
-                    <td><p>A bundle of the form <code class="highlighter-rouge"><span class="p">{</span><span class="err">start-boundary</span><span class="p">}</span><span class="err">_</span><span class="p">{</span><span class="err">end_boundary</span><span class="p">}</span></code>.</p>
+                    <td><p>A bundle of the form <code class="highlighter-rouge">{start-boundary}_{end_boundary}</code>.</p>
 </td>
                     <td>
                       

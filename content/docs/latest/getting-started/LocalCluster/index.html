@@ -827,9 +827,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
-          
-          
           
           
           
@@ -1021,9 +1021,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
-          
-          
           
           
           
@@ -1229,27 +1229,25 @@
   <li>
     <p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="gp">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Source release</span>
+<span class="nv">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
 
 <span class="c"># Binary release</span>
-<span class="gp">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
-</code></pre>
-    </div>
+<span class="nv">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
+</code></pre></div>    </div>
   </li>
 </ul>
 
 <p>Once the tarball is downloaded, untar it and <code class="highlighter-rouge">cd</code> into the resulting directory:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Source release</span>
+<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
 
 <span class="c"># Binary release</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
-</code></pre>
-</div>
+<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+</code></pre></div></div>
 
 <h2 id="what-your-package-contains">What your package contains</h2>
 
@@ -1294,25 +1292,22 @@
 
 <p>To compile, skipping the tests:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mvn install -DskipTests
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>mvn <span class="nb">install</span> <span class="nt">-DskipTests</span>
+</code></pre></div></div>
 
 <h2 id="starting-the-cluster">Starting the cluster</h2>
 
 <p>Once you have an up-to-date local copy of the release, you can start up a local cluster using the <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> command, which is stored in the <code class="highlighter-rouge">bin</code> directory, and specifying that you want to start up Pulsar in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar standalone
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar standalone
+</code></pre></div></div>
 
 <p>If Pulsar has been successfully started, you should see <code class="highlighter-rouge">INFO</code>-level log messages like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@95] - Global Zookeeper cache started
 2017-06-01 14:46:29,192 - INFO  - [main:AuthenticationService@61] - Authentication is disabled
 2017-06-01 14:46:29,192 - INFO  - [main:WebSocketService@108] - Pulsar WebSocket Service started
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -1348,17 +1343,15 @@
 
 <p>Pulsar provides a CLI tool called <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> that enables you to do things like send messages to a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> in a running cluster. This command will send a simple message saying <code class="highlighter-rouge">hello-pulsar</code> to the <code class="highlighter-rouge">persistent://sample/standalone/ns1/my-topic</code> topic:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-client produce <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce <span class="se">\</span>
   persistent://sample/standalone/ns1/my-topic <span class="se">\</span>
-  -m <span class="s1">'hello-pulsar'</span>
-</code></pre>
-</div>
+  <span class="nt">-m</span> <span class="s1">'hello-pulsar'</span>
+</code></pre></div></div>
 
 <p>If the message has been successfully published to the topic, you should see a confirmation like this in the <code class="highlighter-rouge">pulsar-client</code> logs:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>2017-06-01 18:18:57,094 - INFO  - [main:CmdProduce@189] - 1 messages successfully produced
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2017-06-01 18:18:57,094 - INFO  - [main:CmdProduce@189] - 1 messages successfully produced
+</code></pre></div></div>
 
 <!--
 
@@ -1400,37 +1393,34 @@
 
 <p>Here’s an example producer for a Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> using the <a href="../../clients/Java">Java</a> client:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">localClusterUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">localClusterUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">String</span> <span class="n">namespace</span> <span class="o">=</span> <span class="s">"sample/standalone/ns1"</span><span class="o">;</span> <span class="c1">// This namespace is created automatically</span>
 <span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"persistent://%s/my-topic"</span><span class="o">,</span> <span class="n">namespace</span><span class="o">);</span>
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">localClusterUrl</span><span class="o">);</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Here’s an example <a href="../../clients/Python">Python</a> producer:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">TOPIC</span> <span class="o">=</span> <span class="s">'persistent://sample/standalone/ns/my-topic'</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="n">TOPIC</span><span class="p">)</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Finally, here’s an example <a href="../../clients/Cpp">C++</a> producer:</p>
 
-<div class="language-cpp highlighter-rouge"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 <span class="n">Producer</span> <span class="n">producer</span><span class="p">;</span>
 <span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">createProducer</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="n">producer</span><span class="p">);</span>
 <span class="k">if</span> <span class="p">(</span><span class="n">result</span> <span class="o">!=</span> <span class="n">ResultOk</span><span class="p">)</span> <span class="p">{</span>
     <span class="n">LOG_ERROR</span><span class="p">(</span><span class="s">"Error creating producer: "</span> <span class="o">&lt;&lt;</span> <span class="n">result</span><span class="p">);</span>
     <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 <span class="p">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

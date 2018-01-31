@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6,"i22":6,"i23":6,"i24":6,"i25":6,"i26":6,"i27":6,"i28":6,"i29":6,"i30":6,"i31":6,"i32":6,"i33":6,"i34":6,"i35":6,"i36":6,"i37":6,"i38":6,"i39":6,"i40":6,"i41":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -175,85 +175,105 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#deleteNamespaceAntiAffinityGroup-java.lang.String-">deleteNamespaceAntiAffinityGroup</a></span>(String&nbsp;namespace)</code>
+<div class="block">Delete anti-affinity group name for a namespace.</div>
+</td>
+</tr>
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#deleteNamespaceBundle-java.lang.String-java.lang.String-">deleteNamespaceBundle</a></span>(String&nbsp;namespace,
                      String&nbsp;bundleRange)</code>
 <div class="block">Delete an existing bundle in a namespace.</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
+<tr id="i10" class="altColor">
+<td class="colFirst"><code>List&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getAntiAffinityNamespaces-java.lang.String-java.lang.String-java.lang.String-">getAntiAffinityNamespaces</a></span>(String&nbsp;property,
+                         String&nbsp;cluster,
+                         String&nbsp;namespaceAntiAffinityGroup)</code>
+<div class="block">Get all namespaces that grouped with given anti-affinity group</div>
+</td>
+</tr>
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>Map&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/BacklogQuota.BacklogQuotaType.html" title="enum in org.apache.pulsar.common.policies.data">BacklogQuota.BacklogQuotaType</a>,<a href="../../../../../org/apache/pulsar/common/policies/data/BacklogQuota.html" title="class in org.apache.pulsar.common.policies.data">BacklogQuota</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getBacklogQuotaMap-java.lang.String-">getBacklogQuotaMap</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get backlog quota map on a namespace.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getDestinations-java.lang.String-">getDestinations</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get the list of destinations.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getDispatchRate-java.lang.String-">getDispatchRate</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second)</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i14" class="altColor">
+<td class="colFirst"><code>String</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaceAntiAffinityGroup-java.lang.String-">getNamespaceAntiAffinityGroup</a></span>(String&nbsp;namespace)</code>
+<div class="block">Get anti-affinity group name for a namespace</div>
+</td>
+</tr>
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaceMessageTTL-java.lang.String-">getNamespaceMessageTTL</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get the message TTL for a namespace.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaceReplicationClusters-java.lang.String-">getNamespaceReplicationClusters</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get the replication clusters for a namespace.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaces-java.lang.String-">getNamespaces</a></span>(String&nbsp;property)</code>
 <div class="block">Get the list of namespaces.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>List&lt;String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getNamespaces-java.lang.String-java.lang.String-">getNamespaces</a></span>(String&nbsp;property,
              String&nbsp;cluster)</code>
 <div class="block">Get the list of namespaces.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>Map&lt;String,Set&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/AuthAction.html" title="enum in org.apache.pulsar.common.policies.data">AuthAction</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getPermissions-java.lang.String-">getPermissions</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get permissions on a namespace.</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/PersistencePolicies.html" title="class in org.apache.pulsar.common.policies.data">PersistencePolicies</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getPersistence-java.lang.String-">getPersistence</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get the persistence configuration for a namespace.</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getPolicies-java.lang.String-">getPolicies</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get policies for a namespace.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getReplicationConfigVersion-java.lang.String-">getReplicationConfigVersion</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get the replication configuration version for a given namespace</div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#getRetention-java.lang.String-">getRetention</a></span>(String&nbsp;namespace)</code>
 <div class="block">Get the retention configuration for a namespace.</div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#grantPermissionOnNamespace-java.lang.String-java.lang.String-java.util.Set-">grantPermissionOnNamespace</a></span>(String&nbsp;namespace,
                           String&nbsp;role,
@@ -261,83 +281,90 @@ var activeTableTab = "activeTableTab";
 <div class="block">Grant permission on a namespace.</div>
 </td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#removeBacklogQuota-java.lang.String-">removeBacklogQuota</a></span>(String&nbsp;namespace)</code>
 <div class="block">Remove a backlog quota policy from a namespace.</div>
 </td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#revokePermissionsOnNamespace-java.lang.String-java.lang.String-">revokePermissionsOnNamespace</a></span>(String&nbsp;namespace,
                             String&nbsp;role)</code>
 <div class="block">Revoke permissions on a namespace.</div>
 </td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setBacklogQuota-java.lang.String-org.apache.pulsar.common.policies.data.BacklogQuota-">setBacklogQuota</a></span>(String&nbsp;namespace,
                <a href="../../../../../org/apache/pulsar/common/policies/data/BacklogQuota.html" title="class in org.apache.pulsar.common.policies.data">BacklogQuota</a>&nbsp;backlogQuota)</code>
 <div class="block">Set a backlog quota for all the destinations on a namespace.</div>
 </td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setDeduplicationStatus-java.lang.String-boolean-">setDeduplicationStatus</a></span>(String&nbsp;namespace,
                       boolean&nbsp;enableDeduplication)</code>
 <div class="block">Set the deduplication status for all topics within a namespace.</div>
 </td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i29" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setDispatchRate-java.lang.String-org.apache.pulsar.common.policies.data.DispatchRate-">setDispatchRate</a></span>(String&nbsp;namespace,
                <a href="../../../../../org/apache/pulsar/common/policies/data/DispatchRate.html" title="class in org.apache.pulsar.common.policies.data">DispatchRate</a>&nbsp;dispatchRate)</code>
 <div class="block">Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)</div>
 </td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i30" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setEncryptionRequiredStatus-java.lang.String-boolean-">setEncryptionRequiredStatus</a></span>(String&nbsp;namespace,
                            boolean&nbsp;encryptionRequired)</code>
 <div class="block">Set the encryption required status for all topics within a namespace.</div>
 </td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i31" class="rowColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceAntiAffinityGroup-java.lang.String-java.lang.String-">setNamespaceAntiAffinityGroup</a></span>(String&nbsp;namespace,
+                             String&nbsp;namespaceAntiAffinityGroup)</code>
+<div class="block">Set anti-affinity group name for a namespace</div>
+</td>
+</tr>
+<tr id="i32" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceMessageTTL-java.lang.String-int-">setNamespaceMessageTTL</a></span>(String&nbsp;namespace,
                       int&nbsp;ttlInSeconds)</code>
 <div class="block">Set the messages Time to Live for all the topics within a namespace.</div>
 </td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setNamespaceReplicationClusters-java.lang.String-java.util.List-">setNamespaceReplicationClusters</a></span>(String&nbsp;namespace,
                                List&lt;String&gt;&nbsp;clusterIds)</code>
 <div class="block">Set the replication clusters for a namespace.</div>
 </td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setPersistence-java.lang.String-org.apache.pulsar.common.policies.data.PersistencePolicies-">setPersistence</a></span>(String&nbsp;namespace,
               <a href="../../../../../org/apache/pulsar/common/policies/data/PersistencePolicies.html" title="class in org.apache.pulsar.common.policies.data">PersistencePolicies</a>&nbsp;persistence)</code>
 <div class="block">Set the persistence configuration for all the destinations on a namespace.</div>
 </td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setRetention-java.lang.String-org.apache.pulsar.common.policies.data.RetentionPolicies-">setRetention</a></span>(String&nbsp;namespace,
             <a href="../../../../../org/apache/pulsar/common/policies/data/RetentionPolicies.html" title="class in org.apache.pulsar.common.policies.data">RetentionPolicies</a>&nbsp;retention)</code>
 <div class="block">Set the retention configuration for all the destinations on a namespace.</div>
 </td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#setSubscriptionAuthMode-java.lang.String-org.apache.pulsar.common.policies.data.SubscriptionAuthMode-">setSubscriptionAuthMode</a></span>(String&nbsp;namespace,
                        <a href="../../../../../org/apache/pulsar/common/policies/data/SubscriptionAuthMode.html" title="enum in org.apache.pulsar.common.policies.data">SubscriptionAuthMode</a>&nbsp;subscriptionAuthMode)</code>
 <div class="block">Set the given subscription auth mode on all destinations on a namespace</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#splitNamespaceBundle-java.lang.String-java.lang.String-boolean-">splitNamespaceBundle</a></span>(String&nbsp;namespace,
                     String&nbsp;bundle,
@@ -345,27 +372,27 @@ var activeTableTab = "activeTableTab";
 <div class="block">Split namespace bundle</div>
 </td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unload-java.lang.String-">unload</a></span>(String&nbsp;namespace)</code>
 <div class="block">Unload a namespace from the current serving broker.</div>
 </td>
 </tr>
-<tr id="i35" class="rowColor">
+<tr id="i39" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unloadNamespaceBundle-java.lang.String-java.lang.String-">unloadNamespaceBundle</a></span>(String&nbsp;namespace,
                      String&nbsp;bundle)</code>
 <div class="block">Unload namespace bundle</div>
 </td>
 </tr>
-<tr id="i36" class="altColor">
+<tr id="i40" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unsubscribeNamespace-java.lang.String-java.lang.String-">unsubscribeNamespace</a></span>(String&nbsp;namespace,
                     String&nbsp;subscription)</code>
 <div class="block">Unsubscribes the given subscription on all destinations on a namespace</div>
 </td>
 </tr>
-<tr id="i37" class="rowColor">
+<tr id="i41" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Namespaces.html#unsubscribeNamespaceBundle-java.lang.String-java.lang.String-java.lang.String-">unsubscribeNamespaceBundle</a></span>(String&nbsp;namespace,
                           String&nbsp;bundle,
@@ -820,6 +847,97 @@ var activeTableTab = "activeTableTab";
 <dd><code>ttlInSeconds</code> - TTL values for all messages for all topics in this namespace</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Namespace does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="setNamespaceAntiAffinityGroup-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setNamespaceAntiAffinityGroup</h4>
+<pre>void&nbsp;setNamespaceAntiAffinityGroup(String&nbsp;namespace,
+                                   String&nbsp;namespaceAntiAffinityGroup)
+                            throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Set anti-affinity group name for a namespace
+ <p>
+ Request example:</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - Namespace name</dd>
+<dd><code>namespaceAntiAffinityGroup</code> - anti-affinity group name for a namespace</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Namespace does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="getAntiAffinityNamespaces-java.lang.String-java.lang.String-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getAntiAffinityNamespaces</h4>
+<pre>List&lt;String&gt;&nbsp;getAntiAffinityNamespaces(String&nbsp;property,
+                                       String&nbsp;cluster,
+                                       String&nbsp;namespaceAntiAffinityGroup)
+                                throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get all namespaces that grouped with given anti-affinity group</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>property</code> - property is only used for authorization. Client has to be admin of any of the property to access this
+            api api.</dd>
+<dd><code>cluster</code> - cluster name</dd>
+<dd><code>namespaceAntiAffinityGroup</code> - Anti-affinity group name</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>list of namespace grouped under a given anti-affinity group</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getNamespaceAntiAffinityGroup-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getNamespaceAntiAffinityGroup</h4>
+<pre>String&nbsp;getNamespaceAntiAffinityGroup(String&nbsp;namespace)
+                              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get anti-affinity group name for a namespace
+ <p>
+ Response example:
+
+ <pre>
+ <code>60</code>
+ </pre></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - Namespace name</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Namespace does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="deleteNamespaceAntiAffinityGroup-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>deleteNamespaceAntiAffinityGroup</h4>
+<pre>void&nbsp;deleteNamespaceAntiAffinityGroup(String&nbsp;namespace)
+                               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Delete anti-affinity group name for a namespace.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>namespace</code> - Namespace name</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Namespace does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>

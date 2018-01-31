@@ -771,6 +771,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -868,8 +870,6 @@
           
           
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1664,27 +1664,25 @@
   <li>
     <p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="gp">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Source release</span>
+<span class="nv">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
 
 <span class="c"># Binary release</span>
-<span class="gp">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
-</code></pre>
-    </div>
+<span class="nv">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
+</code></pre></div>    </div>
   </li>
 </ul>
 
 <p>Once the tarball is downloaded, untar it and <code class="highlighter-rouge">cd</code> into the resulting directory:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Source release</span>
+<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
 
 <span class="c"># Binary release</span>
-<span class="gp">$ </span>tar xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
-</code></pre>
-</div>
+<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+</code></pre></div></div>
 
 <h2 id="what-your-package-contains">What your package contains</h2>
 
@@ -1729,9 +1727,8 @@
 
 <p>To compile, skipping the tests:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mvn install -DskipTests
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>mvn <span class="nb">install</span> <span class="nt">-DskipTests</span>
+</code></pre></div></div>
 
 <h2 id="deploying-zookeeper">Deploying ZooKeeper</h2>
 
@@ -1771,11 +1768,10 @@
 
 <p>To begin, add all ZooKeeper servers to the quorum configuration specified in the <a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a> file. Add a <code class="highlighter-rouge">server.N</code> line for each node in the cluster to the configuration, where <code class="highlighter-rouge">N</code> is the number of the ZooKeeper node. Here’s an example for a three-node cluster:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>On each host, you need to specify the ID of the node in each node’s <code class="highlighter-rouge">myid</code> file, which is in each server’s <code class="highlighter-rouge">data/zookeeper</code> folder by default (this can be changed via the <a href="../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> parameter).</p>
 
@@ -1810,18 +1806,16 @@
 
 <p>On a ZooKeeper server at <code class="highlighter-rouge">zk1.us-west.example.com</code>, for example, you could set the <code class="highlighter-rouge">myid</code> value like this:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p data/zookeeper
-<span class="gp">$ </span><span class="nb">echo </span>1 &gt; data/zookeeper/myid
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir</span> <span class="nt">-p</span> data/zookeeper
+<span class="nv">$ </span><span class="nb">echo </span>1 <span class="o">&gt;</span> data/zookeeper/myid
+</code></pre></div></div>
 
 <p>On <code class="highlighter-rouge">zk2.us-west.example.com</code> the command would be <code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
 
 <p>Once each server has been added to the <code class="highlighter-rouge">zookeeper.conf</code> configuration and has the appropriate <code class="highlighter-rouge">myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre></div></div>
 
 <h3 id="deploying-global-zookeeper">Deploying global ZooKeeper</h3>
 
@@ -1863,12 +1857,11 @@
 
 <p>To deploy global ZooKeeper in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in <a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a> using the same method for <a href="#local-zookeeper">local ZooKeeper</a>, but make sure to use a different port (2181 is the default for ZooKeeper). Here’s an example that uses port 2184 for a three-node ZooKeeper cluster:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>As before, create the <code class="highlighter-rouge">myid</code> files for each server on <code class="highlighter-rouge">data/global-zookeeper/myid</code>.</p>
 
@@ -1886,9 +1879,8 @@ share the same hosts used for the local ZooKeeper quorum.</p>
 <code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code>. Also let’s assume, each cluster
 will have its own local ZK servers named such as</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre></div></div>
 
 <p>In this scenario we want to pick the quorum participants from few clusters and
 let all the others be ZK observers. For example, to form a 7 servers quorum, we
@@ -1899,7 +1891,7 @@ of these regions is unreachable.</p>
 
 <p>The ZK configuration in all the servers will look like:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
@@ -1915,22 +1907,19 @@ of these regions is unreachable.</p>
 <span class="py">server.13</span><span class="p">=</span><span class="s">zk1.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.14</span><span class="p">=</span><span class="s">zk2.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.15</span><span class="p">=</span><span class="s">zk3.ap-south.example.com:2185:2186:observer</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Additionally, ZK observers will need to have:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
+</code></pre></div></div>
 
 <h5 id="starting-the-service">Starting the service</h5>
 
 <p>Once your global ZooKeeper configuration is in place, you can start up the service using <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a></p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start global-zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre></div></div>
 
 <h2 id="cluster-metadata-initialization">Cluster metadata initialization</h2>
 
@@ -1938,16 +1927,15 @@ of these regions is unreachable.</p>
 
 <p>You can initialize this metadata using the <a href="../../reference/CliTools#pulsar-initialize-cluster-metadata"><code class="highlighter-rouge">initialize-cluster-metadata</code></a> command of the <a href="../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLI tool. Here’s an example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-  --cluster us-west <span class="se">\</span>
-  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
-  --web-service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
-  --web-service-url-tls https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  <span class="nt">--cluster</span> us-west <span class="se">\</span>
+  <span class="nt">--zookeeper</span> zk1.us-west.example.com:2181 <span class="se">\</span>
+  <span class="nt">--global-zookeeper</span> zk1.us-west.example.com:2184 <span class="se">\</span>
+  <span class="nt">--web-service-url</span> http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
+  <span class="nt">--web-service-url-tls</span> https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
+  <span class="nt">--broker-service-url</span> pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
+  <span class="nt">--broker-service-url-tls</span> pulsar+ssl://pulsar.us-west.example.com:6651/
+</code></pre></div></div>
 
 <p>As you can see from the example above, the following needs to be specified:</p>
 
@@ -2030,15 +2018,13 @@ of these regions is unreachable.</p>
 
 <p>To start up a bookie in the foreground, use the <a href="../../reference/CliTools#bookkeeper"><code class="highlighter-rouge">bookeeper</code></a></p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start bookie
+</code></pre></div></div>
 
 <p>You can verify that the bookie is working properly using the <code class="highlighter-rouge">bookiesanity</code> command for the <a href="../../reference/CliTools#bookkeeper-shell">BookKeeper shell</a>:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre></div></div>
 
 <p>This will create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.</p>
 
@@ -2073,15 +2059,14 @@ designed to use multiple devices:</p>
 
 <p>Here’s an example configuration:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Local ZooKeeper servers
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Local ZooKeeper servers
 </span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 
 <span class="c"># Global Zookeeper quorum connection string.
 </span><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
 
 <span class="py">clusterName</span><span class="p">=</span><span class="s">us-west</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="broker-hardware">Broker hardware</h3>
 
@@ -2091,15 +2076,13 @@ designed to use multiple devices:</p>
 
 <p>You can start a broker in the background using <a href="https://en.wikipedia.org/wiki/Nohup">nohup</a> with the <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start broker
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start broker
+</code></pre></div></div>
 
 <p>You can also start brokers in the foreground using <a href="../../reference/CliTools#pulsar-broker"><code class="highlighter-rouge">pulsar broker</code></a>:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar broker
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar broker
+</code></pre></div></div>
 
 <h2 id="service-discovery">Service discovery</h2>
 
@@ -2164,19 +2147,17 @@ designed to use multiple devices:</p>
 
 <p>To get started setting up Pulsar’s built-in service discovery, you need to change a few parameters in the <a href="../../reference/Configuration#service-discovery"><code class="highlighter-rouge">conf/discovery.conf</code></a> configuration file. Set the <a href="../../reference/Configuration#service-discovery-zookeeperServers"><code class="highlighter-rouge">zookeeperServers</code></a> parameter to the global ZooKeeper quorum connection string and the <a href="../../reference/Configuration#service-discovery-globalZookeeperServers"><code class="highlighter-rouge">globalZookeeperServers</code></a></p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Zookeeper quorum connection string
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Zookeeper quorum connection string
 </span><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 
 <span class="c"># Global zookeeper quorum connection string
 </span><span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>To start the discovery service:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start discovery
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start discovery
+</code></pre></div></div>
 
 <h2 id="admin-client-and-verification">Admin client and verification</h2>
 
@@ -2184,9 +2165,8 @@ designed to use multiple devices:</p>
 
 <p>The most important thing is that you point the <a href="../../reference/Configuration#client-serviceUrl"><code class="highlighter-rouge">serviceUrl</code></a> parameter to the correct service URL for the cluster:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">http://pulsar.us-west.example.com:8080/</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">serviceUrl</span><span class="p">=</span><span class="s">http://pulsar.us-west.example.com:8080/</span>
+</code></pre></div></div>
 
 <h2 id="provisioning-new-tenants">Provisioning new tenants</h2>
 
@@ -2194,11 +2174,10 @@ designed to use multiple devices:</p>
 
 <p>To allow a new tenant to use the system, we need to create a new <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span>. You can create a new property using the <a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">pulsar-admin</code></a> CLI tool:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create <span class="nb">test</span>-prop <span class="se">\</span>
-  --allowed-clusters us-west <span class="se">\</span>
-  --admin-roles <span class="nb">test</span>-admin-role
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin properties create test-prop <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-west <span class="se">\</span>
+  <span class="nt">--admin-roles</span> test-admin-role
+</code></pre></div></div>
 
 <p>This will allow users who identify with role <code class="highlighter-rouge">test-admin-role</code> to administer the configuration for the property <code class="highlighter-rouge">test</code> which will only be allowed to use the cluster <code class="highlighter-rouge">us-west</code>. From now on, this tenant will be able to self-manage its resources.</p>
 
@@ -2208,9 +2187,8 @@ designed to use multiple devices:</p>
 that can contain many topic. Common practice is to create a namespace for each
 different use case from a single tenant.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
+</code></pre></div></div>
 
 <h5 id="testing-producer-and-consumer">Testing producer and consumer</h5>
 
@@ -2249,22 +2227,19 @@ created the first time a producer or a consumer tries to use them.</p>
 <p>Start a consumer that will create a subscription on the topic and will wait
 for messages:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+</code></pre></div></div>
 
 <p>Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+</code></pre></div></div>
 
 <p>To report the topic stats:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+</code></pre></div></div>
 
       </section>
     </article>

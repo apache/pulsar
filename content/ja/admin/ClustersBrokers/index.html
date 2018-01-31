@@ -672,8 +672,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -685,6 +683,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -748,9 +748,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
+          
+          
           
           
           
@@ -774,9 +774,9 @@
           
           
           
-          
-          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
+          
+          
           
           
           
@@ -1951,7 +1951,7 @@
 
 <p>Java admin APIを利用するために、Pulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>のURLと<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>を指定して<a target="_blank" href="/api/admin/org/apache/pulsar/client/admin/PulsarAdmin.html"><code class="highlighter-rouge">PulsarAdmin</code></a>オブジェクトをインスタンス化します。 以下は<code class="highlighter-rouge">localhost</code>を利用した最小限の例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">URL</span> <span class="n">url</span> <span class="o">=</span> <span class="k">new</span> <span class="n">URL</span><span class="o">(</span><span class="s">"http://localhost:8080"</span><span class="o">);</span>
 <span class="n">String</span> <span class="n">authPluginClassName</span> <span class="o">=</span> <span class="s">"com.org.MyAuthPluginClass"</span><span class="o">;</span> <span class="c1">//認証が有効な場合にauth-pluginクラスの完全修飾名を渡します。</span>
 <span class="n">String</span> <span class="n">authParams</span> <span class="o">=</span> <span class="s">"param1:value1"</span><span class="o">;</span> <span class="c1">//auth-pluginクラスが要求しているパラメータを渡します。</span>
 <span class="kt">boolean</span> <span class="n">useTls</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
@@ -1965,8 +1965,7 @@
 <span class="n">config</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="n">tlsTrustCertsFilePath</span><span class="o">);</span>
 
 <span class="n">PulsarAdmin</span> <span class="n">admin</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarAdmin</span><span class="o">(</span><span class="n">url</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="クラスタの管理">クラスタの管理</h2>
 
@@ -2038,11 +2037,10 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-clusters-create"><code class="highlighter-rouge">create</code></a>サブコマンドを使用する事で新しいクラスタを準備できます。以下はその例です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters create cluster-1 <span class="se">\</span>
-  --url http://my-cluster.org.com:8080 <span class="se">\</span>
-  --broker-url pulsar://my-cluster.org.com:6650
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters create cluster-1 <span class="se">\</span>
+  <span class="nt">--url</span> http://my-cluster.org.com:8080 <span class="se">\</span>
+  <span class="nt">--broker-url</span> pulsar://my-cluster.org.com:6650
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -2052,15 +2050,14 @@
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
         <span class="n">serviceUrl</span><span class="o">,</span>
         <span class="n">serviceUrlTls</span><span class="o">,</span>
         <span class="n">brokerServiceUrl</span><span class="o">,</span>
         <span class="n">brokerServiceUrlTls</span>
 <span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="クラスタメタデータの初期化">クラスタメタデータの初期化</h3>
 
@@ -2108,16 +2105,15 @@
 
 <p>以下はクラスタメタデータの初期化コマンドの例です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-  --cluster us-west <span class="se">\</span>
-  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
-  --web-service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
-  --web-service-url-tls https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  <span class="nt">--cluster</span> us-west <span class="se">\</span>
+  <span class="nt">--zookeeper</span> zk1.us-west.example.com:2181 <span class="se">\</span>
+  <span class="nt">--global-zookeeper</span> zk1.us-west.example.com:2184 <span class="se">\</span>
+  <span class="nt">--web-service-url</span> http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
+  <span class="nt">--web-service-url-tls</span> https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
+  <span class="nt">--broker-service-url</span> pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
+  <span class="nt">--broker-service-url-tls</span> pulsar+ssl://pulsar.us-west.example.com:6651/
+</code></pre></div></div>
 
 <p>インスタンスで<a href="../../admin/Authz#tlsクライアント認証">TLS認証</a>を使用している場合のみ、<code class="highlighter-rouge">--*-tls</code>オプションを使用する必要があります。</p>
 
@@ -2129,15 +2125,14 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-clusters-get"><code class="highlighter-rouge">get</code></a>サブコマンドを使用し、クラスタの名前を指定してください。以下はその例です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters get cluster-1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters get cluster-1
 <span class="o">{</span>
     <span class="s2">"serviceUrl"</span>: <span class="s2">"http://my-cluster.org.com:8080/"</span>,
     <span class="s2">"serviceUrlTls"</span>: null,
     <span class="s2">"brokerServiceUrl"</span>: <span class="s2">"pulsar://my-cluster.org.com:6650/"</span>,
     <span class="s2">"brokerServiceUrlTls"</span>: null
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -2147,9 +2142,8 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="更新">更新</h3>
 
@@ -2159,11 +2153,10 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-clusters-update"><code class="highlighter-rouge">update</code></a>サブコマンドを使用し、新しい設定値を指定してください:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters update cluster-1 <span class="se">\</span>
-  --url http://my-cluster.org.com:4081 <span class="se">\</span>
-  --broker-url pulsar://my-cluster.org.com:3350
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters update cluster-1 <span class="se">\</span>
+  <span class="nt">--url</span> http://my-cluster.org.com:4081 <span class="se">\</span>
+  <span class="nt">--broker-url</span> pulsar://my-cluster.org.com:3350
+</code></pre></div></div>
 
 <h4 id="rest">REST</h4>
 
@@ -2173,15 +2166,14 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
         <span class="n">serviceUrl</span><span class="o">,</span>
         <span class="n">serviceUrlTls</span><span class="o">,</span>
         <span class="n">brokerServiceUrl</span><span class="o">,</span>
         <span class="n">brokerServiceUrlTls</span>
 <span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updateCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="削除">削除</h3>
 
@@ -2191,9 +2183,8 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-clusters-delete"><code class="highlighter-rouge">delete</code></a>サブコマンドを使用し、クラスタの名前を指定してください:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters delete cluster-1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin clusters delete cluster-1
+</code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
@@ -2203,9 +2194,8 @@
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="リストを取得">リストを取得</h3>
 
@@ -2215,11 +2205,10 @@
 
 <p><a href="../../reference/CliTools#pulsar-admin-clusters-list"><code class="highlighter-rouge">list</code></a>サブコマンドを使用してください。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters list
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters list
 cluster-1
 cluster-2
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>
 
@@ -2229,9 +2218,8 @@ cluster-2
 
 <h6 id="java-4">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
+</code></pre></div></div>
 
 <p>Pulsarでは、<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>は<span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>, <span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>, その他のコンポーネントのグループです。Pulsar <span class="popover-term" tabindex="0" title="Pulsarインスタンスとは？" data-placement="top" data-content="単一の単位として動作するPulsarクラスタのグループのことです。" data-toggle="popover" data-trigger="focus">インスタンス</span>は<span class="popover-term" tabindex="0" title="ジオレプリケーションとは？" data-placement="top" data-content="潜在的に異なるデータセンターや地理的地域に存在するPulsarクラスタ間でメッセージを複製する機能です。" data-toggle="popover" data-trigger="focus">ジオレプリケーション</span>により他のPulsarクラスタにレプリケートできる複数のPulsarクラスタから構成されます。</p>
 
@@ -2312,13 +2300,11 @@ cluster-2
 
 <h4 id="pulsar-admin-6">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers list use
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers list use
+</code></pre></div></div>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>broker1.use.org.com:8080
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>broker1.use.org.com:8080
+</code></pre></div></div>
 
 <h6 id="rest-1">REST</h6>
 
@@ -2328,9 +2314,8 @@ cluster-2
 
 <h6 id="java-5">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getActiveBrokers</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getActiveBrokers</span><span class="o">(</span><span class="n">clusterName</span><span class="o">)</span>
+</code></pre></div></div>
 
 <h4 id="指定したbrokerが担当しているネームスペースリストの取得">指定したBrokerが担当しているネームスペースリストの取得</h4>
 
@@ -2338,29 +2323,26 @@ cluster-2
 
 <h6 id="cli">CLI</h6>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers namespaces use <span class="se">\</span>
-  --url broker1.use.org.com:8080
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers namespaces use <span class="se">\</span>
+  <span class="nt">--url</span> broker1.use.org.com:8080
+</code></pre></div></div>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"my-property/use/my-ns/0x00000000_0xffffffff"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nt">"broker_assignment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shared"</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"is_controlled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
-    </span><span class="nt">"is_active"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"my-property/use/my-ns/0x00000000_0xffffffff"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="s2">"broker_assignment"</span><span class="p">:</span><span class="w"> </span><span class="s2">"shared"</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"is_controlled"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+    </span><span class="s2">"is_active"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="w">
   </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 <h6 id="rest-2">REST</h6>
 
 <div class="highlighter-rouge endpoint"><pre class="highlight"><code class="method get">GET</code><code class="url">/admin/brokers/<span class="endpoint">:cluster</span>/<span class="endpoint">:broker</span>:/ownedNamespaces</code></pre></div>
 
 <h6 id="java-6">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getOwnedNamespaces</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span><span class="n">brokerUrl</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getOwnedNamespaces</span><span class="o">(</span><span class="n">cluster</span><span class="o">,</span><span class="n">brokerUrl</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="動的なbrokerの設定">動的なBrokerの設定</h3>
 
@@ -2379,9 +2361,8 @@ cluster-2
 
 <p><a href="../../reference/CliTools#pulsar-admin-brokers-update-dynamic-config"><code class="highlighter-rouge">update-dynamic-config</code></a>サブコマンドは既存の設定を更新します。パラメータ名と新しい値の2つの引数を取ります。以下は<a href="../../reference/Configuration#broker-brokerShutdownTimeoutMs"><code class="highlighter-rouge">brokerShutdownTimeoutMs</code></a>パラメータの例です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers update-dynamic-config brokerShutdownTimeoutMs 100
+</code></pre></div></div>
 
 <h4 id="rest-api-5">REST API</h4>
 
@@ -2391,9 +2372,8 @@ cluster-2
 
 <h4 id="java-7">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">updateDynamicConfiguration</span><span class="o">(</span><span class="n">configName</span><span class="o">,</span> <span class="n">configValue</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">updateDynamicConfiguration</span><span class="o">(</span><span class="n">configName</span><span class="o">,</span> <span class="n">configValue</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="アップデート可能な値のリストを取得">アップデート可能な値のリストを取得</h3>
 
@@ -2401,10 +2381,9 @@ cluster-2
 
 <h4 id="pulsar-admin-8">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers list-dynamic-config
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers list-dynamic-config
 brokerShutdownTimeoutMs
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-6">REST API</h4>
 
@@ -2414,9 +2393,8 @@ brokerShutdownTimeoutMs
 
 <h4 id="java-8">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getDynamicConfigurationNames</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getDynamicConfigurationNames</span><span class="o">();</span>
+</code></pre></div></div>
 
 <h3 id="全てのリストを取得">全てのリストを取得</h3>
 
@@ -2424,10 +2402,9 @@ brokerShutdownTimeoutMs
 
 <h4 id="pulsar-admin-9">pulsar-admin</h4>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin brokers get-all-dynamic-config
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin brokers get-all-dynamic-config
 brokerShutdownTimeoutMs:100
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-7">REST API</h4>
 
@@ -2437,9 +2414,8 @@ brokerShutdownTimeoutMs:100
 
 <h4 id="java-9">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getAllDynamicConfigurations</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">brokers</span><span class="o">().</span><span class="na">getAllDynamicConfigurations</span><span class="o">();</span>
+</code></pre></div></div>
 
 
       </section>

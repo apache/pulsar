@@ -779,16 +779,14 @@
 
 <p>You can list all of the properties associated with an <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span> using the <a href="../../reference/CliTools#pulsar-admin-properties-list"><code class="highlighter-rouge">list</code></a> subcommand:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties list
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties list
+</code></pre></div></div>
 
 <p>That will return a simple list, like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>my-property-1
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>my-property-1
 my-property-2
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="create">Create</h3>
 
@@ -796,19 +794,17 @@ my-property-2
 
 <p>You can create a new property using the <a href="../../reference/CliTools#pulsar-admin-properties-create"><code class="highlighter-rouge">create</code></a> subcommand:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties create my-property
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties create my-property
+</code></pre></div></div>
 
 <p>When creating a property, you can assign admin roles using the <code class="highlighter-rouge">-r</code>/<code class="highlighter-rouge">--admin-roles</code> flag. You can specify multiple roles as a comma-separated list. Here are some examples:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
-  --admin-roles role1,role2,role3
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">--admin-roles</span> role1,role2,role3
 
-<span class="gp">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
-  -r role1
-</code></pre>
-</div>
+<span class="nv">$ </span>pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">-r</span> role1
+</code></pre></div></div>
 
 <h3 id="get-configuration">Get configuration</h3>
 
@@ -816,7 +812,7 @@ my-property-2
 
 <p>You can see a property’s configuration as a JSON object using the <a href="../../reference/CliTools#pulsar-admin-properties-get"><code class="highlighter-rouge">get</code></a> subcommand and specifying the name of the property:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties get my-property
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties get my-property
 <span class="o">{</span>
   <span class="s2">"adminRoles"</span>: <span class="o">[</span>
     <span class="s2">"admin1"</span>,
@@ -827,8 +823,7 @@ my-property-2
     <span class="s2">"cl2"</span>
   <span class="o">]</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="delete">Delete</h3>
 
@@ -836,9 +831,8 @@ my-property-2
 
 <p>You can delete a property using the <a href="../../reference/CliTools#pulsar-admin-properties-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specifying the property name:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin properties delete my-property
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties delete my-property
+</code></pre></div></div>
 
 <h3 id="updating">Updating</h3>
 

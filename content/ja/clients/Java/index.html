@@ -678,8 +678,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -827,6 +825,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -867,8 +867,6 @@
           
           
           <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
-          
-          
           
           
           
@@ -1027,6 +1025,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1096,7 +1096,7 @@
 
 <p>Mavenを利用している場合は、以下を<code class="highlighter-rouge">pom.xml</code>に記述してください:</p>
 
-<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="c">&lt;!-- &lt;properties&gt;ブロック内 --&gt;</span>
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- &lt;properties&gt;ブロック内 --&gt;</span>
 <span class="nt">&lt;pulsar.version&gt;</span>1.21.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
 
 <span class="c">&lt;!-- &lt;dependencies&gt;ブロック内 --&gt;</span>
@@ -1105,20 +1105,18 @@
   <span class="nt">&lt;artifactId&gt;</span>pulsar-client<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="gradle">Gradle</h3>
 
 <p>Gradleを利用している場合は、<code class="highlighter-rouge">build.gradle</code>ファイルに以下を記述してください:</p>
 
-<div class="language-groovy highlighter-rouge"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.21.0-incubating'</span>
+<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s1">'1.21.0-incubating'</span>
 
 <span class="n">dependencies</span> <span class="o">{</span>
     <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-client'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="接続url">接続URL</h2>
 
@@ -1147,21 +1145,18 @@
 
 <p>PulsarプロトコルURLは特定の<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>に割り当てられており、<code class="highlighter-rouge">pulsar</code>スキームを使ってアクセスされます。ここでデフォルトのポート番号は6650になっています。以下は<code class="highlighter-rouge">localhost</code>の例です：</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://localhost:6650
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre></div></div>
 
 <p>プロダクションのPulsarクラスタのURLは以下のようになります：</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre></div></div>
 
 <p><a href="../../admin/Authz#tlsクライアント認証">TLS</a>認証を利用している場合、URLは以下のようになります：</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre></div></div>
 
 <h3 id="グローバルトピックとクラスタ固有のトピック">グローバルトピックとクラスタ固有のトピック</h3>
 
@@ -1225,10 +1220,9 @@
 
 <p>以下のように、<a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトを接続先のPulsar<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>のURLのみを用いて生成できます:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>この<code class="highlighter-rouge">PulsarClient</code>オブジェクトはデフォルトの設定を使用します。デフォルト以外の設定を適用する方法はJavadocの<a target="_blank" href="/api/client/org/apache/pulsar/client/api/ClientConfiguration.html"><code class="highlighter-rouge">ClientConfiguration</code></a>をご確認ください。</p>
 
@@ -1265,10 +1259,9 @@
 
 <p>Pulsarでは<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>は<span class="popover-term" tabindex="0" title="Pulsarでのメッセージとは？" data-placement="top" data-content="A" data-toggle="popover" data-trigger="focus">メッセージ</span>を<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に書き込みます。Producerのオブジェクトを生成するため、まずは<a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトをPulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>のURLを用いて生成します。</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">pulsarBrokerRootUrl</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650"</span><span class="o">;</span>
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -1302,19 +1295,17 @@
 
 <p><a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトを生成したら、<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対して<a target="_blank" href="/api/client/org/apache/pulsar/client/api/Producer.html"><code class="highlighter-rouge">Producer</code></a>オブジェクトを生成できます。</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>指定したBroker, トピックに対してメッセージを送信できます。</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// トピックに対して10個のメッセージを発行</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// トピックに対して10個のメッセージを発行</span>
 <span class="k">for</span> <span class="o">(</span><span class="kt">int</span> <span class="n">i</span> <span class="o">=</span> <span class="mi">0</span><span class="o">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="mi">10</span><span class="o">;</span> <span class="n">i</span><span class="o">++)</span> <span class="o">{</span>
     <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="s">"my-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -1342,19 +1333,17 @@
     
 <p>Producer, Consumer, クライアントはそれらが必要ではなくなった時にクローズしてください:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 <span class="n">consumer</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
 <span class="n">client</span><span class="o">.</span><span class="na">close</span><span class="o">();</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>クローズ処理は非同期でも可能です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">producer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
 <span class="n">consumer</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
 <span class="n">clioent</span><span class="o">.</span><span class="na">asyncClose</span><span class="o">();</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
   </div>
 </div>
@@ -1365,13 +1354,12 @@
 
 <p>以下は設定の例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
 <span class="n">ProducerConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ProducerConfiguration</span><span class="o">();</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setBatchingEnabled</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setSendTimeout</span><span class="o">(</span><span class="mi">10</span><span class="o">,</span> <span class="n">TimeUnit</span><span class="o">.</span><span class="na">SECONDS</span><span class="o">);</span>
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="メッセージルーティング">メッセージ・ルーティング</h3>
 
@@ -1383,9 +1371,8 @@
 
 <p>非同期送信処理の実装例は以下のようになります:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">MessageId</span><span class="o">&gt;</span> <span class="n">future</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">MessageId</span><span class="o">&gt;</span> <span class="n">future</span> <span class="o">=</span> <span class="n">producer</span><span class="o">.</span><span class="na">sendAsync</span><span class="o">(</span><span class="s">"my-async-message"</span><span class="o">.</span><span class="na">getBytes</span><span class="o">());</span>
+</code></pre></div></div>
 
 <p>非同期送信処理では、<a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>によってラップされた<a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a>がリターンされます。</p>
 
@@ -1395,15 +1382,14 @@
 
 <p><a target="_blank" href="/api/client/org/apache/pulsar/client/api/PulsarClient.html"><code class="highlighter-rouge">PulsarClient</code></a>オブジェクトを生成したら、<span class="popover-term" tabindex="0" title="トピックとは？" data-placement="top" data-content="Producerが発行したメッセージをConsumerに届けるために使用される名前付きのチャネルです。" data-toggle="popover" data-trigger="focus">トピック</span>に対して<a target="_blank" href="/api/client/org/apache/pulsar/client/api/Consumer.html"><code class="highlighter-rouge">Consumer</code></a>オブジェクトを生成できます。<span class="popover-term" tabindex="0" title="サブスクリプションとは？" data-placement="top" data-content="Consumerによって確立されたトピック上のリースです。Pulsarには3つのサブスクリプションモード (exclusive, shared, failover) があります。" data-toggle="popover" data-trigger="focus">サブスクリプション</span>名の指定も必要です。</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span> <span class="c1">// from above</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="o">;</span> <span class="c1">// from above</span>
 <span class="n">String</span> <span class="n">subscription</span> <span class="o">=</span> <span class="s">"my-subscription"</span><span class="o">;</span>
 <span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">subscription</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>トピック上のメッセージを取得するために<code class="highlighter-rouge">receive</code>メソッドを使用できます。この<code class="highlighter-rouge">while</code>ループは<code class="highlighter-rouge">persistent://sample/standalone/ns1/my-topic</code>トピックに対する長期のリスナーです。メッセージを受信するとその内容を出力し、メッセージが処理された後<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) を送信します:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">while</span> <span class="o">(</span><span class="kc">true</span><span class="o">)</span> <span class="o">{</span>
   <span class="c1">// メッセージを待ち受ける</span>
   <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receive</span><span class="o">();</span>
 
@@ -1412,8 +1398,7 @@
   <span class="c1">// Brokerがメッセージを削除できるようにAckを送信する</span>
   <span class="n">consumer</span><span class="o">.</span><span class="na">acknowledge</span><span class="o">(</span><span class="n">msg</span><span class="o">);</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="consumerの設定">Consumerの設定</h3>
 
@@ -1421,13 +1406,12 @@
 
 <p>以下は設定の例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="n">pulsarBrokerRootUrl</span><span class="o">);</span>
 <span class="n">ConsumerConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setSubscriptionType</span><span class="o">(</span><span class="n">SubscriptionType</span><span class="o">.</span><span class="na">Shared</span><span class="o">);</span>
 <span class="n">config</span><span class="o">.</span><span class="na">setReceiverQueueSize</span><span class="o">(</span><span class="mi">10</span><span class="o">);</span>
 <span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createConsumer</span><span class="o">(</span><span class="n">topic</span><span class="o">,</span> <span class="n">config</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="非同期受信">非同期受信</h3>
 
@@ -1435,9 +1419,8 @@
 
 <p>以下は実装例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span> <span class="n">asyncMessage</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receiveAsync</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">CompletableFuture</span><span class="o">&lt;</span><span class="n">Message</span><span class="o">&gt;</span> <span class="n">asyncMessage</span> <span class="o">=</span> <span class="n">consumer</span><span class="o">.</span><span class="na">receiveAsync</span><span class="o">();</span>
+</code></pre></div></div>
 
 <p>非同期受信では<a href="http://www.baeldung.com/java-completablefuture"><code class="highlighter-rouge">CompletableFuture</code></a>でラップした<a target="_blank" href="/api/client/org/apache/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a>がリターンされます。</p>
 
@@ -1451,7 +1434,7 @@
 
 <p>以下は設定の例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 <span class="n">conf</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
 <span class="n">conf</span><span class="o">.</span><span class="na">setTlsTrustCertsFilePath</span><span class="o">(</span><span class="s">"/path/to/cacert.pem"</span><span class="o">);</span>
 
@@ -1462,8 +1445,7 @@
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span>
                         <span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="athenz">Athenz</h3>
 
@@ -1480,7 +1462,7 @@
 
 <p>以下は設定の例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 
 <span class="c1">// TLSを有効に</span>
 <span class="n">conf</span><span class="o">.</span><span class="na">setUseTls</span><span class="o">(</span><span class="kc">true</span><span class="o">);</span>
@@ -1497,8 +1479,7 @@
 
 <span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span>
         <span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="o">,</span> <span class="n">conf</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

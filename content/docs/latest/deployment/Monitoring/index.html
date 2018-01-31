@@ -779,17 +779,15 @@ usage of topics and the overall health of the individual components of the clust
   <li>
     <p><em>Destination dumps</em>, which containing stats for each individual topic. They can be fetched using</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
-</code></pre>
-    </div>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Broker metrics, containing broker info and topics stats aggregated at namespace
 level:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
-</code></pre>
-    </div>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
+</code></pre></div>    </div>
   </li>
 </ul>
 
@@ -797,19 +795,17 @@ level:</p>
 
 <p>The aggregated broker metrics are also exposed in the <a href="https://prometheus.io">Prometheus</a> format at:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$BROKER_ADDRESS</span>:8080/metrics
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://<span class="nv">$BROKER_ADDRESS</span>:8080/metrics
+</code></pre></div></div>
 
 <h3 id="zookeeper-stats">ZooKeeper stats</h3>
 
 <p>The local/global ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
 detailed stats through Prometheus as well.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$LOCAL_ZK_SERVER</span>:8000/metrics
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://<span class="nv">$LOCAL_ZK_SERVER</span>:8000/metrics
 http://<span class="nv">$GLOBAL_ZK_SERVER</span>:8001/metrics
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The default port of local ZooKeeper is <code class="highlighter-rouge">8000</code> and that of global ZooKeeper is <code class="highlighter-rouge">8001</code>.
 These can be changed by specifying system property <code class="highlighter-rouge">stats_server_port</code>.</p>
@@ -822,9 +818,8 @@ These can be changed by specifying system property <code class="highlighter-roug
 <p>By default, the default BookKeeper configuration included with Pulsar distribution will enable
 the Prometheus exporter.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$BOOKIE_ADDRESS</span>:8000/metrics
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://<span class="nv">$BOOKIE_ADDRESS</span>:8000/metrics
+</code></pre></div></div>
 
 <p>For bookies, the default port is <code class="highlighter-rouge">8000</code> (instead of <code class="highlighter-rouge">8080</code>) and that can be configured by changing
 the <code class="highlighter-rouge">prometheusStatsHttpPort</code> in <code class="highlighter-rouge">conf/bookkeeper.conf</code>.</p>
@@ -858,11 +853,10 @@ in place. This is enabled by default when deploying Pulsar on Kubernetes.</p>
 
 <p>To use the dashboard manually:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>docker run -p3000:3000 <span class="se">\</span>
-        -e <span class="nv">PROMETHEUS_URL</span><span class="o">=</span>http://<span class="nv">$PROMETHEUS_HOST</span>:9090/ <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-p3000</span>:3000 <span class="se">\</span>
+        <span class="nt">-e</span> <span class="nv">PROMETHEUS_URL</span><span class="o">=</span>http://<span class="nv">$PROMETHEUS_HOST</span>:9090/ <span class="se">\</span>
         apachepulsar/pulsar-grafana:latest
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

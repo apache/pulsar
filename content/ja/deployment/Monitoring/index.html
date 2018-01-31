@@ -677,16 +677,14 @@
   <li>
     <p>個々のトピックの統計情報を含む<em>デスティネーションダンプ</em>。それらは次のコマンドで取得できます:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
-</code></pre>
-    </div>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar-admin broker-stats destinations
+</code></pre></div>    </div>
   </li>
   <li>
     <p>Brokerの情報とネームスペースレベルで集約されたトピックの統計情報を含むBrokerメトリクス:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
-</code></pre>
-    </div>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar-admin broker-stats monitoring-metrics
+</code></pre></div>    </div>
   </li>
 </ul>
 
@@ -694,17 +692,15 @@
 
 <p>集約されたBrokerメトリクスは<a href="https://prometheus.io">Prometheus</a>のデータ形式でも公開されています:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$BROKER_ADDRESS</span>:8080/metrics
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://<span class="nv">$BROKER_ADDRESS</span>:8080/metrics
+</code></pre></div></div>
 
 <h3 id="zookeeperの統計情報">ZooKeeperの統計情報</h3>
 
 <p>Pulsarに同梱されているZooKeeperサーバとクライアントは、Prometheusを通して詳細な統計情報を公開するように設定されています。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$ZK_SERVER</span>:8080/metrics
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://<span class="nv">$ZK_SERVER</span>:8080/metrics
+</code></pre></div></div>
 
 <h3 id="bookkeeperの統計情報">BookKeeperの統計情報</h3>
 
@@ -712,9 +708,8 @@
 
 <p>Pulsarディストリビューションに含まれるBookKeeperのデフォルトの設定ではPrometheusエクスポータが有効になります。</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>http://<span class="nv">$BOOKIE_ADDRESS</span>:8000/metrics
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>http://<span class="nv">$BOOKIE_ADDRESS</span>:8000/metrics
+</code></pre></div></div>
 
 <p>Bookieの場合、デフォルトのポートは<code class="highlighter-rouge">8000</code> (<code class="highlighter-rouge">8080</code>ではなく) であり、これは<code class="highlighter-rouge">conf/bookkeeper.conf</code>の<code class="highlighter-rouge">prometheusStatsHttpPort</code>を変更する事で設定可能です。</p>
 
@@ -742,11 +737,10 @@
 
 <p>手動でダッシュボードを使用するには次のようにします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>docker run -p3000:3000 <span class="se">\</span>
-        -e <span class="nv">PROMETHEUS_URL</span><span class="o">=</span>http://<span class="nv">$PROMETHEUS_HOST</span>:9090/ <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>docker run <span class="nt">-p3000</span>:3000 <span class="se">\</span>
+        <span class="nt">-e</span> <span class="nv">PROMETHEUS_URL</span><span class="o">=</span>http://<span class="nv">$PROMETHEUS_HOST</span>:9090/ <span class="se">\</span>
         streamlio/pulsar-grafana:latest
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

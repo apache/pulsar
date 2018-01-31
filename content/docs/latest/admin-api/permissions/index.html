@@ -797,39 +797,35 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-grant-permission"><code class="highlighter-rouge">grant-permission</code></a> subcommand and specify a namespace, actions using the <code class="highlighter-rouge">--actions</code> flag, and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-  --actions produce,consume <span class="se">\</span>
-  --role admin10
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+  <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+  <span class="nt">--role</span> admin10
+</code></pre></div></div>
 
 <p>Wildcard authorization can be performed when <code class="highlighter-rouge">authorizationAllowWildcardsMatching</code> is set to <code class="highlighter-rouge">true</code> in <code class="highlighter-rouge">broker.conf</code>.</p>
 
 <p>e.g.</p>
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'my.role.*'</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'my.role.*'</span>
+</code></pre></div></div>
 
 <p>Then, roles <code class="highlighter-rouge">my.role.1</code>, <code class="highlighter-rouge">my.role.2</code>, <code class="highlighter-rouge">my.role.foo</code>, <code class="highlighter-rouge">my.role.bar</code>, etc. can produce and consume.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'*.role.my'</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'*.role.my'</span>
+</code></pre></div></div>
 
 <p>Then, roles <code class="highlighter-rouge">1.role.my</code>, <code class="highlighter-rouge">2.role.my</code>, <code class="highlighter-rouge">foo.role.my</code>, <code class="highlighter-rouge">bar.role.my</code>, etc. can produce and consume.</p>
 
 <p><strong>Note</strong>: A wildcard matching works at <strong>the beginning or end of the role name only</strong>.</p>
 
 <p>e.g.</p>
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces grant-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-                        --actions produce,consume <span class="se">\</span>
-                        --role <span class="s1">'my.*.role'</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces grant-permission test-property/cl1/ns1 <span class="se">\</span>
+                        <span class="nt">--actions</span> produce,consume <span class="se">\</span>
+                        <span class="nt">--role</span> <span class="s1">'my.*.role'</span>
+</code></pre></div></div>
 
 <p>In this case, only the role <code class="highlighter-rouge">my.*.role</code> has permissions.<br />
 Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter-rouge">my.2.role</code>, <code class="highlighter-rouge">my.foo.role</code>, <code class="highlighter-rouge">my.bar.role</code>, etc. <strong>cannot</strong> produce and consume.</p>
@@ -842,9 +838,8 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">grantPermissionOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">,</span> <span class="n">getAuthActions</span><span class="o">(</span><span class="n">actions</span><span class="o">));</span>
+</code></pre></div></div>
 
 <h3 id="get-permission">Get permission</h3>
 
@@ -854,15 +849,14 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-permissions"><code class="highlighter-rouge">permissions</code></a> subcommand and specify a namespace:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces permissions <span class="nb">test</span>-property/cl1/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces permissions test-property/cl1/ns1
 <span class="o">{</span>
   <span class="s2">"admin10"</span>: <span class="o">[</span>
     <span class="s2">"produce"</span>,
     <span class="s2">"consume"</span>
   <span class="o">]</span>
 <span class="o">}</span>   
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -872,9 +866,8 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPermissions</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="revoke-permissions">Revoke permissions</h3>
 
@@ -884,10 +877,9 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-revoke-permission"><code class="highlighter-rouge">revoke-permission</code></a> subcommand and specify a namespace and a role using the <code class="highlighter-rouge">--role</code> flag:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces revoke-permission <span class="nb">test</span>-property/cl1/ns1 <span class="se">\</span>
-  --role admin10
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces revoke-permission test-property/cl1/ns1 <span class="se">\</span>
+  <span class="nt">--role</span> admin10
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -897,9 +889,8 @@ Roles <code class="highlighter-rouge">my.1.role</code>, <code class="highlighter
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">revokePermissionsOnNamespace</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">role</span><span class="o">);</span>
+</code></pre></div></div>
 
 
       </section>

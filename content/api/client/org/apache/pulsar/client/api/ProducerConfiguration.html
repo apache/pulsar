@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":42,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":42,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10,"i28":10,"i29":10,"i30":10,"i31":10,"i32":10,"i33":10,"i34":10,"i35":10,"i36":10,"i37":10,"i38":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -48,7 +48,7 @@ var activeTableTab = "activeTableTab";
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?org/apache/pulsar/client/api/ProducerConfiguration.html" target="_top">Frames</a></li>
@@ -139,6 +139,10 @@ implements Serializable</pre>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><code>static class&nbsp;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a></span></code>&nbsp;</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><code>static class&nbsp;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.MessageRoutingMode</a></span></code>&nbsp;</td>
 </tr>
 </table>
@@ -216,20 +220,28 @@ implements Serializable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getEncryptionKeys--">getEncryptionKeys</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i10" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getHashingScheme--">getHashingScheme</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>Optional&lt;Long&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getInitialSequenceId--">getInitialSequenceId</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i11" class="rowColor">
+<tr id="i12" class="altColor">
 <td class="colFirst"><code>int</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getMaxPendingMessages--">getMaxPendingMessages</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
+<td class="colFirst"><code>int</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getMaxPendingMessagesAcrossPartitions--">getMaxPendingMessagesAcrossPartitions</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter--">getMessageRouter</a></span>()</code>
 <div class="block">Get the message router set by <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRouter-org.apache.pulsar.client.api.MessageRouter-"><code>setMessageRouter(MessageRouter)</code></a>.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter-int-">getMessageRouter</a></span>(int&nbsp;numPartitions)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -238,47 +250,47 @@ implements Serializable</pre>
 </div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.MessageRoutingMode</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRoutingMode--">getMessageRoutingMode</a></span>()</code>
 <div class="block">Get the message routing mode for the partitioned producer</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>String</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getProducerName--">getProducerName</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>Map&lt;String,String&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getProperties--">getProperties</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>long</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getSendTimeoutMs--">getSendTimeoutMs</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#isEncryptionEnabled--">isEncryptionEnabled</a></span>()</code>
 <div class="block">Returns true if encryption keys are added</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#removeEncryptionKey-java.lang.String-">removeEncryptionKey</a></span>(String&nbsp;key)</code>&nbsp;</td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-">setBatchingEnabled</a></span>(boolean&nbsp;batchMessagesEnabled)</code>
 <div class="block">Control whether automatic batching of messages is enabled for the producer.</div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-">setBatchingMaxMessages</a></span>(int&nbsp;batchMessagesMaxMessagesPerBatch)</code>
 <div class="block">Set the maximum number of messages permitted in a batch.</div>
 </td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i24" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-">setBatchingMaxPublishDelay</a></span>(long&nbsp;batchDelay,
                           TimeUnit&nbsp;timeUnit)</code>
@@ -286,75 +298,85 @@ implements Serializable</pre>
  enabled.</div>
 </td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-">setBlockIfQueueFull</a></span>(boolean&nbsp;blockIfQueueFull)</code>
 <div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
  message queue is full.</div>
 </td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setCompressionType-org.apache.pulsar.client.api.CompressionType-">setCompressionType</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api">CompressionType</a>&nbsp;compressionType)</code>
 <div class="block">Set the compression type for the producer.</div>
 </td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoFailureAction-org.apache.pulsar.client.api.ProducerCryptoFailureAction-">setCryptoFailureAction</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a>&nbsp;action)</code>
 <div class="block">Sets the ProducerCryptoFailureAction to the value specified</div>
 </td>
 </tr>
-<tr id="i26" class="altColor">
+<tr id="i28" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">setCryptoKeyReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </td>
 </tr>
-<tr id="i27" class="rowColor">
+<tr id="i29" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setHashingScheme-org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme-">setHashingScheme</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a>&nbsp;hashingScheme)</code>&nbsp;</td>
+</tr>
+<tr id="i30" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-">setInitialSequenceId</a></span>(long&nbsp;initialSequenceId)</code>
 <div class="block">Set the baseline for the sequence ids for messages published by the producer.</div>
 </td>
 </tr>
-<tr id="i28" class="altColor">
+<tr id="i31" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-">setMaxPendingMessages</a></span>(int&nbsp;maxPendingMessages)</code>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</div>
 </td>
 </tr>
-<tr id="i29" class="rowColor">
+<tr id="i32" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-">setMaxPendingMessagesAcrossPartitions</a></span>(int&nbsp;maxPendingMessagesAcrossPartitions)</code>
+<div class="block">Set the number of max pending messages across all the partitions</div>
+</td>
+</tr>
+<tr id="i33" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRouter-org.apache.pulsar.client.api.MessageRouter-">setMessageRouter</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a>&nbsp;messageRouter)</code>
 <div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
 </td>
 </tr>
-<tr id="i30" class="altColor">
+<tr id="i34" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRoutingMode-org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode-">setMessageRoutingMode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.MessageRoutingMode</a>&nbsp;messageRouteMode)</code>
 <div class="block">Set the message routing mode for the partitioned producer</div>
 </td>
 </tr>
-<tr id="i31" class="rowColor">
+<tr id="i35" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-">setProducerName</a></span>(String&nbsp;producerName)</code>
 <div class="block">Specify a name for the producer</div>
 </td>
 </tr>
-<tr id="i32" class="altColor">
+<tr id="i36" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setProperties-java.util.Map-">setProperties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
-<tr id="i33" class="rowColor">
+<tr id="i37" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setProperty-java.lang.String-java.lang.String-">setProperty</a></span>(String&nbsp;key,
            String&nbsp;value)</code>
 <div class="block">Set a name/value property with this producer.</div>
 </td>
 </tr>
-<tr id="i34" class="altColor">
+<tr id="i38" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setSendTimeout-int-java.util.concurrent.TimeUnit-">setSendTimeout</a></span>(int&nbsp;sendTimeout,
               TimeUnit&nbsp;unit)</code>
@@ -499,6 +521,54 @@ implements Serializable</pre>
 </dl>
 </li>
 </ul>
+<a name="getHashingScheme--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getHashingScheme</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a>&nbsp;getHashingScheme()</pre>
+</li>
+</ul>
+<a name="setHashingScheme-org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setHashingScheme</h4>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;setHashingScheme(<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a>&nbsp;hashingScheme)</pre>
+</li>
+</ul>
+<a name="getMaxPendingMessagesAcrossPartitions--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getMaxPendingMessagesAcrossPartitions</h4>
+<pre>public&nbsp;int&nbsp;getMaxPendingMessagesAcrossPartitions()</pre>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>the maximum number of pending messages allowed across all the partitions</dd>
+</dl>
+</li>
+</ul>
+<a name="setMaxPendingMessagesAcrossPartitions-int-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>setMaxPendingMessagesAcrossPartitions</h4>
+<pre>public&nbsp;void&nbsp;setMaxPendingMessagesAcrossPartitions(int&nbsp;maxPendingMessagesAcrossPartitions)</pre>
+<div class="block">Set the number of max pending messages across all the partitions
+ <p>
+ This setting will be used to lower the max pending messages for each partition
+ (<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-"><code>setMaxPendingMessages(int)</code></a>), if the total exceeds the configured value.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>maxPendingMessagesAcrossPartitions</code> - </dd>
+</dl>
+</li>
+</ul>
 <a name="getBlockIfQueueFull--">
 <!--   -->
 </a>
@@ -524,7 +594,7 @@ implements Serializable</pre>
  message queue is full.
  <p>
  Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
- <code>ProducerQueueIsFullError</code> when there is no space left in pending queue.</div>
+ <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a> when there is no space left in pending queue.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>blockIfQueueFull</code> - whether to block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations on queue full</dd>
@@ -964,7 +1034,7 @@ public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.h
 <div class="subNav">
 <ul class="navList">
 <li><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Prev&nbsp;Class</span></a></li>
-<li><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
+<li><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">Next&nbsp;Class</span></a></li>
 </ul>
 <ul class="navList">
 <li><a href="../../../../../index.html?org/apache/pulsar/client/api/ProducerConfiguration.html" target="_top">Frames</a></li>

@@ -722,9 +722,9 @@
           
           
           
-          
-          
           <li><a href="/ja/deployment/Kubernetes/">Kubernetes上でのPulsarのデプロイ</a></li>
+          
+          
           
           
           
@@ -914,9 +914,9 @@
           
           
           
-          
-          
           <li><a href="/ja/deployment/Kubernetes/">Kubernetes上でのPulsarのデプロイ</a></li>
+          
+          
           
           
           
@@ -1113,14 +1113,13 @@
 
 <p>例として、<a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones#available">us-central1-a</a>ゾーンにKubernetesバージョン<a href="https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164">1.6.4</a>のGKEクラスタを作成します。クラスタは<code class="highlighter-rouge">pulsar-gke-cluster</code>と命名し、2つローカルSSDを備えた3つのVMを<a href="https://cloud.google.com/compute/docs/machine-types">n1-standard-8</a>というマシンタイプで起動します。これらのSSDは<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>インスタンスに使用され、1つはBookKeeperの<a href="../../getting-started/ConceptsAndArchitecture#journalストレージ">Journal</a>、もう1つは実際のメッセージデータが保存されます。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>gcloud container clusters create pulsar-gke-cluster <span class="se">\</span>
-  --zone<span class="o">=</span>us-central1-a <span class="se">\</span>
-  --machine-type<span class="o">=</span>n1-standard-8 <span class="se">\</span>
-  --num-nodes<span class="o">=</span>3 <span class="se">\</span>
-  --local-ssd-count<span class="o">=</span>2 <span class="se">\</span>
-  --cluster-version<span class="o">=</span>1.6.4
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>gcloud container clusters create pulsar-gke-cluster <span class="se">\</span>
+  <span class="nt">--zone</span><span class="o">=</span>us-central1-a <span class="se">\</span>
+  <span class="nt">--machine-type</span><span class="o">=</span>n1-standard-8 <span class="se">\</span>
+  <span class="nt">--num-nodes</span><span class="o">=</span>3 <span class="se">\</span>
+  <span class="nt">--local-ssd-count</span><span class="o">=</span>2 <span class="se">\</span>
+  <span class="nt">--cluster-version</span><span class="o">=</span>1.6.4
+</code></pre></div></div>
 
 <p>デフォルトでは、BookieはSSDを備えた全てのマシンで起動します。この例では、全てのマシンが2つのSSDを持ちますが異なるタイプのマシンを後からクラスタに追加することもできます。どのマシンをBookieサーバにするかは<a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels">Label</a>を使用してコントロールできます。</p>
 
@@ -1128,12 +1127,11 @@
 
 <p>KubernetesクラスタのCredentialをダウンロードし、クラスタに対するプロキシをオープンすることによって、<a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetesダッシュボード</a>でクラスタを監視できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>gcloud container clusters get-credentials pulsar-gke-cluster <span class="se">\</span>
-  --zone<span class="o">=</span>us-central1-a <span class="se">\</span>
-  --project<span class="o">=</span>your-project-name
-<span class="gp">$ </span>kubectl proxy
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>gcloud container clusters get-credentials pulsar-gke-cluster <span class="se">\</span>
+  <span class="nt">--zone</span><span class="o">=</span>us-central1-a <span class="se">\</span>
+  <span class="nt">--project</span><span class="o">=</span>your-project-name
+<span class="nv">$ </span>kubectl proxy
+</code></pre></div></div>
 
 <p>デフォルトでは、プロキシは8001番ポートでオープンされます。ブラウザから<a href="http://localhost:8001/ui">localhost:8001/ui</a>にアクセスすることで、ダッシュボードを利用できます。最初、GKEクラスタは空ですが、Pulsar<a href="#Pulsarコンポーネントのデプロイ">コンポーネント</a>をデプロイすることによって変更されます。</p>
 
@@ -1145,9 +1143,8 @@
 
 <p>この説明を用いてクラスタを作成した時、<code class="highlighter-rouge">~/.kube/config</code> (MacOS, Linuxの場合) にある<code class="highlighter-rouge">kubectl</code>の設定ファイルは、恐らく変更しなくても良いようにアップデートされます。クラスタ内のノードのリストを表示する事によって、<code class="highlighter-rouge">kubectl</code>がクラスタに接続できるかを確認できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get nodes
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get nodes
+</code></pre></div></div>
 
 <p><code class="highlighter-rouge">kubectl</code>がクラスタで機能していれば、<a href="#Pulsarコンポーネントのデプロイ">Pulsarコンポーネントのデプロイ</a>に進むことができます。</p>
 
@@ -1168,43 +1165,39 @@
 
 <p>まず、<a href="https://www.vagrantup.com/downloads.html">Vagrant</a>と<a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a>がインストールされていることを確認してください。そして、リポジトリをクローンしクラスタをスタートしてください。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
-<span class="gp">$ </span><span class="nb">cd </span>kubernetes-vagrant-coreos-cluster
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
+<span class="nv">$ </span><span class="nb">cd </span>kubernetes-vagrant-coreos-cluster
 
 <span class="c"># 3つのVMのクラスタを起動</span>
-<span class="gp">$ </span><span class="nv">NODES</span><span class="o">=</span>3 <span class="nv">USE_KUBE_UI</span><span class="o">=</span><span class="nb">true </span>vagrant up
-</code></pre>
-</div>
+<span class="nv">$ NODES</span><span class="o">=</span>3 <span class="nv">USE_KUBE_UI</span><span class="o">=</span><span class="nb">true </span>vagrant up
+</code></pre></div></div>
 
 <p>Create SSD disk mount points on the VMs using this script:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="k">for </span>vm <span class="k">in </span>node-01 node-02 node-03; <span class="k">do
-    </span><span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> -c <span class="s2">"sudo mkdir -p /mnt/disks/ssd0"</span>
-    <span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> -c <span class="s2">"sudo mkdir -p /mnt/disks/ssd1"</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="k">for </span>vm <span class="k">in </span>node-01 node-02 node-03<span class="p">;</span> <span class="k">do
+    </span><span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> <span class="nt">-c</span> <span class="s2">"sudo mkdir -p /mnt/disks/ssd0"</span>
+    <span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> <span class="nt">-c</span> <span class="s2">"sudo mkdir -p /mnt/disks/ssd1"</span>
   <span class="k">done</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>には<a href="../../getting-started/ConceptsAndArchitecture#journalストレージ">Journal</a>と永続メッセージストレージのために、2つの論理デバイスがマウントされることが想定されています。このVMの例では、それぞれのVMに2つのディレクトリを作成します。</p>
 
 <p>クラスタが起動したら、<code class="highlighter-rouge">kubectl</code>がアクセスできるか確認できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get nodes
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get nodes
 NAME           STATUS                     AGE       VERSION
 172.17.8.101   Ready,SchedulingDisabled   10m       v1.6.4
 172.17.8.102   Ready                      8m        v1.6.4
 172.17.8.103   Ready                      6m        v1.6.4
 172.17.8.104   Ready                      4m        v1.6.4
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="ダッシュボード-1">ダッシュボード</h3>
 
 <p>まず、ローカルのKubernetesクラスタで<a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetesダッシュボード</a>を使うために、<code class="highlighter-rouge">kubectl</code>でクラスタに対するプロキシを作成してください:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl proxy
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl proxy
+</code></pre></div></div>
 
 <p>ウェブインターフェースで<a href="http://localhost:8001/ui">localhost:8001/ui</a>にアクセスできます。最初ローカルクラスタは空ですが、Pulsar<a href="#Pulsarコンポーネントのデプロイ">コンポーネント</a>をデプロイすることによって変更されます。</p>
 
@@ -1218,19 +1211,17 @@ NAME           STATUS                     AGE       VERSION
 
 <p>他のコンポーネントが依存するため、<span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>は<em>必ず</em>最初にデプロイしてください。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl apply -f zookeeper.yaml
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> zookeeper.yaml
+</code></pre></div></div>
 
 <p>3つのZooKeeperサーバのPodがアップし、ステータスが<code class="highlighter-rouge">Running</code>になるまでお待ちください。ZooKeeperのPodのステータスはいつでも確認できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get pods -l <span class="nv">component</span><span class="o">=</span>zookeeper
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get pods <span class="nt">-l</span> <span class="nv">component</span><span class="o">=</span>zookeeper
 NAME      READY     STATUS             RESTARTS   AGE
 zk-0      1/1       Running            0          18m
 zk-1      1/1       Running            0          17m
 zk-2      0/1       Running            6          15m
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>KubernetesがVMにDockerイメージをダウンロードする必要があるため、このステップは数分間かかります。</p>
 
@@ -1238,15 +1229,14 @@ zk-2      0/1       Running            6          15m
 
 <p>Zookeeperが起動したら、Pulsarクラスタの<a href="../InstanceSetup#クラスタメタデータの初期化">メタデータを初期化</a>する必要があります。これは<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>とPulsarのシステムメタデータが広く含まれています。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl <span class="nb">exec</span> -it zk-0 -- <span class="se">\</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl <span class="nb">exec</span> <span class="nt">-it</span> zk-0 <span class="nt">--</span> <span class="se">\</span>
     bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-      --cluster us-central <span class="se">\</span>
-      --zookeeper zookeeper <span class="se">\</span>
-      --global-zookeeper zookeeper <span class="se">\</span>
-      --web-service-url http://broker.default.svc.cluster.local:8080/ <span class="se">\</span>
-      --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
-</code></pre>
-</div>
+      <span class="nt">--cluster</span> us-central <span class="se">\</span>
+      <span class="nt">--zookeeper</span> zookeeper <span class="se">\</span>
+      <span class="nt">--global-zookeeper</span> zookeeper <span class="se">\</span>
+      <span class="nt">--web-service-url</span> http://broker.default.svc.cluster.local:8080/ <span class="se">\</span>
+      <span class="nt">--broker-service-url</span> pulsar://broker.default.svc.cluster.local:6650/
+</code></pre></div></div>
 
 <p>必要に応じて、クラスタのメタデータ値を修正してください。</p>
 
@@ -1254,17 +1244,15 @@ zk-2      0/1       Running            6          15m
 
 <p>クラスタメタデータが正常に初期化されたら、<span class="popover-term" tabindex="0" title="Bookieとは？" data-placement="top" data-content="各BookKeeperサーバのことをBookieと呼びます。" data-toggle="popover" data-trigger="focus">Bookie</span>, <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>, 監視スタック (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, <a href="../../admin/Dashboard">Pulsarダッシュボード</a>) をデプロイできます。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl apply -f bookie.yaml
-<span class="gp">$ </span>kubectl apply -f broker.yaml
-<span class="gp">$ </span>kubectl apply -f monitoring.yaml
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> bookie.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> broker.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> monitoring.yaml
+</code></pre></div></div>
 
 <p>これらのコンポーネントのPodのステータスをKubernetesダッシュボードか<code class="highlighter-rouge">kubectl</code>のいずれかで確認できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get pods
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get pods
+</code></pre></div></div>
 
 <h4 id="プロパティとネームスペースのセットアップ">プロパティとネームスペースのセットアップ</h4>
 
@@ -1301,46 +1289,41 @@ zk-2      0/1       Running            6          15m
 
 <p>プロパティとネームスペースを作成するために、新しく作成したPulsarクラスタのクライアントとして機能する<code class="highlighter-rouge">pulsar-admin</code>のPodに接続してください。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl <span class="nb">exec </span>pulsar-admin -it -- bash
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl <span class="nb">exec </span>pulsar-admin <span class="nt">-it</span> <span class="nt">--</span> bash
+</code></pre></div></div>
 
 <p>ここで全ての管理コマンドを実行できます。以下は<code class="highlighter-rouge">prop</code>という名前のプロパティとそのプロパティ下の<code class="highlighter-rouge">prop/us-central/ns</code>という名前のネームスペースを作成するコマンドの例です。</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nb">export </span><span class="nv">MY_PROPERTY</span><span class="o">=</span>prop
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nb">export </span><span class="nv">MY_PROPERTY</span><span class="o">=</span>prop
 <span class="nb">export </span><span class="nv">MY_NAMESPACE</span><span class="o">=</span>prop/us-central/ns
 
 <span class="c"># 新しいPulsarプロパティの設定</span>
-<span class="gp">$ </span>bin/pulsar-admin properties create <span class="nv">$MY_PROPERTY</span> <span class="se">\</span>
-  --admin-roles admin <span class="se">\</span>
-  --allowed-clusters us-central
+<span class="nv">$ </span>bin/pulsar-admin properties create <span class="nv">$MY_PROPERTY</span> <span class="se">\</span>
+  <span class="nt">--admin-roles</span> admin <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-central
 
 <span class="c"># 4のBrokerを横断しうるネームスペースの作成</span>
-<span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nv">$MY_NAMESPACE</span>
-</code></pre>
-</div>
+<span class="nv">$ </span>bin/pulsar-admin namespaces create <span class="nv">$MY_NAMESPACE</span>
+</code></pre></div></div>
 
 <h4 id="作成したクラスタでの実験">作成したクラスタでの実験</h4>
 
 <p>プロパティとネームスペースが作成されたので、起動したPulsarクラスタで実験を始められます。例えば、これまでと同じ<code class="highlighter-rouge">pulsar-admin</code> Podから<a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a>コマンドを使って、作成した<span class="popover-term" tabindex="0" title="プロパティとは？" data-placement="top" data-content="Pulsarのテナントです。" data-toggle="popover" data-trigger="focus">プロパティ</span>と<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>内のトピックに秒間10,000のメッセージを発行するテスト<span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>を作成できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic <span class="se">\</span>
-  --rate 10000
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  <span class="nt">--rate</span> 10000
+</code></pre></div></div>
 
 <p>同様に、トピックを購読して全てのメッセージを受信するための<span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>を起動できます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic <span class="se">\</span>
-  --subscriber-name my-subscription-name
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  <span class="nt">--subscriber-name</span> my-subscription-name
+</code></pre></div></div>
 
 <p><a href="../../reference/CliTools#pulsar-admin-persistent-stats"><code class="highlighter-rouge">pulsar-admin</code></a>ツールを使って、トピックに対する<a href="../../admin/Stats">統計情報</a>を閲覧することもできます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
+</code></pre></div></div>
 
 <h3 id="監視">監視</h3>
 
@@ -1354,9 +1337,8 @@ zk-2      0/1       Running            6          15m
 
 <p>Kubernetesクラスタ内で、Pulsarの<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span> (メッセージレート、レイテンシ、ストレージ)、JVMの統計情報、 <span class="popover-term" tabindex="0" title="ZooKeeperとは？" data-placement="top" data-content="Pulsarが調整タスクに利用するサービスです。&lt;br /&gt;&lt;br /&gt;Pulsarインスタンスはクラスタ特有のタスク用のLocal ZooKeeperとインスタンス全体のタスク用のGlobal ZooKeeperに依存しています。" data-toggle="popover" data-trigger="focus">ZooKeeper</span>、<span class="popover-term" tabindex="0" title="BookKeeperとは？" data-placement="top" data-content="Apache BookKeeperは永続ログストレージです。Pulsarではメッセージデータの保存に利用しています。" data-toggle="popover" data-trigger="focus">BookKeeper</span>のためのダッシュボードを閲覧するために<a href="https://grafana.com">Grafana</a>を使用できます。<code class="highlighter-rouge">kubectl</code>の<a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code class="highlighter-rouge">port-forward</code></a>コマンドを使ってGrafanaを提供するPodへのアクセス権を得られます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | grep grafana | awk <span class="s1">'{print $1}'</span><span class="k">)</span> 3000
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | <span class="nb">grep </span>grafana | <span class="nb">awk</span> <span class="s1">'{print $1}'</span><span class="k">)</span> 3000
+</code></pre></div></div>
 
 <p><a href="http://localhost:3000">localhost:3000</a>でウェブブラウザからダッシュボードにアクセスできます。</p>
 
@@ -1368,9 +1350,8 @@ zk-2      0/1       Running            6          15m
 
 <p><code class="highlighter-rouge">kubectl</code>の<a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code class="highlighter-rouge">port-forward</code></a>コマンドを使ってPulsarダッシュボードを提供するPodへのアクセス権を得られます:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | grep pulsar-dashboard | awk <span class="s1">'{print $1}'</span><span class="k">)</span> 8080:80
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | <span class="nb">grep </span>pulsar-dashboard | <span class="nb">awk</span> <span class="s1">'{print $1}'</span><span class="k">)</span> 8080:80
+</code></pre></div></div>
 
 <p><a href="http://localhost:8080">localhost:8080</a>でウェブブラウザからPulsarダッシュボードにアクセスできます。</p>
 

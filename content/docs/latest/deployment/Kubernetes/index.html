@@ -823,9 +823,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
-          
-          
           
           
           
@@ -1015,9 +1015,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/deployment/Kubernetes/">Deploying Pulsar on Kubernetes</a></li>
-          
-          
           
           
           
@@ -1214,14 +1214,13 @@
 
 <p>As an example, we’ll create a new GKE cluster for Kubernetes version <a href="https://github.com/kubernetes/kubernetes/blob/master/CHANGELOG.md#v164">1.6.4</a> in the <a href="https://cloud.google.com/compute/docs/regions-zones/regions-zones#available">us-central1-a</a> zone. The cluster will be named <code class="highlighter-rouge">pulsar-gke-cluster</code> and will consist of three VMs, each using two locally attached SSDs and running on <a href="https://cloud.google.com/compute/docs/machine-types">n1-standard-8</a> machines. These SSDs will be used by <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookie</span> instances, one for the BookKeeper <a href="../../getting-started/ConceptsAndArchitecture#journal-storage">journal</a> and the other for storing the actual message data.</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>gcloud container clusters create pulsar-gke-cluster <span class="se">\</span>
-  --zone<span class="o">=</span>us-central1-a <span class="se">\</span>
-  --machine-type<span class="o">=</span>n1-standard-8 <span class="se">\</span>
-  --num-nodes<span class="o">=</span>3 <span class="se">\</span>
-  --local-ssd-count<span class="o">=</span>2 <span class="se">\</span>
-  --cluster-version<span class="o">=</span>1.6.4
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>gcloud container clusters create pulsar-gke-cluster <span class="se">\</span>
+  <span class="nt">--zone</span><span class="o">=</span>us-central1-a <span class="se">\</span>
+  <span class="nt">--machine-type</span><span class="o">=</span>n1-standard-8 <span class="se">\</span>
+  <span class="nt">--num-nodes</span><span class="o">=</span>3 <span class="se">\</span>
+  <span class="nt">--local-ssd-count</span><span class="o">=</span>2 <span class="se">\</span>
+  <span class="nt">--cluster-version</span><span class="o">=</span>1.6.4
+</code></pre></div></div>
 
 <p>By default, bookies will run on all the machines that have locally attached SSD disks. In this example, all of those machines will have two SSDs, but you can add different types of machines to the cluster later. You can control which machines host bookie servers using <a href="https://kubernetes.io/docs/concepts/overview/working-with-objects/labels">labels</a>.</p>
 
@@ -1229,12 +1228,11 @@
 
 <p>You can observe your cluster in the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a> by downloading the credentials for your Kubernetes cluster and opening up a proxy to the cluster:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>gcloud container clusters get-credentials pulsar-gke-cluster <span class="se">\</span>
-  --zone<span class="o">=</span>us-central1-a <span class="se">\</span>
-  --project<span class="o">=</span>your-project-name
-<span class="gp">$ </span>kubectl proxy
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>gcloud container clusters get-credentials pulsar-gke-cluster <span class="se">\</span>
+  <span class="nt">--zone</span><span class="o">=</span>us-central1-a <span class="se">\</span>
+  <span class="nt">--project</span><span class="o">=</span>your-project-name
+<span class="nv">$ </span>kubectl proxy
+</code></pre></div></div>
 
 <p>By default, the proxy will be opened on port 8001. Now you can navigate to <a href="http://localhost:8001/ui">localhost:8001/ui</a> in your browser to access the dashboard. At first your GKE cluster will be empty, but that will change as you begin deploying Pulsar <a href="#deploying-pulsar-components">components</a>.</p>
 
@@ -1246,9 +1244,8 @@
 
 <p>When you create a cluster using those instructions, your <code class="highlighter-rouge">kubectl</code> config in <code class="highlighter-rouge">~/.kube/config</code> (on MacOS and Linux) will be updated for you, so you probably won’t need to change your configuration. Nonetheless, you can ensure that <code class="highlighter-rouge">kubectl</code> can interact with your cluster by listing the nodes in the cluster:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get nodes
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get nodes
+</code></pre></div></div>
 
 <p>If <code class="highlighter-rouge">kubectl</code> is working with your cluster, you can proceed to <a href="#deploying-pulsar-components">deploy Pulsar components</a>.</p>
 
@@ -1269,43 +1266,39 @@
 
 <p>First, make sure you have <a href="https://www.vagrantup.com/downloads.html">Vagrant</a> and <a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a> installed. Then clone the repo and start up the cluster:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
-<span class="gp">$ </span><span class="nb">cd </span>kubernetes-vagrant-coreos-cluster
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/pires/kubernetes-vagrant-coreos-cluster
+<span class="nv">$ </span><span class="nb">cd </span>kubernetes-vagrant-coreos-cluster
 
 <span class="c"># Start a three-VM cluster</span>
-<span class="gp">$ </span><span class="nv">NODES</span><span class="o">=</span>3 <span class="nv">USE_KUBE_UI</span><span class="o">=</span><span class="nb">true </span>vagrant up
-</code></pre>
-</div>
+<span class="nv">$ NODES</span><span class="o">=</span>3 <span class="nv">USE_KUBE_UI</span><span class="o">=</span><span class="nb">true </span>vagrant up
+</code></pre></div></div>
 
 <p>Create SSD disk mount points on the VMs using this script:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="k">for </span>vm <span class="k">in </span>node-01 node-02 node-03; <span class="k">do
-    </span><span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> -c <span class="s2">"sudo mkdir -p /mnt/disks/ssd0"</span>
-    <span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> -c <span class="s2">"sudo mkdir -p /mnt/disks/ssd1"</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="k">for </span>vm <span class="k">in </span>node-01 node-02 node-03<span class="p">;</span> <span class="k">do
+    </span><span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> <span class="nt">-c</span> <span class="s2">"sudo mkdir -p /mnt/disks/ssd0"</span>
+    <span class="nv">NODES</span><span class="o">=</span>3 vagrant ssh <span class="nv">$vm</span> <span class="nt">-c</span> <span class="s2">"sudo mkdir -p /mnt/disks/ssd1"</span>
   <span class="k">done</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p><span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">Bookies</span> expect two logical devices to mount for <a href="../../getting-started/ConceptsAndArchitecture#journal-storage">journal</a> and persistent message storage to be available. In this VM exercise, we created two directories on each VM.</p>
 
 <p>Once the cluster is up, you can verify that <code class="highlighter-rouge">kubectl</code> can access it:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get nodes
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get nodes
 NAME           STATUS                     AGE       VERSION
 172.17.8.101   Ready,SchedulingDisabled   10m       v1.6.4
 172.17.8.102   Ready                      8m        v1.6.4
 172.17.8.103   Ready                      6m        v1.6.4
 172.17.8.104   Ready                      4m        v1.6.4
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="dashboard-1">Dashboard</h3>
 
 <p>In order to use the <a href="https://kubernetes.io/docs/tasks/access-application-cluster/web-ui-dashboard/">Kubernetes Dashboard</a> with your local Kubernetes cluster, first use <code class="highlighter-rouge">kubectl</code> to create a proxy to the cluster:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl proxy
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl proxy
+</code></pre></div></div>
 
 <p>Now you can access the web interface at <a href="http://localhost:8001/ui">localhost:8001/ui</a>. At first your local cluster will be empty, but that will change as you begin deploying Pulsar <a href="#deploying-pulsar-components">components</a>.</p>
 
@@ -1313,59 +1306,57 @@ NAME           STATUS                     AGE       VERSION
 
 <p>Now that you’ve set up a Kubernetes cluster, either on <a href="#pulsar-on-google-kubernetes-engine">Google Kubernetes Engine</a> or on a <a href="#pulsar-on-a-custom-kubernetes-cluster">custom cluster</a>, you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the <code class="highlighter-rouge">kubernetes</code> folder of the <a href="/download">Pulsar source package</a>.</p>
 
-<p>In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the <code class="highlighter-rouge">kubernetes/google-kubernetes-engine</code> folder and one for a custom Kubernetes cluster in the <code class="highlighter-rouge">kubernetes/generic</code> folder. To begin, <code class="highlighter-rouge">cd</code> into the appropriate folder.</p>
+<p>In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the <code class="highlighter-rouge">deployment/kubernetes/google-kubernetes-engine</code> folder and one for a custom Kubernetes cluster in the <code class="highlighter-rouge">deployment/kubernetes/generic</code> folder. To begin, <code class="highlighter-rouge">cd</code> into the appropriate folder.</p>
 
 <h3 id="zookeeper">ZooKeeper</h3>
 
 <p>You <em>must</em> deploy <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> as the first Pulsar component, as it is a dependency for the others.</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl apply -f zookeeper.yaml
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> zookeeper.yaml
+</code></pre></div></div>
 
 <p>Wait until all three ZooKeeper server pods are up and have the status <code class="highlighter-rouge">Running</code>. You can check on the status of the ZooKeeper pods at any time:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get pods -l <span class="nv">component</span><span class="o">=</span>zookeeper
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get pods <span class="nt">-l</span> <span class="nv">component</span><span class="o">=</span>zookeeper
 NAME      READY     STATUS             RESTARTS   AGE
 zk-0      1/1       Running            0          18m
 zk-1      1/1       Running            0          17m
 zk-2      0/1       Running            6          15m
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>This step may take several minutes, as Kubernetes needs to download the Docker image on the VMs.</p>
 
 <h4 id="initialize-cluster-metadata">Initialize cluster metadata</h4>
 
-<p>Once ZooKeeper is running, you need to <a href="../InstanceSetup#cluster-metadata-initialization">initialize the metadata</a> for the Pulsar cluster in ZooKeeper. This includes system metadata for <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> and Pulsar more broadly.</p>
+<p>Once ZooKeeper is running, you need to <a href="../InstanceSetup#cluster-metadata-initialization">initialize the metadata</a> for the Pulsar cluster in ZooKeeper. This includes system metadata for <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span> and Pulsar more broadly. There is a Kubernetes <a href="https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/">job</a> in the <code class="highlighter-rouge">cluster-metadata.yaml</code> file that you only need to run once:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl <span class="nb">exec</span> -it zk-0 -- <span class="se">\</span>
-    bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-      --cluster us-central <span class="se">\</span>
-      --zookeeper zookeeper <span class="se">\</span>
-      --global-zookeeper zookeeper <span class="se">\</span>
-      --web-service-url http://broker.default.svc.cluster.local:8080/ <span class="se">\</span>
-      --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> cluster-metadata.yaml
+</code></pre></div></div>
 
-<p>Make sure to modify the metadata values for your own cluster when necessary.</p>
+<p>For the sake of reference, that job runs the following command on an ephemeral pod:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  <span class="nt">--cluster</span> us-central <span class="se">\</span>
+  <span class="nt">--zookeeper</span> zookeeper <span class="se">\</span>
+  <span class="nt">--global-zookeeper</span> zookeeper <span class="se">\</span>
+  <span class="nt">--web-service-url</span> http://broker.default.svc.cluster.local:8080/ <span class="se">\</span>
+  <span class="nt">--broker-service-url</span> pulsar://broker.default.svc.cluster.local:6650/
+</code></pre></div></div>
 
 <h4 id="deploy-the-rest-of-the-components">Deploy the rest of the components</h4>
 
-<p>Once cluster metadata has been successfully initialized, you can then deploy the <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>, <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, and monitoring stack (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="../../admin/Dashboard">Pulsar dashboard</a>).</p>
+<p>Once cluster metadata has been successfully initialized, you can then deploy the <span class="popover-term" tabindex="0" title="What is a bookie?" data-placement="top" data-content="Bookie is just a nickname for an individual BookKeeper server." data-toggle="popover" data-trigger="focus">bookies</span>, <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>, monitoring stack (<a href="https://prometheus.io">Prometheus</a>, <a href="https://grafana.com">Grafana</a>, and the <a href="../../admin/Dashboard">Pulsar dashboard</a>), and Pulsar cluster proxy:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl apply -f bookie.yaml
-<span class="gp">$ </span>kubectl apply -f broker.yaml
-<span class="gp">$ </span>kubectl apply -f monitoring.yaml
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl apply <span class="nt">-f</span> bookie.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> broker.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> monitoring.yaml
+<span class="nv">$ </span>kubectl apply <span class="nt">-f</span> proxy.yaml
+</code></pre></div></div>
 
 <p>You can check on the status of the pods for these components either in the Kubernetes Dashboard or using <code class="highlighter-rouge">kubectl</code>:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl get pods
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get pods <span class="nt">-w</span> <span class="nt">-l</span> <span class="nv">app</span><span class="o">=</span>pulsar
+</code></pre></div></div>
 
 <h4 id="set-up-properties-and-namespaces">Set up properties and namespaces</h4>
 
@@ -1400,48 +1391,59 @@ zk-2      0/1       Running            6          15m
   </div>
 </div>
 
-<p>To create properties and namespaces, connect to the <code class="highlighter-rouge">pulsar-admin</code> pod that has already been configured to act as a client for your newly created Pulsar cluster.</p>
+<p>You can create properties and namespaces (and perform any other administrative tasks) using the <code class="highlighter-rouge">pulsar-admin</code> pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the <a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a> tool installed on the admin pod.</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl <span class="nb">exec </span>pulsar-admin -it -- bash
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">alias </span>pulsar-admin<span class="o">=</span><span class="s1">'kubectl exec pulsar-admin -it -- bin/pulsar-admin'</span>
+</code></pre></div></div>
 
-<p>From there, you can issue all admin commands. Here’s an example command that would create a property named <code class="highlighter-rouge">prop</code> and a namespace within that property named <code class="highlighter-rouge">prop/us-central/ns</code>.</p>
+<p>Now, any time you run <code class="highlighter-rouge">pulsar-admin</code>, you will be running commands from that pod. This command will create a property called <code class="highlighter-rouge">prop</code>:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="nb">export </span><span class="nv">MY_PROPERTY</span><span class="o">=</span>prop
-<span class="nb">export </span><span class="nv">MY_NAMESPACE</span><span class="o">=</span>prop/us-central/ns
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties create prop <span class="se">\</span>
+  <span class="nt">--admin-roles</span> admin <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-central
+</code></pre></div></div>
 
-<span class="c"># Provision a new Pulsar property</span>
-<span class="gp">$ </span>bin/pulsar-admin properties create <span class="nv">$MY_PROPERTY</span> <span class="se">\</span>
-  --admin-roles admin <span class="se">\</span>
-  --allowed-clusters us-central
+<p>This command will create a <code class="highlighter-rouge">ns</code> namespace under the <code class="highlighter-rouge">prop</code> property and the <code class="highlighter-rouge">us-central</code> cluster:</p>
 
-<span class="c"># Create a namespace</span>
-<span class="gp">$ </span>bin/pulsar-admin namespaces create <span class="nv">$MY_NAMESPACE</span>
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces create prop/us-central/ns
+</code></pre></div></div>
+
+<p>To verify that everything has gone as planned:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin properties list
+prop
+
+<span class="nv">$ </span>pulsar-admin namespaces list prop/us-central
+ns
+</code></pre></div></div>
+
+<p>Now that you have a namespace and property set up, you can move on to <a href="#experimenting-with-your-cluster">experimenting with your Pulsar cluster</a> from within the cluster or <a href="#client-connections">connecting to the cluster</a> using a Pulsar client.</p>
 
 <h4 id="experimenting-with-your-cluster">Experimenting with your cluster</h4>
 
-<p>Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. From the same <code class="highlighter-rouge">pulsar-admin</code> pod, for example, you can use <a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a> to create a test <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> to publish 10,000 messages a second on a topic in the <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> you created:</p>
+<p>Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same <code class="highlighter-rouge">pulsar-admin</code> pod via an alias, as in the section above, you can use <a href="../../reference/CliTools#pulsar-perf"><code class="highlighter-rouge">pulsar-perf</code></a> to create a test <span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">producer</span> to publish 10,000 messages a second on a topic in the <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> you created.</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic <span class="se">\</span>
-  --rate 10000
-</code></pre>
-</div>
+<p>First, create an alias to use the <code class="highlighter-rouge">pulsar-perf</code> tool via the admin pod:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">alias </span>pulsar-perf<span class="o">=</span><span class="s1">'kubectl exec pulsar-admin -it -- bin/pulsar-perf'</span>
+</code></pre></div></div>
+
+<p>Now, produce messages:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-perf produce persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  <span class="nt">--rate</span> 10000
+</code></pre></div></div>
 
 <p>Similarly, you can start a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> to subscribe to and receive all the messages on that topic:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic <span class="se">\</span>
-  --subscriber-name my-subscription-name
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-perf consume persistent://prop/us-central/ns/my-topic <span class="se">\</span>
+  <span class="nt">--subscriber-name</span> my-subscription-name
+</code></pre></div></div>
 
 <p>You can also view <a href="../../admin/Stats">stats</a> for the topic using the <a href="../../reference/CliTools#pulsar-admin-persistent-stats"><code class="highlighter-rouge">pulsar-admin</code></a> tool:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
+</code></pre></div></div>
 
 <h3 id="monitoring">Monitoring</h3>
 
@@ -1455,9 +1457,9 @@ zk-2      0/1       Running            6          15m
 
 <p>In your Kubernetes cluster, you can use <a href="https://grafana.com">Grafana</a> to view dashbaords for Pulsar <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespaces</span> (message rates, latency, and storage), JVM stats, <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span>, and <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span>. You can get access to the pod serving Grafana using <code class="highlighter-rouge">kubectl</code>’s <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code class="highlighter-rouge">port-forward</code></a> command:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | grep grafana | awk <span class="s1">'{print $1}'</span><span class="k">)</span> 3000
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl port-forward <span class="se">\</span>
+  <span class="k">$(</span>kubectl get pods <span class="nt">-l</span> <span class="nv">component</span><span class="o">=</span>grafana <span class="nt">-o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.items[*].metadata.name}'</span><span class="k">)</span> 3000
+</code></pre></div></div>
 
 <p>You can then access the dashboard in your web browser at <a href="http://localhost:3000">localhost:3000</a>.</p>
 
@@ -1469,11 +1471,29 @@ zk-2      0/1       Running            6          15m
 
 <p>You can access to the pod serving the Pulsar dashboard using <code class="highlighter-rouge">kubectl</code>’s <a href="https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster"><code class="highlighter-rouge">port-forward</code></a> command:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>kubectl port-forward <span class="k">$(</span>kubectl get pods | grep pulsar-dashboard | awk <span class="s1">'{print $1}'</span><span class="k">)</span> 8080:80
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl port-forward <span class="se">\</span>
+  <span class="k">$(</span>kubectl get pods <span class="nt">-l</span> <span class="nv">component</span><span class="o">=</span>dashboard <span class="nt">-o</span> <span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.items[*].metadata.name}'</span><span class="k">)</span> 8080:80
+</code></pre></div></div>
 
 <p>You can then access the dashboard in your web browser at <a href="http://localhost:8080">localhost:8080</a>.</p>
+
+<h3 id="client-connections">Client connections</h3>
+
+<p>Once your Pulsar cluster is running on Kubernetes, you can connect to it using a Pulsar client. You can fetch the IP address for the Pulsar proxy running in your Kubernetes cluster using kubectl:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>kubectl get service broker-proxy <span class="se">\</span>
+  <span class="nt">--output</span><span class="o">=</span><span class="nv">jsonpath</span><span class="o">=</span><span class="s1">'{.status.loadBalancer.ingress[*].ip}'</span>
+</code></pre></div></div>
+
+<p>If the IP address for the proxy were, for example, 35.12.13.198, you could connect to Pulsar using <code class="highlighter-rouge">pulsar://35.12.13.198:6650</code>.</p>
+
+<p>You can find client documentation for:</p>
+
+<ul>
+  <li><a href="../../clients/Java">Java</a></li>
+  <li><a href="../../clients/Python">Python</a></li>
+  <li><a href="../../clients/Cpp">C++</a></li>
+</ul>
 
       </section>
     </article>

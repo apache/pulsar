@@ -748,9 +748,9 @@
           
           
           
-          
-          
           <li><a href="/ja/adaptors/PulsarStorm/">Apache StormのためのPulsarアダプタ</a></li>
+          
+          
           
           
           
@@ -861,8 +861,6 @@
           
           
           <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
-          
-          
           
           
           
@@ -1021,6 +1019,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1063,13 +1063,12 @@
 
 <p>Pulsar Stormアダプタの依存を含めます:</p>
 
-<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
   <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
   <span class="nt">&lt;artifactId&gt;</span>pulsar-storm<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pulsar-spout">Pulsar Spout</h2>
 
@@ -1077,7 +1076,7 @@
 
 <p>下流のBoltでの処理に失敗したTupleはSpoutによって再注入されます。この再注入は指数バックオフに従い、設定可能なタイムアウト(デフォルト:60秒)またはリトライ回数のどちらかに達するまで行われます。その後、Consumerによって<span class="popover-term" tabindex="0" title="Ack (確認応答) とは？" data-placement="top" data-content="メッセージが正常に処理されたことを知らせるためにConsumerがPulsar Brokerに送信するメッセージのことです。Ackはそのメッセージをシステム上から削除できることをPulsarが知る方法です。もしAckがなければ、そのメッセージは処理されるまで保持されます。" data-toggle="popover" data-trigger="focus">Ack</span>(確認応答)が返されます。下記はSpoutの例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Pulsarクライアントの設定</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Pulsarクライアントの設定</span>
 <span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 
 <span class="c1">// Pulsar Consumerの設定</span>
@@ -1107,8 +1106,7 @@
 
 <span class="c1">// Pulsar Spoutインスタンスの生成</span>
 <span class="n">PulsarSpout</span> <span class="n">spout</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarSpout</span><span class="o">(</span><span class="n">spoutConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">,</span> <span class="n">consumerConf</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pulsar-bolt">Pulsar Bolt</h2>
 
@@ -1116,7 +1114,7 @@
 
 <p>異なるトピックにメッセージを発行するためにパーティションドトピックを利用することもできます。その場合<code class="highlighter-rouge">TupleToMessageMapper</code>の実装において、メッセージに「キー」を用意する必要があります。同じキーを持つメッセージは同じトピックに送信されるようになります。下記はBoltの例です:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Pulsarクライアントの設定</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Pulsarクライアントの設定</span>
 <span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 
 <span class="c1">// Pulsar Producerの設定</span>
@@ -1147,8 +1145,7 @@
 
 <span class="c1">// Pulsar Boltインスタンスの生成</span>
 <span class="n">PulsarBolt</span> <span class="n">bolt</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarBolt</span><span class="o">(</span><span class="n">boltConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="実装例">実装例</h2>
 

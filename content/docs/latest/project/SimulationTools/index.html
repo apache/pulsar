@@ -865,9 +865,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/project/SimulationTools/">Simulation tools</a></li>
-          
-          
           
           
           
@@ -970,9 +970,8 @@ send signals to clients to start incurring load. The client implementation is in
 <h3 id="usage">Usage</h3>
 <p>To Start a simulation client, use the <code class="highlighter-rouge">pulsar-perf</code> script with the command <code class="highlighter-rouge">simulation-client</code> as follows:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-perf simulation-client --port &lt;listen port&gt; --service-url &lt;pulsar service url&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-perf simulation-client --port &lt;listen port&gt; --service-url &lt;pulsar service url&gt;
+</code></pre></div></div>
 
 <p>The client will then be ready to receive controller commands.</p>
 <h2 id="simulation-controller">Simulation Controller</h2>
@@ -984,10 +983,9 @@ command with.</p>
 <h3 id="usage-1">Usage</h3>
 <p>To start a simulation controller, use the <code class="highlighter-rouge">pulsar-perf</code> script with the command <code class="highlighter-rouge">simulation-controller</code> as follows:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-perf simulation-controller --cluster &lt;cluster to simulate on&gt; --client-port &lt;listen port for clients&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-perf simulation-controller --cluster &lt;cluster to simulate on&gt; --client-port &lt;listen port for clients&gt;
 --clients &lt;comma-separated list of client host names&gt;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>The clients should already be started before the controller is started. You will then be presented with a simple prompt,
 where you can issue commands to simulation clients. Arguments often refer to tenant names, namespace names, and topic
@@ -1078,9 +1076,8 @@ console as it is updated using watchers.</p>
 <h3 id="usage-2">Usage</h3>
 <p>To start a broker monitor, use the <code class="highlighter-rouge">monitor-brokers</code> command in the <code class="highlighter-rouge">pulsar-perf</code> script:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-perf monitor-brokers --connect-string &lt;zookeeper host:port&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-perf monitor-brokers --connect-string &lt;zookeeper host:port&gt;
+</code></pre></div></div>
 
 <p>The console will then continuously print load data until it is interrupted.</p>
 

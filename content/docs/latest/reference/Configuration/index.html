@@ -1749,6 +1749,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>1000</td>
     </tr>
     
+    <tr id="broker-autoSkipNonRecoverableData">
+      <td>autoSkipNonRecoverableData</td>
+      <td>Skip reading non-recoverable/unreadable data-ledger under managed-ledger’s list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+</td>
+      <td>false</td>
+    </tr>
+    
     <tr id="broker-loadBalancerEnabled">
       <td>loadBalancerEnabled</td>
       <td>Enable load balancer
@@ -1796,6 +1803,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>Prevent the same topics to be shed and moved to other broker more that once within this timeframe
 </td>
       <td>30</td>
+    </tr>
+    
+    <tr id="broker-loadBalancerBrokerMaxTopics">
+      <td>loadBalancerBrokerMaxTopics</td>
+      <td>Usage threshold to allocate max number of topics to broker
+</td>
+      <td>50000</td>
     </tr>
     
     <tr id="broker-loadBalancerBrokerUnderloadedThresholdPercentage">
@@ -2878,6 +2892,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>14400</td>
     </tr>
     
+    <tr id="standalone-autoSkipNonRecoverableData">
+      <td>autoSkipNonRecoverableData</td>
+      <td>
+</td>
+      <td>false</td>
+    </tr>
+    
     <tr id="standalone-loadBalancerEnabled">
       <td>loadBalancerEnabled</td>
       <td>
@@ -2925,6 +2946,13 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
       <td>
 </td>
       <td>30</td>
+    </tr>
+    
+    <tr id="standalone-loadBalancerBrokerMaxTopics">
+      <td>loadBalancerBrokerMaxTopics</td>
+      <td>
+</td>
+      <td>50000</td>
     </tr>
     
     <tr id="standalone-loadBalancerBrokerUnderloadedThresholdPercentage">
@@ -3329,11 +3357,10 @@ Ideally, ledger dirs and the journal dir are each in a different device, which r
 <p>In addition to the parameters in the table above, configuring ZooKeeper for Pulsar involves adding
 a <code class="highlighter-rouge">server.N</code> line to the <code class="highlighter-rouge">conf/zookeeper.conf</code> file for each node in the ZooKeeper cluster, where <code class="highlighter-rouge">N</code> is the number of the ZooKeeper node. Here’s an example for a three-node ZooKeeper cluster:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 

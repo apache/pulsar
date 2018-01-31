@@ -107,6 +107,11 @@ Public Types</h2></td></tr>
 <b>CustomPartition</b>
  }</td></tr>
 <tr class="separator:ad4f416b4f11ec25705f6369cd92e89f6"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad6d6011184bb2da9f961e7a21e2e656c"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad6d6011184bb2da9f961e7a21e2e656c"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><b>HashingScheme</b> { <b>Murmur3_32Hash</b>, 
+<b>BoostHash</b>, 
+<b>JavaStringHash</b>
+ }</td></tr>
+<tr class="separator:ad6d6011184bb2da9f961e7a21e2e656c"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table><table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
@@ -146,6 +151,10 @@ CompressionType&#160;</td><td class="memItemRight" valign="bottom"><b>getCompres
 <tr class="memitem:a244303fea863a6b664f80f05273a395a"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a244303fea863a6b664f80f05273a395a"></a>
 int&#160;</td><td class="memItemRight" valign="bottom"><b>getMaxPendingMessages</b> () const </td></tr>
 <tr class="separator:a244303fea863a6b664f80f05273a395a"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a158f3061d38b91b3c9ccf81545278a61"><td class="memItemLeft" align="right" valign="top"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a158f3061d38b91b3c9ccf81545278a61">setMaxPendingMessagesAcrossPartitions</a> (int maxPendingMessagesAcrossPartitions)</td></tr>
+<tr class="separator:a158f3061d38b91b3c9ccf81545278a61"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a4791e6a58ba180382e9fdc1e349a4188"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_producer_configuration.html#a4791e6a58ba180382e9fdc1e349a4188">getMaxPendingMessagesAcrossPartitions</a> () const </td></tr>
+<tr class="separator:a4791e6a58ba180382e9fdc1e349a4188"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ab7ae82ea42b7ecfd36b20534cdb204eb"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ab7ae82ea42b7ecfd36b20534cdb204eb"></a>
 <a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setPartitionsRoutingMode</b> (const PartitionsRoutingMode &amp;mode)</td></tr>
 <tr class="separator:ab7ae82ea42b7ecfd36b20534cdb204eb"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -158,6 +167,12 @@ PartitionsRoutingMode&#160;</td><td class="memItemRight" valign="bottom"><b>getP
 <tr class="memitem:a6df169d09d8f11d0d7266b26efd04f98"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a6df169d09d8f11d0d7266b26efd04f98"></a>
 const MessageRoutingPolicyPtr &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>getMessageRouterPtr</b> () const </td></tr>
 <tr class="separator:a6df169d09d8f11d0d7266b26efd04f98"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2c09224f38f05f3ec59abbe6e3325c5b"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a2c09224f38f05f3ec59abbe6e3325c5b"></a>
+<a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setHashingScheme</b> (const HashingScheme &amp;scheme)</td></tr>
+<tr class="separator:a2c09224f38f05f3ec59abbe6e3325c5b"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:ad5222b12e277b8d7ddeed38c83798804"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="ad5222b12e277b8d7ddeed38c83798804"></a>
+HashingScheme&#160;</td><td class="memItemRight" valign="bottom"><b>getHashingScheme</b> () const </td></tr>
+<tr class="separator:ad5222b12e277b8d7ddeed38c83798804"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a953666b06aa2ca889b6c961530602b62"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a953666b06aa2ca889b6c961530602b62"></a>
 <a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a> &amp;&#160;</td><td class="memItemRight" valign="bottom"><b>setBlockIfQueueFull</b> (bool)</td></tr>
 <tr class="separator:a953666b06aa2ca889b6c961530602b62"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -197,7 +212,48 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
 </table>
 <a name="details" id="details"></a><h2 class="groupheader">Detailed Description</h2>
 <div class="textblock"><p>Class that holds the configuration for a producer </p>
-</div><hr/>The documentation for this class was generated from the following file:<ul>
+</div><h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a4791e6a58ba180382e9fdc1e349a4188"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int pulsar::ProducerConfiguration::getMaxPendingMessagesAcrossPartitions </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the maximum number of pending messages allowed across all the partitions </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a158f3061d38b91b3c9ccf81545278a61"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname"><a class="el" href="classpulsar_1_1_producer_configuration.html">ProducerConfiguration</a>&amp; pulsar::ProducerConfiguration::setMaxPendingMessagesAcrossPartitions </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>maxPendingMessagesAcrossPartitions</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the number of max pending messages across all the partitions </p>
+<p>This setting will be used to lower the max pending messages for each partition (<a class="el" href="">setMaxPendingMessages(int)</a>), if the total exceeds the configured value.</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">maxPendingMessagesAcrossPartitions</td><td></td></tr>
+  </table>
+  </dd>
+</dl>
+
+</div>
+</div>
+<hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/pulsar/<a class="el" href="_producer_configuration_8h_source.html">ProducerConfiguration.h</a></li>
 </ul>
 </div><!-- contents -->

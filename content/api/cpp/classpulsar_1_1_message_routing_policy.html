@@ -92,16 +92,44 @@ var searchBox = new SearchBox("searchBox", "search",false,'Search');
 <a href="#pub-methods">Public Member Functions</a> &#124;
 <a href="classpulsar_1_1_message_routing_policy-members.html">List of all members</a>  </div>
   <div class="headertitle">
-<div class="title">pulsar::MessageRoutingPolicy Class Reference<span class="mlabels"><span class="mlabel">abstract</span></span></div>  </div>
+<div class="title">pulsar::MessageRoutingPolicy Class Reference</div>  </div>
 </div><!--header-->
 <div class="contents">
 <table class="memberdecls">
 <tr class="heading"><td colspan="2"><h2 class="groupheader"><a name="pub-methods"></a>
 Public Member Functions</h2></td></tr>
-<tr class="memitem:a35e4fd4022dd7d317f23dc89a7edeab7"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a35e4fd4022dd7d317f23dc89a7edeab7"></a>
-virtual int&#160;</td><td class="memItemRight" valign="bottom"><b>getPartition</b> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)=0</td></tr>
-<tr class="separator:a35e4fd4022dd7d317f23dc89a7edeab7"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a8071e740dd2e44ae75a91901e776c310"><td class="memItemLeft" align="right" valign="top">virtual int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message_routing_policy.html#a8071e740dd2e44ae75a91901e776c310">getPartition</a> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)</td></tr>
+<tr class="separator:a8071e740dd2e44ae75a91901e776c310"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a080148f08d302d032b0f49d68ada73de"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a080148f08d302d032b0f49d68ada73de"></a>
+virtual int&#160;</td><td class="memItemRight" valign="bottom"><b>getPartition</b> (const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg, const <a class="el" href="classpulsar_1_1_topic_metadata.html">TopicMetadata</a> &amp;topicMetadata)</td></tr>
+<tr class="separator:a080148f08d302d032b0f49d68ada73de"><td class="memSeparator" colspan="2">&#160;</td></tr>
 </table>
+<h2 class="groupheader">Member Function Documentation</h2>
+<a class="anchor" id="a8071e740dd2e44ae75a91901e776c310"></a>
+<div class="memitem">
+<div class="memproto">
+<table class="mlabels">
+  <tr>
+  <td class="mlabels-left">
+      <table class="memname">
+        <tr>
+          <td class="memname">virtual int pulsar::MessageRoutingPolicy::getPartition </td>
+          <td>(</td>
+          <td class="paramtype">const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;&#160;</td>
+          <td class="paramname"><em>msg</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+  </td>
+  <td class="mlabels-right">
+<span class="mlabels"><span class="mlabel">inline</span><span class="mlabel">virtual</span></span>  </td>
+  </tr>
+</table>
+</div><div class="memdoc">
+<dl class="deprecated"><dt><b><a class="el" href="deprecated.html#_deprecated000002">Deprecated:</a></b></dt><dd>Use int getPartition(const Message&amp; msg, const TopicMetadata&amp; topicMetadata) </dd></dl>
+
+</div>
+</div>
 <hr/>The documentation for this class was generated from the following file:<ul>
 <li>include/pulsar/<a class="el" href="_message_routing_policy_8h_source.html">MessageRoutingPolicy.h</a></li>
 </ul>

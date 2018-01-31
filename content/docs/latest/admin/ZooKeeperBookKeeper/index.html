@@ -840,11 +840,10 @@
 
 <p>To begin, add all ZooKeeper servers to the quorum configuration specified in the <a href="../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a> file. Add a <code class="highlighter-rouge">server.N</code> line for each node in the cluster to the configuration, where <code class="highlighter-rouge">N</code> is the number of the ZooKeeper node. Here’s an example for a three-node cluster:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>On each host, you need to specify the ID of the node in each node’s <code class="highlighter-rouge">myid</code> file, which is in each server’s <code class="highlighter-rouge">data/zookeeper</code> folder by default (this can be changed via the <a href="../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> parameter).</p>
 
@@ -879,18 +878,16 @@
 
 <p>On a ZooKeeper server at <code class="highlighter-rouge">zk1.us-west.example.com</code>, for example, you could set the <code class="highlighter-rouge">myid</code> value like this:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p data/zookeeper
-<span class="gp">$ </span><span class="nb">echo </span>1 &gt; data/zookeeper/myid
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir</span> <span class="nt">-p</span> data/zookeeper
+<span class="nv">$ </span><span class="nb">echo </span>1 <span class="o">&gt;</span> data/zookeeper/myid
+</code></pre></div></div>
 
 <p>On <code class="highlighter-rouge">zk2.us-west.example.com</code> the command would be <code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
 
 <p>Once each server has been added to the <code class="highlighter-rouge">zookeeper.conf</code> configuration and has the appropriate <code class="highlighter-rouge">myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre></div></div>
 
 <h3 id="deploying-global-zookeeper">Deploying global ZooKeeper</h3>
 
@@ -932,12 +929,11 @@
 
 <p>To deploy global ZooKeeper in a single-cluster instance, add the same ZooKeeper servers used by the local quorom to the configuration file in <a href="../../reference/Configuration#global-zookeeper"><code class="highlighter-rouge">conf/global_zookeeper.conf</code></a> using the same method for <a href="#local-zookeeper">local ZooKeeper</a>, but make sure to use a different port (2181 is the default for ZooKeeper). Here’s an example that uses port 2184 for a three-node ZooKeeper cluster:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>As before, create the <code class="highlighter-rouge">myid</code> files for each server on <code class="highlighter-rouge">data/global-zookeeper/myid</code>.</p>
 
@@ -955,9 +951,8 @@ share the same hosts used for the local ZooKeeper quorum.</p>
 <code class="highlighter-rouge">us-east</code>, <code class="highlighter-rouge">us-central</code>, <code class="highlighter-rouge">eu-central</code>, <code class="highlighter-rouge">ap-south</code>. Also let’s assume, each cluster
 will have its own local ZK servers named such as</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>zk[1-3].${CLUSTER}.example.com
+</code></pre></div></div>
 
 <p>In this scenario we want to pick the quorum participants from few clusters and
 let all the others be ZK observers. For example, to form a 7 servers quorum, we
@@ -968,7 +963,7 @@ of these regions is unreachable.</p>
 
 <p>The ZK configuration in all the servers will look like:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clientPort</span><span class="p">=</span><span class="s">2184</span>
 <span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2185:2186</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2185:2186</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2185:2186</span>
@@ -984,22 +979,19 @@ of these regions is unreachable.</p>
 <span class="py">server.13</span><span class="p">=</span><span class="s">zk1.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.14</span><span class="p">=</span><span class="s">zk2.ap-south.example.com:2185:2186:observer</span>
 <span class="py">server.15</span><span class="p">=</span><span class="s">zk3.ap-south.example.com:2185:2186:observer</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Additionally, ZK observers will need to have:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">peerType</span><span class="p">=</span><span class="s">observer</span>
+</code></pre></div></div>
 
 <h5 id="starting-the-service">Starting the service</h5>
 
 <p>Once your global ZooKeeper configuration is in place, you can start up the service using <a href="../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a></p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start global-zookeeper
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start global-zookeeper
+</code></pre></div></div>
 
 <h3 id="zookeeper-configuration">ZooKeeper configuration</h3>
 
@@ -1263,15 +1255,13 @@ of these regions is unreachable.</p>
 
 <p>To start up a bookie in the foreground, use the <a href="../../reference/CliTools#bookkeeper"><code class="highlighter-rouge">bookeeper</code></a></p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start bookie
+</code></pre></div></div>
 
 <p>You can verify that the bookie is working properly using the <code class="highlighter-rouge">bookiesanity</code> command for the <a href="../../reference/CliTools#bookkeeper-shell">BookKeeper shell</a>:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre></div></div>
 
 <p>This will create a new ledger on the local bookie, write a few entries, read them back and finally delete the ledger.</p>
 
@@ -1298,7 +1288,7 @@ designed to use multiple devices:</p>
 
 <p>Minimum configuration changes required  in <code class="highlighter-rouge">conf/bookkeeper.conf</code> are:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="c"># Change to point to journal disk mount point
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Change to point to journal disk mount point
 </span><span class="py">journalDirectory</span><span class="p">=</span><span class="s">data/bookkeeper/journal</span>
 
 <span class="c"># Point to ledger storage disk mount point
@@ -1309,8 +1299,7 @@ designed to use multiple devices:</p>
 
 <span class="c"># Change the ledger manager type
 </span><span class="py">ledgerManagerType</span><span class="p">=</span><span class="s">hierarchical</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -1393,11 +1382,10 @@ designed to use multiple devices:</p>
 
 <h5 id="example">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
-  --bookkeeper-ack-quorom 3 <span class="se">\</span>
-  --bookeeper-ensemble 2
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-persistence my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--bookkeeper-ack-quorom</span> 3 <span class="se">\</span>
+  <span class="nt">--bookeeper-ensemble</span> 2
+</code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
@@ -1407,15 +1395,14 @@ designed to use multiple devices:</p>
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">bkEnsemble</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">bkQuorum</span> <span class="o">=</span> <span class="mi">3</span><span class="o">;</span>
 <span class="kt">int</span> <span class="n">bkAckQuorum</span> <span class="o">=</span> <span class="mi">2</span><span class="o">;</span>
 <span class="kt">double</span> <span class="n">markDeleteRate</span> <span class="o">=</span> <span class="mf">0.7</span><span class="o">;</span>
 <span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span>
   <span class="k">new</span> <span class="nf">PersistencePolicies</span><span class="o">(</span><span class="n">ensemble</span><span class="o">,</span> <span class="n">quorum</span><span class="o">,</span> <span class="n">ackQuorum</span><span class="o">,</span> <span class="n">markDeleteRate</span><span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="list-persistence-policies">List persistence policies</h3>
 
@@ -1427,15 +1414,14 @@ designed to use multiple devices:</p>
 
 <h5 id="example-1">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-persistence my-prop/my-cluster/my-ns
 <span class="o">{</span>
   <span class="s2">"bookkeeperEnsemble"</span>: 1,
   <span class="s2">"bookkeeperWriteQuorum"</span>: 1,
   <span class="s2">"bookkeeperAckQuorum"</span>, 1,
   <span class="s2">"managedLedgerMaxMarkDeleteRate"</span>: 0
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -1445,9 +1431,8 @@ designed to use multiple devices:</p>
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PersistencePolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getPersistence</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h2 id="how-pulsar-uses-zookeeper-and-bookkeeper">How Pulsar uses ZooKeeper and BookKeeper</h2>
 

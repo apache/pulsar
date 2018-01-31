@@ -764,9 +764,9 @@
           
           
           
-          
-          
           <li><a href="/ja/project/SimulationTools/">シミュレーションツール</a></li>
+          
+          
           
           
           
@@ -863,9 +863,8 @@
 <h3 id="使い方">使い方</h3>
 <p>シミュレーションクライアントを起動するために、以下のように<code class="highlighter-rouge">pulsar-perf</code>スクリプトの<code class="highlighter-rouge">simulation-client</code>コマンドを使用します:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-perf simulation-client --port &lt;リッスンポート&gt; --service-url &lt;PulsarのサービスURL&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-perf simulation-client --port &lt;リッスンポート&gt; --service-url &lt;PulsarのサービスURL&gt;
+</code></pre></div></div>
 
 <p>クライアントがコントローラコマンドを受け取る準備が完了します。</p>
 <h2 id="シミュレーションコントローラ">シミュレーションコントローラ</h2>
@@ -874,10 +873,9 @@
 <h3 id="使い方-1">使い方</h3>
 <p>シミュレーションコントローラを起動するために、以下のように<code class="highlighter-rouge">pulsar-perf</code>スクリプトの<code class="highlighter-rouge">simulation-controller</code>を使用します:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-perf simulation-controller --cluster &lt;シミュレートするクラスタ名&gt; --client-port &lt;クライアントのリッスンするポート&gt;
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-perf simulation-controller --cluster &lt;シミュレートするクラスタ名&gt; --client-port &lt;クライアントのリッスンするポート&gt;
 --clients &lt;カンマ区切りのクライアントのホストネーム&gt;
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>クライアントはコントローラが起動される前に起動されるべきです。シンプルなプロンプトが表示され、そこでシミュレーションクライアントにコマンドが発行できます。引数はテナント名、ネームスペース名、トピック名です。全てのケースで、テナント、ネームスペース、トピックの名前が使われます。例えば、トピック<code class="highlighter-rouge">persistent://my_cluster/my_tenant/my_namespace/my_topic</code>では、テナント名は<code class="highlighter-rouge">my_tenant</code>, ネームスペース名は<code class="highlighter-rouge">my_namespace</code>, トピック名は<code class="highlighter-rouge">my_topic</code>です。コントローラは以下のアクションを実行できます:</p>
 
@@ -948,9 +946,8 @@
 <h3 id="使い方-2">使い方</h3>
 <p>Brokerモニタを起動するために<code class="highlighter-rouge">pulsar-perf</code>スクリプトの<code class="highlighter-rouge">monitor-brokers</code>コマンドを使います:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar-perf monitor-brokers --connect-string &lt;ZooKeeper host:port&gt;
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar-perf monitor-brokers --connect-string &lt;ZooKeeper host:port&gt;
+</code></pre></div></div>
 
 <p>インタラプトされるまで、コンソールに負荷データが表示されます。</p>
 

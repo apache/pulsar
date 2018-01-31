@@ -827,9 +827,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
-          
-          
           
           
           
@@ -1021,9 +1021,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/LocalCluster/">Setting up a local standalone cluster</a></li>
-          
-          
           
           
           
@@ -1352,14 +1352,13 @@ and follow the instructions for your OS.</p>
 
 <h2 id="starting-pulsar-inside-docker">Starting Pulsar inside Docker</h2>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>docker run -it <span class="se">\</span>
-  -p 6650:6650 <span class="se">\</span>
-  -p 8080:8080 <span class="se">\</span>
-  -v <span class="nv">$PWD</span>/data:/pulsar/data <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>docker run <span class="nt">-it</span> <span class="se">\</span>
+  <span class="nt">-p</span> 6650:6650 <span class="se">\</span>
+  <span class="nt">-p</span> 8080:8080 <span class="se">\</span>
+  <span class="nt">-v</span> <span class="nv">$PWD</span>/data:/pulsar/data <span class="se">\</span>
   apachepulsar/pulsar:1.21.0-incubating <span class="se">\</span>
-  bin/pulsar standalone --advertised-address 127.0.0.1
-</code></pre>
-</div>
+  bin/pulsar standalone <span class="nt">--advertised-address</span> 127.0.0.1
+</code></pre></div></div>
 
 <p>A few things to note about this command:</p>
 <ul>
@@ -1373,11 +1372,10 @@ if you want to make Pulsar standalone accessible from other machines.</li>
 
 <p>If Pulsar has been successfully started, you should see <code class="highlighter-rouge">INFO</code>-level log messages like this:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>2017-08-09 22:34:04,030 - INFO  - [main:WebService@213] - Web Service started at http://127.0.0.1:8080
 2017-08-09 22:34:04,038 - INFO  - [main:PulsarService@335] - messaging service is ready, bootstrap service on port=8080, broker url=pulsar://127.0.0.1:6650, cluster=standalone, configs=org.apache.pulsar.broker.ServiceConfiguration@4db60246
 ...
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <!--
 
@@ -1427,13 +1425,12 @@ client API.</p>
 
 <p>You can install the Pulsar Python client library directly from <a href="https://pypi.org/project/pulsar-client/">PyPI</a>:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install pulsar-client
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pip <span class="nb">install </span>pulsar-client
+</code></pre></div></div>
 
 <p>First create a consumer and subscribe to the topic:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">'persistent://sample/standalone/ns1/my-topic'</span><span class="p">,</span>
@@ -1445,12 +1442,11 @@ client API.</p>
     <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>Now we can start a producer to send some test messages:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">create_producer</span><span class="p">(</span><span class="s">'persistent://sample/standalone/ns1/my-topic'</span><span class="p">)</span>
@@ -1459,8 +1455,7 @@ client API.</p>
     <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'hello-pulsar-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="get-the-topic-statistics">Get the topic statistics</h2>
 
@@ -1469,61 +1464,59 @@ You can find detailed documentation of all the APIs in the <a href="../../admin-
 
 <p>In the simplest example, you can use curl to probe the stats for a particular topic:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl http://localhost:8080/admin/persistent/sample/standalone/ns1/my-topic/stats | python -m json.tool
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl http://localhost:8080/admin/persistent/sample/standalone/ns1/my-topic/stats | python <span class="nt">-m</span> json.tool
+</code></pre></div></div>
 
 <p>The output will be something like this:</p>
 
-<div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="p">{</span><span class="w">
-  </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"publishers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
     </span><span class="p">{</span><span class="w">
-      </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35048"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 20:59:34.621+0000"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone-0-1"</span><span class="w">
+      </span><span class="s2">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35048"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"averageMsgSize"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 20:59:34.621+0000"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgRateIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgThroughputIn"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"producerId"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"producerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"standalone-0-1"</span><span class="w">
     </span><span class="p">}</span><span class="w">
   </span><span class="p">],</span><span class="w">
-  </span><span class="nt">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
-  </span><span class="nt">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w">
-  </span><span class="nt">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-    </span><span class="nt">"my-sub"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-      </span><span class="nt">"blockedSubscriptionOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+  </span><span class="s2">"replication"</span><span class="p">:</span><span class="w"> </span><span class="p">{},</span><span class="w">
+  </span><span class="s2">"storageSize"</span><span class="p">:</span><span class="w"> </span><span class="mi">16</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"subscriptions"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+    </span><span class="s2">"my-sub"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+      </span><span class="s2">"blockedSubscriptionOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"consumers"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
         </span><span class="p">{</span><span class="w">
-          </span><span class="nt">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35064"</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"availablePermits"</span><span class="p">:</span><span class="w"> </span><span class="mi">996</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"blockedConsumerOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 21:05:39.222+0000"</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"consumerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"166111"</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-          </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+          </span><span class="s2">"address"</span><span class="p">:</span><span class="w"> </span><span class="s2">"/172.17.0.1:35064"</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"availablePermits"</span><span class="p">:</span><span class="w"> </span><span class="mi">996</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"blockedConsumerOnUnackedMsgs"</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"clientVersion"</span><span class="p">:</span><span class="w"> </span><span class="s2">"1.19.0-incubating"</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"connectedSince"</span><span class="p">:</span><span class="w"> </span><span class="s2">"2017-08-09 21:05:39.222+0000"</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"consumerName"</span><span class="p">:</span><span class="w"> </span><span class="s2">"166111"</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+          </span><span class="s2">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
         </span><span class="p">}</span><span class="w">
       </span><span class="p">],</span><span class="w">
-      </span><span class="nt">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Exclusive"</span><span class="p">,</span><span class="w">
-      </span><span class="nt">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
+      </span><span class="s2">"msgBacklog"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgRateExpired"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgRateOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgRateRedeliver"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"msgThroughputOut"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"type"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Exclusive"</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"unackedMessages"</span><span class="p">:</span><span class="w"> </span><span class="mi">0</span><span class="w">
     </span><span class="p">}</span><span class="w">
   </span><span class="p">}</span><span class="w">
 </span><span class="p">}</span><span class="w">
-</span></code></pre>
-</div>
+</span></code></pre></div></div>
 
       </section>
     </article>

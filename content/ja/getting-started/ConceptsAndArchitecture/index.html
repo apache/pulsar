@@ -692,9 +692,9 @@
           
           
           
-          
-          
           <li><a href="/ja/getting-started/ConceptsAndArchitecture/">Pulsarのコンセプトとアーキテクチャ</a></li>
+          
+          
           
           
           
@@ -1247,9 +1247,8 @@
 
 <p>トピック名は次のようになります:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>non-persistent://my-property/us-west/my-namespace/my-topic
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>non-persistent://my-property/us-west/my-namespace/my-topic
+</code></pre></div></div>
 
 <p>ProducerとConsumerは、トピック名を<code class="highlighter-rouge">non-persistent</code>で始めなければならない点を除き、パーシステントトピックと同様の方法でノンパーシステントトピックに接続できます。</p>
 
@@ -1257,22 +1256,20 @@
 
 <h3 id="consumer-api">Consumer API</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
 
 <span class="n">Consumer</span> <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">subscribe</span><span class="o">(</span>
             <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">,</span>
             <span class="s">"my-subscribtion-name"</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="producer-api">Producer API</h3>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">PulsarClient</span> <span class="n">client</span> <span class="o">=</span> <span class="n">PulsarClient</span><span class="o">.</span><span class="na">create</span><span class="o">(</span><span class="s">"pulsar://localhost:6650"</span><span class="o">);</span>
 
 <span class="n">Producer</span> <span class="n">producer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="na">createProducer</span><span class="o">(</span>
             <span class="s">"non-persistent://sample/standalone/ns1/my-topic"</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="brokerの設定">Brokerの設定</h3>
 
@@ -1280,12 +1277,11 @@
 
 <p>Brokerが特定のタイプのトピックのみを所有できるようにするための設定は次の通りです:</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code># Brokerによるパーシステントトピックのロードを無効化
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Brokerによるパーシステントトピックのロードを無効化
 enablePersistentTopics=false
 # Brokerによるノンパーシステントトピックのロードを有効化
 enableNonPersistentTopics=true
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="アーキテクチャの概要">アーキテクチャの概要</h2>
 

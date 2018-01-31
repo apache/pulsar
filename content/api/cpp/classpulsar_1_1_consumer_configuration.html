@@ -125,6 +125,10 @@ bool&#160;</td><td class="memItemRight" valign="bottom"><b>hasMessageListener</b
 <tr class="memitem:a4a87e62a6fc25abf3a952545046edba2"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a4a87e62a6fc25abf3a952545046edba2"></a>
 int&#160;</td><td class="memItemRight" valign="bottom"><b>getReceiverQueueSize</b> () const </td></tr>
 <tr class="separator:a4a87e62a6fc25abf3a952545046edba2"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a9c07888abe996b80c2fd168278a24de3"><td class="memItemLeft" align="right" valign="top">void&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a9c07888abe996b80c2fd168278a24de3">setMaxTotalReceiverQueueSizeAcrossPartitions</a> (int maxTotalReceiverQueueSizeAcrossPartitions)</td></tr>
+<tr class="separator:a9c07888abe996b80c2fd168278a24de3"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a2ad7b00cae770f1f75ad5791ddf22052"><td class="memItemLeft" align="right" valign="top">int&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html#a2ad7b00cae770f1f75ad5791ddf22052">getMaxTotalReceiverQueueSizeAcrossPartitions</a> () const </td></tr>
+<tr class="separator:a2ad7b00cae770f1f75ad5791ddf22052"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a7a3cfb88ea1f1d67c4f8a9209ca228af"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a7a3cfb88ea1f1d67c4f8a9209ca228af"></a>
 void&#160;</td><td class="memItemRight" valign="bottom"><b>setConsumerName</b> (const std::string &amp;)</td></tr>
 <tr class="separator:a7a3cfb88ea1f1d67c4f8a9209ca228af"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -162,6 +166,22 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <dl class="section return"><dt>Returns</dt><dd>the configured timeout in milliseconds caching <a class="el" href="classpulsar_1_1_broker_consumer_stats.html">BrokerConsumerStats</a>. </dd></dl>
+
+</div>
+</div>
+<a class="anchor" id="a2ad7b00cae770f1f75ad5791ddf22052"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">int pulsar::ConsumerConfiguration::getMaxTotalReceiverQueueSizeAcrossPartitions </td>
+          <td>(</td>
+          <td class="paramname"></td><td>)</td>
+          <td> const</td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<dl class="section return"><dt>Returns</dt><dd>the configured max total receiver queue size across partitions </dd></dl>
 
 </div>
 </div>
@@ -217,6 +237,30 @@ class&#160;</td><td class="memItemRight" valign="bottom"><b>PulsarWrapper</b></t
       </table>
 </div><div class="memdoc">
 <p>Specify the consumer type. The consumer type enables specifying the type of subscription. In Exclusive subscription, only a single consumer is allowed to attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers will be able to use the same subscription name and the messages will be dispatched in a round robin fashion. In Failover subscription, a master-slave subscription model allows for multiple consumers to attach to a single subscription, though only one of them will be “master” at a given time. Only the master consumer will receive messages. When the master gets disconnected, one among the slaves will be promoted to master and will start getting messages. </p>
+
+</div>
+</div>
+<a class="anchor" id="a9c07888abe996b80c2fd168278a24de3"></a>
+<div class="memitem">
+<div class="memproto">
+      <table class="memname">
+        <tr>
+          <td class="memname">void pulsar::ConsumerConfiguration::setMaxTotalReceiverQueueSizeAcrossPartitions </td>
+          <td>(</td>
+          <td class="paramtype">int&#160;</td>
+          <td class="paramname"><em>maxTotalReceiverQueueSizeAcrossPartitions</em></td><td>)</td>
+          <td></td>
+        </tr>
+      </table>
+</div><div class="memdoc">
+<p>Set the max total receiver queue size across partitons. </p>
+<p>This setting will be used to reduce the receiver queue size for individual partitions <a class="el" href="classpulsar_1_1_consumer_configuration.html#a265d2cd1e9d1d329eff9b98346f245c2">setReceiverQueueSize(int)</a> if the total exceeds this value (default: 50000).</p>
+<dl class="params"><dt>Parameters</dt><dd>
+  <table class="params">
+    <tr><td class="paramname">maxTotalReceiverQueueSizeAcrossPartitions</td><td></td></tr>
+  </table>
+  </dd>
+</dl>
 
 </div>
 </div>

@@ -849,9 +849,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
           
           
           
@@ -959,6 +959,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1103,8 +1105,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
           
           
@@ -1164,13 +1164,12 @@
 
 <p>Include dependency for Pulsar Storm Adaptor:</p>
 
-<div class="language-xml highlighter-rouge"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
+<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">&lt;dependency&gt;</span>
   <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
   <span class="nt">&lt;artifactId&gt;</span>pulsar-storm<span class="nt">&lt;/artifactId&gt;</span>
   <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
 <span class="nt">&lt;/dependency&gt;</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pulsar-spout">Pulsar Spout</h2>
 
@@ -1178,7 +1177,7 @@
 
 <p>The tuples that fail to be processed by the downstream bolts will be re-injected by the spout with an exponential backoff, within a configurable timeout (the default is 60 seconds) or a configurable number of retries, whichever comes first, after which it is <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by the consumer. Here’s an example construction of a spout:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Configure a Pulsar Client</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Configure a Pulsar Client</span>
 <span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 
 <span class="c1">// Configure a Pulsar Consumer</span>
@@ -1208,8 +1207,7 @@
 
 <span class="c1">// Create a Pulsar Spout</span>
 <span class="n">PulsarSpout</span> <span class="n">spout</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarSpout</span><span class="o">(</span><span class="n">spoutConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">,</span> <span class="n">consumerConf</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="pulsar-bolt">Pulsar Bolt</h2>
 
@@ -1217,7 +1215,7 @@
 
 <p>A partitioned topic can also be used to publish messages on different topics. In the implementation of the <code class="highlighter-rouge">TupleToMessageMapper</code>, a “key” will need to be provided in the message which will send the messages with the same key to the same topic. Here’s an example bolt:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="c1">// Configure a Pulsar Client</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1">// Configure a Pulsar Client</span>
 <span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
 
 <span class="c1">// Configure a Pulsar Producer  </span>
@@ -1248,8 +1246,7 @@
 
 <span class="c1">// Create a Pulsar Bolt</span>
 <span class="n">PulsarBolt</span> <span class="n">bolt</span> <span class="o">=</span> <span class="k">new</span> <span class="n">PulsarBolt</span><span class="o">(</span><span class="n">boltConf</span><span class="o">,</span> <span class="n">clientConf</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="example">Example</h2>
 

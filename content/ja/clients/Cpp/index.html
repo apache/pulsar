@@ -678,8 +678,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -827,6 +825,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -868,8 +868,6 @@
           
           
           
-          
-          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -903,6 +901,8 @@
           
           
           <li><a href="/ja/clients/Cpp/">Pulsar C++クライアント</a></li>
+          
+          
           
           
           
@@ -1107,35 +1107,31 @@
 
 <p><a href="#macos">MacOS</a>と<a href="#linux">Linux</a>には別々のコンパイル方法があります。両システムとも、Pulsarリポジトリをクローンすることから始めます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/apache/incubator-pulsar/tree/master
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/apache/incubator-pulsar/tree/master
+</code></pre></div></div>
 
 <h3 id="linux">Linux</h3>
 
 <p>初めに必要な依存パッケージを全てインストールします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>apt-get install cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev <span class="se">\</span>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>apt-get <span class="nb">install </span>cmake libssl-dev libcurl4-openssl-dev liblog4cxx-dev <span class="se">\</span>
   libprotobuf-dev libboost-all-dev libgtest-dev libjsoncpp-dev
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>その時に<a href="https://github.com/google/googletest">Google Test</a>をコンパイル、インストールします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/google/googletest.git <span class="o">&amp;&amp;</span> <span class="nb">cd </span>googletest
-<span class="gp">$ </span>sudo cmake .
-<span class="gp">$ </span>sudo make
-<span class="gp">$ </span>sudo cp <span class="k">*</span>.a /usr/lib
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/google/googletest.git <span class="o">&amp;&amp;</span> <span class="nb">cd </span>googletest
+<span class="nv">$ </span><span class="nb">sudo </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span><span class="nb">sudo </span>make
+<span class="nv">$ </span><span class="nb">sudo cp</span> <span class="k">*</span>.a /usr/lib
+</code></pre></div></div>
 
 <p>最後にPulsarリポジトリ内のC++クライアントライブラリをコンパイルします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="gp">$ </span>cmake .
-<span class="gp">$ </span>make
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>pulsar-client-cpp
+<span class="nv">$ </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span>make
+</code></pre></div></div>
 
 <p>結果ファイルとして、<code class="highlighter-rouge">libpulsar.so</code>と<code class="highlighter-rouge">libpulsar.a</code>がリポジトリ内のlibディレクトリ内に配置されます。同時に<code class="highlighter-rouge">perfProducer</code>と<code class="highlighter-rouge">perfConsumer</code>の2ツールがperfディレクトリ内に配置されます。</p>
 
@@ -1143,32 +1139,30 @@
 
 <p>初めに必要な依存パッケージを全てインストールします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="c"># OpenSSLのインストール</span>
-<span class="gp">$ </span>brew install openssl
-<span class="gp">$ </span><span class="nb">export </span><span class="nv">OPENSSL_INCLUDE_DIR</span><span class="o">=</span>/usr/local/opt/openssl/include/
-<span class="gp">$ </span><span class="nb">export </span><span class="nv">OPENSSL_ROOT_DIR</span><span class="o">=</span>/usr/local/opt/openssl/
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># OpenSSLのインストール</span>
+<span class="nv">$ </span>brew <span class="nb">install </span>openssl
+<span class="nv">$ </span><span class="nb">export </span><span class="nv">OPENSSL_INCLUDE_DIR</span><span class="o">=</span>/usr/local/opt/openssl/include/
+<span class="nv">$ </span><span class="nb">export </span><span class="nv">OPENSSL_ROOT_DIR</span><span class="o">=</span>/usr/local/opt/openssl/
 
 <span class="c"># Protocol Buffersのインストール</span>
-<span class="gp">$ </span>brew tap homebrew/versions
-<span class="gp">$ </span>brew install protobuf260
-<span class="gp">$ </span>brew install boost
-<span class="gp">$ </span>brew install log4cxx
+<span class="nv">$ </span>brew tap homebrew/versions
+<span class="nv">$ </span>brew <span class="nb">install </span>protobuf260
+<span class="nv">$ </span>brew <span class="nb">install </span>boost
+<span class="nv">$ </span>brew <span class="nb">install </span>log4cxx
 
 <span class="c"># Google Testのインストール</span>
-<span class="gp">$ </span>git clone https://github.com/google/googletest.git
-<span class="gp">$ </span><span class="nb">cd </span>googletest
-<span class="gp">$ </span>cmake .
-<span class="gp">$ </span>make install
-</code></pre>
-</div>
+<span class="nv">$ </span>git clone https://github.com/google/googletest.git
+<span class="nv">$ </span><span class="nb">cd </span>googletest
+<span class="nv">$ </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span>make <span class="nb">install</span>
+</code></pre></div></div>
 
 <p>次にPulsarリポジトリ内のC++クライアントライブラリをコンパイルします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span><span class="nb">cd </span>pulsar-client-cpp
-<span class="gp">$ </span>cmake .
-<span class="gp">$ </span>make
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cd </span>pulsar-client-cpp
+<span class="nv">$ </span>cmake <span class="nb">.</span>
+<span class="nv">$ </span>make
+</code></pre></div></div>
 
 <h2 id="接続url">接続URL</h2>
 
@@ -1197,21 +1191,18 @@
 
 <p>PulsarプロトコルURLは特定の<span class="popover-term" tabindex="0" title="クラスタとは？" data-placement="top" data-content="Pulsar BrokerとBookKeeperサーバ (Bookie) のセットのことです。それぞれのクラスタは異なる地理的地域に存在することができ、メッセージをクラスタ間で相互に複製することができます。この機能をジオレプリケーションと呼びます。" data-toggle="popover" data-trigger="focus">クラスタ</span>に割り当てられており、<code class="highlighter-rouge">pulsar</code>スキームを使ってアクセスされます。ここでデフォルトのポート番号は6650になっています。以下は<code class="highlighter-rouge">localhost</code>の例です：</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://localhost:6650
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://localhost:6650
+</code></pre></div></div>
 
 <p>プロダクションのPulsarクラスタのURLは以下のようになります：</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar://pulsar.us-west.example.com:6650
+</code></pre></div></div>
 
 <p><a href="../../admin/Authz#tlsクライアント認証">TLS</a>認証を利用している場合、URLは以下のようになります：</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre></div></div>
 
 <h3 id="グローバルトピックとクラスタ固有のトピック">グローバルトピックとクラスタ固有のトピック</h3>
 
@@ -1273,7 +1264,7 @@
 
 <h2 id="consumer">Consumer</h2>
 
-<div class="language-c++ highlighter-rouge"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<div class="language-c++ highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 
 <span class="n">Consumer</span> <span class="n">consumer</span><span class="p">;</span>
 <span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">subscribe</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="s">"my-subscribtion-name"</span><span class="p">,</span> <span class="n">consumer</span><span class="p">);</span>
@@ -1292,12 +1283,11 @@
 <span class="p">}</span>
 
 <span class="n">client</span><span class="p">.</span><span class="n">close</span><span class="p">();</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="producer">Producer</h2>
 
-<div class="language-cpp highlighter-rouge"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar://localhost:6650"</span><span class="p">);</span>
 
 <span class="n">Producer</span> <span class="n">producer</span><span class="p">;</span>
 <span class="n">Result</span> <span class="n">result</span> <span class="o">=</span> <span class="n">client</span><span class="p">.</span><span class="n">createProducer</span><span class="p">(</span><span class="s">"persistent://sample/standalone/ns1/my-topic"</span><span class="p">,</span> <span class="n">producer</span><span class="p">);</span>
@@ -1306,19 +1296,18 @@
     <span class="k">return</span> <span class="o">-</span><span class="mi">1</span><span class="p">;</span>
 <span class="p">}</span>
 
-<span class="c1">// トピックに10個のメッセージを発行
-</span><span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">){</span>
+<span class="c1">// トピックに10個のメッセージを発行</span>
+<span class="k">for</span><span class="p">(</span><span class="kt">int</span> <span class="n">i</span><span class="o">=</span><span class="mi">0</span><span class="p">;</span><span class="n">i</span><span class="o">&lt;</span><span class="mi">10</span><span class="p">;</span><span class="n">i</span><span class="o">++</span><span class="p">){</span>
     <span class="n">Message</span> <span class="n">msg</span> <span class="o">=</span> <span class="n">MessageBuilder</span><span class="p">().</span><span class="n">setContent</span><span class="p">(</span><span class="s">"my-message"</span><span class="p">).</span><span class="n">build</span><span class="p">();</span>
     <span class="n">Result</span> <span class="n">res</span> <span class="o">=</span> <span class="n">producer</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="n">msg</span><span class="p">);</span>
     <span class="n">LOG_INFO</span><span class="p">(</span><span class="s">"Message sent: "</span> <span class="o">&lt;&lt;</span> <span class="n">res</span><span class="p">);</span>
 <span class="p">}</span>
 <span class="n">client</span><span class="p">.</span><span class="n">close</span><span class="p">();</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h2 id="認証">認証</h2>
 
-<div class="language-cpp highlighter-rouge"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">();</span>
+<div class="language-cpp highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClientConfiguration</span> <span class="n">config</span> <span class="o">=</span> <span class="n">ClientConfiguration</span><span class="p">();</span>
 <span class="n">config</span><span class="p">.</span><span class="n">setUseTls</span><span class="p">(</span><span class="nb">true</span><span class="p">);</span>
 <span class="n">std</span><span class="o">::</span><span class="n">string</span> <span class="n">certfile</span> <span class="o">=</span> <span class="s">"/path/to/cacert.pem"</span><span class="p">;</span>
 
@@ -1331,8 +1320,7 @@
 <span class="n">config</span><span class="p">.</span><span class="n">setAuth</span><span class="p">(</span><span class="n">auth</span><span class="p">);</span>
 
 <span class="n">Client</span> <span class="n">client</span><span class="p">(</span><span class="s">"pulsar+ssl://my-broker.com:6651"</span><span class="p">,</span><span class="n">config</span><span class="p">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

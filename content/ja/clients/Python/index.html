@@ -678,8 +678,6 @@
           
           
           
-          
-          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -761,6 +759,8 @@
           
           
           <li><a href="/ja/clients/Python/">Pulsar Pythonクライアント</a></li>
+          
+          
           
           
           
@@ -950,8 +950,6 @@
           
           
           
-          
-          
           <li><a href="/ja/clients/Python/">Pulsar Pythonクライアント</a></li>
           
           
@@ -975,6 +973,8 @@
           
           
           <li><a href="/ja/clients/WebSocket/">PulsarにおけるWebSocket API</a></li>
+          
+          
           
           
           
@@ -1062,19 +1062,17 @@
 <p><a href="https://pip.pypa.io/en/stable/">pip</a>を利用するかソースコードからライブラリをビルドすることで<code class="highlighter-rouge">pulsar-client</code>をインストールできます。</p>
 
 <p>pipを利用してのインストール:</p>
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pip install pulsar-client
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pip <span class="nb">install </span>pulsar-client
+</code></pre></div></div>
 
 <p>ソースコードからビルドしてのインストールは、<a href="../Cpp#コンパイル">説明</a>にしたがってC++クライアントライブラリをコンパイルします。これによりライブラリ用のPythonバインディングもビルドされます。</p>
 
 <p>ビルドされたPythonバインディングのインストール:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/apache/pulsar
-<span class="gp">$ </span><span class="nb">cd </span>pulsar/pulsar-client-cpp/python
-<span class="gp">$ </span>sudo python setup.py install
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/apache/pulsar
+<span class="nv">$ </span><span class="nb">cd </span>pulsar/pulsar-client-cpp/python
+<span class="nv">$ </span><span class="nb">sudo </span>python setup.py <span class="nb">install</span>
+</code></pre></div></div>
 
 <!--
 
@@ -1116,7 +1114,7 @@
 
 <p>このコードは<code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code>用のPython <span class="popover-term" tabindex="0" title="Producerとは？" data-placement="top" data-content="Pulsarのトピックにメッセージを発行するプロセスです。" data-toggle="popover" data-trigger="focus">Producer</span>を作成し、10個のメッセージを送信します:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 
@@ -1127,14 +1125,13 @@
     <span class="n">producer</span><span class="o">.</span><span class="n">send</span><span class="p">(</span><span class="s">'Hello-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="consumer">Consumer</h3>
 
 <p>このコードは<code class="highlighter-rouge">persistent://sample/standalone/ns/my-topic</code>トピック上に<code class="highlighter-rouge">my-sub</code>サブスクリプションで <span class="popover-term" tabindex="0" title="Consumerとは？" data-placement="top" data-content="Pulsarのトピックを購読し、Producerによって発行されたメッセージを処理するプロセスです。" data-toggle="popover" data-trigger="focus">Consumer</span>を作成し、メッセージを待ち受けます。受け取ったメッセージの中身とIDを出力し、Pulsar <span class="popover-term" tabindex="0" title="Brokerとは？" data-placement="top" data-content="2つの異なるコンポーネントを実行するPulsarクラスタのステートレスなコンポーネントです。2つのコンポーネントとは管理操作とトピックルックアップのためのRESTインターフェースを提供するHTTPサーバと全てのメッセージの転送を処理するディスパッチャです。またPulsarクラスタは基本的に複数のBrokerから構成されます。" data-toggle="popover" data-trigger="focus">Broker</span>に<span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) を返します:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 <span class="n">consumer</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">subscribe</span><span class="p">(</span>
@@ -1147,14 +1144,13 @@
     <span class="n">consumer</span><span class="o">.</span><span class="n">acknowledge</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="producer非同期">Producer(非同期)</h3>
 
 <p>このコードは非同期でメッセージを送信する<span class="popover-term" tabindex="0" title="What is a producer?" data-placement="top" data-content="A process that publishes messages to a Pulsar topic." data-toggle="popover" data-trigger="focus">Producer</span>を作成し、 <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">Broker</span>から<span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">Ack</span> (確認応答) を受け取る度に<code class="highlighter-rouge">send_callback</code>コールバック関数を呼びます:</p>
 
-<div class="language-python highlighter-rouge"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">pulsar</span>
 
 <span class="n">client</span> <span class="o">=</span> <span class="n">pulsar</span><span class="o">.</span><span class="n">Client</span><span class="p">(</span><span class="s">'pulsar://localhost:6650'</span><span class="p">)</span>
 
@@ -1172,8 +1168,7 @@
     <span class="n">producer</span><span class="o">.</span><span class="n">send_async</span><span class="p">(</span><span class="s">'Hello-</span><span class="si">%</span><span class="s">d'</span> <span class="o">%</span> <span class="n">i</span><span class="p">,</span> <span class="n">send_callback</span><span class="p">)</span>
 
 <span class="n">client</span><span class="o">.</span><span class="n">close</span><span class="p">()</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
       </section>
     </article>

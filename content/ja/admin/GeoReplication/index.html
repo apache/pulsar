@@ -740,11 +740,10 @@
 
 <p>作成時に、必要なクラスタを指定するには以下のようにします:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
-  --admin-roles my-admin-role <span class="se">\</span>
-  --allowed-clusters us-west,us-east,us-cent
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin properties create my-property <span class="se">\</span>
+  <span class="nt">--admin-roles</span> my-admin-role <span class="se">\</span>
+  <span class="nt">--allowed-clusters</span> us-west,us-east,us-cent
+</code></pre></div></div>
 
 <p>既存プロパティのパーミッションの更新を行うには、<code class="highlighter-rouge">create</code>の代わりに<code class="highlighter-rouge">update</code>を利用します。</p>
 
@@ -754,16 +753,14 @@
 
 <p>グローバルネームスペースは<code class="highlighter-rouge">global</code>という仮想のクラスタに作成される必要があります。例えば以下のように作成します:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces create my-property/global/my-namespace
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create my-property/global/my-namespace
+</code></pre></div></div>
 
 <p>最初はネームスペースはどのクラスタにも割り当てられていません。<code class="highlighter-rouge">set-clusters</code>サブコマンドを使用して、ネームスペースをクラスタに割り当てることができます:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin namespaces <span class="nb">set</span>-clusters my-property/global/my-namespace <span class="se">\</span>
-  --clusters us-west,us-east,us-cent
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces set-clusters my-property/global/my-namespace <span class="se">\</span>
+  <span class="nt">--clusters</span> us-west,us-east,us-cent
+</code></pre></div></div>
 
 <p>ネームスペースのレプリケーションクラスタは、進行中のトラフィックを中断することなく、いつでも変更できます。レプリケーションチャネルは、設定が変更されるとすぐにすべてのクラスタで即座にセットアップまたは停止されます。</p>
 
@@ -777,7 +774,7 @@
 
 <p>以下は<a href="../../clients/Java">Java API</a>での一例です。<a target="_blank" href="/api/client/com/yahoo/pulsar/client/api/Message.html"><code class="highlighter-rouge">Message</code></a>オブジェクトの生成時に<code class="highlighter-rouge">setReplicationClusters</code>メソッドを使用することに注意してください:</p>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">List</span><span class="o">&lt;</span><span class="n">String</span><span class="o">&gt;</span> <span class="n">restrictReplicationTo</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ArrayList</span><span class="o">&lt;&gt;;</span>
 <span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-west"</span><span class="o">);</span>
 <span class="n">restrictReplicationTo</span><span class="o">.</span><span class="na">add</span><span class="o">(</span><span class="s">"us-east"</span><span class="o">);</span>
 
@@ -787,16 +784,14 @@
         <span class="o">.</span><span class="na">build</span><span class="o">();</span>
 
 <span class="n">producer</span><span class="o">.</span><span class="na">send</span><span class="o">(</span><span class="n">message</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="トピックの統計情報">トピックの統計情報</h4>
 
 <p>グローバルトピックのトピック別の統計情報は、<a href="../../reference/CliTools#pulsar-admin"><code class="highlighter-rouge">pulsar-admin</code></a>ツールと<a href="../../reference/RestApi">REST API</a>から利用可能です:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin persistent stats persistent://my-property/global/my-namespace/my-topic
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://my-property/global/my-namespace/my-topic
+</code></pre></div></div>
 
 <p>各クラスタは、受信と送信に関するレプリケーションレートとバックログを含むローカル統計情報をレポートします。</p>
 

@@ -756,11 +756,10 @@
   <li>A <a href="https://dcos.io/install/">DC/OS cluster</a> with at least three agent nodes</li>
   <li>The <a href="https://dcos.io/docs/1.9/usage/cli/install/">DC/OS CLI tool</a> installed</li>
   <li>
-    <p>The <a href="https://github.com/apache/incubator-pulsar/blob/master/deploy/dcos/PulsarGroups.json"><code class="highlighter-rouge">PulsarGroups.json</code></a> configuration file from the Pulsar GitHub repo.</p>
+    <p>The <a href="https://github.com/apache/incubator-pulsar/blob/master/deployment/dcos/PulsarGroups.json"><code class="highlighter-rouge">PulsarGroups.json</code></a> configuration file from the Pulsar GitHub repo.</p>
 
-    <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>curl -O https://raw.githubusercontent.com/apache/incubator-pulsar/master/deploy/dcos/PulsarGroups.json
-</code></pre>
-    </div>
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>curl <span class="nt">-O</span> https://raw.githubusercontent.com/apache/incubator-pulsar/master/deployment/dcos/PulsarGroups.json
+</code></pre></div>    </div>
   </li>
 </ul>
 
@@ -778,9 +777,8 @@
 
 <p>You can deploy Pulsar on DC/OS using this command:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>dcos marathon group add PulsarGroups.json
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>dcos marathon group add PulsarGroups.json
+</code></pre></div></div>
 
 <p>This command will deploy Docker container instances in three groups, which together comprise a Pulsar cluster:</p>
 
@@ -892,9 +890,8 @@
 
 <p>There’s a <a href="https://github.com/streamlio/pulsar-java-tutorial">Pulsar Java tutorial</a> repo that you can clone. This repo contains a simple Pulsar consumer and producer (more info can be found in the repo’s <code class="highlighter-rouge">README</code> file).</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>git clone https://github.com/streamlio/pulsar-java-tutorial
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>git clone https://github.com/streamlio/pulsar-java-tutorial
+</code></pre></div></div>
 
 <p>Change the <code class="highlighter-rouge">SERVICE_URL</code> from <code class="highlighter-rouge">pulsar://localhost:6650</code> to <code class="highlighter-rouge">pulsar://a1.dcos:6650</code> in both <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ConsumerTutorial.java"><code class="highlighter-rouge">ConsumerTutorial.java</code></a> and <a href="https://github.com/streamlio/pulsar-java-tutorial/blob/master/src/main/java/tutorial/ProducerTutorial.java"><code class="highlighter-rouge">ProducerTutorial.java</code></a>.
 The <code class="highlighter-rouge">pulsar://a1.dcos:6650</code> endpoint is for the broker service. Endpoint details for each broker instance can be fetched from the DC/OS GUI. <code class="highlighter-rouge">a1.dcos</code> is a DC/OS client agent, which runs a broker. This can also be replaced by the client agent IP address.</p>
@@ -903,23 +900,20 @@ The <code class="highlighter-rouge">pulsar://a1.dcos:6650</code> endpoint is for
 
 <p>Now compile the project code using command:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mvn clean package
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>mvn clean package
+</code></pre></div></div>
 
 <h3 id="run-the-consumer-and-producer">Run the consumer and producer</h3>
 
 <p>Execute this command to run the consumer:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mvn <span class="nb">exec</span>:java -Dexec.mainClass<span class="o">=</span><span class="s2">"tutorial.ConsumerTutorial"</span>
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>mvn <span class="nb">exec</span>:java <span class="nt">-Dexec</span>.mainClass<span class="o">=</span><span class="s2">"tutorial.ConsumerTutorial"</span>
+</code></pre></div></div>
 
 <p>Execute this command to run the producer:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mvn <span class="nb">exec</span>:java -Dexec.mainClass<span class="o">=</span><span class="s2">"tutorial.ProducerTutorial"</span>
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>mvn <span class="nb">exec</span>:java <span class="nt">-Dexec</span>.mainClass<span class="o">=</span><span class="s2">"tutorial.ProducerTutorial"</span>
+</code></pre></div></div>
 
 <p>You can see the producer producing messages and the consumer consuming messages through the DC/OS GUI.</p>
 
@@ -946,9 +940,8 @@ The <code class="highlighter-rouge">pulsar://a1.dcos:6650</code> endpoint is for
   <li>
     <p>You can use the following command:</p>
 
-    <div class="language-bash highlighter-rouge"><pre class="highlight"><code> <span class="nv">$ </span>dcos marathon group remove /pulsar
-</code></pre>
-    </div>
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="nv">$ </span>dcos marathon group remove /pulsar
+</code></pre></div>    </div>
   </li>
 </ol>
 

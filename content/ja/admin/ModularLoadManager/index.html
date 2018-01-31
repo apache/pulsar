@@ -674,11 +674,10 @@
   <li>
     <p><code class="highlighter-rouge">pulsar-admin</code>ツールを使用します。以下はその例です:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin update-dynamic-config <span class="se">\</span>
-  --config loadManagerClassName <span class="se">\</span>
-  --value org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
-</code></pre>
-    </div>
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin update-dynamic-config <span class="se">\</span>
+  <span class="nt">--config</span> loadManagerClassName <span class="se">\</span>
+  <span class="nt">--value</span> org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl
+</code></pre></div>    </div>
 
     <p>同じ方法で元々の値に戻す事も可能です。どちらの場合でも、ロードマネージャの指定に誤りがあればPulsarはデフォルトの<code class="highlighter-rouge">SimpleLoadManagerImpl</code>を使用します。</p>
   </li>
@@ -692,75 +691,72 @@
   <li>
     <p><code class="highlighter-rouge">pulsar-admin</code>を使用して<code class="highlighter-rouge">loadManagerClassName</code>要素を確認してください:</p>
 
-    <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-admin brokers get-all-dynamic-config
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin brokers get-all-dynamic-config
 <span class="o">{</span>
   <span class="s2">"loadManagerClassName"</span> : <span class="s2">"org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl"</span>
 <span class="o">}</span>
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p><code class="highlighter-rouge">loadManagerClassName</code>要素が存在しなければ、デフォルトのロードマネージャが使用されます。</p>
   </li>
   <li>
     <p>ZooKeeperの負荷レポートを参照してください。モジュラロードマネージャでは、<code class="highlighter-rouge">/loadbalance/brokers/...</code>の負荷レポートに多くの違いがあります。例えば<code class="highlighter-rouge">systemResourceUsage</code>の子要素 (<code class="highlighter-rouge">bandwidthIn</code>や<code class="highlighter-rouge">bandwidthOut</code>など) は全てトップレベルになります。以下はモジュラロードマネージャからの負荷レポートの例です:</p>
 
-    <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
-   </span><span class="nt">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-     </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
-     </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">4.256510416666667</span><span class="w">
+    <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="s2">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">4.256510416666667</span><span class="w">
    </span><span class="p">},</span><span class="w">
-   </span><span class="nt">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-     </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
-     </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">5.287239583333333</span><span class="w">
+   </span><span class="s2">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">5.287239583333333</span><span class="w">
    </span><span class="p">},</span><span class="w">
-   </span><span class="nt">"bundles"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w">
-   </span><span class="nt">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-     </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">2400.0</span><span class="p">,</span><span class="w">
-     </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">5.7353247655435915</span><span class="w">
+   </span><span class="s2">"bundles"</span><span class="p">:</span><span class="w"> </span><span class="p">[],</span><span class="w">
+   </span><span class="s2">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">2400.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">5.7353247655435915</span><span class="w">
    </span><span class="p">},</span><span class="w">
-   </span><span class="nt">"directMemory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-     </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">16384.0</span><span class="p">,</span><span class="w">
-     </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="w">
+   </span><span class="s2">"directMemory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">16384.0</span><span class="p">,</span><span class="w">
+     </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="w">
    </span><span class="p">}</span><span class="w">
  </span><span class="p">}</span><span class="w">
-</span></code></pre>
-    </div>
+</span></code></pre></div>    </div>
 
     <p>シンプルロードマネージャでは<code class="highlighter-rouge">/loadbalance/brokers/...</code>の負荷レポートは次のようになります:</p>
 
-    <div class="language-json highlighter-rouge"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
-   </span><span class="nt">"systemResourceUsage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-     </span><span class="nt">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-       </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
-       </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
+    <div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="w"> </span><span class="p">{</span><span class="w">
+   </span><span class="s2">"systemResourceUsage"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+     </span><span class="s2">"bandwidthIn"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
      </span><span class="p">},</span><span class="w">
-     </span><span class="nt">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-       </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
-       </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
+     </span><span class="s2">"bandwidthOut"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">10240000.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
      </span><span class="p">},</span><span class="w">
-     </span><span class="nt">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-       </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">2400.0</span><span class="p">,</span><span class="w">
-       </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
+     </span><span class="s2">"cpu"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">2400.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.0</span><span class="w">
      </span><span class="p">},</span><span class="w">
-     </span><span class="nt">"directMemory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-       </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">16384.0</span><span class="p">,</span><span class="w">
-       </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="w">
+     </span><span class="s2">"directMemory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">16384.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">1.0</span><span class="w">
      </span><span class="p">},</span><span class="w">
-     </span><span class="nt">"memory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
-       </span><span class="nt">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">8192.0</span><span class="p">,</span><span class="w">
-       </span><span class="nt">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">3903.0</span><span class="w">
+     </span><span class="s2">"memory"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="w">
+       </span><span class="s2">"limit"</span><span class="p">:</span><span class="w"> </span><span class="mf">8192.0</span><span class="p">,</span><span class="w">
+       </span><span class="s2">"usage"</span><span class="p">:</span><span class="w"> </span><span class="mf">3903.0</span><span class="w">
      </span><span class="p">}</span><span class="w">
    </span><span class="p">}</span><span class="w">
  </span><span class="p">}</span><span class="w">
-</span></code></pre>
-    </div>
+</span></code></pre></div>    </div>
   </li>
   <li>
     <p>コマンドライン上で<a href="../../reference/CliTools/#pulsar-perf-monitor-brokers">Brokerの監視</a>を行うと、使用されているロードマネージャの実装に応じて異なる形式で結果を出力します。</p>
 
     <p>以下はモジュラロードマネージャの例です:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> ===================================================================================================================
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> ===================================================================================================================
  ||SYSTEM         |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
  ||               |0.00           |48.33          |0.01           |0.00           |0.00           |48.33          ||
  ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
@@ -772,12 +768,11 @@
  ||LONG           |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
  ||               |0.00           |0.00           |0.00           |0.00           |0.00           |0.00           ||
  ===================================================================================================================
-</code></pre>
-    </div>
+</code></pre></div>    </div>
 
     <p>以下はシンプルロードマネージャの例です:</p>
 
-    <div class="highlighter-rouge"><pre class="highlight"><code> ===================================================================================================================
+    <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code> ===================================================================================================================
  ||COUNT          |TOPIC          |BUNDLE         |PRODUCER       |CONSUMER       |BUNDLE +       |BUNDLE -       ||
  ||               |4              |4              |0              |2              |0              |0              ||
  ||RAW SYSTEM     |CPU %          |MEMORY %       |DIRECT %       |BW IN %        |BW OUT %       |MAX %          ||
@@ -789,8 +784,7 @@
  ||ALLOC MSG      |MSG/S IN       |MSG/S OUT      |TOTAL          |KB/S IN        |KB/S OUT       |TOTAL          ||
  ||               |54.84          |134.48         |189.31         |126.54         |320.96         |447.50         ||
  ===================================================================================================================
-</code></pre>
-    </div>
+</code></pre></div>    </div>
   </li>
 </ol>
 

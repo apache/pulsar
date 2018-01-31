@@ -771,6 +771,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -868,8 +870,6 @@
           
           
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1671,18 +1671,16 @@
   <li>
     <p>Using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
 
-    <div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
-</code></pre>
-    </div>
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>wget http://archive.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
+</code></pre></div>    </div>
   </li>
 </ul>
 
 <p>Once you’ve downloaded the tarball, untar it and <code class="highlighter-rouge">cd</code> into the resulting directory:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>tar xvzf apache-pulsar-1.21.0-incubating-bin.tar.gz
-<span class="gp">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">tar </span>xvzf apache-pulsar-1.21.0-incubating-bin.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
+</code></pre></div></div>
 
 <p>The untarred directory contains the following subdirectories:</p>
 
@@ -1723,11 +1721,10 @@
 
 <p>To begin, add all ZooKeeper servers to the configuration specified in <a href="../../../reference/Configuration#zookeeper"><code class="highlighter-rouge">conf/zookeeper.conf</code></a> (in the Pulsar directory you created <a href="#installing-the-pulsar-binary-package">above</a>). Here’s an example:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">server.1</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2888:3888</span>
 <span class="py">server.2</span><span class="p">=</span><span class="s">zk2.us-west.example.com:2888:3888</span>
 <span class="py">server.3</span><span class="p">=</span><span class="s">zk3.us-west.example.com:2888:3888</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>On each host, you need to specify the ID of the node in each node’s <code class="highlighter-rouge">myid</code> file, which is in each server’s <code class="highlighter-rouge">data/zookeeper</code> folder by default (this can be changed via the <a href="../../../reference/Configuration#zookeeper-dataDir"><code class="highlighter-rouge">dataDir</code></a> parameter).</p>
 
@@ -1762,18 +1759,16 @@
 
 <p>On a ZooKeeper server at <code class="highlighter-rouge">zk1.us-west.example.com</code>, for example, you could set the <code class="highlighter-rouge">myid</code> value like this:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>mkdir -p data/zookeeper
-<span class="gp">$ </span><span class="nb">echo </span>1 &gt; data/zookeeper/myid
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">mkdir</span> <span class="nt">-p</span> data/zookeeper
+<span class="nv">$ </span><span class="nb">echo </span>1 <span class="o">&gt;</span> data/zookeeper/myid
+</code></pre></div></div>
 
 <p>On <code class="highlighter-rouge">zk2.us-west.example.com</code> the command would be <code class="highlighter-rouge">echo 2 &gt; data/zookeeper/myid</code> and so on.</p>
 
 <p>Once each server has been added to the <code class="highlighter-rouge">zookeeper.conf</code> configuration and has the appropriate <code class="highlighter-rouge">myid</code> entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the <a href="../../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start zookeeper
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start zookeeper
+</code></pre></div></div>
 
 <h2 id="initializing-cluster-metadata">Initializing cluster metadata</h2>
 
@@ -1781,16 +1776,15 @@
 
 <p>You can initialize this metadata using the <a href="../../../reference/CliTools#pulsar-initialize-cluster-metadata"><code class="highlighter-rouge">initialize-cluster-metadata</code></a> command of the <a href="../../../reference/CliTools#pulsar"><code class="highlighter-rouge">pulsar</code></a> CLI tool. This command can be run on any machine in your ZooKeeper cluster. Here’s an example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-  --cluster pulsar-cluster-1 <span class="se">\</span>
-  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --web-service-url http://pulsar.us-west.example.com:8080 <span class="se">\</span>
-  --web-service-url-tls https://pulsar.us-west.example.com:8443 <span class="se">\</span>
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650 <span class="se">\</span>
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  <span class="nt">--cluster</span> pulsar-cluster-1 <span class="se">\</span>
+  <span class="nt">--zookeeper</span> zk1.us-west.example.com:2181 <span class="se">\</span>
+  <span class="nt">--global-zookeeper</span> zk1.us-west.example.com:2181 <span class="se">\</span>
+  <span class="nt">--web-service-url</span> http://pulsar.us-west.example.com:8080 <span class="se">\</span>
+  <span class="nt">--web-service-url-tls</span> https://pulsar.us-west.example.com:8443 <span class="se">\</span>
+  <span class="nt">--broker-service-url</span> pulsar://pulsar.us-west.example.com:6650 <span class="se">\</span>
+  <span class="nt">--broker-service-url-tls</span> pulsar+ssl://pulsar.us-west.example.com:6651
+</code></pre></div></div>
 
 <p>As you can see from the example above, the following needs to be specified:</p>
 
@@ -1839,9 +1833,8 @@
 
 <p>BookKeeper bookies can be configured using the <a href="../../../reference/Configuration#bookkeeper"><code class="highlighter-rouge">conf/bookkeeper.conf</code></a> configuration file. The most important step in configuring bookies for our purposes here is ensuring that the <a href="../../../reference/Configuration#bookkeeper-zkServers"><code class="highlighter-rouge">zkServers</code></a> is set to the connection string for the ZooKeeper cluster. Here’s an example:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">zkServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">zkServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+</code></pre></div></div>
 
 <p>Once you’ve appropriately modified the <code class="highlighter-rouge">zkServers</code> parameter, you can provide any other configuration modifications you need. You can find a full listing of the available BookKeeper configuration parameters <a href="../../../reference/Configuration/#bookkeeper">here</a>, although we would recommend consulting the <a href="http://bookkeeper.apache.org/docs/latest/reference/config/">BookKeeper documentation</a> for a more in-depth guide.</p>
 
@@ -1849,21 +1842,18 @@
 
 <p>To start the bookie in the background, use the <a href="../../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start bookie
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start bookie
+</code></pre></div></div>
 
 <p>To start the bookie in the foreground:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper bookie
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper bookie
+</code></pre></div></div>
 
 <p>You can verify that the bookie is working properly using the <code class="highlighter-rouge">bookiesanity</code> command for the <a href="http://localhost:4000/docs/latest/deployment/reference/CliTools#bookkeeper-shell">BookKeeper shell</a>:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/bookkeeper shell bookiesanity
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/bookkeeper shell bookiesanity
+</code></pre></div></div>
 
 <p>This will create an ephemeral BookKeeper <span class="popover-term" tabindex="0" title="What is a ledger?" data-placement="top" data-content="An append-only data structure in BookKeeper that is used to persistently store messages in Pulsar topics." data-toggle="popover" data-trigger="focus">ledger</span> on the local bookie, write a few entries, read them back, and finally delete the ledger.</p>
 
@@ -1875,30 +1865,26 @@
 In this case, since we only have 1 cluster and no global ZooKeeper setup, the <code class="highlighter-rouge">globalZookeeperServers</code>
 will point to the same <code class="highlighter-rouge">zookeeperServers</code>.</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">zookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
 <span class="py">globalZookeeperServers</span><span class="p">=</span><span class="s">zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <p>You also need to specify the cluster name (matching the name that you provided when <a href="#initializing-cluster-metadata">initializing the cluster’s metadata</a>:</p>
 
-<div class="language-properties highlighter-rouge"><pre class="highlight"><code><span class="py">clusterName</span><span class="p">=</span><span class="s">pulsar-cluster-1</span>
-</code></pre>
-</div>
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">clusterName</span><span class="p">=</span><span class="s">pulsar-cluster-1</span>
+</code></pre></div></div>
 
 <p>You can then provide any other configuration changes that you’d like in the <a href="../../../reference/Configuration#broker"><code class="highlighter-rouge">conf/broker.conf</code></a> file. Once you’ve decided on a configuration, you can start up the brokers for your Pulsar cluster. Like ZooKeeper and BookKeeper, brokers can be started either in the foreground or in the background, using nohup.</p>
 
 <p>You can start a broker in the foreground using the <a href="../../../reference/CliTools#pulsar-broker"><code class="highlighter-rouge">pulsar broker</code></a> command:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar broker
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar broker
+</code></pre></div></div>
 
 <p>You can start a broker in the background using the <a href="../../../reference/CliTools#pulsar-daemon"><code class="highlighter-rouge">pulsar-daemon</code></a> CLI tool:</p>
 
-<div class="language-bash highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>bin/pulsar-daemon start broker
-</code></pre>
-</div>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-daemon start broker
+</code></pre></div></div>
 
 <p>Once you’ve succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!</p>
 

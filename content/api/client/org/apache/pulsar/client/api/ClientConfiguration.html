@@ -730,7 +730,7 @@ implements Serializable</pre>
 <h4>setConcurrentLookupRequest</h4>
 <pre>public&nbsp;void&nbsp;setConcurrentLookupRequest(int&nbsp;concurrentLookupRequest)</pre>
 <div class="block">Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
- <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
+ <i>(default: 50000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
  thousands of topic using created <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

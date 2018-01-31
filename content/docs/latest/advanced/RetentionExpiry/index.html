@@ -771,6 +771,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -868,8 +870,6 @@
           
           
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1067,9 +1067,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1259,9 +1259,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1451,9 +1451,9 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
-          
-          
           
           
           
@@ -1616,11 +1616,10 @@
 
 <p>To set a size limit of 10 gigabytes and a time limit of 3 hours for the <code class="highlighter-rouge">my-prop/my-cluster/my-ns</code> namespace:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-retention my-prop/my-cluster/my-ns <span class="se">\</span>
-  --size 10G <span class="se">\</span>
-  --time 3h
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--size</span> 10G <span class="se">\</span>
+  <span class="nt">--time</span> 3h
+</code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
@@ -1630,12 +1629,11 @@
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">int</span> <span class="n">retentionTime</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="c1">// 10 minutes</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">int</span> <span class="n">retentionTime</span> <span class="o">=</span> <span class="mi">10</span><span class="o">;</span> <span class="c1">// 10 minutes</span>
 <span class="kt">int</span> <span class="n">retentionSize</span> <span class="o">=</span> <span class="mi">500</span><span class="o">;</span> <span class="c1">// 500 megabytes</span>
 <span class="n">RetentionPolicies</span> <span class="n">policies</span> <span class="o">=</span> <span class="k">new</span> <span class="n">RetentionPolicies</span><span class="o">(</span><span class="n">retentionTime</span><span class="o">,</span> <span class="n">retentionSize</span><span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">policies</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="get-retention-policy">Get retention policy</h3>
 
@@ -1647,13 +1645,12 @@
 
 <h5 id="example">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-retention my-prop/my-cluster/my-ns
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-retention my-prop/my-cluster/my-ns
 <span class="o">{</span>
   <span class="s2">"retentionTimeInMinutes"</span>: 10,
   <span class="s2">"retentionSizeInMB"</span>: 0
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -1663,9 +1660,8 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getRetention</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h2 id="backlog-quotas">Backlog quotas</h2>
 
@@ -1745,11 +1741,10 @@
 
 <h5 id="example-1">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-backlog-quota my-prop/my-cluster/my-ns <span class="se">\</span>
-  --limit 2G <span class="se">\</span>
-  --policy producer_request_hold
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-backlog-quota my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--limit</span> 2G <span class="se">\</span>
+  <span class="nt">--policy</span> producer_request_hold
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -1759,13 +1754,12 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="kt">long</span> <span class="n">sizeLimit</span> <span class="o">=</span> <span class="mi">2147483648L</span><span class="o">;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">long</span> <span class="n">sizeLimit</span> <span class="o">=</span> <span class="mi">2147483648L</span><span class="o">;</span>
 <span class="n">BacklogQuota</span><span class="o">.</span><span class="na">RetentionPolicy</span> <span class="n">policy</span> <span class="o">=</span>
   <span class="n">BacklogQuota</span><span class="o">.</span><span class="na">RetentionPolicy</span><span class="o">.</span><span class="na">producer_request_hold</span><span class="o">;</span>
 <span class="n">BacklogQuota</span> <span class="n">quota</span> <span class="o">=</span> <span class="k">new</span> <span class="n">BacklogQuota</span><span class="o">(</span><span class="n">sizeLimit</span><span class="o">,</span> <span class="n">policy</span><span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">quota</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="get-backlog-threshold-and-backlog-retention-policy">Get backlog threshold and backlog retention policy</h3>
 
@@ -1775,15 +1769,14 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-get-backlog-quotas"><code class="highlighter-rouge">get-backlog-quotas</code></a> subcommand and specify a namespace. Here’s an example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-backlog-quotas my-prop/my-cluster/my-ns
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-backlog-quotas my-prop/my-cluster/my-ns
 <span class="o">{</span>
   <span class="s2">"destination_storage"</span>: <span class="o">{</span>
     <span class="s2">"limit"</span> : 2147483648,
     <span class="s2">"policy"</span> : <span class="s2">"producer_request_hold"</span>
   <span class="o">}</span>
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
@@ -1793,10 +1786,9 @@
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">BacklogQuota</span><span class="o">.</span><span class="na">BacklogQuotaType</span><span class="o">,</span><span class="n">BacklogQuota</span><span class="o">&gt;</span> <span class="n">quotas</span> <span class="o">=</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">Map</span><span class="o">&lt;</span><span class="n">BacklogQuota</span><span class="o">.</span><span class="na">BacklogQuotaType</span><span class="o">,</span><span class="n">BacklogQuota</span><span class="o">&gt;</span> <span class="n">quotas</span> <span class="o">=</span>
   <span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">getBacklogQuotas</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="remove-backlog-quotas">Remove backlog quotas</h3>
 
@@ -1804,9 +1796,8 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-namespaces-remove-backlog-quota"><code class="highlighter-rouge">remove-backlog-quotas</code></a> subcommand and specify a namespace. Here’s an example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces remove-backlog-quotas my-prop/my-cluster/my-ns
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces remove-backlog-quotas my-prop/my-cluster/my-ns
+</code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>
 
@@ -1816,9 +1807,8 @@
 
 <h4 id="java-4">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">removeBacklogQuota</span><span class="o">(</span><span class="n">namespace</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="clear-backlog">Clear backlog</h3>
 
@@ -1828,9 +1818,8 @@
 
 <h5 id="example-2">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces clear-backlog my-prop/my-cluster/my-ns
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces clear-backlog my-prop/my-cluster/my-ns
+</code></pre></div></div>
 
 <p>By default, you will be prompted to ensure that you really want to clear the backlog for the namespace. You can override the prompt using the <code class="highlighter-rouge">-f</code>/<code class="highlighter-rouge">--force</code> flag.</p>
 
@@ -1846,10 +1835,9 @@
 
 <h5 id="example-3">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces <span class="nb">set</span>-message-ttl my-prop/my-cluster/my-ns <span class="se">\</span>
-  --messageTTL 120 <span class="c"># TTL of 2 minutes</span>
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-message-ttl my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--messageTTL</span> 120 <span class="c"># TTL of 2 minutes</span>
+</code></pre></div></div>
 
 <h4 id="rest-api-5">REST API</h4>
 
@@ -1859,9 +1847,8 @@
 
 <h4 id="java-5">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">ttlInSeconds</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">setNamespaceMessageTTL</span><span class="o">(</span><span class="n">namespace</span><span class="o">,</span> <span class="n">ttlInSeconds</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="get-the-ttl-configuration-for-a-namespace">Get the TTL configuration for a namespace</h3>
 
@@ -1871,10 +1858,9 @@
 
 <h5 id="example-4">Example</h5>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin namespaces get-message-ttl my-prop/my-cluster/my-ns
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces get-message-ttl my-prop/my-cluster/my-ns
 60
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-6">REST API</h4>
 
@@ -1884,9 +1870,8 @@
 
 <h4 id="java-6">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">get</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">namespaces</span><span class="o">().</span><span class="na">get</span>
+</code></pre></div></div>
 
       </section>
     </article>

@@ -813,11 +813,10 @@
 
 <p>You can provision a new cluster using the <a href="../../reference/CliTools#pulsar-admin-clusters-create"><code class="highlighter-rouge">create</code></a> subcommand. Here’s an example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters create cluster-1 <span class="se">\</span>
-  --url http://my-cluster.org.com:8080 <span class="se">\</span>
-  --broker-url pulsar://my-cluster.org.com:6650
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters create cluster-1 <span class="se">\</span>
+  <span class="nt">--url</span> http://my-cluster.org.com:8080 <span class="se">\</span>
+  <span class="nt">--broker-url</span> pulsar://my-cluster.org.com:6650
+</code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
 
@@ -827,15 +826,14 @@
 
 <h4 id="java">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
         <span class="n">serviceUrl</span><span class="o">,</span>
         <span class="n">serviceUrlTls</span><span class="o">,</span>
         <span class="n">brokerServiceUrl</span><span class="o">,</span>
         <span class="n">brokerServiceUrlTls</span>
 <span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">createCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="initialize-cluster-metadata">Initialize cluster metadata</h3>
 
@@ -883,16 +881,15 @@
 
 <p>Here’s an example cluster metadata initialization command:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
-  --cluster us-west <span class="se">\</span>
-  --zookeeper zk1.us-west.example.com:2181 <span class="se">\</span>
-  --global-zookeeper zk1.us-west.example.com:2184 <span class="se">\</span>
-  --web-service-url http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
-  --web-service-url-tls https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
-  --broker-service-url pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
-  --broker-service-url-tls pulsar+ssl://pulsar.us-west.example.com:6651/
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code>bin/pulsar initialize-cluster-metadata <span class="se">\</span>
+  <span class="nt">--cluster</span> us-west <span class="se">\</span>
+  <span class="nt">--zookeeper</span> zk1.us-west.example.com:2181 <span class="se">\</span>
+  <span class="nt">--global-zookeeper</span> zk1.us-west.example.com:2184 <span class="se">\</span>
+  <span class="nt">--web-service-url</span> http://pulsar.us-west.example.com:8080/ <span class="se">\</span>
+  <span class="nt">--web-service-url-tls</span> https://pulsar.us-west.example.com:8443/ <span class="se">\</span>
+  <span class="nt">--broker-service-url</span> pulsar://pulsar.us-west.example.com:6650/ <span class="se">\</span>
+  <span class="nt">--broker-service-url-tls</span> pulsar+ssl://pulsar.us-west.example.com:6651/
+</code></pre></div></div>
 
 <p>You’ll need to use <code class="highlighter-rouge">--*-tls</code> flags only if you’re using <a href="../../admin/Authz#tls-client-auth">TLS authentication</a> in your instance.</p>
 
@@ -904,7 +901,7 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-get"><code class="highlighter-rouge">get</code></a> subcommand and specify the name of the cluster. Here’s an example:</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters get cluster-1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters get cluster-1
 <span class="o">{</span>
     <span class="s2">"serviceUrl"</span>: <span class="s2">"http://my-cluster.org.com:8080/"</span>,
     <span class="s2">"serviceUrlTls"</span>: null,
@@ -912,8 +909,7 @@
     <span class="s2">"brokerServiceUrlTls"</span>: null
     <span class="s2">"peerClusterNames"</span>: null
 <span class="o">}</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-1">REST API</h4>
 
@@ -923,9 +919,8 @@
 
 <h4 id="java-1">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="update">Update</h3>
 
@@ -935,11 +930,10 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-update"><code class="highlighter-rouge">update</code></a> subcommand and specify new configuration values using flags.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters update cluster-1 <span class="se">\</span>
-  --url http://my-cluster.org.com:4081 <span class="se">\</span>
-  --broker-url pulsar://my-cluster.org.com:3350
-</code></pre>
-</div>
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters update cluster-1 <span class="se">\</span>
+  <span class="nt">--url</span> http://my-cluster.org.com:4081 <span class="se">\</span>
+  <span class="nt">--broker-url</span> pulsar://my-cluster.org.com:3350
+</code></pre></div></div>
 
 <h4 id="rest">REST</h4>
 
@@ -949,15 +943,14 @@
 
 <h4 id="java-2">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">ClusterData</span> <span class="n">clusterData</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClusterData</span><span class="o">(</span>
         <span class="n">serviceUrl</span><span class="o">,</span>
         <span class="n">serviceUrlTls</span><span class="o">,</span>
         <span class="n">brokerServiceUrl</span><span class="o">,</span>
         <span class="n">brokerServiceUrlTls</span>
 <span class="o">);</span>
 <span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updateCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">clusterData</span><span class="o">);</span>
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h3 id="delete">Delete</h3>
 
@@ -967,9 +960,8 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-delete"><code class="highlighter-rouge">delete</code></a> subcommand and specify the name of the cluster.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin clusters delete cluster-1
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin clusters delete cluster-1
+</code></pre></div></div>
 
 <h4 id="rest-api-2">REST API</h4>
 
@@ -979,9 +971,8 @@
 
 <h4 id="java-3">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">deleteCluster</span><span class="o">(</span><span class="n">clusterName</span><span class="o">);</span>
+</code></pre></div></div>
 
 <h3 id="list">List</h3>
 
@@ -991,11 +982,10 @@
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-list"><code class="highlighter-rouge">list</code></a> subcommand.</p>
 
-<div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$ </span>pulsar-admin clusters list
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin clusters list
 cluster-1
 cluster-2
-</code></pre>
-</div>
+</code></pre></div></div>
 
 <h4 id="rest-api-3">REST API</h4>
 
@@ -1005,9 +995,8 @@ cluster-2
 
 <h6 id="java-4">Java</h6>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">getClusters</span><span class="o">();</span>
+</code></pre></div></div>
 
 <h3 id="update-peer-cluster-data">Update peer-cluster data</h3>
 
@@ -1017,9 +1006,8 @@ cluster-2
 
 <p>Use the <a href="../../reference/CliTools#pulsar-admin-clusters-update-peer-clusters"><code class="highlighter-rouge">update-peer-clusters</code></a> subcommand and specify the list of peer-cluster names.</p>
 
-<div class="highlighter-rouge"><pre class="highlight"><code>$ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
-</code></pre>
-</div>
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>$ pulsar-admin update-peer-clusters cluster-1 --peer-clusters cluster-2
+</code></pre></div></div>
 
 <h4 id="rest-api-4">REST API</h4>
 
@@ -1029,9 +1017,8 @@ cluster-2
 
 <h4 id="java-5">Java</h4>
 
-<div class="language-java highlighter-rouge"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updatePeerClusterNames</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">peerClusterList</span><span class="o">);</span>
-</code></pre>
-</div>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">admin</span><span class="o">.</span><span class="na">clusters</span><span class="o">().</span><span class="na">updatePeerClusterNames</span><span class="o">(</span><span class="n">clusterName</span><span class="o">,</span> <span class="n">peerClusterList</span><span class="o">);</span>
+</code></pre></div></div>
 
       </section>
     </article>
