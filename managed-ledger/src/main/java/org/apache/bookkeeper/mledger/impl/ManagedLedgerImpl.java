@@ -1480,8 +1480,19 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     private boolean hasLedgerRetentionExpired(long ledgerTimestamp) {
+        if (config.getRetentionTimeMillis() < 0) {
+            // Negative retention time equates to infinite retention
+            return false;
+        }
+
         long elapsedMs = System.currentTimeMillis() - ledgerTimestamp;
         return elapsedMs > config.getRetentionTimeMillis();
+    }
+
+    private boolean isLedgerRetentionOverSizeQuota() {
+        // Handle the -1 size limit as "infinite" size quota
+        return config.getRetentionSizeInMB() > 0
+                && TOTAL_SIZE_UPDATER.get(this) > ((long) config.getRetentionSizeInMB()) * 1024 * 1024;
     }
 
     /**
@@ -1532,7 +1543,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // skip ledger if retention constraint met
             for (LedgerInfo ls : ledgers.headMap(slowestReaderLedgerId, false).values()) {
                 boolean expired = hasLedgerRetentionExpired(ls.getTimestamp());
-                boolean overRetentionQuota = TOTAL_SIZE_UPDATER.get(this) > config.getRetentionSizeInMB() * 1024 * 1024;
+                boolean overRetentionQuota = isLedgerRetentionOverSizeQuota();
 
                 if (log.isDebugEnabled()) {
                     log.debug(
