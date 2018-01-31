@@ -56,6 +56,10 @@ public class PartitionedProducerImpl extends ProducerBase {
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStats() : null;
+
+        int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
+                conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
+        conf.setMaxPendingMessages(maxPendingMessages);
         start();
     }
 

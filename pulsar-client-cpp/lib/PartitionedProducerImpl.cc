@@ -46,6 +46,11 @@ PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client,
     numProducersCreated_ = 0;
     cleanup_ = false;
     routerPolicy_ = getMessageRouter();
+
+    int maxPendingMessagesPerPartition =
+        std::min(config.getMaxPendingMessages(),
+                 (int)(config.getMaxPendingMessagesAcrossPartitions() / numPartitions));
+    conf_.setMaxPendingMessages(maxPendingMessagesPerPartition);
 }
 
 MessageRoutingPolicyPtr PartitionedProducerImpl::getMessageRouter() {
