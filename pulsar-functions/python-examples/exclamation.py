@@ -22,8 +22,8 @@
 from pulsarfunction import pulsar_function
 
 class Exclamation(pulsar_function.PulsarFunction):
- def __init__(self):
-   pass
+  def __init__(self):
+    pass
 
- def process(self, input, context):
-   return input + ‘!’
+  def process(self, input, context):
+    return input + '!'

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,11 +18,12 @@
 # under the License.
 #
 
+from pulsarfunction import pulsar_function
+from PIL import Image
 
-bin/pulsar-functions functions create \
-    --function-config conf/example.yml \
-    --sink-topic persistent://sample/standalone/ns1/test_result \
-    --source-topics persistent://sample/standalone/ns1/test_src \
-    --output-serde-classname pulsarfunction.serde.IdentitySerDe \
-    --py python-examples/exclamation.py \
-    --function-classname exclamation.Exclamation
+class Thumbnailer(pulsar_function.PulsarFunction):
+
+  def process(self, input, context):
+    im = Image.frombytes(input)
+    im.thumbnail(128, 128)
+    return input.tobytes()
