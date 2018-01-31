@@ -19,9 +19,9 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.util.concurrent.AbstractService;
+
 import java.io.IOException;
 import java.net.URI;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.DistributedLogConfiguration;
@@ -29,32 +29,23 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
 @Slf4j
 public class Worker extends AbstractService {
 
     private final WorkerConfig workerConfig;
-    private MetricsSink metricsSink;
     private PulsarClient client;
     private FunctionRuntimeManager functionRuntimeManager;
-    private FunctionMetaDataTopicTailer functionMetaDataTopicTailer;
+    private FunctionMetaDataManager functionMetaDataManager;
     private ClusterServiceCoordinator clusterServiceCoordinator;
-    private FunctionContainerFactory functionContainerFactory;
     private Thread serverThread;
     private Namespace dlogNamespace;
-    private LinkedBlockingQueue<FunctionAction> actionQueue;
-    private FunctionActioner functionActioner;
+    private MembershipManager membershipManager;
+    private SchedulerManager schedulerManager;
 
     public Worker(WorkerConfig workerConfig) {
         this.workerConfig = workerConfig;
@@ -79,7 +70,7 @@ public class Worker extends AbstractService {
             dlogUri = Utils.initializeDlogNamespace(workerConfig.getZookeeperServers());
         } catch (IOException ioe) {
             log.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                workerConfig.getZookeeperServers(), ioe);
+                    workerConfig.getZookeeperServers(), ioe);
             throw new RuntimeException(ioe);
         }
 
@@ -87,13 +78,13 @@ public class Worker extends AbstractService {
         DistributedLogConfiguration dlogConf = Utils.getDlogConf(workerConfig);
         try {
             this.dlogNamespace = NamespaceBuilder.newBuilder()
-                .conf(dlogConf)
-                .clientId("function-worker-" + workerConfig.getWorkerId())
-                .uri(dlogUri)
-                .build();
+                    .conf(dlogConf)
+                    .clientId("function-worker-" + workerConfig.getWorkerId())
+                    .uri(dlogUri)
+                    .build();
         } catch (Exception e) {
             log.error("Failed to initialize dlog namespace {} for storing function packages",
-                dlogUri, e);
+                    dlogUri, e);
             throw new RuntimeException(e);
         }
 
@@ -108,7 +99,8 @@ public class Worker extends AbstractService {
                 try {
                     admin.namespaces().createNamespace(this.workerConfig.getPulsarFunctionsNamespace());
                 } catch (PulsarAdminException e1) {
-                    log.error("Failed to create namespace {} for pulsar functions", this.workerConfig.getPulsarFunctionsNamespace(), e1);
+                    log.error("Failed to create namespace {} for pulsar functions", this.workerConfig
+                            .getPulsarFunctionsNamespace(), e1);
                     throw new RuntimeException(e1);
                 }
                 try {
@@ -130,78 +122,59 @@ public class Worker extends AbstractService {
 
         // initialize the function metadata manager
         try {
-            log.info("Initialize function metadata manager ...");
 
             this.client = PulsarClient.create(this.workerConfig.getPulsarServiceUrl());
-            log.info("this.workerConfig.getPulsarServiceUrl(): {}", this.workerConfig.getPulsarServiceUrl());
-            this.client.createProducer(this.workerConfig.getFunctionMetadataTopic());
             log.info("Created Pulsar client");
 
-            if (workerConfig.getThreadContainerFactory() != null) {
-                this.functionContainerFactory = new ThreadFunctionContainerFactory(
-                        workerConfig.getThreadContainerFactory().getThreadGroupName(),
-                        workerConfig.getLimitsConfig().getMaxBufferedTuples(),
-                        workerConfig.getPulsarServiceUrl(),
-                        workerConfig.getStateStorageServiceUrl());
-            } else if (workerConfig.getProcessContainerFactory() != null) {
-                this.functionContainerFactory = new ProcessFunctionContainerFactory(
-                        workerConfig.getLimitsConfig().getMaxBufferedTuples(),
-                        workerConfig.getProcessContainerFactory().getLivenessCheckInterval(),
-                        workerConfig.getPulsarServiceUrl(),
-                        workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
-                        workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
-                        workerConfig.getProcessContainerFactory().getLogDirectory());
-            } else {
-                throw new RuntimeException("Either Thread or Process Container Factory need to be set");
-            }
+            //create scheduler manager
+            this.schedulerManager = new SchedulerManager(this.workerConfig, this.client);
 
-            this.actionQueue = new LinkedBlockingQueue<>();
+            //create function meta data manager
+            this.functionMetaDataManager = new FunctionMetaDataManager(
+                    this.workerConfig, this.schedulerManager, this.client);
 
-            this.functionRuntimeManager = new FunctionRuntimeManager(workerConfig, client, actionQueue);
+            // create function runtime manager
+            this.functionRuntimeManager = new FunctionRuntimeManager(
+                    this.workerConfig, this.client, this.dlogNamespace);
 
-            this.metricsSink = createMetricsSink();
-            metricsSink.init(workerConfig.getMetricsConfig().getMetricsSinkConfig());
+            //create membership manager
+            this.membershipManager = new MembershipManager(this.workerConfig, this.schedulerManager, this.client);
 
-            this.functionActioner = new FunctionActioner(workerConfig, functionContainerFactory,
-                    metricsSink, workerConfig.getMetricsConfig().getMetricsCollectionInterval(),
-                    dlogNamespace, actionQueue);
-            this.functionActioner.start();
-            log.info("Function actioner started...");
+            // Setting references to managers in scheduler
+            this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
+            this.schedulerManager.setFunctionRuntimeManager(this.functionRuntimeManager);
+            this.schedulerManager.setMembershipManager(this.membershipManager);
 
-            // Restore from snapshot
-            MessageId lastMessageId = this.functionRuntimeManager.restore();
+            // initialize function metadata manager
+            this.functionMetaDataManager.initialize();
 
-            log.info("Start reading from message {}", lastMessageId);
-            Reader reader = this.client.createReader(
-                this.workerConfig.getFunctionMetadataTopic(),
-                    lastMessageId,
-                    new ReaderConfiguration());
-
-            this.functionMetaDataTopicTailer = new FunctionMetaDataTopicTailer(
-                    this.functionRuntimeManager,
-                    reader);
-
+            // Starting cluster services
+            log.info("Start cluster services...");
             this.clusterServiceCoordinator = new ClusterServiceCoordinator(
                     this.workerConfig.getWorkerId(),
-                    this.workerConfig.getClusterCoordinationTopic(), this.client);
+                    membershipManager);
             // start periodic snapshot routine
             this.clusterServiceCoordinator.addTask(
                     "snapshot",
                     this.workerConfig.getSnapshotFreqMs(),
-                    () -> functionRuntimeManager.snapshot());
+                    () -> functionMetaDataManager.snapshot());
             this.clusterServiceCoordinator.start();
+
+            // Start function runtime manager
+            this.functionRuntimeManager.start();
+
+            //this.membershipManager.startMonitorMembership();
         } catch (Exception e) {
             log.error("Error Starting up in worker", e);
             throw new RuntimeException(e);
         }
 
-        WorkerServer server = new WorkerServer(workerConfig, functionRuntimeManager, dlogNamespace);
+        WorkerServer server = new WorkerServer(
+                this.workerConfig, this.functionMetaDataManager, this.functionRuntimeManager, this.dlogNamespace);
         this.serverThread = new Thread(server, server.getThreadName());
 
-        log.info("Start worker server on port {}...", workerConfig.getWorkerPort());
-        serverThread.start();
-        log.info("Start worker function state consumer ...");
-        functionMetaDataTopicTailer.start();
+        log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
+        this.serverThread.start();
     }
 
     @Override
@@ -214,11 +187,19 @@ public class Worker extends AbstractService {
                 log.warn("Worker server thread is interrupted", e);
             }
         }
-        if (null != functionMetaDataTopicTailer) {
-            functionMetaDataTopicTailer.close();
+        if (null != functionMetaDataManager) {
+            try {
+                functionMetaDataManager.close();
+            } catch (Exception e) {
+                log.warn("Failed to close function metadata manager", e);
+            }
         }
         if (null != functionRuntimeManager) {
-            functionRuntimeManager.close();
+            try {
+                functionRuntimeManager.close();
+            } catch (Exception e) {
+                log.warn("Failed to close function runtime manager", e);
+            }
         }
         if (null != client) {
             try {
@@ -227,26 +208,21 @@ public class Worker extends AbstractService {
                 log.warn("Failed to close pulsar client", e);
             }
         }
-        if (null != functionActioner) {
-            functionActioner.close();
-        }
 
         if (null != clusterServiceCoordinator) {
             clusterServiceCoordinator.close();
         }
-    }
 
-    private MetricsSink createMetricsSink() {
-        String className = workerConfig.getMetricsConfig().getMetricsSinkClassName();
-        try {
-            MetricsSink sink = (MetricsSink) Class.forName(className).newInstance();
-            return sink;
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e + " IMetricsSink class must have a no-arg constructor.");
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e + " IMetricsSink class must be concrete.");
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e + " IMetricsSink class must be a class path.");
+        if (null != membershipManager) {
+            try {
+                membershipManager.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close membership manager", e);
+            }
+        }
+
+        if (null != schedulerManager) {
+            schedulerManager.close();
         }
     }
 }

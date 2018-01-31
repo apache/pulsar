@@ -22,7 +22,7 @@ workerPort: 6750
 zookeeperServers: localhost:2181
 functionMetadataTopicName: metadata
 functionMetadataSnapshotsTopicPath: snapshots
-clusterCoordinateTopicName: coordinate
+clusterCoordinationTopicName: coordinate
 snapshotFreqMs: 600000
 pulsarFunctionsNamespace: sample/standalone/functions
 pulsarServiceUrl: pulsar://localhost:6650
@@ -44,3 +44,6 @@ metricsConfig:
 #   threadGroupName: "Thread Function Container Group"
 processContainerFactory:
   livenessCheckInterval: 10
+
+schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
+functionAssignmentTopicName: "assignments"

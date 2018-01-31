@@ -61,11 +61,14 @@ message FunctionMetaData {
     PackageLocationMetaData packageLocation = 2;
     uint64 version = 3;
     uint64 createTime = 4;
-    string workerId = 5;
 }
 
 message Snapshot {
     repeated FunctionMetaData functionMetaDataList = 1;
     bytes lastAppliedMessageId = 2;
+}
 
+message Assignment {
+    FunctionMetaData functionMetaData = 1;
+    string workerId = 2;
 }

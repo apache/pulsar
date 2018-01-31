@@ -16,29 +16,15 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.worker.scheduler;
 
-syntax = "proto3";
-package proto;
+import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Assignment;
 
-option java_package = "org.apache.pulsar.functions.proto";
-option java_outer_classname = "Request";
+import java.util.List;
 
-import "Function.proto";
+public interface IScheduler {
 
-message ServiceRequest {
-    enum ServiceRequestType {
-        UPDATE = 0;
-        DELETE = 1;
-        INITIALIZE = 2;
-    }
-
-    ServiceRequestType serviceRequestType = 1;
-    string requestId = 2;
-    FunctionMetaData functionMetaData = 3;
-    string workerId = 4;
-}
-
-message AssignmentsUpdate {
-    repeated Assignment assignments = 1;
-    uint64 version = 2;
+    List<Assignment> schedule(List<FunctionMetaData> unassignedFunctions,
+                              List<Assignment> currentAssignments, List<String> workers);
 }

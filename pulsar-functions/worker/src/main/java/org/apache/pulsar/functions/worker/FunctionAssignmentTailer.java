@@ -18,29 +18,29 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import java.io.IOException;
-import java.util.function.Function;
-
 import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.functions.proto.Request.ServiceRequest;
+import org.apache.pulsar.functions.proto.Request;
+
+import java.io.IOException;
+import java.util.function.Function;
 
 @Slf4j
-public class FunctionMetaDataTopicTailer
-        implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
+public class FunctionAssignmentTailer
+    implements java.util.function.Consumer<Message>, Function<Throwable, Void>, AutoCloseable {
 
-    private final FunctionMetaDataManager functionMetaDataManager;
-    private final Reader reader;
+        private final FunctionRuntimeManager functionRuntimeManager;
+        private final Reader reader;
 
-    public FunctionMetaDataTopicTailer(FunctionMetaDataManager functionMetaDataManager,
-                                       Reader reader)
+    public FunctionAssignmentTailer(FunctionRuntimeManager functionRuntimeManager,
+                Reader reader)
             throws PulsarClientException {
-        this.functionMetaDataManager = functionMetaDataManager;
-        this.reader = reader;
-    }
+            this.functionRuntimeManager = functionRuntimeManager;
+            this.reader = reader;
+        }
 
     public void start() {
         receiveOne();
@@ -66,20 +66,20 @@ public class FunctionMetaDataTopicTailer
     @Override
     public void accept(Message msg) {
 
-        ServiceRequest serviceRequest;
+        Request.AssignmentsUpdate assignmentsUpdate;
 
         try {
-            serviceRequest = ServiceRequest.parseFrom(msg.getData());
+            assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
         } catch (InvalidProtocolBufferException e) {
-            log.error("Received bad service request at message {}", msg.getMessageId(), e);
+            log.error("Received bad assignment update at message {}", msg.getMessageId(), e);
             // TODO: find a better way to handle bad request
             throw new RuntimeException(e);
         }
         if (log.isDebugEnabled()) {
-            log.debug("Received Service Request: {}", serviceRequest);
+            log.debug("Received assignment update: {}", assignmentsUpdate);
         }
 
-        this.functionMetaDataManager.processRequest(msg.getMessageId(), serviceRequest);
+        this.functionRuntimeManager.processAssignmentUpdate(msg.getMessageId(), assignmentsUpdate);
 
         // receive next request
         receiveOne();
@@ -87,7 +87,7 @@ public class FunctionMetaDataTopicTailer
 
     @Override
     public Void apply(Throwable cause) {
-        log.error("Failed to retrieve messages from function state topic", cause);
+        log.error("Failed to retrieve messages from assignment update topic", cause);
         // TODO: find a better way to handle consumer functions
         throw new RuntimeException(cause);
     }

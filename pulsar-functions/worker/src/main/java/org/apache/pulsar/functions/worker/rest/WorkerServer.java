@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker.rest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.eclipse.jetty.server.Server;
@@ -37,6 +38,7 @@ import java.net.URI;
 public class WorkerServer implements Runnable {
 
     private final WorkerConfig workerConfig;
+    private final FunctionMetaDataManager functionMetaDataManager;
     private final FunctionRuntimeManager functionRuntimeManager;
     private final Namespace dlogNamespace;
 
@@ -59,7 +61,8 @@ public class WorkerServer implements Runnable {
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
         contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_CONFIG, this.workerConfig);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionRuntimeManager);
+        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionMetaDataManager);
+        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER, this.functionRuntimeManager);
         contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_DLOG_NAMESPACE, this.dlogNamespace);
         contextHandler.setContextPath("/");
 
