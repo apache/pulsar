@@ -1,5 +1,4 @@
-BUNDLER_VERSION = 1.16
-BUNDLE = bundle _$(BUNDLER_VERSION)_
+BUNDLE = bundle
 JEKYLL = $(BUNDLE) exec jekyll
 
 deep_clean:
@@ -24,7 +23,6 @@ clean_local:
 
 ruby_setup:
 	gem install bundler \
-		-v $(BUNDLER_VERSION) \
 		--no-rdoc \
 		--no-ri
 	NOKOGIRI_USE_SYSTEM_LIBRARIES=true $(BUNDLE) install \
