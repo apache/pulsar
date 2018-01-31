@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 import java.util.HashSet;
@@ -44,7 +43,6 @@ import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -53,19 +51,19 @@ import org.testng.collections.Maps;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyAuthenticatedProducerConsumerTest.class);
+import org.testng.Assert;
+
+public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
+    private static final Logger log = LoggerFactory.getLogger(ProxyWithoutServiceDiscoveryTest.class);
 
     private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
     private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
-    private final String DUMMY_VALUE = "DUMMY_VALUE";
-    
+
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
-    private final String configClusterName = "use";
 
     @BeforeMethod
     @Override
@@ -73,7 +71,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         
         // enable tls and auth&auth at broker 
         conf.setAuthenticationEnabled(true);
-        conf.setAuthorizationEnabled(true);
+        conf.setAuthorizationEnabled(false);
 
         conf.setTlsEnabled(true);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
@@ -82,7 +80,6 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         conf.setTlsAllowInsecureConnection(true);
 
         Set<String> superUserRoles = new HashSet<>();
-        superUserRoles.add("localhost");
         superUserRoles.add("superUser");
         conf.setSuperUserRoles(superUserRoles);
 
@@ -94,14 +91,16 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
 
-        conf.setClusterName(configClusterName);
+        conf.setClusterName("without-service-discovery");
 
         super.init();
 
         // start proxy service
         proxyConfig.setAuthenticationEnabled(true);
-        proxyConfig.setAuthenticationEnabled(true);
-
+        proxyConfig.setAuthorizationEnabled(false);
+        proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
+        proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+        
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
@@ -118,12 +117,9 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
         proxyConfig.setAuthenticationProviders(providers);
-        
-        proxyConfig.setZookeeperServers(DUMMY_VALUE);
-        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
-
+ 
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
-        doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
+
         proxyService.start();
     }
 
@@ -149,7 +145,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
      * @throws Exception
      */
     @Test
-    public void testTlsSyncProducerAndConsumer() throws Exception {
+    public void testDiscoveryService() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
@@ -161,20 +157,18 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
 
-        admin.clusters().updateCluster(configClusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
-                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
-        admin.namespaces().createNamespace("my-property/use/my-ns");
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("without-service-discovery")));
+        admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+        Consumer consumer = proxyClient.subscribe("persistent://my-property/without-service-discovery/my-ns/my-topic1", "my-subscriber-name",
                 conf);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
 
-        Producer producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Producer producer = proxyClient.createProducer("persistent://my-property/without-service-discovery/my-ns/my-topic1", producerConf);
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;

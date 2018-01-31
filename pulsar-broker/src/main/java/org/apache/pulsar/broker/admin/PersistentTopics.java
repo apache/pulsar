@@ -1314,7 +1314,7 @@ public class PersistentTopics extends AdminResource {
                     validateAdminAccessOnProperty(pulsar, clientAppId, dn.getProperty());
                 } catch (RestException authException) {
                     log.warn("Failed to authorize {} on cluster {}", clientAppId, dn.toString());
-                    throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
+                    throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
                             clientAppId, dn.toString(), authException.getMessage()));
                 }
             } catch (Exception ex) {
