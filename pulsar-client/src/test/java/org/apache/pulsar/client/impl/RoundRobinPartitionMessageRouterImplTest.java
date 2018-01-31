@@ -23,6 +23,7 @@ import static org.powermock.api.mockito.PowerMockito.when;
 import static org.testng.Assert.assertEquals;
 
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.testng.annotations.Test;
 
 /**
@@ -35,7 +36,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         Message msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl();
+        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(ProducerConfiguration.HashingScheme.JavaStringHash);
         for (int i = 0; i < 10; i++) {
             assertEquals(i % 5, router.choosePartition(msg, new TopicMetadataImpl(5)));
         }
@@ -52,7 +53,7 @@ public class RoundRobinPartitionMessageRouterImplTest {
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
 
-        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl();
+        RoundRobinPartitionMessageRouterImpl router = new RoundRobinPartitionMessageRouterImpl(ProducerConfiguration.HashingScheme.JavaStringHash);
         TopicMetadataImpl metadata = new TopicMetadataImpl(100);
 
         assertEquals(key1.hashCode() % 100, router.choosePartition(msg1, metadata));

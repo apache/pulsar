@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -43,7 +44,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
-import com.google.common.collect.Maps;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.SystemUtils;
@@ -51,13 +51,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ResourceQuotaCache;
-import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
-import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.LoadRanker;
-import org.apache.pulsar.broker.loadbalance.LoadReport;
-import org.apache.pulsar.broker.loadbalance.LoadResourceQuotaUpdaterTask;
-import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
-import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.GenericBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.LinuxBrokerHostUsageImpl;
 import org.apache.pulsar.broker.loadbalance.impl.PulsarLoadReportImpl;
@@ -96,6 +89,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 /**
@@ -233,10 +227,10 @@ public class SimpleLoadManagerImplTest {
         sortedRankings.setAccessible(true);
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
-        ResourceUnit found = ((SimpleLoadManagerImpl) loadManager)
+        Optional<ResourceUnit> res = ((SimpleLoadManagerImpl) loadManager)
                 .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
         // broker is not active so found should be null
-        assertEquals(found, null, "found a broker when expected none to be found");
+        assertEquals(res, Optional.empty(), "found a broker when expected none to be found");
 
     }
 
@@ -281,7 +275,7 @@ public class SimpleLoadManagerImplTest {
         setObjectField(SimpleLoadManagerImpl.class, loadManager, "sortedRankings", sortedRankingsInstance);
 
         ResourceUnit found = ((SimpleLoadManagerImpl) loadManager)
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
+                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
         // broker is not active so found should be null
         assertNotEquals(found, null, "did not find a broker when expected one to be found");
 
@@ -337,7 +331,7 @@ public class SimpleLoadManagerImplTest {
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
         ResourceUnit found = ((SimpleLoadManagerImpl) loadManager)
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
+                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
         assertEquals(found.getResourceId(), ru1.getResourceId());
 
         zkCacheField.set(pulsar1, originalLZK1);
@@ -454,7 +448,7 @@ public class SimpleLoadManagerImplTest {
         final SimpleLoadManagerImpl loadManager = (SimpleLoadManagerImpl) pulsar1.getLoadManager().get();
 
         for (final NamespaceBundle bundle : bundles) {
-            if (loadManager.getLeastLoaded(bundle).getResourceId().equals(primaryHost)) {
+            if (loadManager.getLeastLoaded(bundle).get().getResourceId().equals(primaryHost)) {
                 ++numAssignedToPrimary;
             } else {
                 ++numAssignedToSecondary;

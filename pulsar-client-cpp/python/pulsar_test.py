@@ -248,7 +248,8 @@ class PulsarTest(TestCase):
                    'true')
         client = Client(self.serviceUrl)
 
-        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-sequence-after-reconnection-' + str(time.time())
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer-sequence-after-reconnection-' \
+            + str(time.time())
 
         producer = client.create_producer(topic, producer_name='my-producer-name')
         self.assertEqual(producer.last_sequence_id(), -1)
@@ -319,6 +320,88 @@ class PulsarTest(TestCase):
         except:
             # Exception is expected
             pass
+
+    def test_message_argument_errors(self):
+        client = Client(self.serviceUrl)
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        producer = client.create_producer(topic)
+
+        content = 'test'.encode('utf-8')
+
+        self._check_value_error(lambda: producer.send(5))
+        self._check_value_error(lambda: producer.send(content, properties='test'))
+        self._check_value_error(lambda: producer.send(content, partition_key=5))
+        self._check_value_error(lambda: producer.send(content, sequence_id='test'))
+        self._check_value_error(lambda: producer.send(content, replication_clusters=5))
+        self._check_value_error(lambda: producer.send(content, disable_replication='test'))
+        client.close()
+
+    def test_client_argument_errors(self):
+        self._check_value_error(lambda: Client(None))
+        self._check_value_error(lambda: Client(self.serviceUrl, authentication="test"))
+        self._check_value_error(lambda: Client(self.serviceUrl, operation_timeout_seconds="test"))
+        self._check_value_error(lambda: Client(self.serviceUrl, io_threads="test"))
+        self._check_value_error(lambda: Client(self.serviceUrl, message_listener_threads="test"))
+        self._check_value_error(lambda: Client(self.serviceUrl, concurrent_lookup_requests="test"))
+        self._check_value_error(lambda: Client(self.serviceUrl, log_conf_file_path=5))
+        self._check_value_error(lambda: Client(self.serviceUrl, use_tls="test"))
+        self._check_value_error(lambda: Client(self.serviceUrl, tls_trust_certs_file_path=5))
+        self._check_value_error(lambda: Client(self.serviceUrl, tls_allow_insecure_connection="test"))
+
+    def test_producer_argument_errors(self):
+        client = Client(self.serviceUrl)
+
+        self._check_value_error(lambda: client.create_producer(None))
+
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+
+        self._check_value_error(lambda: client.create_producer(topic, producer_name=5))
+        self._check_value_error(lambda: client.create_producer(topic, initial_sequence_id='test'))
+        self._check_value_error(lambda: client.create_producer(topic, send_timeout_millis='test'))
+        self._check_value_error(lambda: client.create_producer(topic, compression_type=None))
+        self._check_value_error(lambda: client.create_producer(topic, max_pending_messages='test'))
+        self._check_value_error(lambda: client.create_producer(topic, block_if_queue_full='test'))
+        self._check_value_error(lambda: client.create_producer(topic, batching_enabled='test'))
+        self._check_value_error(lambda: client.create_producer(topic, batching_enabled='test'))
+        self._check_value_error(lambda: client.create_producer(topic, batching_max_allowed_size_in_bytes='test'))
+        self._check_value_error(lambda: client.create_producer(topic, batching_max_publish_delay_ms='test'))
+        client.close()
+
+    def test_consumer_argument_errors(self):
+        client = Client(self.serviceUrl)
+
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+        sub_name = 'my-sub-name'
+
+        self._check_value_error(lambda: client.subscribe(None, sub_name))
+        self._check_value_error(lambda: client.subscribe(topic, None))
+        self._check_value_error(lambda: client.subscribe(topic, sub_name, consumer_type=None))
+        self._check_value_error(lambda: client.subscribe(topic, sub_name, receiver_queue_size='test'))
+        self._check_value_error(lambda: client.subscribe(topic, sub_name, consumer_name=5))
+        self._check_value_error(lambda: client.subscribe(topic, sub_name, unacked_messages_timeout_ms='test'))
+        self._check_value_error(lambda: client.subscribe(topic, sub_name, broker_consumer_stats_cache_time_ms='test'))
+        client.close()
+
+    def test_reader_argument_errors(self):
+        client = Client(self.serviceUrl)
+        topic = 'persistent://sample/standalone/ns1/my-python-test-producer'
+
+        # This should not raise exception
+        client.create_reader(topic, MessageId.earliest)
+
+        self._check_value_error(lambda: client.create_reader(None, MessageId.earliest))
+        self._check_value_error(lambda: client.create_reader(topic, None))
+        self._check_value_error(lambda: client.create_reader(topic, MessageId.earliest, receiver_queue_size='test'))
+        self._check_value_error(lambda: client.create_reader(topic, MessageId.earliest, reader_name=5))
+        client.close()
+
+    def _check_value_error(self, fun):
+        try:
+            fun()
+            # Should throw exception
+            self.assertTrue(False)
+        except ValueError:
+            pass  # Expected
 
 
 if __name__ == '__main__':

@@ -20,7 +20,9 @@
 
 namespace pulsar {
 SinglePartitionMessageRouter::~SinglePartitionMessageRouter() {}
-SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex) {
+SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIndex,
+                                                           ProducerConfiguration::HashingScheme hashingScheme)
+    : MessageRouterBase(hashingScheme) {
     selectedSinglePartition_ = partitionIndex;
 }
 
@@ -28,8 +30,7 @@ SinglePartitionMessageRouter::SinglePartitionMessageRouter(const int partitionIn
 int SinglePartitionMessageRouter::getPartition(const Message& msg, const TopicMetadata& topicMetadata) {
     // if message has a key, hash the key and return the partition
     if (msg.hasPartitionKey()) {
-        StringHash hash;
-        return hash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
+        return hash->makeHash(msg.getPartitionKey()) % topicMetadata.getNumPartitions();
     } else {
         // else pick the next partition
         return selectedSinglePartition_;
