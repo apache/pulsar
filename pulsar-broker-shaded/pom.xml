@@ -60,28 +60,10 @@
 
               <artifactSet>
                 <includes>
-                  <include>org.apache.pulsar:pulsar-broker</include>
-                  <include>org.apache.pulsar:pulsar-zookeeper-utils</include>
-                  <include>org.apache.pulsar:managed-ledger</include>
-                  <include>org.apache.pulsar:pulsar-common</include>
-                  <include>org.apache.pulsar:pulsar-client</include>
-                  <include>org.apache.pulsar:pulsar-client-original</include>
-                  <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                  <include>com.google.guava:guava</include>
-                  <include>org.apache.pulsar:pulsar-broker-common</include>
-                  <include>org.apache.bookkeeper:bookkeeper-server</include>
-                  <include>org.apache.bookkeeper.stats:bookkeeper-stats-api</include>
-                  <include>commons-configuration:commons-configuration</include>
-                  <include>commons-lang:commons-lang</include>
-                  <include>commons-logging:commons-logging</include>
-                  <include>commons-digester:commons-digester</include>
-                  <include>commons-cli:commons-cli</include>
-                  <include>commons-io:commons-io</include>
-                  <include>commons-beanutils:commons-beanutils-core</include>
-                  <include>commons-beanutils:commons-beanutils</include>
-                  <include>org.apache.commons:commons-lang3</include>
-                  <include>commons-codec:commons-codec</include>
-                  <include>commons-collections:commons-collections</include>
+                  <include>org.apache.pulsar:*</include>
+                  <include>org.apache.bookkeeper*:*</include>
+                  <include>commons-*:*</include>
+                  <include>org.apache.commons:*</include>
                   <include>org.asynchttpclient:*</include>
                   <!-- netty below could be un-necessary -->
                   <include>io.netty:netty-codec-http</include>
@@ -89,23 +71,50 @@
                   <include>org.reactivestreams:reactive-streams</include>
                   <include>com.typesafe.netty:netty-reactive-streams</include>
                   <include>org.javassist:javassist</include>
-                  <include>com.google.protobuf:protobuf-java</include>
-                  <include>com.google.guava:guava</include>
-                  <include>com.google.code.gson:gson</include>
-                  <include>com.fasterxml.jackson.core</include>
-                  <include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-base</include>
-                  <include>com.fasterxml.jackson.jaxrs:jackson-jaxrs-json-provider</include>
+                  <include>com.google.*:*</include>
+                  <include>com.fasterxml.jackson.*:*</include>
                   <include>io.netty:netty</include>
                   <include>io.netty:netty-all</include>
                   <include>org.apache.pulsar:pulsar-common</include>
                   <include>org.apache.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
+
+                  <include>javax.ws.rs:*</include>
+                  <include>javax.websocket:*</include>
+                  <include>org.glassfish.hk2*:*</include>
+                  <include>org.eclipse.jetty*:*</include>
+                  <include>net.java.dev.jna:*</include>
+                  <include>com.carrotsearch:*</include>
+                  <include>io.prometheus:*</include>
+                  <include>com.github.ben-manes.caffeine:*</include>
+                  <include>org.glassfish.jersey.*:*</include>
+                  <include>org.rocksdb:*</include>
+                  <include>org.apache.bookkeeper:*</include>
+                  <include>org.apache.zookeeper:*</include>
+                  <include>jline:*</include>
+                  <include>javax.servlet:*</include>
+
+                  <include>com.beust:*</include>
+                  <include>io.swagger:*</include>
+                  <include>joda-time:*</include>
+                  <include>org.yaml:snakeyaml</include>
+                  <include>org.hdrhistogram:*</include>
+                  <include>com.github.zafarkhaja:java-semver</include>
+                  <include>org.aspectj:*</include>
+                  <include>com.ea.agentloader:*</include>
+                  <include>com.wordnik:swagger-annotations</include>
                 </includes>
               </artifactSet>
               <filters>
                 <filter>
                   <artifact>net.jpountz.lz4:lz4</artifact>
+                  <includes>
+                    <include>**</include>
+                  </includes>
+                </filter>
+                <filter>
+                  <artifact>org.apache.pulsar:pulsar-client-original</artifact>
                   <includes>
                     <include>**</include>
                   </includes>
@@ -159,6 +168,135 @@
                 <relocation>
                   <pattern>com.yahoo.sketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
+                </relocation>
+
+                <relocation>
+                  <pattern>org.apache.zookeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.zookeeper</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.jute</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.jute</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.typesafe</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.typesafe</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.eclipse.jetty</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.eclipse.jetty</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.websocket</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.websocket</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.glassfish</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.glassfish</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.bookkeeper</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.bookkeeper</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.rocksdb</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.rocksdb</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.sun.jna</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.sun.jna</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.carrotsearch</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.carrotsearch</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.servlet</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.servlet</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.github</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.github</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>jline</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.jline</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.sun</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.sun</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>jersey</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.jersey</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.ws</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.ws</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javax.inject</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javax.inject</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.jvnet</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.jvnet</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.beust</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.beust</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.wordnik</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.worknik</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.prometheus</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.prometheus</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.swagger</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.io.swagger</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.joda</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.joda</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.yaml</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.yaml</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.HdrHistogram</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.HdrHistogram</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.aspectj</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.aspectj</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>aj</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.aj</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.ea</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.ea</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>javassist</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.javassist</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.reactivestreams</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.reactivestreams</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.aopalliance</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.aopalliance</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>com.wordnik</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.com.worknik</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

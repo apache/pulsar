@@ -25,11 +25,9 @@ import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.impl.RoundRobinPartitionMessageRouterImpl;
-import org.apache.pulsar.client.impl.SinglePartitionMessageRouterImpl;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import com.google.common.base.Objects;
@@ -45,7 +43,9 @@ public class ProducerConfiguration implements Serializable {
     private long sendTimeoutMs = 30000;
     private boolean blockIfQueueFull = false;
     private int maxPendingMessages = 1000;
+    private int maxPendingMessagesAcrossPartitions = 50000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
+    private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
@@ -63,6 +63,11 @@ public class ProducerConfiguration implements Serializable {
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
+    }
+
+    public enum HashingScheme {
+        JavaStringHash,
+        Murmur3_32Hash
     }
 
     private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
@@ -137,6 +142,36 @@ public class ProducerConfiguration implements Serializable {
         return this;
     }
 
+    public HashingScheme getHashingScheme() {
+        return hashingScheme;
+    }
+
+    public ProducerConfiguration setHashingScheme(HashingScheme hashingScheme) {
+        this.hashingScheme = hashingScheme;
+        return this;
+    }
+
+    /**
+     *
+     * @return the maximum number of pending messages allowed across all the partitions
+     */
+    public int getMaxPendingMessagesAcrossPartitions() {
+        return maxPendingMessagesAcrossPartitions;
+    }
+
+    /**
+     * Set the number of max pending messages across all the partitions
+     * <p>
+     * This setting will be used to lower the max pending messages for each partition
+     * ({@link #setMaxPendingMessages(int)}), if the total exceeds the configured value.
+     *
+     * @param maxPendingMessagesAcrossPartitions
+     */
+    public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
+        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
+        this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
+    }
+
     /**
      *
      * @return whether the producer will block {@link Producer#send} and {@link Producer#sendAsync} operations when the
@@ -151,7 +186,7 @@ public class ProducerConfiguration implements Serializable {
      * message queue is full.
      * <p>
      * Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
-     * {@link ProducerQueueIsFullError} when there is no space left in pending queue.
+     * {@link PulsarClientException.ProducerQueueIsFullError} when there is no space left in pending queue.
      *
      * @param blockIfQueueFull
      *            whether to block {@link Producer#send} and {@link Producer#sendAsync} operations on queue full
@@ -295,18 +330,18 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return encryptionKeys
-     *  
+     *
      */
     public  ConcurrentOpenHashSet<String> getEncryptionKeys() {
         return this.encryptionKeys;
     }
 
     /**
-     * 
+     *
      * Returns true if encryption keys are added
-     *  
+     *
      */
     public boolean isEncryptionEnabled() {
         return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty();
@@ -352,7 +387,7 @@ public class ProducerConfiguration implements Serializable {
     }
 
     /**
-     * 
+     *
      * @return the batch time period in ms.
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      */
@@ -461,7 +496,8 @@ public class ProducerConfiguration implements Serializable {
             ProducerConfiguration other = (ProducerConfiguration) obj;
             return Objects.equal(this.sendTimeoutMs, other.sendTimeoutMs)
                     && Objects.equal(maxPendingMessages, other.maxPendingMessages)
-                    && Objects.equal(this.messageRouteMode, other.messageRouteMode);
+                    && Objects.equal(this.messageRouteMode, other.messageRouteMode)
+                    && Objects.equal(this.hashingScheme, other.hashingScheme);
         }
 
         return false;

@@ -34,7 +34,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
-
+    
+    // if Service Discovery is Disabled this url should point to the discovery service provider. 
+    private String brokerServiceURL;
+    private String brokerServiceURLTLS;
+    
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
@@ -78,6 +82,22 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     private Properties properties = new Properties();
 
+    public String getBrokerServiceURLTLS() {
+        return brokerServiceURLTLS;
+    }
+    
+    public void setBrokerServiceURLTLS(String discoveryServiceURLTLS) {
+        this.brokerServiceURLTLS = discoveryServiceURLTLS;
+    }
+    
+    public String getBrokerServiceURL() {
+        return brokerServiceURL;
+    }
+    
+    public void setBrokerServiceURL(String discoveryServiceURL) {
+        this.brokerServiceURL = discoveryServiceURL;
+    }
+    
     public String getZookeeperServers() {
         return zookeeperServers;
     }

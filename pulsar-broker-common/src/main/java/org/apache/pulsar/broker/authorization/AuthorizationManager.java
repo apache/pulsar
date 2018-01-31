@@ -21,6 +21,9 @@ package org.apache.pulsar.broker.authorization;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.atomic.AtomicBoolean;
+
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
@@ -66,8 +69,8 @@ public class AuthorizationManager {
             log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
             throw e;
         } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}", role,
-                    destination, e);
+            log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
+                    destination, e.getMessage());
             throw e;
         }
     }
@@ -96,8 +99,9 @@ public class AuthorizationManager {
                         switch (policies.get().subscription_auth_mode) {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
-                                PulsarServerException ex = new PulsarServerException(
-                                        String.format("Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for destination: %s", role, destination));
+                                PulsarServerException ex = new PulsarServerException(String.format(
+                                        "Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for destination: %s",
+                                        role, destination));
                                 permissionFuture.completeExceptionally(ex);
                                 return;
                             }
@@ -111,13 +115,12 @@ public class AuthorizationManager {
                     permissionFuture.complete(isAuthorized);
                 });
             }).exceptionally(ex -> {
-                log.warn("Client with Role - {} failed to get permissions for destination - {}", role, destination,
-                        ex);
+                log.warn("Client with Role - {} failed to get permissions for destination - {}. {}", role, destination, ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination, e);
+            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination, e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
@@ -130,8 +133,8 @@ public class AuthorizationManager {
             log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}", role,
-                    destination, e);
+            log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
+                    destination, e.getMessage());
             throw e;
         }
     }
@@ -150,8 +153,46 @@ public class AuthorizationManager {
         return canProduce(destination, role) || canConsume(destination, role, null);
     }
 
-    private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role,
-            AuthAction action) {
+    /**
+     * Check whether the specified role can perform a lookup for the specified destination.
+     *
+     * For that the caller needs to have producer or consumer permission.
+     *
+     * @param destination
+     * @param role
+     * @return
+     * @throws Exception
+     */
+    public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role) {
+        CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
+        canProduceAsync(destination, role).whenComplete((produceAuthorized, ex) -> {
+            if (ex == null) {
+                if (produceAuthorized) {
+                    finalResult.complete(produceAuthorized);
+                    return;
+                }
+            } else if (log.isDebugEnabled()) {
+                log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                        destination.toString(), role, ex.getMessage());
+            }
+            canConsumeAsync(destination, role, null).whenComplete((consumeAuthorized, e) -> {
+                if (e == null) {
+                    if (consumeAuthorized) {
+                        finalResult.complete(consumeAuthorized);
+                        return;
+                    }
+                } else if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Destination [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                            destination.toString(), role, e.getMessage());
+                }
+                finalResult.complete(false);
+            });
+        });
+        return finalResult;
+    }
+
+    private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role, AuthAction action) {
         if (isSuperUser(role)) {
             return CompletableFuture.completedFuture(true);
         } else {
@@ -218,13 +259,13 @@ public class AuthorizationManager {
                 }
                 permissionFuture.complete(false);
             }).exceptionally(ex -> {
-                log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination,
-                        ex);
+                log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                        ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}", role, destination, e);
+            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination, e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
@@ -244,8 +285,7 @@ public class AuthorizationManager {
             }
 
             // Suffix match
-            if (permittedRole.charAt(0) == '*'
-                    && checkedRole.endsWith(permittedRole.substring(1))
+            if (permittedRole.charAt(0) == '*' && checkedRole.endsWith(permittedRole.substring(1))
                     && permittedActions.contains(checkedAction)) {
                 return true;
             }

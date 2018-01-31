@@ -90,7 +90,7 @@ public class LoadManagerShared {
         primariesCache.clear();
         secondaryCache.clear();
         NamespaceName namespace = serviceUnit.getNamespaceObject();
-        boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
+        boolean isIsolationPoliciesPresent = policies.areIsolationPoliciesPresent(namespace);
         boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
                 ? ((NamespaceBundle) serviceUnit).hasNonPersistentTopic() : false;
         if (isIsolationPoliciesPresent) {

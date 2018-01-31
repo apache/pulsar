@@ -213,9 +213,9 @@ commands:
     argument: property/cluster/namespace
     options:
     - flags: -s, --size
-      description: The retention size limits (for example `10M` or `16G`)
+      description: The retention size limits (for example `10M`, `16G` or `3T`). 0 means no retention and -1 means infinite size retention
     - flags: -t, --time
-      description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`."
+      description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`. 0 means no retention and -1 means infinite time retention"
   - name: unload
     description: Unload a namespace or namespace bundle from the current serving broker.
     argument: property/cluster/namespace
@@ -295,14 +295,14 @@ commands:
     description: Look up a topic from the current serving broker
     argument: persistent://property/cluster/namespace/topic
   - name: bundle-range
-    description: Get the namespace bundle which contains the given topic  
+    description: Get the namespace bundle which contains the given topic
     argument: persistent://property/cluster/namespace/topic
   - name: delete
     description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
     argument: persistent://property/cluster/namespace/topic
   - name: unload
     description: Unload a topic
-    argument: persistent://property/cluster/namespace/topic    
+    argument: persistent://property/cluster/namespace/topic
   - name: subscriptions
     description: Get the list of subscriptions on the topic
     argument: persistent://property/cluster/namespace/topic
