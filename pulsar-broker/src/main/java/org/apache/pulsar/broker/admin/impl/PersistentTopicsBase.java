@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -63,6 +64,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
@@ -357,10 +359,6 @@ public class PersistentTopicsBase extends AdminResource {
      * recreate them at application so, newly created producers and consumers can connect to newly added partitions as
      * well. Therefore, it can violate partition ordering at producers until all producers are restarted at application.
      *
-     * @param property
-     * @param cluster
-     * @param namespace
-     * @param destination
      * @param numPartitions
      */
     protected void internalUpdatePartitionedTopic(int numPartitions) {
@@ -789,6 +787,56 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
+    protected void internalCreateSubscription(String subscriptionName, MessageIdImpl messageId, boolean authoritative) {
+        if (destinationName.isGlobal()) {
+            validateGlobalNamespaceOwnership(namespaceName);
+        }
+        log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), destinationName,
+                subscriptionName, messageId);
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(destinationName, authoritative);
+
+        try {
+            if (partitionMetadata.partitions > 0) {
+                // Create the subscription on each partition
+                List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                PulsarAdmin admin = pulsar().getAdminClient();
+
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    futures.add(admin.persistentTopics().createSubscriptionAsync(
+                            destinationName.getPartition(i).toString(),
+                            subscriptionName, messageId));
+                }
+
+                FutureUtil.waitForAll(futures).join();
+            } else {
+                validateAdminOperationOnDestination(authoritative);
+
+                PersistentTopic topic = (PersistentTopic) getOrCreateTopic(destinationName);
+
+                if (topic.getSubscriptions().containsKey(subscriptionName)) {
+                    throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
+                }
+
+                PersistentSubscription subscription = (PersistentSubscription) topic
+                        .createSubscription(subscriptionName).get();
+                subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
+                log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
+                        destinationName, subscriptionName, messageId);
+            }
+        } catch (Exception e) {
+            Throwable t = e.getCause();
+            log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(),
+                    destinationName, subscriptionName, messageId, e);
+            if (t instanceof SubscriptionInvalidCursorPosition) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "Unable to find position for position specified: " + t.getMessage());
+            } else {
+                throw new RestException(e);
+            }
+        }
+    }
+
     protected void internalResetCursorOnPosition(String subName, boolean authoritative, MessageIdImpl messageId) {
         if (destinationName.isGlobal()) {
             validateGlobalNamespaceOwnership(namespaceName);
@@ -1034,7 +1082,7 @@ public class PersistentTopicsBase extends AdminResource {
                     validateAdminAccessOnProperty(pulsar, clientAppId, dn.getProperty());
                 } catch (RestException authException) {
                     log.warn("Failed to authorize {} on cluster {}", clientAppId, dn.toString());
-                    throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
+                    throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
                             clientAppId, dn.toString(), authException.getMessage()));
                 }
             } catch (Exception ex) {
@@ -1078,6 +1126,14 @@ public class PersistentTopicsBase extends AdminResource {
             return topic;
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Topic not found");
+        }
+    }
+
+    private Topic getOrCreateTopic(DestinationName dn) {
+        try {
+            return pulsar().getBrokerService().getTopic(dn.toString()).get();
+        } catch (InterruptedException | ExecutionException e) {
+           throw new RestException(e);
         }
     }
 

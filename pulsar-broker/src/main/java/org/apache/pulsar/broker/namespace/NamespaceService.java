@@ -460,18 +460,18 @@ public class NamespaceService {
      * @throws Exception
      */
     private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
-        ResourceUnit leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
-        if (leastLoadedBroker != null) {
-            String lookupAddress = leastLoadedBroker.getResourceId();
-            if (LOG.isDebugEnabled()) {
-                LOG.debug("{} : redirecting to the least loaded broker, lookup address={}",
-                        pulsar.getWebServiceAddress(), lookupAddress);
-            }
-            return Optional.of(lookupAddress);
-        } else {
+        Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
+        if (!leastLoadedBroker.isPresent()) {
             LOG.warn("No broker is available for {}", serviceUnit);
             return Optional.empty();
         }
+
+        String lookupAddress = leastLoadedBroker.get().getResourceId();
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("{} : redirecting to the least loaded broker, lookup address={}", pulsar.getWebServiceAddress(),
+                    lookupAddress);
+        }
+        return Optional.of(lookupAddress);
     }
 
     public void unloadNamespaceBundle(NamespaceBundle bundle) throws Exception {

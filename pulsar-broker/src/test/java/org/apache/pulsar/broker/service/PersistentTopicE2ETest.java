@@ -642,6 +642,53 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNull(pulsar.getBrokerService().getTopicReference(topicName));
     }
 
+    /**
+     * A topic that has retention policy set to -1, should not be GCed
+     * until it has been inactive for at least the retention time and the data
+     * should never be deleted
+     */
+    @Test
+    public void testInfiniteRetentionPolicy() throws Exception {
+        // Retain data forever
+        admin.namespaces().setRetention("prop/use/ns-abc", new RetentionPolicies(-1, -1));
+
+        // 1. Simple successful GC
+        String topicName = "persistent://prop/use/ns-abc/topic-10";
+        Producer producer = pulsarClient.createProducer(topicName);
+        producer.close();
+
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+        runGC();
+        // Should not have been deleted, since we have retention
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+
+        // Remove retention
+        admin.namespaces().setRetention("prop/use/ns-abc", new RetentionPolicies(0, 10));
+        Thread.sleep(300);
+
+        // 2. Topic is not GCed with live connection
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        String subName = "sub1";
+        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+
+        runGC();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // 3. Topic with subscription is not GCed even with no connections
+        consumer.close();
+
+        runGC();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // 4. Topic can be GCed after unsubscribe
+        admin.persistentTopics().deleteSubscription(topicName, subName);
+
+        runGC();
+        assertNull(pulsar.getBrokerService().getTopicReference(topicName));
+    }
+
     @Test
     public void testMessageExpiry() throws Exception {
         int messageTTLSecs = 1;

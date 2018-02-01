@@ -42,6 +42,7 @@ import java.security.SecureRandom;
 import java.security.cert.Certificate;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -64,6 +65,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.broker.loadbalance.LeaderElectionService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
@@ -167,7 +169,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // mock: return Broker2 as a Least-loaded broker when leader receies request [3]
         doReturn(true).when(loadManager1).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
-        doReturn(resourceUnit).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+        doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
         /**** started broker-2 ****/
@@ -259,7 +261,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // mock: return Broker2 as a Least-loaded broker when leader receies request
         doReturn(true).when(loadManager2).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
-        doReturn(resourceUnit).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
+        doReturn(Optional.of(resourceUnit)).when(loadManager2).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager2));
         /**** started broker-2 ****/
 
@@ -430,7 +432,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 		// request [3]
 		doReturn(true).when(loadManager1).isCentralized();
 		SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar2.getWebServiceAddress(), null);
-		doReturn(resourceUnit).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+		doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
 		loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
 		/**** started broker-2 ****/
@@ -827,7 +829,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
         doReturn(true).when(loadManager1).isCentralized();
         SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
-        doReturn(resourceUnit).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+        doReturn(Optional.of(resourceUnit)).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
         loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
         URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());
@@ -935,7 +937,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             // mock: return Broker1 as a Least-loaded broker when leader receies request [3]
             doReturn(true).when(loadManager1).isCentralized();
             SimpleResourceUnit resourceUnit = new SimpleResourceUnit(pulsar.getWebServiceAddress(), null);
-            doReturn(resourceUnit).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
+            Optional<ResourceUnit> res = Optional.of(resourceUnit);
+            doReturn(res).when(loadManager1).getLeastLoaded(any(ServiceUnitId.class));
             loadManagerField.set(pulsar.getNamespaceService(), new AtomicReference<>(loadManager1));
 
             URI broker2ServiceUrl = new URI("pulsar://localhost:" + conf2.getBrokerServicePort());

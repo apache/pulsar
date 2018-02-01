@@ -28,19 +28,17 @@ import java.net.URL;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-import org.apache.pulsar.broker.BrokerData;
-import java.util.concurrent.TimeoutException;
+
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
@@ -57,6 +55,9 @@ import org.slf4j.LoggerFactory;
 import com.beust.jcommander.internal.Lists;
 import com.google.common.collect.Maps;
 
+import io.netty.util.concurrent.FastThreadLocal;
+import io.netty.util.internal.PlatformDependent;
+
 /**
  * This class contains code which in shared between the two load manager implementations.
  */
@@ -67,11 +68,21 @@ public class LoadManagerShared {
     public static final int MIBI = 1024 * 1024;
 
     // Cache for primary brokers according to policies.
-    private static final Set<String> primariesCache = new HashSet<>();
+    private static final FastThreadLocal<Set<String>> localPrimariesCache = new FastThreadLocal<Set<String>>() {
+        @Override
+        protected Set<String> initialValue() throws Exception {
+            return new HashSet<>();
+        }
+    };
 
     // Cache for shard brokers according to policies.
-    private static final Set<String> secondaryCache = new HashSet<>();
-    
+    private static final FastThreadLocal<Set<String>> localSecondaryCache = new FastThreadLocal<Set<String>>() {
+        @Override
+        protected Set<String> initialValue() throws Exception {
+            return new HashSet<>();
+        }
+    };
+
     // update LoadReport at most every 5 seconds
     public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
 
@@ -83,14 +94,17 @@ public class LoadManagerShared {
 
     // Determines the brokers available for the given service unit according to the given policies.
     // The brokers are put into brokerCandidateCache.
-    public static synchronized void applyNamespacePolicies(final ServiceUnitId serviceUnit,
+    public static void applyNamespacePolicies(final ServiceUnitId serviceUnit,
             final SimpleResourceAllocationPolicies policies, final Set<String> brokerCandidateCache,
-            final Set<String> availableBrokers,
-            final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
+            final Set<String> availableBrokers, final BrokerTopicLoadingPredicate brokerTopicLoadingPredicate) {
+        Set<String> primariesCache = localPrimariesCache.get();
         primariesCache.clear();
+
+        Set<String> secondaryCache = localSecondaryCache.get();
         secondaryCache.clear();
+
         NamespaceName namespace = serviceUnit.getNamespaceObject();
-        boolean isIsolationPoliciesPresent = policies.IsIsolationPoliciesPresent(namespace);
+        boolean isIsolationPoliciesPresent = policies.areIsolationPoliciesPresent(namespace);
         boolean isNonPersistentTopic = (serviceUnit instanceof NamespaceBundle)
                 ? ((NamespaceBundle) serviceUnit).hasNonPersistentTopic() : false;
         if (isIsolationPoliciesPresent) {
@@ -141,7 +155,7 @@ public class LoadManagerShared {
                     }
                 } else if (!isNonPersistentTopic
                         && !brokerTopicLoadingPredicate.isEnablePersistentTopics(brokerUrlString)) {
-                    // persistent topic can be assigned to only brokers that enabled for persistent-topic 
+                    // persistent topic can be assigned to only brokers that enabled for persistent-topic
                     if (log.isDebugEnabled()) {
                         log.debug("Filter broker- [{}] because broker only supports non-persistent namespace - [{}]",
                                 brokerUrl.getHost(), namespace.toString());
@@ -217,7 +231,7 @@ public class LoadManagerShared {
 
         // Collect JVM direct memory
         systemResourceUsage.directMemory.usage = (double) (JvmMetrics.getJvmDirectMemoryUsed() / MIBI);
-        systemResourceUsage.directMemory.limit = (double) (sun.misc.VM.maxDirectMemory() / MIBI);
+        systemResourceUsage.directMemory.limit = (double) (PlatformDependent.maxDirectMemory() / MIBI);
 
         return systemResourceUsage;
     }
@@ -235,7 +249,7 @@ public class LoadManagerShared {
     /**
      * Removes the brokers which have more bundles assigned to them in the same namespace as the incoming bundle than at
      * least one other available broker from consideration.
-     * 
+     *
      * @param assignedBundleName
      *            Name of bundle to be assigned.
      * @param candidates
@@ -280,7 +294,7 @@ public class LoadManagerShared {
                     .size() != finalLeastBundles);
         }
     }
-    
+
     /**
      * It tries to filter out brokers which own namespace with same anti-affinity-group as given namespace. If all the
      * domains own namespace with same anti-affinity group then it will try to keep brokers with domain that has least
@@ -293,17 +307,17 @@ public class LoadManagerShared {
      * d1-3          b1-2,b2-1
      * d2-3          b3-2,b4-1
      * d3-4          b5-2,b6-2
-     * 
+     *
      * After filtering: "candidates" brokers
      * Domain-count  BrokersBase-count
      * ____________  ____________
      * d1-3          b2-1
      * d2-3          b4-1
-     * 
+     *
      * "candidate" broker to own anti-affinity-namespace = b2 or b4
-     * 
+     *
      * </pre>
-     * 
+     *
      * @param pulsar
      * @param assignedBundleName
      * @param candidates
@@ -366,7 +380,7 @@ public class LoadManagerShared {
     /**
      * It computes least number of namespace owned by any of the domain and then it filters out all the domains that own
      * namespaces more than this count.
-     * 
+     *
      * @param brokerToAntiAffinityNamespaceCount
      * @param candidates
      * @param brokerToDomainMap
@@ -403,7 +417,7 @@ public class LoadManagerShared {
     /**
      * It returns map of broker and count of namespace that are belong to the same anti-affinity group as given
      * {@param namespaceName}
-     * 
+     *
      * @param pulsar
      * @param namespaceName
      * @param brokerToNamespaceToBundleRange
@@ -451,12 +465,12 @@ public class LoadManagerShared {
     }
 
     /**
-     * 
+     *
      * It checks if given anti-affinity namespace should be unloaded by broker due to load-shedding. If all the brokers
      * are owning same number of anti-affinity namespaces then unloading this namespace again ends up at the same broker
      * from which it was unloaded. So, this util checks that given namespace should be unloaded only if it can be loaded
      * by different broker.
-     * 
+     *
      * @param namespace
      * @param bundle
      * @param currentBroker
@@ -512,7 +526,7 @@ public class LoadManagerShared {
      * It filters out brokers which owns topic higher than configured threshold at
      * {@link ServiceConfiguration.loadBalancerBrokerMaxTopics}. <br/>
      * if all the brokers own topic higher than threshold then it resets the list with original broker candidates
-     * 
+     *
      * @param brokerCandidateCache
      * @param loadData
      * @param loadBalancerBrokerMaxTopics

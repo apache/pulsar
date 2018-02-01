@@ -60,6 +60,14 @@ void ConsumerConfiguration::setReceiverQueueSize(int size) { impl_->receiverQueu
 
 int ConsumerConfiguration::getReceiverQueueSize() const { return impl_->receiverQueueSize; }
 
+void ConsumerConfiguration::setMaxTotalReceiverQueueSizeAcrossPartitions(int size) {
+    impl_->maxTotalReceiverQueueSizeAcrossPartitions = size;
+}
+
+int ConsumerConfiguration::getMaxTotalReceiverQueueSizeAcrossPartitions() const {
+    return impl_->maxTotalReceiverQueueSizeAcrossPartitions;
+}
+
 const std::string& ConsumerConfiguration::getConsumerName() const { return impl_->consumerName; }
 
 void ConsumerConfiguration::setConsumerName(const std::string& consumerName) {

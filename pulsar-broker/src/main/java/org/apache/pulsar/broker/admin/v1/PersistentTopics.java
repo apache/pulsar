@@ -145,7 +145,6 @@ public class PersistentTopics extends PersistentTopicsBase {
      * @param property
      * @param cluster
      * @param namespace
-     * @param destination
      * @param numPartitions
      */
     @POST
@@ -364,6 +363,20 @@ public class PersistentTopics extends PersistentTopicsBase {
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
         validateDestinationName(property, cluster, namespace, encodedTopic);
         internalResetCursorOnPosition(subName, authoritative, messageId);
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subscriptionName}")
+    @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "Creates a subscription on the topic at the specified message id")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
+    public void createSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
+           @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+           @PathParam("subscriptionName") String subscriptionName,
+           @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) {
+        validateDestinationName(property, cluster, namespace, destination);
+        internalCreateSubscription(subscriptionName, messageId, authoritative);
     }
 
     @GET
