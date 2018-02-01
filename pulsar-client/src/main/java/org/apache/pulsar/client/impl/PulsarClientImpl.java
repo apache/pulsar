@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
 import java.util.IdentityHashMap;
@@ -31,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -44,6 +47,7 @@ import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -332,6 +336,52 @@ public class PulsarClientImpl implements PulsarClient {
         synchronized (consumers) {
             consumers.put(consumer, Boolean.TRUE);
         }
+
+        return consumerSubscribedFuture;
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(String namespace, Pattern topicsPattern,
+                                                      String subscription, ConsumerConfiguration conf) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (isBlank(subscription)) {
+            return FutureUtil
+                .failedFuture(new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+
+        NamespaceName namespaceName = NamespaceName.get(namespace);
+
+        CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
+
+        lookup.getTopicsUnderNamespace(namespaceName)
+            .thenAccept(topics -> {
+                List<String> topicsList = topics.stream()
+                    .filter(topic -> {
+                        DestinationName destinationName = DestinationName.get(topic);
+                        checkState(destinationName.getNamespaceObject().equals(namespaceName));
+                        return topicsPattern.matcher(destinationName.getLocalName()).matches();
+                    })
+                    .collect(Collectors.toList());
+
+                ConsumerBase consumer = new PatternTopicsConsumerImpl(topicsPattern, PulsarClientImpl.this, topicsList, subscription,
+                    conf, externalExecutorProvider.getExecutor(),
+                    consumerSubscribedFuture);
+
+                synchronized (consumers) {
+                    consumers.put(consumer, Boolean.TRUE);
+                }
+            })
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to get topics under namespace", namespace);
+                consumerSubscribedFuture.completeExceptionally(ex);
+                return null;
+            });
 
         return consumerSubscribedFuture;
     }

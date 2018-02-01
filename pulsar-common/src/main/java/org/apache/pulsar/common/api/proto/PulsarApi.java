@@ -19437,6 +19437,1083 @@ public final class PulsarApi {
     // @@protoc_insertion_point(class_scope:pulsar.proto.CommandConsumerStatsResponse)
   }
   
+  public interface CommandGetTopicsOfNamespaceOrBuilder
+      extends com.google.protobuf.MessageLiteOrBuilder {
+    
+    // required uint64 request_id = 1;
+    boolean hasRequestId();
+    long getRequestId();
+    
+    // required string property = 2;
+    boolean hasProperty();
+    String getProperty();
+    
+    // required string cluster = 3;
+    boolean hasCluster();
+    String getCluster();
+    
+    // required string local_name = 4;
+    boolean hasLocalName();
+    String getLocalName();
+  }
+  public static final class CommandGetTopicsOfNamespace extends
+      com.google.protobuf.GeneratedMessageLite
+      implements CommandGetTopicsOfNamespaceOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommandGetTopicsOfNamespace.newBuilder() to construct.
+    private final io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespace> handle;
+    private CommandGetTopicsOfNamespace(io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespace> handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommandGetTopicsOfNamespace> RECYCLER = new io.netty.util.Recycler<CommandGetTopicsOfNamespace>() {
+            protected CommandGetTopicsOfNamespace newObject(Handle<CommandGetTopicsOfNamespace> handle) {
+              return new CommandGetTopicsOfNamespace(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            handle.recycle(this);
+        }
+         
+    private CommandGetTopicsOfNamespace(boolean noInit) {
+        this.handle = null;
+    }
+    
+    private static final CommandGetTopicsOfNamespace defaultInstance;
+    public static CommandGetTopicsOfNamespace getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommandGetTopicsOfNamespace getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required uint64 request_id = 1;
+    public static final int REQUEST_ID_FIELD_NUMBER = 1;
+    private long requestId_;
+    public boolean hasRequestId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getRequestId() {
+      return requestId_;
+    }
+    
+    // required string property = 2;
+    public static final int PROPERTY_FIELD_NUMBER = 2;
+    private java.lang.Object property_;
+    public boolean hasProperty() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public String getProperty() {
+      java.lang.Object ref = property_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          property_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getPropertyBytes() {
+      java.lang.Object ref = property_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        property_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // required string cluster = 3;
+    public static final int CLUSTER_FIELD_NUMBER = 3;
+    private java.lang.Object cluster_;
+    public boolean hasCluster() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public String getCluster() {
+      java.lang.Object ref = cluster_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          cluster_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getClusterBytes() {
+      java.lang.Object ref = cluster_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        cluster_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    // required string local_name = 4;
+    public static final int LOCAL_NAME_FIELD_NUMBER = 4;
+    private java.lang.Object localName_;
+    public boolean hasLocalName() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public String getLocalName() {
+      java.lang.Object ref = localName_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          localName_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getLocalNameBytes() {
+      java.lang.Object ref = localName_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        localName_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
+    private void initFields() {
+      requestId_ = 0L;
+      property_ = "";
+      cluster_ = "";
+      localName_ = "";
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasRequestId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasProperty()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasCluster()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasLocalName()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, requestId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        output.writeBytes(2, getPropertyBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeBytes(3, getClusterBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeBytes(4, getLocalNameBytes());
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(1, requestId_);
+      }
+      if (((bitField0_ & 0x00000002) == 0x00000002)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(2, getPropertyBytes());
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(3, getClusterBytes());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(4, getLocalNameBytes());
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.newBuilder()
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                handle.recycle(this);
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        requestId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        property_ = "";
+        bitField0_ = (bitField0_ & ~0x00000002);
+        cluster_ = "";
+        bitField0_ = (bitField0_ & ~0x00000004);
+        localName_ = "";
+        bitField0_ = (bitField0_ & ~0x00000008);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace result = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.requestId_ = requestId_;
+        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
+          to_bitField0_ |= 0x00000002;
+        }
+        result.property_ = property_;
+        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.cluster_ = cluster_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.localName_ = localName_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance()) return this;
+        if (other.hasRequestId()) {
+          setRequestId(other.getRequestId());
+        }
+        if (other.hasProperty()) {
+          setProperty(other.getProperty());
+        }
+        if (other.hasCluster()) {
+          setCluster(other.getCluster());
+        }
+        if (other.hasLocalName()) {
+          setLocalName(other.getLocalName());
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasRequestId()) {
+          
+          return false;
+        }
+        if (!hasProperty()) {
+          
+          return false;
+        }
+        if (!hasCluster()) {
+          
+          return false;
+        }
+        if (!hasLocalName()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
+                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              requestId_ = input.readUInt64();
+              break;
+            }
+            case 18: {
+              bitField0_ |= 0x00000002;
+              property_ = input.readBytes();
+              break;
+            }
+            case 26: {
+              bitField0_ |= 0x00000004;
+              cluster_ = input.readBytes();
+              break;
+            }
+            case 34: {
+              bitField0_ |= 0x00000008;
+              localName_ = input.readBytes();
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 request_id = 1;
+      private long requestId_ ;
+      public boolean hasRequestId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getRequestId() {
+        return requestId_;
+      }
+      public Builder setRequestId(long value) {
+        bitField0_ |= 0x00000001;
+        requestId_ = value;
+        
+        return this;
+      }
+      public Builder clearRequestId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        requestId_ = 0L;
+        
+        return this;
+      }
+      
+      // required string property = 2;
+      private java.lang.Object property_ = "";
+      public boolean hasProperty() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public String getProperty() {
+        java.lang.Object ref = property_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          property_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setProperty(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
+        property_ = value;
+        
+        return this;
+      }
+      public Builder clearProperty() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        property_ = getDefaultInstance().getProperty();
+        
+        return this;
+      }
+      void setProperty(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000002;
+        property_ = value;
+        
+      }
+      
+      // required string cluster = 3;
+      private java.lang.Object cluster_ = "";
+      public boolean hasCluster() {
+        return ((bitField0_ & 0x00000004) == 0x00000004);
+      }
+      public String getCluster() {
+        java.lang.Object ref = cluster_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          cluster_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setCluster(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000004;
+        cluster_ = value;
+        
+        return this;
+      }
+      public Builder clearCluster() {
+        bitField0_ = (bitField0_ & ~0x00000004);
+        cluster_ = getDefaultInstance().getCluster();
+        
+        return this;
+      }
+      void setCluster(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000004;
+        cluster_ = value;
+        
+      }
+      
+      // required string local_name = 4;
+      private java.lang.Object localName_ = "";
+      public boolean hasLocalName() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public String getLocalName() {
+        java.lang.Object ref = localName_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          localName_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setLocalName(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000008;
+        localName_ = value;
+        
+        return this;
+      }
+      public Builder clearLocalName() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        localName_ = getDefaultInstance().getLocalName();
+        
+        return this;
+      }
+      void setLocalName(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000008;
+        localName_ = value;
+        
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandGetTopicsOfNamespace)
+    }
+    
+    static {
+      defaultInstance = new CommandGetTopicsOfNamespace(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandGetTopicsOfNamespace)
+  }
+  
+  public interface CommandGetTopicsOfNamespaceResponseOrBuilder
+      extends com.google.protobuf.MessageLiteOrBuilder {
+    
+    // required uint64 request_id = 1;
+    boolean hasRequestId();
+    long getRequestId();
+    
+    // repeated string topics = 2;
+    java.util.List<String> getTopicsList();
+    int getTopicsCount();
+    String getTopics(int index);
+  }
+  public static final class CommandGetTopicsOfNamespaceResponse extends
+      com.google.protobuf.GeneratedMessageLite
+      implements CommandGetTopicsOfNamespaceResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
+    // Use CommandGetTopicsOfNamespaceResponse.newBuilder() to construct.
+    private final io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespaceResponse> handle;
+    private CommandGetTopicsOfNamespaceResponse(io.netty.util.Recycler.Handle<CommandGetTopicsOfNamespaceResponse> handle) {
+      this.handle = handle;
+    }
+    
+     private static final io.netty.util.Recycler<CommandGetTopicsOfNamespaceResponse> RECYCLER = new io.netty.util.Recycler<CommandGetTopicsOfNamespaceResponse>() {
+            protected CommandGetTopicsOfNamespaceResponse newObject(Handle<CommandGetTopicsOfNamespaceResponse> handle) {
+              return new CommandGetTopicsOfNamespaceResponse(handle);
+            }
+          };
+        
+        public void recycle() {
+            this.initFields();
+            this.memoizedIsInitialized = -1;
+            this.bitField0_ = 0;
+            this.memoizedSerializedSize = -1;
+            handle.recycle(this);
+        }
+         
+    private CommandGetTopicsOfNamespaceResponse(boolean noInit) {
+        this.handle = null;
+    }
+    
+    private static final CommandGetTopicsOfNamespaceResponse defaultInstance;
+    public static CommandGetTopicsOfNamespaceResponse getDefaultInstance() {
+      return defaultInstance;
+    }
+    
+    public CommandGetTopicsOfNamespaceResponse getDefaultInstanceForType() {
+      return defaultInstance;
+    }
+    
+    private int bitField0_;
+    // required uint64 request_id = 1;
+    public static final int REQUEST_ID_FIELD_NUMBER = 1;
+    private long requestId_;
+    public boolean hasRequestId() {
+      return ((bitField0_ & 0x00000001) == 0x00000001);
+    }
+    public long getRequestId() {
+      return requestId_;
+    }
+    
+    // repeated string topics = 2;
+    public static final int TOPICS_FIELD_NUMBER = 2;
+    private com.google.protobuf.LazyStringList topics_;
+    public java.util.List<String>
+        getTopicsList() {
+      return topics_;
+    }
+    public int getTopicsCount() {
+      return topics_.size();
+    }
+    public String getTopics(int index) {
+      return topics_.get(index);
+    }
+    
+    private void initFields() {
+      requestId_ = 0L;
+      topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+    }
+    private byte memoizedIsInitialized = -1;
+    public final boolean isInitialized() {
+      byte isInitialized = memoizedIsInitialized;
+      if (isInitialized != -1) return isInitialized == 1;
+      
+      if (!hasRequestId()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      memoizedIsInitialized = 1;
+      return true;
+    }
+    
+    public void writeTo(com.google.protobuf.CodedOutputStream output)
+                        throws java.io.IOException {
+        throw new RuntimeException("Cannot use CodedOutputStream");
+    }
+    
+    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
+                        throws java.io.IOException {
+      getSerializedSize();
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        output.writeUInt64(1, requestId_);
+      }
+      for (int i = 0; i < topics_.size(); i++) {
+        output.writeBytes(2, topics_.getByteString(i));
+      }
+    }
+    
+    private int memoizedSerializedSize = -1;
+    public int getSerializedSize() {
+      int size = memoizedSerializedSize;
+      if (size != -1) return size;
+    
+      size = 0;
+      if (((bitField0_ & 0x00000001) == 0x00000001)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeUInt64Size(1, requestId_);
+      }
+      {
+        int dataSize = 0;
+        for (int i = 0; i < topics_.size(); i++) {
+          dataSize += com.google.protobuf.CodedOutputStream
+            .computeBytesSizeNoTag(topics_.getByteString(i));
+        }
+        size += dataSize;
+        size += 1 * getTopicsList().size();
+      }
+      memoizedSerializedSize = size;
+      return size;
+    }
+    
+    private static final long serialVersionUID = 0L;
+    @java.lang.Override
+    protected java.lang.Object writeReplace()
+        throws java.io.ObjectStreamException {
+      return super.writeReplace();
+    }
+    
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
+        com.google.protobuf.ByteString data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
+        com.google.protobuf.ByteString data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+         throw new RuntimeException("Disabled");
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(byte[] data)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
+        byte[] data,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws com.google.protobuf.InvalidProtocolBufferException {
+      return newBuilder().mergeFrom(data, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseDelimitedFrom(java.io.InputStream input)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseDelimitedFrom(
+        java.io.InputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      Builder builder = newBuilder();
+      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
+        return builder.buildParsed();
+      } else {
+        return null;
+      }
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
+        com.google.protobuf.CodedInputStream input)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input).buildParsed();
+    }
+    public static org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse parseFrom(
+        com.google.protobuf.CodedInputStream input,
+        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+        throws java.io.IOException {
+      return newBuilder().mergeFrom(input, extensionRegistry)
+               .buildParsed();
+    }
+    
+    public static Builder newBuilder() { return Builder.create(); }
+    public Builder newBuilderForType() { return newBuilder(); }
+    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse prototype) {
+      return newBuilder().mergeFrom(prototype);
+    }
+    public Builder toBuilder() { return newBuilder(this); }
+    
+    public static final class Builder extends
+        com.google.protobuf.GeneratedMessageLite.Builder<
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse, Builder>
+        implements org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponseOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
+      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.newBuilder()
+      private final io.netty.util.Recycler.Handle<Builder> handle;
+      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
+        this.handle = handle;
+        maybeForceBuilderInitialization();
+      }
+      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
+         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
+               return new Builder(handle);
+             }
+            };
+      
+       public void recycle() {
+                clear();
+                handle.recycle(this);
+            }
+      
+      private void maybeForceBuilderInitialization() {
+      }
+      private static Builder create() {
+        return RECYCLER.get();
+      }
+      
+      public Builder clear() {
+        super.clear();
+        requestId_ = 0L;
+        bitField0_ = (bitField0_ & ~0x00000001);
+        topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        return this;
+      }
+      
+      public Builder clone() {
+        return create().mergeFrom(buildPartial());
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getDefaultInstanceForType() {
+        return org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance();
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse build() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(result);
+        }
+        return result;
+      }
+      
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse buildParsed()
+          throws com.google.protobuf.InvalidProtocolBufferException {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse result = buildPartial();
+        if (!result.isInitialized()) {
+          throw newUninitializedMessageException(
+            result).asInvalidProtocolBufferException();
+        }
+        return result;
+      }
+      
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse buildPartial() {
+        org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse result = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.RECYCLER.get();
+        int from_bitField0_ = bitField0_;
+        int to_bitField0_ = 0;
+        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
+          to_bitField0_ |= 0x00000001;
+        }
+        result.requestId_ = requestId_;
+        if (((bitField0_ & 0x00000002) == 0x00000002)) {
+          topics_ = new com.google.protobuf.UnmodifiableLazyStringList(
+              topics_);
+          bitField0_ = (bitField0_ & ~0x00000002);
+        }
+        result.topics_ = topics_;
+        result.bitField0_ = to_bitField0_;
+        return result;
+      }
+      
+      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse other) {
+        if (other == org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance()) return this;
+        if (other.hasRequestId()) {
+          setRequestId(other.getRequestId());
+        }
+        if (!other.topics_.isEmpty()) {
+          if (topics_.isEmpty()) {
+            topics_ = other.topics_;
+            bitField0_ = (bitField0_ & ~0x00000002);
+          } else {
+            ensureTopicsIsMutable();
+            topics_.addAll(other.topics_);
+          }
+          
+        }
+        return this;
+      }
+      
+      public final boolean isInitialized() {
+        if (!hasRequestId()) {
+          
+          return false;
+        }
+        return true;
+      }
+      
+      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
+                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+                              throws java.io.IOException {
+         throw new java.io.IOException("Merge from CodedInputStream is disabled");
+                              }
+      public Builder mergeFrom(
+          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
+          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
+          throws java.io.IOException {
+        while (true) {
+          int tag = input.readTag();
+          switch (tag) {
+            case 0:
+              
+              return this;
+            default: {
+              if (!input.skipField(tag)) {
+                
+                return this;
+              }
+              break;
+            }
+            case 8: {
+              bitField0_ |= 0x00000001;
+              requestId_ = input.readUInt64();
+              break;
+            }
+            case 18: {
+              ensureTopicsIsMutable();
+              topics_.add(input.readBytes());
+              break;
+            }
+          }
+        }
+      }
+      
+      private int bitField0_;
+      
+      // required uint64 request_id = 1;
+      private long requestId_ ;
+      public boolean hasRequestId() {
+        return ((bitField0_ & 0x00000001) == 0x00000001);
+      }
+      public long getRequestId() {
+        return requestId_;
+      }
+      public Builder setRequestId(long value) {
+        bitField0_ |= 0x00000001;
+        requestId_ = value;
+        
+        return this;
+      }
+      public Builder clearRequestId() {
+        bitField0_ = (bitField0_ & ~0x00000001);
+        requestId_ = 0L;
+        
+        return this;
+      }
+      
+      // repeated string topics = 2;
+      private com.google.protobuf.LazyStringList topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+      private void ensureTopicsIsMutable() {
+        if (!((bitField0_ & 0x00000002) == 0x00000002)) {
+          topics_ = new com.google.protobuf.LazyStringArrayList(topics_);
+          bitField0_ |= 0x00000002;
+         }
+      }
+      public java.util.List<String>
+          getTopicsList() {
+        return java.util.Collections.unmodifiableList(topics_);
+      }
+      public int getTopicsCount() {
+        return topics_.size();
+      }
+      public String getTopics(int index) {
+        return topics_.get(index);
+      }
+      public Builder setTopics(
+          int index, String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  ensureTopicsIsMutable();
+        topics_.set(index, value);
+        
+        return this;
+      }
+      public Builder addTopics(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  ensureTopicsIsMutable();
+        topics_.add(value);
+        
+        return this;
+      }
+      public Builder addAllTopics(
+          java.lang.Iterable<String> values) {
+        ensureTopicsIsMutable();
+        super.addAll(values, topics_);
+        
+        return this;
+      }
+      public Builder clearTopics() {
+        topics_ = com.google.protobuf.LazyStringArrayList.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000002);
+        
+        return this;
+      }
+      void addTopics(com.google.protobuf.ByteString value) {
+        ensureTopicsIsMutable();
+        topics_.add(value);
+        
+      }
+      
+      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandGetTopicsOfNamespaceResponse)
+    }
+    
+    static {
+      defaultInstance = new CommandGetTopicsOfNamespaceResponse(true);
+      defaultInstance.initFields();
+    }
+    
+    // @@protoc_insertion_point(class_scope:pulsar.proto.CommandGetTopicsOfNamespaceResponse)
+  }
+  
   public interface BaseCommandOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
@@ -19551,6 +20628,14 @@ public final class PulsarApi {
     // optional .pulsar.proto.CommandSeek seek = 28;
     boolean hasSeek();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek getSeek();
+    
+    // optional .pulsar.proto.CommandGetTopicsOfNamespace getTopicsOfNamespace = 29;
+    boolean hasGetTopicsOfNamespace();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace getGetTopicsOfNamespace();
+    
+    // optional .pulsar.proto.CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 30;
+    boolean hasGetTopicsOfNamespaceResponse();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getGetTopicsOfNamespaceResponse();
   }
   public static final class BaseCommand extends
       com.google.protobuf.GeneratedMessageLite
@@ -19617,6 +20702,8 @@ public final class PulsarApi {
       CONSUMER_STATS_RESPONSE(24, 26),
       REACHED_END_OF_TOPIC(25, 27),
       SEEK(26, 28),
+      GET_TOPICS_OF_NAMESPACE(27, 29),
+      GET_TOPICS_OF_NAMESPACE_RESPONSE(28, 30),
       ;
       
       public static final int CONNECT_VALUE = 2;
@@ -19646,6 +20733,8 @@ public final class PulsarApi {
       public static final int CONSUMER_STATS_RESPONSE_VALUE = 26;
       public static final int REACHED_END_OF_TOPIC_VALUE = 27;
       public static final int SEEK_VALUE = 28;
+      public static final int GET_TOPICS_OF_NAMESPACE_VALUE = 29;
+      public static final int GET_TOPICS_OF_NAMESPACE_RESPONSE_VALUE = 30;
       
       
       public final int getNumber() { return value; }
@@ -19679,6 +20768,8 @@ public final class PulsarApi {
           case 26: return CONSUMER_STATS_RESPONSE;
           case 27: return REACHED_END_OF_TOPIC;
           case 28: return SEEK;
+          case 29: return GET_TOPICS_OF_NAMESPACE;
+          case 30: return GET_TOPICS_OF_NAMESPACE_RESPONSE;
           default: return null;
         }
       }
@@ -19985,6 +21076,26 @@ public final class PulsarApi {
       return seek_;
     }
     
+    // optional .pulsar.proto.CommandGetTopicsOfNamespace getTopicsOfNamespace = 29;
+    public static final int GETTOPICSOFNAMESPACE_FIELD_NUMBER = 29;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace getTopicsOfNamespace_;
+    public boolean hasGetTopicsOfNamespace() {
+      return ((bitField0_ & 0x10000000) == 0x10000000);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace getGetTopicsOfNamespace() {
+      return getTopicsOfNamespace_;
+    }
+    
+    // optional .pulsar.proto.CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 30;
+    public static final int GETTOPICSOFNAMESPACERESPONSE_FIELD_NUMBER = 30;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse_;
+    public boolean hasGetTopicsOfNamespaceResponse() {
+      return ((bitField0_ & 0x20000000) == 0x20000000);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getGetTopicsOfNamespaceResponse() {
+      return getTopicsOfNamespaceResponse_;
+    }
+    
     private void initFields() {
       type_ = org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type.CONNECT;
       connect_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect.getDefaultInstance();
@@ -20014,6 +21125,8 @@ public final class PulsarApi {
       consumerStatsResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse.getDefaultInstance();
       reachedEndOfTopic_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic.getDefaultInstance();
       seek_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek.getDefaultInstance();
+      getTopicsOfNamespace_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance();
+      getTopicsOfNamespaceResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -20174,6 +21287,18 @@ public final class PulsarApi {
           return false;
         }
       }
+      if (hasGetTopicsOfNamespace()) {
+        if (!getGetTopicsOfNamespace().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      if (hasGetTopicsOfNamespaceResponse()) {
+        if (!getGetTopicsOfNamespaceResponse().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -20269,6 +21394,12 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x08000000) == 0x08000000)) {
         output.writeMessage(28, seek_);
+      }
+      if (((bitField0_ & 0x10000000) == 0x10000000)) {
+        output.writeMessage(29, getTopicsOfNamespace_);
+      }
+      if (((bitField0_ & 0x20000000) == 0x20000000)) {
+        output.writeMessage(30, getTopicsOfNamespaceResponse_);
       }
     }
     
@@ -20389,6 +21520,14 @@ public final class PulsarApi {
       if (((bitField0_ & 0x08000000) == 0x08000000)) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(28, seek_);
+      }
+      if (((bitField0_ & 0x10000000) == 0x10000000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(29, getTopicsOfNamespace_);
+      }
+      if (((bitField0_ & 0x20000000) == 0x20000000)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(30, getTopicsOfNamespaceResponse_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -20559,6 +21698,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x04000000);
         seek_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x08000000);
+        getTopicsOfNamespace_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x10000000);
+        getTopicsOfNamespaceResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance();
+        bitField0_ = (bitField0_ & ~0x20000000);
         return this;
       }
       
@@ -20704,6 +21847,14 @@ public final class PulsarApi {
           to_bitField0_ |= 0x08000000;
         }
         result.seek_ = seek_;
+        if (((from_bitField0_ & 0x10000000) == 0x10000000)) {
+          to_bitField0_ |= 0x10000000;
+        }
+        result.getTopicsOfNamespace_ = getTopicsOfNamespace_;
+        if (((from_bitField0_ & 0x20000000) == 0x20000000)) {
+          to_bitField0_ |= 0x20000000;
+        }
+        result.getTopicsOfNamespaceResponse_ = getTopicsOfNamespaceResponse_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -20793,6 +21944,12 @@ public final class PulsarApi {
         }
         if (other.hasSeek()) {
           mergeSeek(other.getSeek());
+        }
+        if (other.hasGetTopicsOfNamespace()) {
+          mergeGetTopicsOfNamespace(other.getGetTopicsOfNamespace());
+        }
+        if (other.hasGetTopicsOfNamespaceResponse()) {
+          mergeGetTopicsOfNamespaceResponse(other.getGetTopicsOfNamespaceResponse());
         }
         return this;
       }
@@ -20948,6 +22105,18 @@ public final class PulsarApi {
         }
         if (hasSeek()) {
           if (!getSeek().isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasGetTopicsOfNamespace()) {
+          if (!getGetTopicsOfNamespace().isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasGetTopicsOfNamespaceResponse()) {
+          if (!getGetTopicsOfNamespaceResponse().isInitialized()) {
             
             return false;
           }
@@ -21253,6 +22422,26 @@ public final class PulsarApi {
               }
               input.readMessage(subBuilder, extensionRegistry);
               setSeek(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 234: {
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.newBuilder();
+              if (hasGetTopicsOfNamespace()) {
+                subBuilder.mergeFrom(getGetTopicsOfNamespace());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setGetTopicsOfNamespace(subBuilder.buildPartial());
+              subBuilder.recycle();
+              break;
+            }
+            case 242: {
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.newBuilder();
+              if (hasGetTopicsOfNamespaceResponse()) {
+                subBuilder.mergeFrom(getGetTopicsOfNamespaceResponse());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setGetTopicsOfNamespaceResponse(subBuilder.buildPartial());
               subBuilder.recycle();
               break;
             }
@@ -22444,6 +23633,92 @@ public final class PulsarApi {
         seek_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x08000000);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandGetTopicsOfNamespace getTopicsOfNamespace = 29;
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace getTopicsOfNamespace_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance();
+      public boolean hasGetTopicsOfNamespace() {
+        return ((bitField0_ & 0x10000000) == 0x10000000);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace getGetTopicsOfNamespace() {
+        return getTopicsOfNamespace_;
+      }
+      public Builder setGetTopicsOfNamespace(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        getTopicsOfNamespace_ = value;
+        
+        bitField0_ |= 0x10000000;
+        return this;
+      }
+      public Builder setGetTopicsOfNamespace(
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.Builder builderForValue) {
+        getTopicsOfNamespace_ = builderForValue.build();
+        
+        bitField0_ |= 0x10000000;
+        return this;
+      }
+      public Builder mergeGetTopicsOfNamespace(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace value) {
+        if (((bitField0_ & 0x10000000) == 0x10000000) &&
+            getTopicsOfNamespace_ != org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance()) {
+          getTopicsOfNamespace_ =
+            org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.newBuilder(getTopicsOfNamespace_).mergeFrom(value).buildPartial();
+        } else {
+          getTopicsOfNamespace_ = value;
+        }
+        
+        bitField0_ |= 0x10000000;
+        return this;
+      }
+      public Builder clearGetTopicsOfNamespace() {
+        getTopicsOfNamespace_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x10000000);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 30;
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance();
+      public boolean hasGetTopicsOfNamespaceResponse() {
+        return ((bitField0_ & 0x20000000) == 0x20000000);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse getGetTopicsOfNamespaceResponse() {
+        return getTopicsOfNamespaceResponse_;
+      }
+      public Builder setGetTopicsOfNamespaceResponse(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        getTopicsOfNamespaceResponse_ = value;
+        
+        bitField0_ |= 0x20000000;
+        return this;
+      }
+      public Builder setGetTopicsOfNamespaceResponse(
+          org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.Builder builderForValue) {
+        getTopicsOfNamespaceResponse_ = builderForValue.build();
+        
+        bitField0_ |= 0x20000000;
+        return this;
+      }
+      public Builder mergeGetTopicsOfNamespaceResponse(org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse value) {
+        if (((bitField0_ & 0x20000000) == 0x20000000) &&
+            getTopicsOfNamespaceResponse_ != org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance()) {
+          getTopicsOfNamespaceResponse_ =
+            org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.newBuilder(getTopicsOfNamespaceResponse_).mergeFrom(value).buildPartial();
+        } else {
+          getTopicsOfNamespaceResponse_ = value;
+        }
+        
+        bitField0_ |= 0x20000000;
+        return this;
+      }
+      public Builder clearGetTopicsOfNamespaceResponse() {
+        getTopicsOfNamespaceResponse_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x20000000);
         return this;
       }
       

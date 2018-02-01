@@ -18,9 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -29,6 +33,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +92,14 @@ class HttpLookupService implements LookupService {
 
     public String getServiceUrl() {
     	return httpClient.url.toString();
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+        CompletableFuture<String[]> result = httpClient
+            .get(String.format("admin/namespaces/%s/destinations", namespace.getLookupName()), String[].class);
+
+        return result.thenApply(Arrays::asList);
     }
 
     @Override

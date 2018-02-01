@@ -38,7 +38,7 @@ public class NamespaceName implements ServiceUnitId {
     private String property;
     private String cluster;
     private String localName;
-    
+
     private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
                 @Override
@@ -189,4 +189,16 @@ public class NamespaceName implements ServiceUnitId {
         return this.equals(dn.getNamespaceObject());
     }
 
+    /**
+     * Get a string suitable for namespace lookup
+     * <p>
+     * Example:
+     * <p>
+     * //property/cluster/namespace -> persistent/property/cluster/namespace
+     *
+     * @return
+     */
+    public String getLookupName() {
+        return String.format("%s/%s/%s", property, cluster, localName);
+    }
 }

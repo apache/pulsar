@@ -22,6 +22,8 @@ import static java.lang.String.format;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -30,6 +32,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,6 +178,36 @@ public class BinaryProtoLookupService implements LookupService {
     public String getServiceUrl() {
         return serviceAddress.toString();
     }
+
+    @Override
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+        return getTopicsUnderNamespace(serviceAddress, namespace);
+    }
+
+    private CompletableFuture<List<String>> getTopicsUnderNamespace(InetSocketAddress socketAddress,
+                                                                    NamespaceName namespace) {
+        CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
+
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
+            ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
+                namespace.getProperty(), namespace.getCluster(), namespace.getLocalName(), requestId);
+
+            clientCnx.newGetTopicsOfNamespace(request, requestId).thenAccept(topicsList -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Success get topics list in request: {}", namespace.toString(), requestId);
+                }
+                topicsFuture.complete(topicsList);
+            }).exceptionally((e) -> {
+                log.warn("[{}] failed to get topics list: {}", namespace.toString(), e.getCause().getMessage(), e);
+                topicsFuture.completeExceptionally(e);
+                return null;
+            });
+        });
+
+        return topicsFuture;
+    }
+
 
     @Override
     public void close() throws Exception {

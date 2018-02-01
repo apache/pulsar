@@ -22,6 +22,7 @@ import java.io.Closeable;
 import java.util.Collection;
 import java.util.concurrent.CompletableFuture;
 
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 /**
@@ -285,6 +286,9 @@ public interface PulsarClient extends Closeable {
      */
     Consumer subscribe(Collection<String> topics, String subscription, ConsumerConfiguration conf)
         throws PulsarClientException;
+
+    CompletableFuture<Consumer> subscribeAsync(String namespace, Pattern topicsPattern,
+                                               String subscription, ConsumerConfiguration conf);
 
     /**
      * Asynchronously subscribe to the given topics and subscription combination using given
