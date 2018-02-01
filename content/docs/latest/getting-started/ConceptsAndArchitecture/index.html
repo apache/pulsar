@@ -444,6 +444,13 @@
             </a>
           </li>
           
+          
+          <li>
+            <a href="../../admin/Proxy">
+              Pulsar proxy
+            </a>
+          </li>
+          
         </ul>
       </div>
     </div>
@@ -793,9 +800,11 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
+          
+          
           
           
           
@@ -1844,6 +1853,84 @@ enableNonPersistentTopics=true
 </ol>
 
 <p>Whenever the TCP connection breaks, the client will immediately re-initiate this setup phase and will keep trying with exponential backoff to re-establish the producer or consumer until the operation succeeds.</p>
+
+<h2 id="pulsar-proxy">Pulsar proxy</h2>
+
+<p>One way for Pulsar clients to interact with a Pulsar <a href="#clusters">cluster</a> is by connecting to Pulsar message <a href="#brokers">brokers</a> directly. In some cases, however, this kind of direct connection is either infeasible or undesirable because the client doesn’t have direct access to broker addresses. If you’re running Pulsar in a cloud environment or on <a href="https://kubernetes.io">Kubernetes</a> or an analogous platform, for example, then direct client connections to brokers are likely not possible.</p>
+
+<p>The <strong>Pulsar proxy</strong> provides a solution to this problem by acting as a single gateway for all of the brokers in a cluster. If you run the Pulsar proxy (which, again, is optional), all client connections with the Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> will flow through the proxy rather than communicating with brokers.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    
+    <p>For the sake of performance and fault tolerance, you can run as many instances of the Pulsar proxy as you’d like.</p>
+
+  </div>
+</div>
+
+<p>Architecturally, the Pulsar proxy gets all the information it requires from ZooKeeper. When starting the proxy on a machine, you only need to provide ZooKeeper connection strings for the cluster-specific and <span class="popover-term" tabindex="0" title="What is global ZooKeeper?" data-placement="top" data-content="A ZooKeeper cluster that Pulsar uses for instance-wide, rather than cluster-specific, tasks." data-toggle="popover" data-trigger="focus">global ZooKeeper</span> clusters. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar proxy <span class="se">\</span>
+  <span class="nt">--zookeeper-servers</span> zk-0,zk-1,zk-2 <span class="se">\</span>
+  <span class="nt">--global-zookeeper-servers</span> zk-0,zk-1,zk-2
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Pulsar proxy docs</p>
+</span>
+    
+<p>For documentation on using the Pulsar proxy, see the <a href="../../admin/Proxy">Pulsar proxy admin documentation</a>.</p>
+
+  </div>
+</div>
+
+<p>Some important things to know about the Pulsar proxy:</p>
+
+<ul>
+  <li>Connecting clients don’t need to provide <em>any</em> specific configuration to use the Pulsar proxy. You won’t need to update the client configuration for existing applications beyond updating the IP used for the service URL (for example if you’re running a load balancer over the Pulsar proxy).</li>
+  <li><a href="../../admin/Authz/#tls-client-auth">TLS encryption and authentication</a> is supported by the Pulsar proxy</li>
+</ul>
 
 <h2 id="service-discovery">Service discovery</h2>
 

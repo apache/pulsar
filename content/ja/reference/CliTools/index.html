@@ -672,6 +672,8 @@
           
           
           
+          
+          
           <li><a href="/ja/admin/Authz/">Pulsarにおける認証と認可</a></li>
           
           
@@ -683,8 +685,6 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
-          
-          
           
           
           
@@ -748,9 +748,9 @@
           
           
           
+          
+          
           <li><a href="/ja/advanced/PartitionedTopics/">パーティションドトピック</a></li>
-          
-          
           
           
           
@@ -774,9 +774,11 @@
           
           
           
+          
+          
+          
+          
           <li><a href="/ja/advanced/RetentionExpiry/">メッセージの保存と有効期限</a></li>
-          
-          
           
           
           
@@ -875,6 +877,8 @@
           
           
           <li><a href="/ja/admin/AdminInterface/">Pulsar adminインターフェース</a></li>
+          
+          
           
           
           
@@ -1078,6 +1082,8 @@
           
           
           
+          
+          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -1121,6 +1127,8 @@
           
           
           <li><a href="/ja/clients/Java/">Pulsar Javaクライアント</a></li>
+          
+          
           
           
           
@@ -1225,8 +1233,6 @@
           
           
           
-          
-          
         </ul>
       </div>
     </div>
@@ -1264,6 +1270,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1468,6 +1476,8 @@
           
           
           
+          
+          
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
           
           
@@ -1648,6 +1658,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1946,6 +1958,12 @@
       <li>
         <a href="#pulsar-initialize-cluster-metadata">
           <code class="highlighter-rouge">initialize-cluster-metadata</code>
+        </a>
+      </li>
+      
+      <li>
+        <a href="#pulsar-proxy">
+          <code class="highlighter-rouge">proxy</code>
         </a>
       </li>
       
@@ -2462,6 +2480,96 @@
           </thead>
         </table>
          <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+      </div>
+    </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-proxy">
+        <code class="highlighter-rouge">proxy</code>
+      </h3>
+      <div class="card-content">
+        <p>Manages the Pulsar proxy</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar proxy <span class="options">options</span></code></pre></div>
+        
+        <h5>Options</h5>
+        <table class="options-table">
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+            <tbody>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-c</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--config</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Path to a Pulsar proxy configuration file</p>
+</td>
+                <td>
+                  
+                </td>
+              </tr>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-gzk</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--global-zookeeper-servers</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Global ZooKeeper connection string</p>
+</td>
+                <td>
+                  
+                </td>
+              </tr>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-zk</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--zookeeper-servers</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Local ZooKeeper connection string</p>
+</td>
+                <td>
+                  
+                </td>
+              </tr>
+               <!-- for option in options -->
+            </tbody>
+          </thead>
+        </table>
+         <!-- if command.options -->
+        
+        <h5>Example</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> <span>pulsar proxy \
+  --zookeeper-servers zk-0,zk-1,zk2 \
+  --global-zookeeper-servers zk-0,zk-1,zk-2
+</span></code></pre></div>
          <!-- if command.example -->
 
         
