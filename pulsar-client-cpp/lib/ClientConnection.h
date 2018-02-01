@@ -87,12 +87,14 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     typedef std::vector<ConnectionListener>::iterator ListenerIterator;
 
     /*
-     *  endpoint  -  url of the service, for ex. pulsar://localhost:6650
-     *  connected -  set when tcp connection is established
+     *  logicalAddress -  url of the service, for ex. pulsar://localhost:6650
+     *  physicalAddress - the address to connect to, it could be different from the logical address if proxy
+     * comes into play connected -  set when tcp connection is established
      *
      */
-    ClientConnection(const std::string& endpoint, ExecutorServicePtr executor,
-                     const ClientConfiguration& clientConfiguration, const AuthenticationPtr& authentication);
+    ClientConnection(const std::string& logicalAddress, const std::string& physicalAddress,
+                     ExecutorServicePtr executor, const ClientConfiguration& clientConfiguration,
+                     const AuthenticationPtr& authentication);
     ~ClientConnection();
 
     /*
@@ -226,10 +228,13 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
      */
     SocketPtr socket_;
     TlsSocketPtr tlsSocket_;
+
+    const std::string logicalAddress_;
+
     /*
      *  stores address of the service, for ex. pulsar://localhost:6650
      */
-    const std::string address_;
+    const std::string physicalAddress_;
 
     // Represent both endpoint of the tcp connection. eg: [client:1234 -> server:6650]
     std::string cnxString_;

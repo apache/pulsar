@@ -258,7 +258,11 @@ void ClientImpl::handleLookup(Result result, LookupDataResultPtr data,
                               Promise<Result, ClientConnectionWeakPtr> promise) {
     if (data) {
         LOG_DEBUG("Getting connection to broker: " << data->getBrokerUrl());
-        Future<Result, ClientConnectionWeakPtr> future = pool_.getConnectionAsync(data->getBrokerUrl());
+        const std::string& logicalAddress = data->getBrokerUrl();
+        const std::string& physicalAddress =
+            data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
+        Future<Result, ClientConnectionWeakPtr> future =
+            pool_.getConnectionAsync(logicalAddress, physicalAddress);
         future.addListener(boost::bind(&ClientImpl::handleNewConnection, this, _1, _2, promise));
     } else {
         promise.setFailed(result);

@@ -41,6 +41,8 @@ class Url {
     const std::string& parameter() const;
     friend std::ostream& operator<<(std::ostream& os, const Url& obj);
 
+    std::string hostPort() const;
+
    private:
     std::string protocol_;
     std::string host_;
