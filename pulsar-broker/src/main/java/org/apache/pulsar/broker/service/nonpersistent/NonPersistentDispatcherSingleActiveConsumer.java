@@ -26,19 +26,18 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
 
     private final Rate msgDrop;
-    private final String name;
+    private final Subscription subscription;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
-            NonPersistentTopic topic, String subName) {
+            NonPersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName());
-        this.name = topic.getName() + " / " + subName;
+        this.subscription = subscription;
         this.msgDrop = new Rate();
     }
 
@@ -49,7 +48,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
             currentConsumer.sendMessages(entries);
         } else {
             entries.forEach(entry -> {
-                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), name, -1);
+                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), subscription, -1);
                 if (totalMsgs > 0) {
                     msgDrop.recordEvent();
                 }
@@ -57,7 +56,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
             });
         }
     }
-    
+
     @Override
     public Rate getMesssageDropRate() {
         return msgDrop;
@@ -87,7 +86,5 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     protected void cancelPendingRead() {
         // No-op
     }
-
-    private static final Logger log = LoggerFactory.getLogger(NonPersistentDispatcherSingleActiveConsumer.class);
 
 }
