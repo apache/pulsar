@@ -22,6 +22,10 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -57,7 +61,8 @@ public class MembershipManager implements AutoCloseable {
         consumer = client.subscribe(workerConfig.getClusterCoordinationTopic(), COORDINATION_TOPIC_SUBSCRIPTION,
                 new ConsumerConfiguration()
                         .setSubscriptionType(SubscriptionType.Failover)
-                        .setConsumerName(workerConfig.getWorkerId()));
+                        .setConsumerName(String.format("%s:%s:%d", workerConfig.getWorkerId(),
+                                workerConfig.getWorkerHostname(), workerConfig.getWorkerPort())));
         this.workerConfig = workerConfig;
         this.schedulerManager = schedulerManager;
     }
@@ -106,21 +111,24 @@ public class MembershipManager implements AutoCloseable {
                 });
     }
 
-    public List<String> getCurrentMembership() {
+    public List<WorkerInfo> getCurrentMembership() {
 
-        List<String> workerIds = new LinkedList<>();
+        List<WorkerInfo> workerIds = new LinkedList<>();
         PersistentTopicStats persistentTopicStats = null;
         PulsarAdmin pulsarAdmin = this.getPulsarAdminClient();
         try {
             persistentTopicStats = pulsarAdmin.persistentTopics().getStats(
                     this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            e.printStackTrace();
+            log.error("Failled to get status of coordinate topic {}",
+                    this.workerConfig.getClusterCoordinationTopic(), e);
+            throw new RuntimeException(e);
         }
 
         for (ConsumerStats consumerStats : persistentTopicStats.subscriptions
                 .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
-            workerIds.add(consumerStats.consumerName);
+            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.consumerName);
+            workerIds.add(workerInfo);
         }
         return workerIds;
     }
@@ -138,6 +146,28 @@ public class MembershipManager implements AutoCloseable {
         consumer.close();
         if (this.pulsarAdminClient != null) {
             this.pulsarAdminClient.close();
+        }
+    }
+
+    @Getter
+    @AllArgsConstructor(access = AccessLevel.PRIVATE)
+    @ToString
+    public static class WorkerInfo {
+        private String workerId;
+        private String workerHostname;
+        private int port;
+
+        public static WorkerInfo parseFrom(String str) {
+            String[] tokens = str.split(":");
+            if (tokens.length != 3) {
+                throw new IllegalArgumentException("Invalid string to parse WorkerInfo");
+            }
+
+            String workerId = tokens[0];
+            String workerHostname = tokens[1];
+            int port = Integer.parseInt(tokens[2]);
+
+            return new WorkerInfo(workerId, workerHostname, port);
         }
     }
 

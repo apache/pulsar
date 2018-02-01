@@ -83,7 +83,8 @@ public class FunctionRuntimeManagerTest {
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 mock(PulsarClient.class),
-                mock(Namespace.class)
+                mock(Namespace.class),
+                mock(MembershipManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
@@ -163,7 +164,8 @@ public class FunctionRuntimeManagerTest {
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 mock(PulsarClient.class),
-                mock(Namespace.class)
+                mock(Namespace.class),
+                mock(MembershipManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
@@ -248,7 +250,8 @@ public class FunctionRuntimeManagerTest {
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
                 mock(PulsarClient.class),
-                mock(Namespace.class)
+                mock(Namespace.class),
+                mock(MembershipManager.class)
         ));
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(

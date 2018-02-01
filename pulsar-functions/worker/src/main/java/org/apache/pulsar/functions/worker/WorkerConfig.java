@@ -43,6 +43,7 @@ public class WorkerConfig implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private String workerId;
+    private String workerHostname;
     private int workerPort;
     private String zookeeperServers;
     private String functionMetadataTopicName;
