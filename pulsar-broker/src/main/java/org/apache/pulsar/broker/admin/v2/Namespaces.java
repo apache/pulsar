@@ -111,6 +111,7 @@ public class Namespaces extends NamespacesBase {
             Policies policies) {
         validateNamespaceName(property, namespace);
 
+        policies = getDefaultPolicesIfNull(policies);
         internalCreateNamespace(policies);
     }
 
@@ -501,6 +502,17 @@ public class Namespaces extends NamespacesBase {
             @PathParam("namespace") String namespace, boolean encryptionRequired) {
         validateNamespaceName(property, namespace);
         internalModifyEncryptionRequired(encryptionRequired);
+    }
+
+    private Policies getDefaultPolicesIfNull(Policies policies) {
+        if (policies != null) {
+            return policies;
+        }
+
+        Policies defaultPolicies = new Policies();
+        int defaultNumberOfBundles = config().getDefaultNumberOfNamespaceBundles();
+        defaultPolicies.bundles = getBundles(defaultNumberOfBundles);
+        return defaultPolicies;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
