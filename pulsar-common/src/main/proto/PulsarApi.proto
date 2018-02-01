@@ -135,6 +135,7 @@ enum ProtocolVersion {
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
 	v11 = 11;// C++ consumers before this version are not correctly handling the checksum field
+			 //Added get topic's last messageId from broker
 }
 
 message CommandConnect {
@@ -152,13 +153,13 @@ message CommandConnect {
 	// a Pulsar proxy. In this case the auth info above
 	// will be the auth of the proxy itself
 	optional string original_principal = 7;
-	
-	// Original auth role and auth Method that was passed 
+
+	// Original auth role and auth Method that was passed
 	// to the proxy. In this case the auth info above
-	// will be the auth of the proxy itself	
+	// will be the auth of the proxy itself
 	optional string original_auth_data = 8;
 	optional string original_auth_method = 9;
-	
+
 }
 
 message CommandConnected {
@@ -202,9 +203,9 @@ message CommandPartitionedTopicMetadata {
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 3;
-	
-	// Original auth role and auth Method that was passed 
-	// to the proxy.	
+
+	// Original auth role and auth Method that was passed
+	// to the proxy.
 	optional string original_auth_data = 4;
 	optional string original_auth_method = 5;
 }
@@ -225,13 +226,13 @@ message CommandLookupTopic {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
-	
+
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 4;
-	
-	// Original auth role and auth Method that was passed 
-	// to the proxy. 	
+
+	// Original auth role and auth Method that was passed
+	// to the proxy.
 	optional string original_auth_data = 5;
 	optional string original_auth_method = 6;
 }
