@@ -42,7 +42,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Cache data payload for entries of all ledgers.
+ * Cache data payload for entries of all ledgers
  */
 public class EntryCacheImpl implements EntryCache {
 
@@ -52,12 +52,17 @@ public class EntryCacheImpl implements EntryCache {
 
     private static final double MB = 1024 * 1024;
 
-    private static final Weighter<EntryImpl> entryWeighter = EntryImpl::getLength;
+    private static final Weighter<EntryImpl> entryWeighter = new Weighter<EntryImpl>() {
+        @Override
+        public long getSize(EntryImpl entry) {
+            return entry.getLength();
+        }
+    };
 
     public EntryCacheImpl(EntryCacheManager manager, ManagedLedgerImpl ml) {
         this.manager = manager;
         this.ml = ml;
-        this.entries = new RangeCache<>(entryWeighter);
+        this.entries = new RangeCache<PositionImpl, EntryImpl>(entryWeighter);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] Initialized managed-ledger entry cache", ml.getName());
@@ -69,7 +74,7 @@ public class EntryCacheImpl implements EntryCache {
         return ml.getName();
     }
 
-    public final static PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(
+    public final static PooledByteBufAllocator allocator = new PooledByteBufAllocator( //
             true, // preferDirect
             0, // nHeapArenas,
             1, // nDirectArena
@@ -102,7 +107,7 @@ public class EntryCacheImpl implements EntryCache {
         int size = entry.getLength();
         ByteBuf cachedData = null;
         try {
-            cachedData = ALLOCATOR.directBuffer(size, size);
+            cachedData = allocator.directBuffer(size, size);
         } catch (Throwable t) {
             log.warn("[{}] Failed to allocate buffer for entry cache: {}", ml.getName(), t.getMessage(), t);
             return false;

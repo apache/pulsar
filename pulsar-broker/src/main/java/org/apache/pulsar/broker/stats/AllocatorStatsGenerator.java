@@ -41,7 +41,7 @@ public class AllocatorStatsGenerator {
         if ("default".equals(allocatorName)) {
             allocator = PooledByteBufAllocator.DEFAULT;
         } else if ("ml-cache".equals(allocatorName)) {
-            allocator = EntryCacheImpl.ALLOCATOR;
+            allocator = EntryCacheImpl.allocator;
         } else {
             throw new IllegalArgumentException("Invalid allocator name : " + allocatorName);
         }

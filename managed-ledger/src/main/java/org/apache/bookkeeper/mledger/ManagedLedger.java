@@ -29,8 +29,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 
 /**
  * A ManagedLedger it's a superset of a BookKeeper ledger concept.
- *
- * <p/>It mimics the concept of an appender log that:
+ * <p>
+ * It mimics the concept of an appender log that:
  *
  * <ul>
  * <li>has a unique name (chosen by clients) by which it can be created/opened/deleted</li>
@@ -40,8 +40,8 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
  * <li>when all the consumers have processed all the entries contained in a Bookkeeper ledger, the ledger is
  * deleted</li>
  * </ul>
- *
- * <p/>Caveats:
+ * <p>
+ * Caveats:
  * <ul>
  * <li>A single ManagedLedger can only be open once at any time. Implementation can protect double access from the same
  * VM, but accesses from different machines to the same ManagedLedger need to be avoided through an external source of
@@ -54,7 +54,7 @@ public interface ManagedLedger {
     /**
      * @return the unique name of this ManagedLedger
      */
-    String getName();
+    public String getName();
 
     /**
      * Append a new entry to the end of a managed ledger.
@@ -64,10 +64,10 @@ public interface ManagedLedger {
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
      */
-    Position addEntry(byte[] data) throws InterruptedException, ManagedLedgerException;
+    public Position addEntry(byte[] data) throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Append a new entry asynchronously.
+     * Append a new entry asynchronously
      *
      * @see #addEntry(byte[])
      * @param data
@@ -78,7 +78,7 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(byte[] data, AddEntryCallback callback, Object ctx);
+    public void asyncAddEntry(byte[] data, AddEntryCallback callback, Object ctx);
 
     /**
      * Append a new entry to the end of a managed ledger.
@@ -92,10 +92,10 @@ public interface ManagedLedger {
      * @return the Position at which the entry has been inserted
      * @throws ManagedLedgerException
      */
-    Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException;
+    public Position addEntry(byte[] data, int offset, int length) throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Append a new entry asynchronously.
+     * Append a new entry asynchronously
      *
      * @see #addEntry(byte[])
      * @param data
@@ -109,10 +109,10 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(byte[] data, int offset, int length, AddEntryCallback callback, Object ctx);
+    public void asyncAddEntry(byte[] data, int offset, int length, AddEntryCallback callback, Object ctx);
 
     /**
-     * Append a new entry asynchronously.
+     * Append a new entry asynchronously
      *
      * @see #addEntry(byte[])
      * @param buffer
@@ -122,29 +122,28 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx);
+    public void asyncAddEntry(ByteBuf buffer, AddEntryCallback callback, Object ctx);
 
     /**
      * Open a ManagedCursor in this ManagedLedger.
-     *
-     * <p/>If the cursors doesn't exist, a new one will be created and its position will be at the end of the
-     * ManagedLedger.
+     * <p>
+     * If the cursors doesn't exist, a new one will be created and its position will be at the end of the ManagedLedger.
      *
      * @param name
      *            the name associated with the ManagedCursor
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    ManagedCursor openCursor(String name) throws InterruptedException, ManagedLedgerException;
+    public ManagedCursor openCursor(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
      * exactly like a normal cursor, with the only difference in that after restart it will not remember which entries
      * were deleted. Also it does not prevent data from being deleted.
-     *
-     * <p/>The cursor is anonymous and can be positioned on an arbitrary position.
-     *
-     * <p/>This method is not-blocking.
+     * <p>
+     * The cursor is anonymous and can be positioned on an arbitrary position.
+     * <p>
+     * This method is not-blocking.
      *
      * @param startCursorPosition
      *            the position where the cursor should be initialized, or null to start from the current latest entry.
@@ -152,7 +151,7 @@ public interface ManagedLedger {
      *            to the specified position
      * @return the new NonDurableCursor
      */
-    ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
+    public ManagedCursor newNonDurableCursor(Position startCursorPosition) throws ManagedLedgerException;
 
     /**
      * Delete a ManagedCursor asynchronously.
@@ -165,20 +164,19 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncDeleteCursor(String name, DeleteCursorCallback callback, Object ctx);
+    public void asyncDeleteCursor(String name, DeleteCursorCallback callback, Object ctx);
 
     /**
      * Remove a ManagedCursor from this ManagedLedger.
-     *
-     * <p/>If the cursor doesn't exist, the operation will still succeed.
+     * <p>
+     * If the cursor doesn't exist, the operation will still succeed.
      *
      * @param name
      *            the name associated with the ManagedCursor
-     *
+     * @return the ManagedCursor
      * @throws ManagedLedgerException
-     * @throws InterruptedException
      */
-    void deleteCursor(String name) throws InterruptedException, ManagedLedgerException;
+    public void deleteCursor(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a ManagedCursor asynchronously.
@@ -191,91 +189,90 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncOpenCursor(String name, OpenCursorCallback callback, Object ctx);
+    public void asyncOpenCursor(String name, OpenCursorCallback callback, Object ctx);
 
     /**
-     * Get a list of all the cursors reading from this ManagedLedger.
+     * Get a list of all the cursors reading from this ManagedLedger
      *
      * @return a list of cursors
      */
-    Iterable<ManagedCursor> getCursors();
+    public Iterable<ManagedCursor> getCursors();
 
     /**
-     * Get a list of all the active cursors reading from this ManagedLedger.
+     * Get a list of all the active cursors reading from this ManagedLedger
      *
      * @return a list of cursors
      */
-    Iterable<ManagedCursor> getActiveCursors();
+    public Iterable<ManagedCursor> getActiveCursors();
 
     /**
      * Get the total number of entries for this managed ledger.
-     *
-     * <p/>This is defined by the number of entries in all the BookKeeper ledgers that are being maintained by this
+     * <p>
+     * This is defined by the number of entries in all the BookKeeper ledgers that are being maintained by this
      * ManagedLedger.
-     *
-     * <p/>This method is non-blocking.
+     * <p>
+     * This method is non-blocking.
      *
      * @return the number of entries
      */
-    long getNumberOfEntries();
+    public long getNumberOfEntries();
 
     /**
      * Get the total number of active entries for this managed ledger.
-     *
-     * <p/>This is defined by the number of non consumed entries in all the BookKeeper ledgers that are being maintained
-     * by this ManagedLedger.
-     *
-     * <p/>This method is non-blocking.
+     * <p>
+     * This is defined by the number of non consumed entries in all the BookKeeper ledgers that are being maintained by
+     * this ManagedLedger.
+     * <p>
+     * This method is non-blocking.
      *
      * @return the number of entries
      */
-    long getNumberOfActiveEntries();
+    public long getNumberOfActiveEntries();
 
     /**
      * Get the total sizes in bytes of the managed ledger, without accounting for replicas.
-     *
-     * <p/>This is defined by the sizes of all the BookKeeper ledgers that are being maintained by this ManagedLedger.
-     *
-     * <p/>This method is non-blocking.
+     * <p>
+     * This is defined by the sizes of all the BookKeeper ledgers that are being maintained by this ManagedLedger.
+     * <p>
+     * This method is non-blocking.
      *
      * @return total size in bytes
      */
-    long getTotalSize();
+    public long getTotalSize();
 
     /**
      * Get estimated total unconsumed or backlog size in bytes for the managed ledger, without accounting for replicas.
      *
      * @return estimated total backlog size
      */
-    long getEstimatedBacklogSize();
+    public long getEstimatedBacklogSize();
 
     /**
-     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating
-     * backlog.
+     * Activate cursors those caught up backlog-threshold entries and deactivate slow cursors which are creating backlog
      */
-    void checkBackloggedCursors();
+    public void checkBackloggedCursors();
 
-    void asyncTerminate(TerminateCallback callback, Object ctx);
+    public void asyncTerminate(TerminateCallback callback, Object ctx);
 
     /**
      * Terminate the managed ledger and return the last committed entry.
-     *
-     * <p/>Once the managed ledger is terminated, it will not accept any more write
+     * <p>
+     * Once the managed ledger is terminated, it will not accept any more write
      *
      * @return
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Position terminate() throws InterruptedException, ManagedLedgerException;
+    public Position terminate() throws InterruptedException, ManagedLedgerException;
 
     /**
      * Close the ManagedLedger.
-     *
-     * <p/>This will close all the underlying BookKeeper ledgers. All the ManagedCursors associated will be invalidated.
+     * <p>
+     * This will close all the underlying BookKeeper ledgers. All the ManagedCursors associated will be invalidated.
      *
      * @throws ManagedLedgerException
      */
-    void close() throws InterruptedException, ManagedLedgerException;
+    public void close() throws InterruptedException, ManagedLedgerException;
 
     /**
      * Close the ManagedLedger asynchronously.
@@ -286,51 +283,51 @@ public interface ManagedLedger {
      * @param ctx
      *            opaque context
      */
-    void asyncClose(CloseCallback callback, Object ctx);
+    public void asyncClose(CloseCallback callback, Object ctx);
 
     /**
      * @return the managed ledger stats MBean
      */
-    ManagedLedgerMXBean getStats();
+    public ManagedLedgerMXBean getStats();
 
     /**
-     * Delete the ManagedLedger.
+     * Delete the ManagedLedger
      *
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void delete() throws InterruptedException, ManagedLedgerException;
+    public void delete() throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Async delete a ledger.
+     * Async delete a ledger
      *
      * @param callback
      * @param ctx
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void asyncDelete(DeleteLedgerCallback callback, Object ctx);
+    public void asyncDelete(DeleteLedgerCallback callback, Object ctx);
 
     /**
-     * Get the slowest consumer.
+     * Get the slowest consumer
      *
      * @return the slowest consumer
      */
-    ManagedCursor getSlowestConsumer();
+    public ManagedCursor getSlowestConsumer();
 
     /**
-     * Returns whether the managed ledger was terminated.
+     * Returns whether the managed ledger was terminated
      */
-    boolean isTerminated();
+    public boolean isTerminated();
 
     /**
-     * Returns managed-ledger config.
+     * Returns managed-ledger config 
      */
     ManagedLedgerConfig getConfig();
 
     /**
-     * Updates managed-ledger config.
-     *
+     * Updates managed-ledger config
+     * 
      * @param config
      */
     void setConfig(ManagedLedgerConfig config);

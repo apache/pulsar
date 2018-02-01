@@ -28,30 +28,28 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
  */
 public interface MetaStore {
 
-    @SuppressWarnings("checkstyle:javadoctype")
-    interface Stat {
+    public static interface Stat {
         int getVersion();
         long getCreationTimestamp();
         long getModificationTimestamp();
     }
 
-    @SuppressWarnings("checkstyle:javadoctype")
-    interface UpdateLedgersIdsCallback {
+    public static interface UpdateLedgersIdsCallback {
         void updateLedgersIdsComplete(MetaStoreException status, Stat stat);
     }
 
-    @SuppressWarnings("checkstyle:javadoctype")
-    interface MetaStoreCallback<T> {
+    public static interface MetaStoreCallback<T> {
         void operationComplete(T result, Stat stat);
 
         void operationFailed(MetaStoreException e);
     }
 
     /**
-     * Get the metadata used by the ManagedLedger.
+     * Get the metadata used by the ManagedLedger
      *
      * @param ledgerName
      *            the name of the ManagedLedger
+     * @return a version object and a list of LedgerStats
      * @throws MetaStoreException
      */
     void getManagedLedgerInfo(String ledgerName, MetaStoreCallback<ManagedLedgerInfo> callback);
@@ -60,12 +58,15 @@ public interface MetaStore {
      *
      * @param ledgerName
      *            the name of the ManagedLedger
-     * @param mlInfo
-     *            managed ledger info
+     *
+     * @param ManagedLedgerInfo
+     *            the metadata object to be persisted
      * @param version
      *            version object associated with current state
      * @param callback
      *            callback object
+     * @param ctx
+     *            opaque context object
      */
     void asyncUpdateLedgerIds(String ledgerName, ManagedLedgerInfo mlInfo, Stat version,
             MetaStoreCallback<Void> callback);
@@ -75,13 +76,15 @@ public interface MetaStore {
      *
      * @param ledgerName
      *            the name of the ManagedLedger
+     * @return a list of the consumer Ids
+     * @throws MetaStoreException
      */
     void getCursors(String ledgerName, MetaStoreCallback<List<String>> callback);
 
     /**
      * Get the ledger id associated with a cursor.
      *
-     * <p/>This ledger id will contains the mark-deleted position for the cursor.
+     * This ledger id will contains the mark-deleted position for the cursor.
      *
      * @param ledgerName
      * @param cursorName
@@ -90,13 +93,12 @@ public interface MetaStore {
     void asyncGetCursorInfo(String ledgerName, String cursorName, MetaStoreCallback<ManagedCursorInfo> callback);
 
     /**
-     * Update the persisted position of a cursor.
+     * Update the persisted position of a cursor
      *
      * @param ledgerName
      *            the name of the ManagedLedger
      * @param cursorName
-     * @param info
-     * @param version
+     * @param ledgerId
      * @param callback
      *            the callback
      * @throws MetaStoreException
@@ -105,7 +107,7 @@ public interface MetaStore {
             MetaStoreCallback<Void> callback);
 
     /**
-     * Drop the persistent state of a consumer from the metadata store.
+     * Drop the persistent state of a consumer from the metadata store
      *
      * @param ledgerName
      *            the name of the ManagedLedger
@@ -127,7 +129,7 @@ public interface MetaStore {
     void removeManagedLedger(String ledgerName, MetaStoreCallback<Void> callback);
 
     /**
-     * Get a list of all the managed ledgers in the system.
+     * Get a list of all the managed ledgers in the system
      *
      * @return an Iterable of the names of the managed ledgers
      * @throws MetaStoreException

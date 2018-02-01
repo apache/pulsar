@@ -44,14 +44,14 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     private final Weighter<Value> weighter; // Weighter object used to extract the size from values
 
     /**
-     * Construct a new RangeLruCache with default Weighter.
+     * Construct a new RangeLruCache with default Weighter
      */
     public RangeCache() {
         this(new DefaultWeighter<Value>());
     }
 
     /**
-     * Construct a new RangeLruCache.
+     * Construct a new RangeLruCache
      *
      * @param weighter
      *            a custom weighter to compute the size of each stored value
@@ -63,7 +63,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
-     * Insert.
+     * Insert
      *
      * @param key
      * @param value
@@ -186,7 +186,7 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
-     * Remove all the entries from the cache.
+     * Remove all the entries from the cache
      *
      * @return the old size
      */
@@ -208,16 +208,16 @@ public class RangeCache<Key extends Comparable<Key>, Value extends ReferenceCoun
     }
 
     /**
-     * Interface of a object that is able to the extract the "weight" (size/cost/space) of the cached values.
+     * Interface of a object that is able to the extract the "weight" (size/cost/space) of the cached values
      *
-     * @param <ValueT>
+     * @param <Value>
      */
-    public interface Weighter<ValueT> {
-        long getSize(ValueT value);
+    public static interface Weighter<Value> {
+        long getSize(Value value);
     }
 
     /**
-     * Default cache weighter, every value is assumed the same cost.
+     * Default cache weighter, every value is assumed the same cost
      *
      * @param <Value>
      */

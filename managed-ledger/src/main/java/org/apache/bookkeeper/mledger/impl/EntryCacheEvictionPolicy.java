@@ -21,12 +21,12 @@ package org.apache.bookkeeper.mledger.impl;
 import java.util.List;
 
 /**
- * Cache eviction policy abstraction interface.
+ * Cache eviction policy abstraction interface
  *
  */
 public interface EntryCacheEvictionPolicy {
     /**
-     * Perform the cache eviction of at least sizeToFree bytes on the supplied list of caches.
+     * Perform the cache eviction of at least sizeToFree bytes on the supplied list of caches
      *
      * @param caches
      *            the list of caches to consider

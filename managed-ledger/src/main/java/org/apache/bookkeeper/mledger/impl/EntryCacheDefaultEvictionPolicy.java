@@ -30,10 +30,10 @@ import org.slf4j.LoggerFactory;
 /**
  * Default eviction policy.
  *
- * <p/>This policy consider only the bigger caches for doing eviction.
+ * This policy consider only the bigger caches for doing eviction.
  *
- * <p/>The PercentOfSizeToConsiderForEviction parameter should always be bigger than the cacheEvictionWatermak,
- * otherwisethe eviction cycle will free less memory than what was required.
+ * The PercentOfSizeToConsiderForEviction parameter should always be bigger than the cacheEvictionWatermak, otherwise
+ * the eviction cycle will free less memory than what was required.
  */
 public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy {
 

@@ -19,46 +19,46 @@
 package org.apache.bookkeeper.mledger;
 
 /**
- * JMX Bean interface for ManagedLedgerFactory stats.
+ * JMX Bean interface for ManagedLedgerFactory stats
  */
 public interface ManagedLedgerFactoryMXBean {
     /**
-     * Get the number of currently opened managed ledgers on the factory.
+     * Get the number of currently opened managed ledgers on the factory
      */
     int getNumberOfManagedLedgers();
 
     /**
-     * Get the size in byte used to store the entries payloads.
+     * Get the size in byte used to store the entries payloads
      */
     long getCacheUsedSize();
 
     /**
-     * Get the configured maximum cache size.
+     * Get the configured maximum cache size
      */
     long getCacheMaxSize();
 
     /**
-     * Get the number of cache hits per second.
+     * Get the number of cache hits per second
      */
     double getCacheHitsRate();
 
     /**
-     * Get the number of cache misses per second.
+     * Get the number of cache misses per second
      */
     double getCacheMissesRate();
 
     /**
-     * Get the amount of data is retrieved from the cache in byte/s.
+     * Get the amount of data is retrieved from the cache in byte/s
      */
     double getCacheHitsThroughput();
 
     /**
-     * Get the amount of data is retrieved from the bookkeeper in byte/s.
+     * Get the amount of data is retrieved from the bookkeeper in byte/s
      */
     double getCacheMissesThroughput();
 
     /**
-     * Get the number of cache evictions during the last minute.
+     * Get the number of cache evictions during the last minute
      */
     long getNumberOfCacheEvictions();
 }

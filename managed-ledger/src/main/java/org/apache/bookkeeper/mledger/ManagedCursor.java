@@ -33,34 +33,32 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.SkipEntriesCallback;
 
 /**
  * A ManangedCursor is a persisted cursor inside a ManagedLedger.
- *
- * <p/>The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the
- * messages that it has read before.
+ * <p>
+ * The ManagedCursor is used to read from the ManagedLedger and to signal when the consumer is done with the messages
+ * that it has read before.
  */
 @Beta
 public interface ManagedCursor {
 
-    @SuppressWarnings("checkstyle:javadoctype")
-    enum FindPositionConstraint {
+    public enum FindPositionConstraint {
         SearchActiveEntries, SearchAllAvailableEntries
-    }
+    };
 
-    @SuppressWarnings("checkstyle:javadoctype")
-    enum IndividualDeletedEntries {
+    public enum IndividualDeletedEntries {
         Include, Exclude
-    }
+    };
 
     /**
      * Get the unique cursor name.
      *
      * @return the cursor name
      */
-    String getName();
+    public String getName();
 
     /**
-     * Return any properties that were associated with the last stored position.
+     * Return any properties that were associated with the last stored position
      */
-    Map<String, Long> getProperties();
+    public Map<String, Long> getProperties();
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
@@ -70,7 +68,7 @@ public interface ManagedCursor {
      * @return the list of entries
      * @throws ManagedLedgerException
      */
-    List<Entry> readEntries(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException;
+    public List<Entry> readEntries(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Asynchronously read entries from the ManagedLedger.
@@ -83,12 +81,12 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+    public void asyncReadEntries(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
      *
-     * @param n
+     * @param N
      *            entry position
      * @param deletedEntries
      *            skip individual deleted entries
@@ -98,39 +96,39 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Entry getNthEntry(int n, IndividualDeletedEntries deletedEntries)
+    public Entry getNthEntry(int N, IndividualDeletedEntries deletedEntries)
             throws InterruptedException, ManagedLedgerException;
 
     /**
      * Asynchronously get 'N'th entry from the mark delete position in the cursor without updating any cursor positions.
      *
-     * @param n
+     * @param N
      *            entry position
      * @param deletedEntries
      *            skip individual deleted entries
      * @param callback
      * @param ctx
      */
-    void asyncGetNthEntry(int n, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
+    public void asyncGetNthEntry(int N, IndividualDeletedEntries deletedEntries, ReadEntryCallback callback,
             Object ctx);
 
     /**
      * Read entries from the ManagedLedger, up to the specified number. The returned list can be smaller.
      *
-     * <p/>If no entries are available, the method will block until at least a new message will be persisted.
+     * If no entries are available, the method will block until at least a new message will be persisted.
      *
      * @param numberOfEntriesToRead
      *            maximum number of entries to return
      * @return the list of entries
      * @throws ManagedLedgerException
      */
-    List<Entry> readEntriesOrWait(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException;
+    public List<Entry> readEntriesOrWait(int numberOfEntriesToRead) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Asynchronously read entries from the ManagedLedger.
      *
-     * <p/>If no entries are available, the callback will not be triggered. Instead it will be registered to wait until
-     * a new message will be persisted into the managed ledger
+     * If no entries are available, the callback will not be triggered. Instead it will be registered to wait until a
+     * new message will be persisted into the managed ledger
      *
      * @see #readEntriesOrWait(int)
      * @param numberOfEntriesToRead
@@ -140,45 +138,44 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
+    public void asyncReadEntriesOrWait(int numberOfEntriesToRead, ReadEntriesCallback callback, Object ctx);
 
     /**
-     * Cancel a previously scheduled asyncReadEntriesOrWait operation.
+     * Cancel a previously scheduled asyncReadEntriesOrWait operation
      *
-     * @see #asyncReadEntriesOrWait(int, ReadEntriesCallback, Object)
+     * @see #asyncReadEntriesOrWait(int)
      * @return true if the read operation was canceled or false if there was no pending operation
      */
-    boolean cancelPendingReadRequest();
+    public boolean cancelPendingReadRequest();
 
     /**
      * Tells whether this cursor has already consumed all the available entries.
-     *
-     * <p/>This method is not blocking.
+     * <p>
+     * This method is not blocking.
      *
      * @return true if there are pending entries to read, false otherwise
      */
-    boolean hasMoreEntries();
+    public boolean hasMoreEntries();
 
     /**
      * Return the number of messages that this cursor still has to read.
      *
-     * <p/>This method has linear time complexity on the number of ledgers included in the managed ledger.
+     * This method has linear time complexity on the number of ledgers included in the managed ledger.
      *
      * @return the number of entries
      */
-    long getNumberOfEntries();
+    public long getNumberOfEntries();
 
     /**
      * Return the number of non-deleted messages on this cursor.
      *
-     * <p/>This will also include messages that have already been read from the cursor but not deleted or mark-deleted
-     * yet.
+     * This will also include messages that have already been read from the cursor but not deleted or mark-deleted yet.
      *
-     * <p/>This method has linear time complexity on the number of ledgers included in the managed ledger.
+     * This method has linear time complexity on the number of ledgers included in the managed ledger.
      *
      * @return the number of entries
      */
-    long getNumberOfEntriesInBacklog();
+    public long getNumberOfEntriesInBacklog();
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
@@ -189,7 +186,7 @@ public interface ManagedCursor {
      *
      * @throws ManagedLedgerException
      */
-    void markDelete(Position position) throws InterruptedException, ManagedLedgerException;
+    public void markDelete(Position position) throws InterruptedException, ManagedLedgerException;
 
     /**
      * This signals that the reader is done with all the entries up to "position" (included). This can potentially
@@ -202,11 +199,11 @@ public interface ManagedCursor {
      *
      * @throws ManagedLedgerException
      */
-    void markDelete(Position position, Map<String, Long> properties)
+    public void markDelete(Position position, Map<String, Long> properties)
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Asynchronous mark delete.
+     * Asynchronous mark delete
      *
      * @see #markDelete(Position)
      * @param position
@@ -216,10 +213,10 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncMarkDelete(Position position, MarkDeleteCallback callback, Object ctx);
+    public void asyncMarkDelete(Position position, MarkDeleteCallback callback, Object ctx);
 
     /**
-     * Asynchronous mark delete.
+     * Asynchronous mark delete
      *
      * @see #markDelete(Position)
      * @param position
@@ -231,30 +228,30 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback, Object ctx);
+    public void asyncMarkDelete(Position position, Map<String, Long> properties, MarkDeleteCallback callback, Object ctx);
 
     /**
-     * Delete a single message.
-     *
-     * <p/>Mark a single message for deletion. When all the previous messages are all deleted, then markDelete() will be
+     * Delete a single message
+     * <p>
+     * Mark a single message for deletion. When all the previous messages are all deleted, then markDelete() will be
      * called internally to advance the persistent acknowledged position.
-     *
-     * <p/>The deletion of the message is not persisted into the durable storage and cannot be recovered upon the
-     * reopening of the ManagedLedger
+     * <p>
+     * The deletion of the message is not persisted into the durable storage and cannot be recovered upon the reopening
+     * of the ManagedLedger
      *
      * @param position
      *            the position of the message to be deleted
      */
-    void delete(Position position) throws InterruptedException, ManagedLedgerException;
+    public void delete(Position position) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Delete a single message asynchronously
-     *
-     * <p/>Mark a single message for deletion. When all the previous messages are all deleted, then markDelete() will be
+     * <p>
+     * Mark a single message for deletion. When all the previous messages are all deleted, then markDelete() will be
      * called internally to advance the persistent acknowledged position.
-     *
-     * <p/>The deletion of the message is not persisted into the durable storage and cannot be recovered upon the
-     * reopening of the ManagedLedger
+     * <p>
+     * The deletion of the message is not persisted into the durable storage and cannot be recovered upon the reopening
+     * of the ManagedLedger
      *
      * @param position
      *            the position of the message to be deleted
@@ -263,61 +260,61 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncDelete(Position position, DeleteCallback callback, Object ctx);
+    public void asyncDelete(Position position, DeleteCallback callback, Object ctx);
 
     /**
      * Get the read position. This points to the next message to be read from the cursor.
      *
      * @return the read position
      */
-    Position getReadPosition();
+    public Position getReadPosition();
 
     /**
      * Get the newest mark deleted position on this cursor.
      *
      * @return the mark deleted position
      */
-    Position getMarkDeletedPosition();
+    public Position getMarkDeletedPosition();
 
     /**
      * Rewind the cursor to the mark deleted position to replay all the already read but not yet mark deleted messages.
      *
-     * <p/>The next message to be read is the one after the current mark deleted message.
+     * The next message to be read is the one after the current mark deleted message.
      */
-    void rewind();
+    public void rewind();
 
     /**
      * Move the cursor to a different read position.
      *
-     * <p/>If the new position happens to be before the already mark deleted position, it will be set to the mark
-     * deleted position instead.
+     * If the new position happens to be before the already mark deleted position, it will be set to the mark deleted
+     * position instead.
      *
      * @param newReadPosition
      *            the position where to move the cursor
      */
-    void seek(Position newReadPosition);
+    public void seek(Position newReadPosition);
 
     /**
      * Clear the cursor backlog.
      *
-     * <p/>Consume all the entries for this cursor.
+     * Consume all the entries for this cursor.
      */
-    void clearBacklog() throws InterruptedException, ManagedLedgerException;
+    public void clearBacklog() throws InterruptedException, ManagedLedgerException;
 
     /**
      * Clear the cursor backlog.
      *
-     * <p/>Consume all the entries for this cursor.
+     * Consume all the entries for this cursor.
      *
      * @param callback
      *            callback object
      * @param ctx
      *            opaque context
      */
-    void asyncClearBacklog(ClearBacklogCallback callback, Object ctx);
+    public void asyncClearBacklog(ClearBacklogCallback callback, Object ctx);
 
     /**
-     * Skip n entries from the read position of this cursor.
+     * Skip n entries from the read position of this cursor
      *
      * @param numEntriesToSkip
      *            number of entries to skip
@@ -326,11 +323,11 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void skipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries)
+    public void skipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries)
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Skip n entries from the read position of this cursor.
+     * Skip n entries from the read position of this cursor
      *
      * @param numEntriesToSkip
      *            number of entries to skip
@@ -341,11 +338,11 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncSkipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries,
+    public void asyncSkipEntries(int numEntriesToSkip, IndividualDeletedEntries deletedEntries,
             final SkipEntriesCallback callback, Object ctx);
 
     /**
-     * Find the newest entry that matches the given predicate.
+     * Find the newest entry that matches the given predicate
      *
      * @param condition
      *            predicate that reads an entry an applies a condition
@@ -353,10 +350,10 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
+    public Position findNewestMatching(Predicate<Entry> condition) throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Find the newest entry that matches the given predicate.
+     * Find the newest entry that matches the given predicate
      *
      * @param condition
      *            predicate that reads an entry an applies a condition
@@ -365,31 +362,31 @@ public interface ManagedCursor {
      * @param ctx
      *            opaque context
      */
-    void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
+    public void asyncFindNewestMatching(FindPositionConstraint constraint, Predicate<Entry> condition,
             FindEntryCallback callback, Object ctx);
 
     /**
-     * reset the cursor to specified position to enable replay of messages.
+     * reset the cursor to specified position to enable replay of messages
      *
      * @param position
      *            position to move the cursor to
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void resetCursor(final Position position) throws InterruptedException, ManagedLedgerException;
+    public void resetCursor(final Position position) throws InterruptedException, ManagedLedgerException;
 
     /**
-     * reset the cursor to specified position to enable replay of messages.
+     * reset the cursor to specified position to enable replay of messages
      *
      * @param position
      *            position to move the cursor to
      * @param callback
      *            callback object
      */
-    void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback);
+    public void asyncResetCursor(final Position position, AsyncCallbacks.ResetCursorCallback callback);
 
     /**
-     * Read the specified set of positions from ManagedLedger.
+     * Read the specified set of positions from ManagedLedger
      *
      * @param positions
      *            set of positions to read
@@ -397,11 +394,11 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    List<Entry> replayEntries(Set<? extends Position> positions)
+    public List<Entry> replayEntries(Set<? extends Position> positions)
             throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Read the specified set of positions from ManagedLedger.
+     * Read the specified set of positions from ManagedLedger
      *
      * @param positions
      *            set of positions to read
@@ -412,8 +409,7 @@ public interface ManagedCursor {
      * @return skipped positions
      *              set of positions which are already deleted/acknowledged and skipped while replaying them
      */
-    Set<? extends Position> asyncReplayEntries(
-        Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
+    public Set<? extends Position> asyncReplayEntries(Set<? extends Position> positions, ReadEntriesCallback callback, Object ctx);
 
     /**
      * Close the cursor and releases the associated resources.
@@ -421,73 +417,73 @@ public interface ManagedCursor {
      * @throws InterruptedException
      * @throws ManagedLedgerException
      */
-    void close() throws InterruptedException, ManagedLedgerException;
+    public void close() throws InterruptedException, ManagedLedgerException;
 
     /**
-     * Close the cursor asynchronously and release the associated resources.
+     * Close the cursor asynchronously and release the associated resources
      *
      * @param callback
      *            callback object
      * @param ctx
      *            opaque context
      */
-    void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
+    public void asyncClose(AsyncCallbacks.CloseCallback callback, Object ctx);
 
     /**
      * Get the first position.
      *
      * @return the first position
      */
-    Position getFirstPosition();
+    public Position getFirstPosition();
 
     /**
-     * Activate cursor: EntryCacheManager caches entries only for activated-cursors.
+     * Activate cursor: EntryCacheManager caches entries only for activated-cursors
      *
      */
-    void setActive();
+    public void setActive();
 
     /**
-     * Deactivate cursor.
+     * Deactivate cursor
      *
      */
-    void setInactive();
+    public void setInactive();
 
     /**
      * Checks if cursor is active or not.
      *
      * @return
      */
-    boolean isActive();
+    public boolean isActive();
 
     /**
-     * Tells whether the cursor is durable or just kept in memory.
+     * Tells whether the cursor is durable or just kept in memory
      */
-    boolean isDurable();
+    public boolean isDurable();
 
     /**
-     * Returns total number of entries from the first not-acked message to current dispatching position.
-     *
+     * Returns total number of entries from the first not-acked message to current dispatching position 
+     * 
      * @return
      */
     long getNumberOfEntriesSinceFirstNotAckedMessage();
 
     /**
-     * Returns number of mark-Delete range.
-     *
+     * Returns number of mark-Delete range
+     * 
      * @return
      */
     int getTotalNonContiguousDeletedMessagesRange();
 
     /**
-     * Returns cursor throttle mark-delete rate.
-     *
+     * Returns cursor throttle mark-delete rate
+     * 
      * @return
      */
     double getThrottleMarkDelete();
 
     /**
-     * Update throttle mark delete rate.
-     *
+     * Update throttle mark delete rate
+     * 
      */
     void setThrottleMarkDelete(double throttleMarkDelete);
 

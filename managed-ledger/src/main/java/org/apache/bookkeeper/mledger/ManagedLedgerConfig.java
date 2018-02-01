@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 
 /**
- * Configuration class for a ManagedLedger.
+ * Configuration class for a ManagedLedger
  */
 @Beta
 public class ManagedLedgerConfig {
@@ -96,7 +96,7 @@ public class ManagedLedgerConfig {
     /**
      * Set the minimum rollover time for ledgers in this managed ledger.
      *
-     * <p/>If this time is > 0, a ledger will not be rolled over more frequently than the specified time, even if it has
+     * If this time is > 0, a ledger will not be rolled over more frequently than the specified time, even if it has
      * reached the maximum number of entries or maximum size. This parameter can be used to reduce the amount of
      * rollovers on managed ledger with high write throughput.
      *
@@ -112,7 +112,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * @return the maximum rollover time.
+     * @return the maximum rollover time
      */
     public long getMaximumRolloverTimeMs() {
         return maximumRolloverTimeMs;
@@ -121,8 +121,8 @@ public class ManagedLedgerConfig {
     /**
      * Set the maximum rollover time for ledgers in this managed ledger.
      *
-     * <p/>If the ledger is not rolled over until this time, even if it has not reached the number of entry or size
-     * limit, this setting will trigger rollover. This parameter can be used for topics with low request rate to force
+     * If the ledger is not rolled over until this time, even if it has not reached the number of entry or size limit,
+     * this setting will trigger rollover. This parameter can be used for topics with low request rate to force
      * rollover, so recovery failure does not have to go far back.
      *
      * @param maximumRolloverTime
@@ -374,6 +374,8 @@ public class ManagedLedgerConfig {
     /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
      * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+     * 
+     * @param autoSkipNonRecoverableData
      */
     public boolean isAutoSkipNonRecoverableData() {
         return autoSkipNonRecoverableData;
@@ -399,10 +401,10 @@ public class ManagedLedgerConfig {
         this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
         return this;
     }
-
+    
     /**
      * @return max unacked message ranges up to which it can store in Zookeeper
-     *
+     * 
      */
     public int getMaxUnackedRangesToPersistInZk() {
         return maxUnackedRangesToPersistInZk;

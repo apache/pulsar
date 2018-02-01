@@ -26,103 +26,102 @@ import java.util.List;
  *
  */
 @Beta
-@SuppressWarnings("checkstyle:javadoctype")
 public interface AsyncCallbacks {
 
-    interface OpenLedgerCallback {
-        void openLedgerComplete(ManagedLedger ledger, Object ctx);
+    public interface OpenLedgerCallback {
+        public void openLedgerComplete(ManagedLedger ledger, Object ctx);
 
-        void openLedgerFailed(ManagedLedgerException exception, Object ctx);
+        public void openLedgerFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface DeleteLedgerCallback {
-        void deleteLedgerComplete(Object ctx);
+    public interface DeleteLedgerCallback {
+        public void deleteLedgerComplete(Object ctx);
 
-        void deleteLedgerFailed(ManagedLedgerException exception, Object ctx);
+        public void deleteLedgerFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface OpenCursorCallback {
-        void openCursorComplete(ManagedCursor cursor, Object ctx);
+    public interface OpenCursorCallback {
+        public void openCursorComplete(ManagedCursor cursor, Object ctx);
 
-        void openCursorFailed(ManagedLedgerException exception, Object ctx);
+        public void openCursorFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface DeleteCursorCallback {
-        void deleteCursorComplete(Object ctx);
+    public interface DeleteCursorCallback {
+        public void deleteCursorComplete(Object ctx);
 
-        void deleteCursorFailed(ManagedLedgerException exception, Object ctx);
+        public void deleteCursorFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface AddEntryCallback {
-        void addComplete(Position position, Object ctx);
+    public interface AddEntryCallback {
+        public void addComplete(Position position, Object ctx);
 
-        void addFailed(ManagedLedgerException exception, Object ctx);
+        public void addFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface CloseCallback {
-        void closeComplete(Object ctx);
+    public interface CloseCallback {
+        public void closeComplete(Object ctx);
 
-        void closeFailed(ManagedLedgerException exception, Object ctx);
+        public void closeFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface ReadEntriesCallback {
-        void readEntriesComplete(List<Entry> entries, Object ctx);
+    public interface ReadEntriesCallback {
+        public void readEntriesComplete(List<Entry> entries, Object ctx);
 
-        void readEntriesFailed(ManagedLedgerException exception, Object ctx);
+        public void readEntriesFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface ReadEntryCallback {
-        void readEntryComplete(Entry entry, Object ctx);
+    public interface ReadEntryCallback {
+        public void readEntryComplete(Entry entry, Object ctx);
 
-        void readEntryFailed(ManagedLedgerException exception, Object ctx);
+        public void readEntryFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface MarkDeleteCallback {
-        void markDeleteComplete(Object ctx);
+    public interface MarkDeleteCallback {
+        public void markDeleteComplete(Object ctx);
 
-        void markDeleteFailed(ManagedLedgerException exception, Object ctx);
+        public void markDeleteFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface ClearBacklogCallback {
-        void clearBacklogComplete(Object ctx);
+    public interface ClearBacklogCallback {
+        public void clearBacklogComplete(Object ctx);
 
-        void clearBacklogFailed(ManagedLedgerException exception, Object ctx);
+        public void clearBacklogFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface SkipEntriesCallback {
-        void skipEntriesComplete(Object ctx);
+    public interface SkipEntriesCallback {
+        public void skipEntriesComplete(Object ctx);
 
-        void skipEntriesFailed(ManagedLedgerException exception, Object ctx);
+        public void skipEntriesFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface DeleteCallback {
-        void deleteComplete(Object ctx);
+    public interface DeleteCallback {
+        public void deleteComplete(Object ctx);
 
-        void deleteFailed(ManagedLedgerException exception, Object ctx);
+        public void deleteFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface TerminateCallback {
-        void terminateComplete(Position lastCommittedPosition, Object ctx);
+    public interface TerminateCallback {
+        public void terminateComplete(Position lastCommittedPosition, Object ctx);
 
-        void terminateFailed(ManagedLedgerException exception, Object ctx);
+        public void terminateFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface FindEntryCallback {
-        void findEntryComplete(Position position, Object ctx);
+    public interface FindEntryCallback {
+        public void findEntryComplete(Position position, Object ctx);
 
-        void findEntryFailed(ManagedLedgerException exception, Object ctx);
+        public void findEntryFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface ResetCursorCallback {
-        void resetComplete(Object ctx);
+    public interface ResetCursorCallback {
+        public void resetComplete(Object ctx);
 
-        void resetFailed(ManagedLedgerException exception, Object ctx);
+        public void resetFailed(ManagedLedgerException exception, Object ctx);
     }
 
-    interface ManagedLedgerInfoCallback {
-        void getInfoComplete(ManagedLedgerInfo info, Object ctx);
+    public interface ManagedLedgerInfoCallback {
+        public void getInfoComplete(ManagedLedgerInfo info, Object ctx);
 
-        void getInfoFailed(ManagedLedgerException exception, Object ctx);
+        public void getInfoFailed(ManagedLedgerException exception, Object ctx);
     }
 
 }

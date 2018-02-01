@@ -57,7 +57,7 @@ public class ManagedLedgerCacheMetrics extends AbstractMetrics {
         m.put("brk_ml_cache_hits_throughput", mlCacheStats.getCacheHitsThroughput());
         m.put("brk_ml_cache_misses_throughput", mlCacheStats.getCacheMissesThroughput());
 
-        PooledByteBufAllocator allocator = EntryCacheImpl.ALLOCATOR;
+        PooledByteBufAllocator allocator = EntryCacheImpl.allocator;
         long activeAllocations = 0;
         long activeAllocationsTiny = 0;
         long activeAllocationsSmall = 0;

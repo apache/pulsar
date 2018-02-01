@@ -18,9 +18,6 @@
  */
 package org.apache.bookkeeper.mledger;
 
-/**
- * Configuration for a {@link ManagedLedgerFactory}.
- */
 public class ManagedLedgerFactoryConfig {
     private static final long MB = 1024 * 1024;
 

@@ -34,15 +34,15 @@ import org.apache.bookkeeper.mledger.util.Pair;
 /**
  * Contains all the cursors for a ManagedLedger.
  *
- * <p/>The goal is to always know the slowest consumer and hence decide which is the oldest ledger we need to keep.
+ * The goal is to always know the slowest consumer and hence decide which is the oldest ledger we need to keep.
  *
- * <p/>This data structure maintains a list and a map of cursors. The map is used to relate a cursor name with an entry
- * in the linked-list. The list is a sorted double linked-list of cursors.
+ * This data structure maintains a list and a map of cursors. The map is used to relate a cursor name with an entry in
+ * the linked-list. The list is a sorted double linked-list of cursors.
  *
- * <p/>When a cursor is markDeleted, this list is updated and the cursor is moved in its new position.
+ * When a cursor is markDeleted, this list is updated and the cursor is moved in its new position.
  *
- * <p/>To minimize the moving around, the order is maintained using the ledgerId, but not the entryId, since we only
- * care about ledgers to be deleted.
+ * To minimize the moving around, the order is maintained using the ledgerId, but not the entryId, since we only care
+ * about ledgers to be deleted.
  *
  */
 class ManagedCursorContainer implements Iterable<ManagedCursor> {
@@ -228,7 +228,7 @@ class ManagedCursorContainer implements Iterable<ManagedCursor> {
     // //////////////////////
 
     /**
-     * Push the item up towards the the root of the tree (lowest reading position).
+     * Push the item up towards the the root of the tree (lowest reading position)
      */
     private void siftUp(Item item) {
         Item parent = getParent(item);
@@ -239,7 +239,7 @@ class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     * Push the item down towards the bottom of the tree (highest reading position).
+     * Push the item down towards the bottom of the tree (highest reading position)
      */
     private void siftDown(final Item item) {
         while (true) {
@@ -268,7 +268,7 @@ class ManagedCursorContainer implements Iterable<ManagedCursor> {
     }
 
     /**
-     * Swap two items in the heap.
+     * Swap two items in the heap
      */
     private void swap(Item item1, Item item2) {
         int idx1 = item1.idx;
