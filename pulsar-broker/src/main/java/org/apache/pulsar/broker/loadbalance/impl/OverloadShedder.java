@@ -45,7 +45,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
     /**
      * Create an OverloadShedder with the service configuration.
-     * 
+     *
      * @param conf
      *            Service configuration to create from.
      */
@@ -55,7 +55,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
     /**
      * Attempt to shed one bundle off every broker which is overloaded.
-     * 
+     *
      * @param loadData
      *            The load data to used to make the unloading decision.
      * @param conf
@@ -78,6 +78,10 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 if (localData.getBundles().size() > 1) {
                     for (final String bundle : localData.getBundles()) {
                         final BundleData bundleData = loadData.getBundleData().get(bundle);
+                        if (bundleData == null) {
+                            continue;
+                        }
+
                         // Consider short-term message rate to address system resource burden
                         final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
                         final double messageRate = shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut();
