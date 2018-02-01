@@ -25,6 +25,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
+import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,8 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
 import java.io.File;
+import java.lang.reflect.Type;
+import java.util.Map;
 
 @Slf4j
 @Parameters(commandDescription = "Operations about functions")
@@ -127,6 +130,10 @@ public class CmdFunctions extends CmdBase {
 
         @Parameter(names = "--processing-guarantees", description = "Processing Guarantees\n")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
+
+        @Parameter(names = "--user-config", description = "User Config\n")
+        protected String userConfigString;
+
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
 
@@ -175,6 +182,11 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != processingGuarantees) {
                 functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
+            }
+            if (null != userConfigString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> userConfigMap = new Gson().fromJson(userConfigString, type);
+                functionConfigBuilder.putAllUserConfig(userConfigMap);
             }
             if (null != jarFile) {
                 doJavaSubmitChecks(functionConfigBuilder);
