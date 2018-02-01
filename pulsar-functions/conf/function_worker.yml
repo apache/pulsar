@@ -18,6 +18,7 @@
 #
 
 workerId: standalone
+workerHostname: localhost
 workerPort: 6750
 zookeeperServers: localhost:2181
 functionMetadataTopicName: metadata

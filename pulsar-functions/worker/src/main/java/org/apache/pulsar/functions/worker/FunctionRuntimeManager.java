@@ -19,23 +19,33 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.InvalidProtocolBufferException;
+import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
+import javax.ws.rs.client.Client;
+import javax.ws.rs.client.ClientBuilder;
+import javax.ws.rs.core.MediaType;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 
 /**
@@ -70,10 +80,13 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private FunctionContainerFactory functionContainerFactory;
 
+    private MembershipManager membershipManager;
+
 
     public FunctionRuntimeManager(WorkerConfig workerConfig,
                                   PulsarClient pulsarClient,
-                                  Namespace dlogNamespace) throws Exception {
+                                  Namespace dlogNamespace,
+                                  MembershipManager membershipManager) throws Exception {
         this.workerConfig = workerConfig;
 
         Reader reader = pulsarClient.createReader(
@@ -107,6 +120,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.functionActioner = new FunctionActioner(this.workerConfig, functionContainerFactory,
                 this.metricsSink, this.workerConfig.getMetricsConfig().getMetricsCollectionInterval(),
                 dlogNamespace, actionQueue);
+
+        this.membershipManager = membershipManager;
     }
 
     public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {
@@ -129,6 +144,81 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.functionActioner.start();
         log.info("Starting function assignment tailer...");
         this.functionAssignmentTailer.start();
+    }
+
+    public InstanceCommunication.FunctionStatus getFunctionStatus(String tenant, String namespace, String functionName) {
+        Map<String, Map<String, Function.Assignment>> currentAssignments = this.getCurrentAssignments();
+
+        log.info("this.getCurrentAssignments(): {}", this.getCurrentAssignments());
+        String workerId = this.workerConfig.getWorkerId();
+
+        Function.Assignment assignment = this.findAssignment(tenant, namespace, functionName);
+        if (assignment == null) {
+            InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
+                    = InstanceCommunication.FunctionStatus.newBuilder();
+            functionStatusBuilder.setRunning(false);
+            functionStatusBuilder.setFailureException("Function has not been scheduled");
+            return functionStatusBuilder.build();
+        }
+
+        InstanceCommunication.FunctionStatus functionStatus = null;
+        // If I am running worker
+        if (assignment.getWorkerId().equals(workerId)) {
+            FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
+                    FunctionConfigUtils.getFullyQualifiedName(tenant, namespace, functionName));
+            Spawner spawner = functionRuntimeInfo.getSpawner();
+            if (spawner != null) {
+                try {
+                    functionStatus = functionRuntimeInfo.getSpawner().getFunctionStatus().get();
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
+                        = InstanceCommunication.FunctionStatus.newBuilder();
+                functionStatusBuilder.setRunning(false);
+                if (functionRuntimeInfo.getStartupException() != null) {
+                    functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
+                }
+                functionStatus = functionStatusBuilder.build();
+            }
+        } else {
+            // query other worker
+
+            List<MembershipManager.WorkerInfo> workerInfoList = this.membershipManager.getCurrentMembership();
+            MembershipManager.WorkerInfo workerInfo = null;
+            for (MembershipManager.WorkerInfo entry: workerInfoList) {
+                if (assignment.getWorkerId().equals(entry.getWorkerId())) {
+                    workerInfo = entry;
+                }
+            }
+            if (workerInfo == null) {
+                InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
+                        = InstanceCommunication.FunctionStatus.newBuilder();
+                functionStatusBuilder.setRunning(false);
+                functionStatusBuilder.setFailureException("Function has not been scheduled");
+                return functionStatusBuilder.build();
+            }
+
+            Client client = ClientBuilder.newClient();
+
+            // TODO: implement authentication/authorization
+            String jsonResponse = client.target(String.format("http://%s:%d/admin/functions/%s/%s/%s/status",
+                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName))
+                    .request(MediaType.TEXT_PLAIN)
+                    .get(String.class);
+
+            InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
+            try {
+                JsonFormat.parser().merge(jsonResponse, functionStatusBuilder);
+            } catch (InvalidProtocolBufferException e) {
+                log.warn("Got invalid function status response from {}", workerInfo, e);
+                throw new RuntimeException(e);
+            }
+            functionStatus = functionStatusBuilder.build();
+        }
+
+        return functionStatus;
     }
 
     public synchronized void processAssignmentUpdate(MessageId messageId, AssignmentsUpdate assignmentsUpdate) {
@@ -244,18 +334,25 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    private Assignment findAssignment(Assignment assignment) {
+    private Assignment findAssignment(String tenant, String namespace, String functionName) {
+        String fullyQualifiedName
+                = FunctionConfigUtils.getFullyQualifiedName(tenant, namespace, functionName);
         for (Map.Entry<String, Map<String, Assignment>> entry : this.workerIdToAssignments.entrySet()) {
-            String workerId = entry.getKey();
             Map<String, Assignment> assignmentMap = entry.getValue();
-            String fullyQualifiedName
-                    = FunctionConfigUtils.getFullyQualifiedName(assignment.getFunctionMetaData().getFunctionConfig());
             Assignment existingAssignment = assignmentMap.get(fullyQualifiedName);
             if (existingAssignment != null) {
                 return existingAssignment;
             }
         }
         return null;
+    }
+
+    private Assignment findAssignment(Assignment assignment) {
+        return findAssignment(
+                assignment.getFunctionMetaData().getFunctionConfig().getTenant(),
+                assignment.getFunctionMetaData().getFunctionConfig().getNamespace(),
+                assignment.getFunctionMetaData().getFunctionConfig().getName()
+        );
     }
 
     @VisibleForTesting

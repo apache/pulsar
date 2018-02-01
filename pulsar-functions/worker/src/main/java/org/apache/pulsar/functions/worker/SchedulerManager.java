@@ -42,7 +42,6 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.stream.Collector;
 import java.util.stream.Collectors;
 
 @Slf4j
@@ -101,8 +100,8 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     public void invokeScheduler() {
-        List<String> currentMembership = this.membershipManager.getCurrentMembership();
-
+        List<String> currentMembership = this.membershipManager.getCurrentMembership()
+                .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
 
         List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
 
@@ -118,6 +117,7 @@ public class SchedulerManager implements AutoCloseable {
                 needsAssignment, currentAssignments, currentMembership);
 
         log.info("New Assignment computed: {}", assignments);
+
         long assignmentVersion = this.functionRuntimeManager.getCurrentAssignmentVersion() + 1;
         Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
                 .setVersion(assignmentVersion)

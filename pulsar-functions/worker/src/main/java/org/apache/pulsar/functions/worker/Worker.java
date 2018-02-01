@@ -133,12 +133,12 @@ public class Worker extends AbstractService {
             this.functionMetaDataManager = new FunctionMetaDataManager(
                     this.workerConfig, this.schedulerManager, this.client);
 
-            // create function runtime manager
-            this.functionRuntimeManager = new FunctionRuntimeManager(
-                    this.workerConfig, this.client, this.dlogNamespace);
-
             //create membership manager
             this.membershipManager = new MembershipManager(this.workerConfig, this.schedulerManager, this.client);
+
+            // create function runtime manager
+            this.functionRuntimeManager = new FunctionRuntimeManager(
+                    this.workerConfig, this.client, this.dlogNamespace, this.membershipManager);
 
             // Setting references to managers in scheduler
             this.schedulerManager.setFunctionMetaDataManager(this.functionMetaDataManager);
