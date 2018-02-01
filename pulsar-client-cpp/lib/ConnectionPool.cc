@@ -33,36 +33,37 @@ ConnectionPool::ConnectionPool(const ClientConfiguration& conf, ExecutorServiceP
       poolConnections_(poolConnections),
       mutex_() {}
 
-Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(const std::string& endpoint) {
+Future<Result, ClientConnectionWeakPtr> ConnectionPool::getConnectionAsync(
+    const std::string& logicalAddress, const std::string& physicalAddress) {
     boost::unique_lock<boost::mutex> lock(mutex_);
 
     if (poolConnections_) {
-        PoolMap::iterator cnxIt = pool_.find(endpoint);
+        PoolMap::iterator cnxIt = pool_.find(logicalAddress);
         if (cnxIt != pool_.end()) {
             ClientConnectionPtr cnx = cnxIt->second.lock();
 
             if (cnx && !cnx->isClosed()) {
                 // Found a valid or pending connection in the pool
-                LOG_DEBUG("Got connection from pool for " << endpoint << " use_count: "  //
+                LOG_DEBUG("Got connection from pool for " << logicalAddress << " use_count: "  //
                                                           << (cnx.use_count() - 1) << " @ " << cnx.get());
                 return cnx->getConnectFuture();
             } else {
                 // Deleting stale connection
                 LOG_INFO("Deleting stale connection from pool for "
-                         << endpoint << " use_count: " << (cnx.use_count() - 1) << " @ " << cnx.get());
-                pool_.erase(endpoint);
+                         << logicalAddress << " use_count: " << (cnx.use_count() - 1) << " @ " << cnx.get());
+                pool_.erase(logicalAddress);
             }
         }
     }
 
     // No valid or pending connection found in the pool, creating a new one
-    ClientConnectionPtr cnx(
-        new ClientConnection(endpoint, executorProvider_->get(), clientConfiguration_, authentication_));
+    ClientConnectionPtr cnx(new ClientConnection(logicalAddress, physicalAddress, executorProvider_->get(),
+                                                 clientConfiguration_, authentication_));
 
-    LOG_INFO("Created connection for " << endpoint);
+    LOG_INFO("Created connection for " << logicalAddress);
 
     Future<Result, ClientConnectionWeakPtr> future = cnx->getConnectFuture();
-    pool_.insert(std::make_pair(endpoint, cnx));
+    pool_.insert(std::make_pair(logicalAddress, cnx));
 
     lock.unlock();
 

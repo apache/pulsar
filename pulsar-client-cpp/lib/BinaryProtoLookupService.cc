@@ -53,7 +53,7 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::lookupAsync(
     }
     std::string lookupName = dn->toString();
     LookupDataResultPromisePtr promise = boost::make_shared<LookupDataResultPromise>();
-    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_);
+    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
     future.addListener(boost::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this, lookupName, false,
                                    _1, _2, promise));
     return promise->getFuture();
@@ -71,7 +71,7 @@ Future<Result, LookupDataResultPtr> BinaryProtoLookupService::getPartitionMetada
         return promise->getFuture();
     }
     std::string lookupName = dn->toString();
-    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_);
+    Future<Result, ClientConnectionWeakPtr> future = cnxPool_.getConnectionAsync(serviceUrl_, serviceUrl_);
     future.addListener(boost::bind(&BinaryProtoLookupService::sendPartitionMetadataLookupRequest, this,
                                    lookupName, _1, _2, promise));
     return promise->getFuture();
@@ -100,8 +100,12 @@ void BinaryProtoLookupService::handleLookup(const std::string& destinationName, 
         if (data->isRedirect()) {
             LOG_DEBUG("Lookup request is for " << destinationName << " redirected to "
                                                << data->getBrokerUrl());
+
+            const std::string& logicalAddress = data->getBrokerUrl();
+            const std::string& physicalAddress =
+                data->shouldProxyThroughServiceUrl() ? serviceUrl_ : logicalAddress;
             Future<Result, ClientConnectionWeakPtr> future =
-                cnxPool_.getConnectionAsync(data->getBrokerUrl());
+                cnxPool_.getConnectionAsync(logicalAddress, physicalAddress);
             future.addListener(boost::bind(&BinaryProtoLookupService::sendTopicLookupRequest, this,
                                            destinationName, data->isAuthoritative(), _1, _2, promise));
         } else {
