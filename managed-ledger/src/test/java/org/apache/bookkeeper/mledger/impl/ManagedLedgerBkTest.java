@@ -18,16 +18,19 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import static org.testng.Assert.*;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.fail;
 
-import com.google.common.base.Charsets;
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
@@ -42,6 +45,9 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.test.BookKeeperClusterTestCase;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
+import com.google.common.collect.Lists;
 
 public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
 

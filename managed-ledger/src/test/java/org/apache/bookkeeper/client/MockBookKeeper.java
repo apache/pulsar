@@ -18,8 +18,6 @@
  */
 package org.apache.bookkeeper.client;
 
-import io.netty.channel.oio.OioEventLoopGroup;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.DeleteCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
@@ -36,6 +35,9 @@ import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.zookeeper.ZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import io.netty.channel.oio.OioEventLoopGroup;
+import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Test BookKeeperClient which allows access to members we don't wish to expose in the public API.

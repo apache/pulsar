@@ -18,8 +18,8 @@
  */
 package org.apache.bookkeeper.test;
 
-import java.io.IOException;
 import java.net.ServerSocket;
+import java.io.IOException;
 
 /**
  * Port manager allows a base port to be specified on the commandline. Tests will then use ports, counting up from this

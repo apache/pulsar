@@ -21,11 +21,14 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
 
-import com.google.common.collect.Lists;
+import java.util.Collections;
 import java.util.List;
+
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
 
 /**
  * Default eviction policy.

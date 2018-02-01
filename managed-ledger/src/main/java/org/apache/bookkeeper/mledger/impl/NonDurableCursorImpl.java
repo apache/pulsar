@@ -18,9 +18,8 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Range;
 import java.util.Map;
+
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -29,6 +28,9 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Range;
 
 public class NonDurableCursorImpl extends ManagedCursorImpl {
 

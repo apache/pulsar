@@ -20,16 +20,18 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
 
-import com.google.common.base.Charsets;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
+
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
 
 public class ManagedLedgerSingleBookieTest extends MockedBookKeeperTestCase {
 

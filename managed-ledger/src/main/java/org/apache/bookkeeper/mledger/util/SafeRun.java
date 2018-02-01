@@ -19,6 +19,7 @@
 package org.apache.bookkeeper.mledger.util;
 
 import java.util.function.Consumer;
+
 import org.apache.bookkeeper.util.SafeRunnable;
 
 public class SafeRun {
