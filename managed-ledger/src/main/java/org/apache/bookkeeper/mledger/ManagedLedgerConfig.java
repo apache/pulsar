@@ -376,7 +376,7 @@ public class ManagedLedgerConfig {
     /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
      * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
-     * 
+     *
      * @param autoSkipNonRecoverableData
      */
     public boolean isAutoSkipNonRecoverableData() {
@@ -403,10 +403,10 @@ public class ManagedLedgerConfig {
         this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
         return this;
     }
-    
+
     /**
      * @return max unacked message ranges up to which it can store in Zookeeper
-     * 
+     *
      */
     public int getMaxUnackedRangesToPersistInZk() {
         return maxUnackedRangesToPersistInZk;
