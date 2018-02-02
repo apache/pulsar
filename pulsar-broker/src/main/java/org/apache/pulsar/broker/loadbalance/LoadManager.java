@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.loadbalance;
 
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -55,7 +56,7 @@ public interface LoadManager {
     /**
      * Returns the Least Loaded Resource Unit decided by some algorithm or criteria which is implementation specific
      */
-    ResourceUnit getLeastLoaded(ServiceUnitId su) throws Exception;
+    Optional<ResourceUnit> getLeastLoaded(ServiceUnitId su) throws Exception;
 
     /**
      * Generate the load report

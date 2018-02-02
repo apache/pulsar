@@ -32,6 +32,7 @@
 #include "ExecutorService.h"
 #include "ConsumerImplBase.h"
 #include "lib/UnAckedMessageTrackerDisabled.h"
+#include "MessageCrypto.h"
 
 #include "CompressionCodec.h"
 #include <boost/dynamic_bitset.hpp>
@@ -51,6 +52,7 @@ class ConsumerImpl;
 class BatchAcknowledgementTracker;
 typedef boost::shared_ptr<ConsumerImpl> ConsumerImplPtr;
 typedef boost::weak_ptr<ConsumerImpl> ConsumerImplWeakPtr;
+typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 enum ConsumerTopicType
 {
@@ -124,6 +126,9 @@ class ConsumerImpl : public ConsumerImplBase,
     uint32_t receiveIndividualMessagesFromBatch(const ClientConnectionPtr& cnx, Message& batchedMessage);
     void brokerConsumerStatsListener(Result, BrokerConsumerStatsImpl, BrokerConsumerStatsCallback);
 
+    bool decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
+                                const proto::MessageMetadata& metadata, SharedBuffer& payload);
+
     // TODO - Convert these functions to lambda when we move to C++11
     Result receiveHelper(Message& msg);
     Result receiveHelper(Message& msg, int timeout);
@@ -156,6 +161,8 @@ class ConsumerImpl : public ConsumerImplBase,
     UnAckedMessageTrackerScopedPtr unAckedMessageTrackerPtr_;
     BatchAcknowledgementTracker batchAcknowledgementTracker_;
     BrokerConsumerStatsImpl brokerConsumerStats_;
+
+    MessageCryptoPtr msgCrypto_;
 
     friend class PulsarFriend;
 };

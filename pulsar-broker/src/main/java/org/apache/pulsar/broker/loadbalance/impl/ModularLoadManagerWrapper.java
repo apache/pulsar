@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
@@ -63,9 +64,14 @@ public class ModularLoadManagerWrapper implements LoadManager {
     }
 
     @Override
-    public ResourceUnit getLeastLoaded(final ServiceUnitId serviceUnit) {
-        return new SimpleResourceUnit(String.format("http://%s", loadManager.selectBrokerForAssignment(serviceUnit)),
-                new PulsarResourceDescription());
+    public Optional<ResourceUnit> getLeastLoaded(final ServiceUnitId serviceUnit) {
+        Optional<String> leastLoadedBroker = loadManager.selectBrokerForAssignment(serviceUnit);
+        if (leastLoadedBroker.isPresent()) {
+            return Optional.of(new SimpleResourceUnit(String.format("http://%s", leastLoadedBroker.get()),
+                    new PulsarResourceDescription()));
+        } else {
+            return Optional.empty();
+        }
     }
 
     @Override
@@ -112,7 +118,7 @@ public class ModularLoadManagerWrapper implements LoadManager {
     public Deserializer<? extends ServiceLookupData> getLoadReportDeserializer() {
         return loadManager.getLoadReportDeserializer();
     }
-    
+
     public ModularLoadManager getLoadManager() {
         return loadManager;
     }

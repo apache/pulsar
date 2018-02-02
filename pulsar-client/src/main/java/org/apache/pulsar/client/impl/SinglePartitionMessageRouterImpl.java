@@ -19,14 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.TopicMetadata;
 
-public class SinglePartitionMessageRouterImpl implements MessageRouter {
+public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
 
     private final int partitionIndex;
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex) {
+    public SinglePartitionMessageRouterImpl(int partitionIndex, ProducerConfiguration.HashingScheme hashingScheme) {
+        super(hashingScheme);
         this.partitionIndex = partitionIndex;
     }
 
@@ -34,7 +35,7 @@ public class SinglePartitionMessageRouterImpl implements MessageRouter {
     public int choosePartition(Message msg, TopicMetadata metadata) {
         // If the message has a key, it supersedes the single partition routing policy
         if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % metadata.numPartitions());
+            return hash.makeHash(msg.getKey()) % metadata.numPartitions();
         }
 
         return partitionIndex;

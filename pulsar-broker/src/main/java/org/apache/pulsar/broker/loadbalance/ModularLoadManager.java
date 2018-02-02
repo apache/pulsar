@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import java.util.Optional;
+
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.common.naming.ServiceUnitId;
@@ -33,7 +35,7 @@ public interface ModularLoadManager {
 
     /**
      * As any broker, disable the broker this manager is running on.
-     * 
+     *
      * @throws PulsarServerException
      *             If ZooKeeper failed to disable the broker.
      */
@@ -57,16 +59,16 @@ public interface ModularLoadManager {
 
     /**
      * As the leader broker, find a suitable broker for the assignment of the given bundle.
-     * 
+     *
      * @param serviceUnit
      *            ServiceUnitId for the bundle.
      * @return The name of the selected broker, as it appears on ZooKeeper.
      */
-    String selectBrokerForAssignment(ServiceUnitId serviceUnit);
+    Optional<String> selectBrokerForAssignment(ServiceUnitId serviceUnit);
 
     /**
      * As any broker, start the load manager.
-     * 
+     *
      * @throws PulsarServerException
      *             If an unexpected error prevented the load manager from being started.
      */
@@ -74,7 +76,7 @@ public interface ModularLoadManager {
 
     /**
      * As any broker, stop the load manager.
-     * 
+     *
      * @throws PulsarServerException
      *             If an unexpected error occurred when attempting to stop the load manager.
      */
@@ -97,7 +99,7 @@ public interface ModularLoadManager {
 
     /**
      * Return :{@link Deserializer} to deserialize load-manager load report
-     * 
+     *
      * @return
      */
     Deserializer<? extends ServiceLookupData> getLoadReportDeserializer();

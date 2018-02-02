@@ -22,6 +22,7 @@
 #include "pulsar/MessageBuilder.h"
 #include "LogUtils.h"
 #include "Utils.h"
+#include "Url.h"
 #include "checksum/ChecksumProvider.h"
 #include <algorithm>
 #include <boost/thread/mutex.hpp>
@@ -160,13 +161,20 @@ PairSharedBuffer Commands::newSend(SharedBuffer& headers, BaseCommand& cmd, uint
     return composite;
 }
 
-SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication) {
+SharedBuffer Commands::newConnect(const AuthenticationPtr& authentication, const std::string& logicalAddress,
+                                  bool connectingThroughProxy) {
     BaseCommand cmd;
     cmd.set_type(BaseCommand::CONNECT);
     CommandConnect* connect = cmd.mutable_connect();
     connect->set_client_version(_PULSAR_VERSION_);
     connect->set_auth_method_name(authentication->getAuthMethodName());
     connect->set_protocol_version(ProtocolVersion_MAX);
+    if (connectingThroughProxy) {
+        Url logicalAddressUrl;
+        Url::parse(logicalAddress, logicalAddressUrl);
+        connect->set_proxy_to_broker_url(logicalAddressUrl.hostPort());
+    }
+
     AuthenticationDataPtr authDataContent;
     if (authentication->getAuthData(authDataContent) == ResultOk && authDataContent->hasDataFromCommand()) {
         connect->set_auth_data(authDataContent->getCommandData());
@@ -366,6 +374,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
             break;
         case BaseCommand::CONSUMER_STATS_RESPONSE:
             return "CONSUMER_STATS_RESPONSE";
+            break;
+        case BaseCommand::REACHED_END_OF_TOPIC:
+            return "REACHED_END_OF_TOPIC";
+            break;
+        case BaseCommand::SEEK:
+            return "SEEK";
             break;
     };
 }
