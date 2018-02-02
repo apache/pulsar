@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -387,6 +388,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
+        if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
+            future.completeExceptionally(
+                    new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
+            return future;
+        }
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);

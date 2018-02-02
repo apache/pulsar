@@ -282,6 +282,10 @@ public class ConsumerConfiguration implements Serializable {
      * value for each key in the topic, up until the point in the topic message backlog that has been compacted.
      * Beyond that point, the messages will be sent as normal.
      *
+     * readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer
+     * (i.e. failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent
+     * topics or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
+     *
      * @param readCompacted whether to read from the compacted topic
      */
     public ConsumerConfiguration setReadCompacted(boolean readCompacted) {
