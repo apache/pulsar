@@ -34,7 +34,6 @@ import java.util.*;
 public class AuthenticationProviderBasic implements AuthenticationProvider {
     private final static String HTTP_HEADER_NAME = "Authorization";
     private final static String CONF_SYSTEM_PROPERTY_KEY = "pulsar.auth.basic.conf";
-    private final static String REALM_INFORMATION = "Basic realm=\"Pulsar Web Service\"";
     private Map<String, String> users;
 
     @Override
@@ -75,7 +74,7 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         String msg = "Unknown user or invalid password";
 
         if (users.get(userId) == null) {
-            throw new PulsarHttpAuthenticationException(msg, REALM_INFORMATION);
+            throw new AuthenticationException(msg);
         }
 
         String encryptedPassword = users.get(userId);
@@ -85,11 +84,11 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             List<String> splitEncryptedPassword = Arrays.asList(encryptedPassword.split("\\$"));
             if (splitEncryptedPassword.size() != 4 || !encryptedPassword
                     .equals(Md5Crypt.apr1Crypt(password.getBytes(), splitEncryptedPassword.get(2)))) {
-                throw new PulsarHttpAuthenticationException(msg, REALM_INFORMATION);
+                throw new AuthenticationException(msg);
             }
         // For crypt algorithm
         } else if (!encryptedPassword.equals(Crypt.crypt(password.getBytes(), encryptedPassword.substring(0, 2)))) {
-            throw new PulsarHttpAuthenticationException(msg, REALM_INFORMATION);
+            throw new AuthenticationException(msg);
         }
 
         return userId;
@@ -107,25 +106,25 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
                 String rawAuthToken = authData.getHttpHeader(HTTP_HEADER_NAME);
                 // parsing and validation
                 if (StringUtils.isBlank(rawAuthToken) || !rawAuthToken.toUpperCase().startsWith("BASIC ")) {
-                    throw new PulsarHttpAuthenticationException("Authentication token has to be started with \"Basic \"", REALM_INFORMATION);
+                    throw new AuthenticationException("Authentication token has to be started with \"Basic \"");
                 }
                 String[] splitRawAuthToken = rawAuthToken.split(" ");
                 if (splitRawAuthToken.length != 2) {
-                    throw new PulsarHttpAuthenticationException("Base64 encoded token is not found", REALM_INFORMATION);
+                    throw new AuthenticationException("Base64 encoded token is not found");
                 }
 
                 try {
                     authParams = new String(Base64.getDecoder().decode(splitRawAuthToken[1]));
                 } catch (Exception e) {
-                    throw new PulsarHttpAuthenticationException("Base64 decoding is failure: " + e.getMessage(), REALM_INFORMATION);
+                    throw new AuthenticationException("Base64 decoding is failure: " + e.getMessage());
                 }
             } else {
-                throw new PulsarHttpAuthenticationException("Authentication data source does not have data", REALM_INFORMATION);
+                throw new AuthenticationException("Authentication data source does not have data");
             }
 
             String[] parsedAuthParams = authParams.split(":");
             if (parsedAuthParams.length != 2) {
-                throw new PulsarHttpAuthenticationException("Base64 decoded params are invalid", REALM_INFORMATION);
+                throw new AuthenticationException("Base64 decoded params are invalid");
             }
 
             userId = parsedAuthParams[0];

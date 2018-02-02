@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.web;
 
 import java.io.IOException;
 
+import javax.naming.AuthenticationException;
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
 import javax.servlet.FilterConfig;
@@ -31,11 +32,8 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authentication.PulsarHttpAuthenticationException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 /**
  * Servlet filter that hooks up with AuthenticationService to reject unauthenticated HTTP requests
@@ -44,7 +42,6 @@ public class AuthenticationFilter implements Filter {
     private static final Logger LOG = LoggerFactory.getLogger(AuthenticationFilter.class);
 
     private final AuthenticationService authenticationService;
-    private String realmInformation = null;
 
     public static final String AuthenticatedRoleAttributeName = AuthenticationFilter.class.getName() + "-role";
 
@@ -63,11 +60,8 @@ public class AuthenticationFilter implements Filter {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("[{}] Authenticated HTTP request with role {}", request.getRemoteAddr(), role);
             }
-        } catch (PulsarHttpAuthenticationException e) {
+        } catch (AuthenticationException e) {
             HttpServletResponse httpResponse = (HttpServletResponse) response;
-            if (isNotBlank(e.getRealmInformation())) {
-                ((HttpServletResponse) response).setHeader("WWW-Authenticate", e.getRealmInformation());
-            }
             httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Authentication required");
             LOG.warn("[{}] Failed to authenticate HTTP request: {}", request.getRemoteAddr(), e.getMessage());
             return;
