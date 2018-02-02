@@ -97,7 +97,6 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
     <module>all</module>
-    <module>buildtools</module>
   </modules>
 
   <issueManagement>
