@@ -116,6 +116,14 @@ public class Reflections {
 
     }
 
+    public static Object createInstance(String userClassName, java.io.File jar) {
+        try {
+            return createInstance(userClassName, loadJar(jar));
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
     /**
      * Load a jar
      * @param jar file of jar

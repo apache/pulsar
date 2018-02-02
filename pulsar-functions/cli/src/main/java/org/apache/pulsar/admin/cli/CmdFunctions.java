@@ -29,10 +29,12 @@ import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.api.SerDe;
@@ -210,14 +212,22 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doJavaSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
+            File file = new File(jarFile);
             // check if the function class exists in Jar and it implements PulsarFunction class
-            if (!Reflections.classExistsInJar(new File(jarFile), functionConfigBuilder.getClassName())) {
+            if (!Reflections.classExistsInJar(file, functionConfigBuilder.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfigBuilder.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(new File(jarFile), functionConfigBuilder.getClassName(), PulsarFunction.class)) {
+            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), PulsarFunction.class)) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s does not implemement PulsarFunction.class",
                         functionConfigBuilder.getClassName(), jarFile));
             }
+
+            PulsarFunction pulsarFunction = (PulsarFunction) Reflections.createInstance(functionConfigBuilder.getClassName(), file);
+            if (pulsarFunction == null) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s could not be instantiated from jar %s",
+                        functionConfigBuilder.getClassName(), jarFile));
+            }
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
@@ -238,7 +248,43 @@ public class CmdFunctions extends CmdBase {
                                 inputSerializer, SerDe.class.getCanonicalName()));
                     }
                 }
+                if (inputSerializer.equals(DefaultSerDe.class.getName())) {
+                    if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
+                        throw new RuntimeException("Default Serializer does not support type " + typeArgs[0]);
+                    }
+                } else {
+                    SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, file);
+                    if (serDe == null) {
+                        throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
+                                inputSerializer, jarFile));
+                    }
+                    Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+                    if (!serDeTypes[0].isAssignableFrom(typeArgs[0])) {
+                        throw new RuntimeException("Serializer type mismatch " + typeArgs[0] + " vs " + serDeTypes[0]);
+                    }
+                }
             });
+            functionConfigBuilder.getInputsList().forEach((topicName) -> {
+                if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
+                    throw new RuntimeException("Default Serializer does not support type " + typeArgs[0]);
+                }
+            });
+            if (functionConfigBuilder.getOutputSerdeClassName() == null
+                    || functionConfigBuilder.getOutputSerdeClassName().isEmpty()) {
+                if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
+                    throw new RuntimeException("Default Serializer does not support type " + typeArgs[1]);
+                }
+            } else {
+                SerDe serDe = (SerDe) Reflections.createInstance(functionConfigBuilder.getOutputSerdeClassName(), file);
+                if (serDe == null) {
+                    throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
+                            functionConfigBuilder.getOutputSerdeClassName(), jarFile));
+                }
+                Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+                if (!serDeTypes[0].isAssignableFrom(typeArgs[1])) {
+                    throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
+                }
+            }
         }
 
         private void inferMissingArguments(FunctionConfig.Builder builder) {

@@ -44,7 +44,6 @@ public class DefaultSerDe implements SerDe<Object> {
 
     public DefaultSerDe(Class type) {
         this.type = type;
-        verifySupportedType();
     }
 
     @Override
@@ -90,9 +89,7 @@ public class DefaultSerDe implements SerDe<Object> {
         }
     }
 
-    public void verifySupportedType() {
-        if (!supportedInputTypes.contains(type)) {
-            throw new RuntimeException("Non Basic types not yet supported: " + type);
-        }
+    public static boolean IsSupportedType(Class typ) {
+        return supportedInputTypes.contains(typ);
     }
 }
