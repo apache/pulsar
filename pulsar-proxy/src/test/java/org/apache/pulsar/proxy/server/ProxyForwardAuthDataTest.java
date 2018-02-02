@@ -54,7 +54,6 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         webServicePort = PortManager.nextFreePort();
         servicePort = PortManager.nextFreePort();
-        // enable tls and auth&auth at broker 
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setTlsEnabled(false);
@@ -90,7 +89,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         // Step 1: Create Admin Client
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + servicePort;
-        // create a client which connects to proxy over tls and pass authData
+        // create a client which connects to proxy and pass authData
         String namespaceName = "my-property/use/my-ns";
         String topicName = "persistent://my-property/use/my-ns/my-topic1";
         String subscriptionName = "my-subscriber-name";
