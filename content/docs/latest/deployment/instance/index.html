@@ -2202,7 +2202,7 @@ designed to use multiple devices:</p>
 that can contain many topic. Common practice is to create a namespace for each
 different use case from a single tenant.</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create test-prop/us-west/ns1
 </code></pre></div></div>
 
 <h5 id="testing-producer-and-consumer">Testing producer and consumer</h5>
@@ -2236,24 +2236,24 @@ created the first time a producer or a consumer tries to use them.</p>
 
 -->
 <section class="topic">
-  persistent://<span class="property">test</span>/<span class="cluster">us-west</span>/<span class="namespace">ns1</span>/<span class="t">my-topic</span>
+  persistent://<span class="property">test-prop</span>/<span class="cluster">us-west</span>/<span class="namespace">ns1</span>/<span class="t">my-topic</span>
 </section>
 
 <p>Start a consumer that will create a subscription on the topic and will wait
 for messages:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://test-prop/us-west/ns1/my-topic
 </code></pre></div></div>
 
 <p>Start a producer that publishes messages at a fixed rate and report stats every
 10 seconds:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://test-prop/us-west/ns1/my-topic
 </code></pre></div></div>
 
 <p>To report the topic stats:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://test-prop/us-west/ns1/my-topic
 </code></pre></div></div>
 
       </section>

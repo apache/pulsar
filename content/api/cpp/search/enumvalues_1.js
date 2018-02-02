@@ -10,6 +10,7 @@ var searchData=
   ['resultconsumerbusy',['ResultConsumerBusy',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba5cbe2e189b60f91ff0f2e82b973db31b',1,'pulsar']]],
   ['resultconsumernotfound',['ResultConsumerNotFound',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbac74e9fb1b2c25caf17ac3446303b7a71',1,'pulsar']]],
   ['resultconsumernotinitialized',['ResultConsumerNotInitialized',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba48d27a5310cda91d13a23324a08533e9',1,'pulsar']]],
+  ['resultcryptoerror',['ResultCryptoError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbac131b27876dfd64d8e6b3355578a8f77',1,'pulsar']]],
   ['resulterrorgettingauthenticationdata',['ResultErrorGettingAuthenticationData',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba8014344f94ba9ad55337f01767e0e30c',1,'pulsar']]],
   ['resultinvalidconfiguration',['ResultInvalidConfiguration',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad3d7545107897e19819066fe42e81a06',1,'pulsar']]],
   ['resultinvalidmessage',['ResultInvalidMessage',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba875234396481a34fb7f02d3ecd1936f0',1,'pulsar']]],
@@ -28,6 +29,7 @@ var searchData=
   ['resulttimeout',['ResultTimeout',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbaeb1858ddf791b7288ab1cb066d70cfb4',1,'pulsar']]],
   ['resulttoomanylookuprequestexception',['ResultTooManyLookupRequestException',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba024fa5ba9fac2cb81fd4e8f6853a81a5',1,'pulsar']]],
   ['resulttopicnotfound',['ResultTopicNotFound',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad1921e33dd6a45431a0209b70588cf48',1,'pulsar']]],
+  ['resulttopicterminated',['ResultTopicTerminated',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba62df217dec3d3f75c7099d1464c92750',1,'pulsar']]],
   ['resultunknownerror',['ResultUnknownError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba213e39d5c84b8794dd21ab4f60ff4b60',1,'pulsar']]],
   ['resultunsupportedversionerror',['ResultUnsupportedVersionError',['../namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba888578f8569121606cfcfa6044c594c3',1,'pulsar']]]
 ];

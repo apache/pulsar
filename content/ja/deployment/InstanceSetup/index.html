@@ -1646,13 +1646,13 @@
   <span class="nt">--admin-roles</span> test-admin-role
 </code></pre></div></div>
 
-<p>これによって、<code class="highlighter-rouge">test-admin-role</code>ロールを持つユーザが<code class="highlighter-rouge">us-west</code>クラスタのみを使用できる<code class="highlighter-rouge">test</code>プロパティの設定を管理できるようになります。これ以降は、テナントはリソースを自分自身で管理できます。</p>
+<p>これによって、<code class="highlighter-rouge">test-admin-role</code>ロールを持つユーザが<code class="highlighter-rouge">us-west</code>クラスタのみを使用できる<code class="highlighter-rouge">test-prop</code>プロパティの設定を管理できるようになります。これ以降は、テナントはリソースを自分自身で管理できます。</p>
 
 <p>テナントが作成されたら、そのプロパティ内のトピックの<span class="popover-term" tabindex="0" title="ネームスペースとは？" data-placement="top" data-content="関連トピックのグループ化メカニズムです。" data-toggle="popover" data-trigger="focus">ネームスペース</span>を作成する必要があります。</p>
 
 <p>最初のステップはネームスペースを作成する事です。ネームスペースは多くのトピックを含む事のできる管理単位です。一般的な方法は、単一のテナントからユースケースごとにネームスペースを作成するというものです。</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create <span class="nb">test</span>/us-west/ns1
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin namespaces create test-prop/us-west/ns1
 </code></pre></div></div>
 
 <h5 id="producerとconsumerのテスト">ProducerとConsumerのテスト</h5>
@@ -1684,22 +1684,22 @@
 
 -->
 <section class="topic">
-  persistent://<span class="property">test</span>/<span class="cluster">us-west</span>/<span class="namespace">ns1</span>/<span class="t">my-topic</span>
+  persistent://<span class="property">test-prop</span>/<span class="cluster">us-west</span>/<span class="namespace">ns1</span>/<span class="t">my-topic</span>
 </section>
 
 <p>トピックのサブスクリプションを作成し、メッセージを待ち受けるConsumerを開始します:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf consume persistent://test-prop/us-west/ns1/my-topic
 </code></pre></div></div>
 
 <p>一定のレートでメッセージを送信し、10秒ごとに統計情報をレポートするProducerを開始します:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-perf produce persistent://test-prop/us-west/ns1/my-topic
 </code></pre></div></div>
 
 <p>トピックの統計情報を閲覧するには次のコマンドを実行します:</p>
 
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin persistent stats persistent://test-prop/us-west/ns1/my-topic
 </code></pre></div></div>
 
       </section>

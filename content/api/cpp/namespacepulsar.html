@@ -112,7 +112,11 @@ Classes</h2></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_consumer_configuration.html">ConsumerConfiguration</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_crypto_key_reader.html">CryptoKeyReader</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_deprecated_exception.html">DeprecatedException</a></td></tr>
+<tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_encryption_key_info.html">EncryptionKeyInfo</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:"><td class="memItemLeft" align="right" valign="top">class &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="classpulsar_1_1_message.html">Message</a></td></tr>
 <tr class="separator:"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -167,6 +171,12 @@ typedef boost::function&lt; void(<a class="el" href="namespacepulsar.html#ae8531
 typedef boost::function&lt; void(<a class="el" href="classpulsar_1_1_consumer.html">Consumer</a> consumer, const <a class="el" href="classpulsar_1_1_message.html">Message</a> &amp;msg)&gt;&#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#a64293027dc2f4e9f82b76148328fa191">MessageListener</a></td></tr>
 <tr class="memdesc:a64293027dc2f4e9f82b76148328fa191"><td class="mdescLeft">&#160;</td><td class="mdescRight">Callback definition for MessageListener. <br /></td></tr>
 <tr class="separator:a64293027dc2f4e9f82b76148328fa191"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:aaaca5829c765dc6e1295a51dd8b3cd19"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="aaaca5829c765dc6e1295a51dd8b3cd19"></a>
+typedef boost::shared_ptr&lt; <a class="el" href="classpulsar_1_1_crypto_key_reader.html">CryptoKeyReader</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>CryptoKeyReaderPtr</b></td></tr>
+<tr class="separator:aaaca5829c765dc6e1295a51dd8b3cd19"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:abec36d8aea08d253f5e0039a574f98ee"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="abec36d8aea08d253f5e0039a574f98ee"></a>
+typedef boost::shared_ptr&lt; EncryptionKeyInfoImpl &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>EncryptionKeyInfoImplPtr</b></td></tr>
+<tr class="separator:abec36d8aea08d253f5e0039a574f98ee"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:a83140f6753ca73111752f7f445f4eaa8"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a83140f6753ca73111752f7f445f4eaa8"></a>
 typedef boost::shared_ptr&lt; <a class="el" href="classpulsar_1_1_message_routing_policy.html">MessageRoutingPolicy</a> &gt;&#160;</td><td class="memItemRight" valign="bottom"><b>MessageRoutingPolicyPtr</b></td></tr>
 <tr class="separator:a83140f6753ca73111752f7f445f4eaa8"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -185,11 +195,20 @@ Enumerations</h2></td></tr>
 <b>CompressionZLib</b> = 2
  }</td></tr>
 <tr class="separator:ad6f0aaa7c0223ff1f3ff5a164f739ac5"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a828ec5e466f93f7b4061cc25d7e8ac35"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a828ec5e466f93f7b4061cc25d7e8ac35"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><b>ConsumerCryptoFailureAction</b> { <b>FAIL</b>, 
+<b>DISCARD</b>, 
+<b>CONSUME</b>
+ }</td></tr>
+<tr class="separator:a828ec5e466f93f7b4061cc25d7e8ac35"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ac3e442abe2558a2b257fc7344af61d40"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40">ConsumerType</a> { <a class="el" href="namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40a915cd237340dcd1d212f8d398f3d91ac">ConsumerExclusive</a>, 
 <a class="el" href="namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40ac55370821e835a03c2da742ab27e1705">ConsumerShared</a>, 
 <a class="el" href="namespacepulsar.html#ac3e442abe2558a2b257fc7344af61d40aadffd5f0d50b1da36685230cd3f910a1">ConsumerFailover</a>
  }</td></tr>
 <tr class="separator:ac3e442abe2558a2b257fc7344af61d40"><td class="memSeparator" colspan="2">&#160;</td></tr>
+<tr class="memitem:a21fcd03916492b7597c0b59a352a0491"><td class="memItemLeft" align="right" valign="top"><a class="anchor" id="a21fcd03916492b7597c0b59a352a0491"></a>enum &#160;</td><td class="memItemRight" valign="bottom"><b>ProducerCryptoFailureAction</b> { <b>FAIL</b>, 
+<b>SEND</b>
+ }</td></tr>
+<tr class="separator:a21fcd03916492b7597c0b59a352a0491"><td class="memSeparator" colspan="2">&#160;</td></tr>
 <tr class="memitem:ae85314d6b9e8afd831cf8c66705f2dbb"><td class="memItemLeft" align="right" valign="top">enum &#160;</td><td class="memItemRight" valign="bottom"><a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbb">Result</a> { <br />
 &#160;&#160;<b>ResultOk</b>, 
 <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba213e39d5c84b8794dd21ab4f60ff4b60">ResultUnknownError</a>, 
@@ -229,7 +248,10 @@ Enumerations</h2></td></tr>
 &#160;&#160;<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbad1921e33dd6a45431a0209b70588cf48">ResultTopicNotFound</a>, 
 <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba061d6c40bdf75ca172ffdb862aad7c51">ResultSubscriptionNotFound</a>, 
 <a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbac74e9fb1b2c25caf17ac3446303b7a71">ResultConsumerNotFound</a>, 
-<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba888578f8569121606cfcfa6044c594c3">ResultUnsupportedVersionError</a>
+<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba888578f8569121606cfcfa6044c594c3">ResultUnsupportedVersionError</a>, 
+<br />
+&#160;&#160;<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbba62df217dec3d3f75c7099d1464c92750">ResultTopicTerminated</a>, 
+<a class="el" href="namespacepulsar.html#ae85314d6b9e8afd831cf8c66705f2dbbac131b27876dfd64d8e6b3355578a8f77">ResultCryptoError</a>
 <br />
  }</td></tr>
 <tr class="separator:ae85314d6b9e8afd831cf8c66705f2dbb"><td class="memSeparator" colspan="2">&#160;</td></tr>
@@ -368,7 +390,13 @@ const char *&#160;</td><td class="memItemRight" valign="bottom"><b>strResult</b>
 </td></tr>
 <tr><td class="fieldname"><a class="anchor" id="ae85314d6b9e8afd831cf8c66705f2dbba888578f8569121606cfcfa6044c594c3"></a>ResultUnsupportedVersionError&#160;</td><td class="fielddoc">
 <p><a class="el" href="classpulsar_1_1_consumer.html">Consumer</a> not found. </p>
-<p>Error when an older client/version doesn't support a required feature </p>
+</td></tr>
+<tr><td class="fieldname"><a class="anchor" id="ae85314d6b9e8afd831cf8c66705f2dbba62df217dec3d3f75c7099d1464c92750"></a>ResultTopicTerminated&#160;</td><td class="fielddoc">
+<p>Error when an older client/version doesn't support a required feature. </p>
+</td></tr>
+<tr><td class="fieldname"><a class="anchor" id="ae85314d6b9e8afd831cf8c66705f2dbbac131b27876dfd64d8e6b3355578a8f77"></a>ResultCryptoError&#160;</td><td class="fielddoc">
+<p>Topic was already terminated. </p>
+<p>Error when crypto operation fails </p>
 </td></tr>
 </table>
 
