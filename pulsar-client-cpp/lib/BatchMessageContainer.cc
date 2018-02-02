@@ -93,6 +93,10 @@ void BatchMessageContainer::sendMessage() {
     impl_->metadata.set_num_messages_in_batch(messagesContainerListPtr_->size());
     compressPayLoad();
 
+    SharedBuffer encryptedPayload;
+    producer_.encryptMessage(impl_->metadata, impl_->payload, encryptedPayload);
+    impl_->payload = encryptedPayload;
+
     Message msg;
     msg.impl_ = impl_;
 
