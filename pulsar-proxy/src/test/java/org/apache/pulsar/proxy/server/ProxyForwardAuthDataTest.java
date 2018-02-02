@@ -20,22 +20,11 @@ package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.spy;
 
-import java.io.IOException;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 
-import javax.naming.AuthenticationException;
-
 import org.apache.bookkeeper.test.PortManager;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.broker.authentication.AuthenticationProvider;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
@@ -44,6 +33,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthentication;
+import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthenticationProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -53,97 +44,8 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(ProxyRolesEnforcementTest.class);
-
-    public static class BasicAuthenticationData implements AuthenticationDataProvider {
-        private String authParam;
-
-        public BasicAuthenticationData(String authParam) {
-            this.authParam = authParam;
-        }
-        
-        public boolean hasDataFromCommand() {
-            return true;
-        }
-
-        public String getCommandData() {
-            return authParam;
-        }
-        
-        public boolean hasDataForHttp() {
-            return true;
-        }
-        
-        @Override
-        public Set<Entry<String, String>> getHttpHeaders() {
-            Map<String, String> headers = new HashMap<>();
-            headers.put("BasicAuthentication", authParam);
-            return headers.entrySet();
-        }
-    }
-    
-    public static class BasicAuthentication implements Authentication {
-
-        private String authParam;
-
-        @Override
-        public void close() throws IOException {
-            // noop
-        }
-
-        @Override
-        public String getAuthMethodName() {
-            return "BasicAuthentication";
-        }
-
-        @Override
-        public AuthenticationDataProvider getAuthData() throws PulsarClientException {
-            try {
-                return new BasicAuthenticationData(authParam);
-            } catch (Exception e) {
-                throw new PulsarClientException(e);
-            }
-        }
-
-        @Override
-        public void configure(Map<String, String> authParams) {
-            this.authParam = authParams.get("authParam");
-        }
-
-        @Override
-        public void start() throws PulsarClientException {
-            // noop
-        }
-    }
-    
-    public static class BasicAuthenticationProvider implements AuthenticationProvider {
-
-        @Override
-        public void close() throws IOException {            
-        }
-
-        @Override
-        public void initialize(ServiceConfiguration config) throws IOException {            
-        }
-
-        @Override
-        public String getAuthMethodName() {
-            return "BasicAuthentication";
-        }
-
-        @Override
-        public String authenticate(AuthenticationDataSource authData) throws AuthenticationException {
-            if (authData.hasDataFromCommand()) {
-                return authData.getCommandData();
-            } else if (authData.hasDataFromHttp()) {
-                return authData.getHttpHeader("BasicAuthentication");
-            }
-            
-            return null;
-        }
-    }
-
+public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
+    private static final Logger log = LoggerFactory.getLogger(ProxyForwardAuthDataTest.class);
     private int webServicePort;
     private int servicePort;
     
@@ -158,6 +60,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         conf.setTlsEnabled(false);
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         conf.setBrokerClientAuthenticationParameters("authParam:broker");
+        conf.setAuthenticateOriginalAuthData(true);
         
         Set<String> superUserRoles = new HashSet<String>();
         superUserRoles.add("admin");
@@ -181,7 +84,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     }
     
     @Test
-    void testIncorrectRoles() throws Exception {
+    void testForwardAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         // Step 1: Create Admin Client
@@ -201,20 +104,8 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
 
-        // Step 2: Try to use proxy Client as a normal Client - expect exception
-        PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + BROKER_PORT, proxyAuthParams);
-        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-        Consumer consumer;
-        boolean exceptionOccured = false;
-        try {
-            consumer = proxyClient.subscribe(topicName, subscriptionName,
-                consumerConf);
-        } catch(Exception ex) {
-            exceptionOccured = true;
-        }         
-        Assert.assertTrue(exceptionOccured);
         
-        // Step 3: Run Pulsar Proxy and pass proxy params as client params - expect exception
+        // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
         proxyConfig.setAuthenticationEnabled(true);
 
@@ -231,21 +122,24 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         ProxyService proxyService = new ProxyService(proxyConfig);
 
         proxyService.start();
-        proxyClient = createPulsarClient(proxyServiceUrl, proxyAuthParams);
-        exceptionOccured = false;
+        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams);
+        Consumer consumer;
+        boolean exceptionOccured = false;
         try {
-            consumer = proxyClient.subscribe(topicName, subscriptionName,
-                consumerConf);
+            consumer = proxyClient.subscribe(topicName, subscriptionName);
         } catch(Exception ex) {
-            exceptionOccured = true;
-        } 
-        
+            exceptionOccured  = true;
+        }         
         Assert.assertTrue(exceptionOccured);
+        proxyService.close();
         
-        // Step 4: Pass correct client params 
-        proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams);
-        consumer = proxyClient.subscribe(topicName, subscriptionName,
-                consumerConf);
+        // Step 3: Create proxy with forwardAuthData enabled
+        proxyConfig.setForwardAuthData(true);
+        proxyService = new ProxyService(proxyConfig);
+
+        proxyService.start();
+        consumer = proxyClient.subscribe(topicName, subscriptionName);   
+        Assert.assertTrue(exceptionOccured);
         proxyService.close();
     }
 

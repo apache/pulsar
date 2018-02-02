@@ -439,6 +439,8 @@ public class ServerCnx extends PulsarHandler {
             if (originalAuthData != null) {
                 originalPrincipal = getBrokerService().getAuthenticationService().authenticate(
                         new AuthenticationDataCommand(originalAuthData, remoteAddress, sslSession), originalAuthMethod);
+            } else {
+                originalPrincipal = null;
             }
         }
         return originalPrincipal;
