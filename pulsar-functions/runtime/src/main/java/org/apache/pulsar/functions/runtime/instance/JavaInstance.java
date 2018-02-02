@@ -36,6 +36,8 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 
 import java.util.Map;
+import java.util.function.Function;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,9 +52,10 @@ public class JavaInstance implements AutoCloseable {
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
     private PulsarFunction pulsarFunction;
+    private Function javaUtilFunction;
     private ExecutorService executorService;
 
-    public JavaInstance(InstanceConfig config, PulsarFunction pulsarFunction,
+    public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
                  Map<String, Consumer> sourceConsumers) {
@@ -62,7 +65,11 @@ public class JavaInstance implements AutoCloseable {
         this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, sourceConsumers);
 
         // create the functions
-        this.pulsarFunction = pulsarFunction;
+        if (userClassObject instanceof PulsarFunction) {
+            this.pulsarFunction = (PulsarFunction) userClassObject;
+        } else {
+            this.javaUtilFunction = (Function) userClassObject;
+        }
 
         if (config.getLimitsConfig() != null && config.getLimitsConfig().getMaxTimeMs() > 0) {
             log.info("Spinning up a executor service since time budget is infinite");
@@ -97,7 +104,12 @@ public class JavaInstance implements AutoCloseable {
     private JavaExecutionResult processMessage(JavaExecutionResult executionResult, Object input) {
 
         try {
-            Object output = pulsarFunction.process(input, context);
+            Object output;
+            if (pulsarFunction != null) {
+                output = pulsarFunction.process(input, context);
+            } else {
+                output = javaUtilFunction.apply(input);
+            }
             executionResult.setResult(output);
         } catch (Exception ex) {
             executionResult.setUserException(ex);

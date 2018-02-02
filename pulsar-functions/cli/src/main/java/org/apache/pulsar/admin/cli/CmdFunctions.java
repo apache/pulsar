@@ -46,6 +46,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.function.Function;
 
 @Slf4j
 @Parameters(commandDescription = "Operations about functions")
@@ -217,17 +218,29 @@ public class CmdFunctions extends CmdBase {
             if (!Reflections.classExistsInJar(file, functionConfigBuilder.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfigBuilder.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), PulsarFunction.class)) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s does not implemement PulsarFunction.class",
+            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), PulsarFunction.class)
+                    && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither PulsarFunction nor java.util.Function",
                         functionConfigBuilder.getClassName(), jarFile));
             }
 
-            PulsarFunction pulsarFunction = (PulsarFunction) Reflections.createInstance(functionConfigBuilder.getClassName(), file);
-            if (pulsarFunction == null) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s could not be instantiated from jar %s",
-                        functionConfigBuilder.getClassName(), jarFile));
+            Object userClass = Reflections.createInstance(functionConfigBuilder.getClassName(), file);
+            Class<?>[] typeArgs;
+            if (userClass instanceof PulsarFunction) {
+                PulsarFunction pulsarFunction = (PulsarFunction) userClass;
+                if (pulsarFunction == null) {
+                    throw new IllegalArgumentException(String.format("Pulsar function class %s could not be instantiated from jar %s",
+                            functionConfigBuilder.getClassName(), jarFile));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            } else {
+                Function function = (Function) userClass;
+                if (function == null) {
+                    throw new IllegalArgumentException(String.format("Java Util function class %s could not be instantiated from jar %s",
+                            functionConfigBuilder.getClassName(), jarFile));
+                }
+                typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
             }
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
             // implements SerDe class
