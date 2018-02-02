@@ -269,20 +269,23 @@ public class CmdFunctions extends CmdBase {
                     throw new RuntimeException("Default Serializer does not support type " + typeArgs[0]);
                 }
             });
-            if (functionConfigBuilder.getOutputSerdeClassName() == null
-                    || functionConfigBuilder.getOutputSerdeClassName().isEmpty()) {
-                if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
-                    throw new RuntimeException("Default Serializer does not support type " + typeArgs[1]);
-                }
-            } else {
-                SerDe serDe = (SerDe) Reflections.createInstance(functionConfigBuilder.getOutputSerdeClassName(), file);
-                if (serDe == null) {
-                    throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
-                            functionConfigBuilder.getOutputSerdeClassName(), jarFile));
-                }
-                Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                if (!serDeTypes[0].isAssignableFrom(typeArgs[1])) {
-                    throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
+            if (!Void.class.equals(typeArgs[1])) {
+                if (functionConfigBuilder.getOutputSerdeClassName() == null
+                        || functionConfigBuilder.getOutputSerdeClassName().isEmpty()
+                        || functionConfigBuilder.getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
+                    if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
+                        throw new RuntimeException("Default Serializer does not support type " + typeArgs[1]);
+                    }
+                } else {
+                    SerDe serDe = (SerDe) Reflections.createInstance(functionConfigBuilder.getOutputSerdeClassName(), file);
+                    if (serDe == null) {
+                        throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
+                                functionConfigBuilder.getOutputSerdeClassName(), jarFile));
+                    }
+                    Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+                    if (!serDeTypes[0].isAssignableFrom(typeArgs[1])) {
+                        throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
+                    }
                 }
             }
         }
