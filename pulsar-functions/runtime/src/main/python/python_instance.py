@@ -140,6 +140,9 @@ class PythonInstance(object):
       )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.className, try_internal=True)
+    if function_kclass is None:
+      Log.critical("Could not import User Function Module %s" % self.instance_config.function_config.className)
+      raise NameError("Could not import User Function Module %s" % self.instance_config.function_config.className)
     try:
       self.function_class = function_kclass()
     except:
