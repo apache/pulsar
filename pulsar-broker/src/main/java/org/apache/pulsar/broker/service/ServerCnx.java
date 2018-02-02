@@ -106,6 +106,7 @@ public class ServerCnx extends PulsarHandler {
     private final int MaxNonPersistentPendingMessages;
     private String originalPrincipal = null;
     private Set<String> proxyRoles = Sets.newHashSet();
+    private boolean authenticateOriginalAuthData;
     
     enum State {
         Start, Connected, Failed
@@ -123,6 +124,7 @@ public class ServerCnx extends PulsarHandler {
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
     }
 
     @Override
@@ -389,6 +391,17 @@ public class ServerCnx extends PulsarHandler {
 
         return commandConsumerStatsResponseBuilder;
     }
+    
+    private String getOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal,
+            SSLSession sslSession) throws AuthenticationException {
+        if (authenticateOriginalAuthData) {
+            if (originalAuthData != null) {
+                originalPrincipal = getBrokerService().getAuthenticationService().authenticate(
+                        new AuthenticationDataCommand(originalAuthData, remoteAddress, sslSession), originalAuthMethod);
+            }
+        }
+        return originalPrincipal;
+    }
 
     @Override
     protected void handleConnect(CommandConnect connect) {
@@ -409,8 +422,11 @@ public class ServerCnx extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
-
-                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+                originalPrincipal = getOriginalPrincipal(
+                        connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
+                        connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
+                        connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
+                        sslSession);
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 

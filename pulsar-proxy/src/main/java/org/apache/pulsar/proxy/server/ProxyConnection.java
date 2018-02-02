@@ -53,6 +53,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     private ProxyService service;
     String clientAuthRole = null;
+    String clientAuthData = null;
+    String clientAuthMethod = null;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
@@ -210,6 +212,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
             }
             String authData = connect.getAuthData().toStringUtf8();
+
+            if (service.getConfiguration().forwardAuthData()) {
+                clientAuthData = authData;
+                clientAuthMethod = authMethod;
+            }
             ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
             SSLSession sslSession = null;
             if (sslHandler != null) {
