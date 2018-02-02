@@ -140,7 +140,10 @@ class PythonInstance(object):
       )
 
     function_kclass = util.import_class(os.path.dirname(self.user_code), self.instance_config.function_config.className, try_internal=True)
-    self.function_class = function_kclass()
+    try:
+      self.function_class = function_kclass()
+    except:
+      self.function_class = function_kclass
 
     self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers)
     # Now launch a thread that does execution
