@@ -151,7 +151,7 @@ public interface Context {
      * @param serDeClassName The class name of the class that needs to be used to serialize the object before publishing
      * @return
      */
-    CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName);
+    <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
 
     CompletableFuture<Void> ack(byte[] messageId, String topic);
 }

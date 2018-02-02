@@ -28,6 +28,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.state.StateContextImpl;
@@ -209,7 +210,7 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public CompletableFuture<Void> publish(String topicName, Object object, String serDeClassName) {
+    public <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName) {
         if (!publishProducers.containsKey(topicName)) {
             try {
                 publishProducers.put(topicName, pulsarClient.createProducer(topicName, producerConfiguration));
@@ -221,16 +222,24 @@ class ContextImpl implements Context {
         }
 
         if (!publishSerializers.containsKey(serDeClassName)) {
-            Class<? extends SerDe> serDeClass;
-            try {
-                serDeClass = (Class<? extends SerDe>) Class.forName(serDeClassName);
-            } catch (ClassNotFoundException e) {
-                throw new RuntimeException(e);
+            SerDe serDe;
+            if (serDeClassName.equals(DefaultSerDe.class.getName())) {
+                if (!DefaultSerDe.IsSupportedType(object.getClass())) {
+                    throw new RuntimeException("Default Serializer does not support " + object.getClass());
+                }
+                serDe = new DefaultSerDe(object.getClass());
+            } else {
+                try {
+                    Class<? extends SerDe> serDeClass = (Class<? extends SerDe>) Class.forName(serDeClassName);
+                    serDe = Reflections.createInstance(
+                            serDeClassName,
+                            serDeClass,
+                            classLoader);
+                } catch (ClassNotFoundException e) {
+                    throw new RuntimeException(e);
+                }
             }
-            publishSerializers.put(serDeClassName, Reflections.createInstance(
-                    serDeClassName,
-                    serDeClass,
-                    classLoader));
+            publishSerializers.put(serDeClassName, serDe);
         }
 
         byte[] bytes = publishSerializers.get(serDeClassName).serialize(object);
