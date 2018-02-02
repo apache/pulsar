@@ -483,8 +483,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private static SerDe initializeDefaultSerDe(PulsarFunction pulsarFunction, boolean inputArgs) {
         Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
         if (inputArgs) {
+            if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
+                throw new RuntimeException("Default Serializer does not support " + typeArgs[0]);
+            }
             return new DefaultSerDe(typeArgs[0]);
         } else {
+            if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
+                throw new RuntimeException("Default Serializer does not support " + typeArgs[1]);
+            }
             return new DefaultSerDe(typeArgs[1]);
         }
     }

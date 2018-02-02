@@ -41,6 +41,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
@@ -70,6 +71,13 @@ public class CmdFunctionsTest {
     private Functions functions;
     private CmdFunctions cmd;
 
+    public class DummyFunction implements PulsarFunction<String, String> {
+        @Override
+        public String process(String input, Context context) throws Exception {
+            return null;
+        }
+    }
+
     @BeforeMethod
     public void setup() throws Exception {
         this.admin = mock(PulsarFunctionsAdmin.class);
@@ -86,6 +94,8 @@ public class CmdFunctionsTest {
         when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(PulsarFunction.class)))
             .thenReturn(true);
         when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
+        when(Reflections.createInstance(eq(DummyFunction.class.getName()), any(File.class))).thenReturn(new DummyFunction());
+        when(Reflections.createInstance(eq(DefaultSerDe.class.getName()), any(File.class))).thenReturn(new DefaultSerDe(String.class));
     }
 
     @Test
@@ -152,7 +162,7 @@ public class CmdFunctionsTest {
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--function-classname", "MyClass",
+            "--function-classname", DummyFunction.class.getName(),
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -178,7 +188,7 @@ public class CmdFunctionsTest {
                 "--output-serde-classname", DefaultSerDe.class.getName(),
                 "--jar", "SomeJar.jar",
                 "--namespace", "ns1",
-                "--function-classname", "MyClass",
+                "--function-classname", DummyFunction.class.getName(),
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -199,7 +209,7 @@ public class CmdFunctionsTest {
                 "--custom-serde-classnames", DefaultSerDe.class.getName(),
                 "--output-serde-classname", DefaultSerDe.class.getName(),
                 "--jar", "SomeJar.jar",
-                "--function-classname", "MyClass",
+                "--function-classname", DummyFunction.class.getName(),
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -221,11 +231,11 @@ public class CmdFunctionsTest {
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--function-classname", "MyClass",
+                "--function-classname", DummyFunction.class.getName(),
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("MyClass", creater.getFunctionConfig().getName());
+        assertEquals("CmdFunctionsTest$DummyFunction", creater.getFunctionConfig().getName());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
@@ -240,11 +250,11 @@ public class CmdFunctionsTest {
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--function-classname", "MyClass",
+                "--function-classname", DummyFunction.class.getName(),
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(sourceTopicName + "-MyClass-output", creater.getFunctionConfig().getSinkTopic());
+        assertEquals(sourceTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getSinkTopic());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
@@ -308,7 +318,7 @@ public class CmdFunctionsTest {
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--function-classname", "MyClass",
+            "--function-classname", DummyFunction.class.getName(),
         });
 
         UpdateFunction updater = cmd.getUpdater();
