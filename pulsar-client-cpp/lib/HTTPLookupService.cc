@@ -217,6 +217,7 @@ LookupDataResultPtr HTTPLookupService::parseLookupData(const std::string &json) 
     LookupDataResultPtr lookupDataResultPtr = boost::make_shared<LookupDataResult>();
     lookupDataResultPtr->setBrokerUrl(brokerUrl);
     lookupDataResultPtr->setBrokerUrlSsl(brokerUrlSsl);
+
     LOG_INFO("parseLookupData = " << *lookupDataResultPtr);
     return lookupDataResultPtr;
 }

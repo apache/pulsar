@@ -16,45 +16,25 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_URL_H_
-#define LIB_URL_H_
-
-#include <string>
+#ifndef CONSUMERCRYPTOFAILUREACTION_H_
+#define CONSUMERCRYPTOFAILUREACTION_H_
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
 
-/**
- * URL parsing utility
- */
-class Url {
-   public:
-    static bool parse(const std::string& urlStr, Url& url);
-
-    const std::string& protocol() const;
-    const std::string& host() const;
-    const int port() const;
-    const std::string& path() const;
-    const std::string& pathWithoutFile() const;
-    const std::string& file() const;
-    const std::string& parameter() const;
-    friend std::ostream& operator<<(std::ostream& os, const Url& obj);
-
-    std::string hostPort() const;
-
-   private:
-    std::string protocol_;
-    std::string host_;
-    int port_;
-    std::string path_;
-    std::string pathWithoutFile_;
-    std::string file_;
-    std::string parameter_;
+enum class ConsumerCryptoFailureAction
+{
+    FAIL,     // This is the default option to fail consume until crypto succeeds
+    DISCARD,  // Message is silently acknowledged and not delivered to the application
+    CONSUME   // Deliver the encrypted message to the application. It's the application's
+              // responsibility to decrypt the message. If message is also compressed,
+              // decompression will fail. If message contain batch messages, client will
+              // not be able to retrieve individual messages in the batch
 };
 
-}  // namespace pulsar
+} /* namespace pulsar */
 
 #pragma GCC visibility pop
 
-#endif /* LIB_URL_H_ */
+#endif /* CONSUMERCRYPTOFAILUREACTION_H_ */

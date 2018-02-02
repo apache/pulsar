@@ -157,4 +157,32 @@ ProducerConfiguration& ProducerConfiguration::setBatchingMaxPublishDelayMs(
 const unsigned long& ProducerConfiguration::getBatchingMaxPublishDelayMs() const {
     return impl_->batchingMaxPublishDelayMs;
 }
+
+const CryptoKeyReaderPtr ProducerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
+
+ProducerConfiguration& ProducerConfiguration::setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader) {
+    impl_->cryptoKeyReader = cryptoKeyReader;
+    return *this;
+}
+
+ProducerCryptoFailureAction ProducerConfiguration::getCryptoFailureAction() const {
+    return impl_->cryptoFailureAction;
+}
+
+ProducerConfiguration& ProducerConfiguration::setCryptoFailureAction(ProducerCryptoFailureAction action) {
+    impl_->cryptoFailureAction = action;
+    return *this;
+}
+
+std::set<std::string>& ProducerConfiguration::getEncryptionKeys() { return impl_->encryptionKeys; }
+
+bool ProducerConfiguration::isEncryptionEnabled() const {
+    return (!impl_->encryptionKeys.empty() && (impl_->cryptoKeyReader != NULL));
+}
+
+ProducerConfiguration& ProducerConfiguration::addEncryptionKey(std::string key) {
+    impl_->encryptionKeys.insert(key);
+    return *this;
+}
+
 }  // namespace pulsar

@@ -16,45 +16,40 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_URL_H_
-#define LIB_URL_H_
+#ifndef LIB_ENCRYPTIONKEYINFOIMPL_H_
+#define LIB_ENCRYPTIONKEYINFOIMPL_H_
 
-#include <string>
+#include <boost/shared_ptr.hpp>
+#include <iostream>
+#include <map>
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
 
-/**
- * URL parsing utility
- */
-class Url {
+class EncryptionKeyInfoImpl {
    public:
-    static bool parse(const std::string& urlStr, Url& url);
+    typedef std::map<std::string, std::string> StringMap;
 
-    const std::string& protocol() const;
-    const std::string& host() const;
-    const int port() const;
-    const std::string& path() const;
-    const std::string& pathWithoutFile() const;
-    const std::string& file() const;
-    const std::string& parameter() const;
-    friend std::ostream& operator<<(std::ostream& os, const Url& obj);
+    EncryptionKeyInfoImpl();
 
-    std::string hostPort() const;
+    EncryptionKeyInfoImpl(std::string key, StringMap& metadata);
+
+    std::string& getKey();
+
+    void setKey(std::string key);
+
+    StringMap& getMetadata(void);
+
+    void setMetadata(StringMap& metadata);
 
    private:
-    std::string protocol_;
-    std::string host_;
-    int port_;
-    std::string path_;
-    std::string pathWithoutFile_;
-    std::string file_;
-    std::string parameter_;
+    StringMap metadata_;
+    std::string key_;
 };
 
-}  // namespace pulsar
+} /* namespace pulsar */
 
 #pragma GCC visibility pop
 
-#endif /* LIB_URL_H_ */
+#endif /* LIB_ENCRYPTIONKEYINFOIMPL_H_ */

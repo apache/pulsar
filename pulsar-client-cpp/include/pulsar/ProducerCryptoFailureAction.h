@@ -16,45 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef LIB_URL_H_
-#define LIB_URL_H_
-
-#include <string>
+#ifndef PRODUCERCRYPTOFAILUREACTION_H_
+#define PRODUCERCRYPTOFAILUREACTION_H_
 
 #pragma GCC visibility push(default)
 
 namespace pulsar {
 
-/**
- * URL parsing utility
- */
-class Url {
-   public:
-    static bool parse(const std::string& urlStr, Url& url);
-
-    const std::string& protocol() const;
-    const std::string& host() const;
-    const int port() const;
-    const std::string& path() const;
-    const std::string& pathWithoutFile() const;
-    const std::string& file() const;
-    const std::string& parameter() const;
-    friend std::ostream& operator<<(std::ostream& os, const Url& obj);
-
-    std::string hostPort() const;
-
-   private:
-    std::string protocol_;
-    std::string host_;
-    int port_;
-    std::string path_;
-    std::string pathWithoutFile_;
-    std::string file_;
-    std::string parameter_;
+enum class ProducerCryptoFailureAction
+{
+    FAIL,  // This is the default option to fail send if crypto operation fails
+    SEND   // Ignore crypto failure and proceed with sending unencrypted messages
 };
 
-}  // namespace pulsar
+} /* namespace pulsar */
 
 #pragma GCC visibility pop
 
-#endif /* LIB_URL_H_ */
+#endif /* PRODUCERCRYPTOFAILUREACTION_H_ */

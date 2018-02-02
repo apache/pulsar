@@ -79,6 +79,19 @@ commands:
     description: The web service URL for the new cluster with TLS encryption
   - flags: -zk, --zookeeper
     description: The local ZooKeeper quorum connection string
+- name: proxy
+  description: Manages the Pulsar proxy
+  example: |
+    pulsar proxy \
+      --zookeeper-servers zk-0,zk-1,zk2 \
+      --global-zookeeper-servers zk-0,zk-1,zk-2
+  options:
+  - flags: -c, --config
+    description: Path to a Pulsar proxy configuration file
+  - flags: -gzk, --global-zookeeper-servers
+    description: Global ZooKeeper connection string
+  - flags: -zk, --zookeeper-servers
+    description: Local ZooKeeper connection string
 - name: standalone
   description: Run a broker service with local bookies and local ZooKeeper
   options:

@@ -65,6 +65,8 @@ groups:
     endpoint: Stats
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Pulsar proxy
+    endpoint: Proxy
 
 - title: Client libraries
   dir: clients

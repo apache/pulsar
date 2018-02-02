@@ -57,7 +57,8 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
       messageListenerRunning_(true),
       batchAcknowledgementTracker_(topic_, subscription, (long)consumerId_),
       brokerConsumerStats_(),
-      consumerStatsBasePtr_() {
+      consumerStatsBasePtr_(),
+      msgCrypto_() {
     std::stringstream consumerStrStream;
     consumerStrStream << "[" << topic_ << ", " << subscription_ << ", " << consumerId_ << "] ";
     consumerStr_ = consumerStrStream.str();
@@ -80,6 +81,11 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
             statsIntervalInSeconds);
     } else {
         consumerStatsBasePtr_ = boost::make_shared<ConsumerStatsDisabled>();
+    }
+
+    // Create msgCrypto
+    if (conf.isEncryptionEnabled()) {
+        msgCrypto_ = boost::make_shared<MessageCrypto>(consumerStr_, false);
     }
 }
 
@@ -249,6 +255,11 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
                                    SharedBuffer& payload) {
     LOG_DEBUG(getName() << "Received Message -- Size: " << payload.readableBytes());
 
+    if (!decryptMessageIfNeeded(cnx, msg, metadata, payload)) {
+        // Message was discarded or not consumed due to decryption failure
+        return;
+    }
+
     if (!uncompressMessageIfNeeded(cnx, msg, metadata, payload)) {
         // Message was discarded on decompression error
         return;
@@ -337,6 +348,48 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     }
 
     return batchSize - skippedMessages;
+}
+
+bool ConsumerImpl::decryptMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,
+                                          const proto::MessageMetadata& metadata, SharedBuffer& payload) {
+    if (!metadata.encryption_keys_size()) {
+        return true;
+    }
+
+    // If KeyReader is not configured throw exception based on config param
+    if (!config_.isEncryptionEnabled()) {
+        if (config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::CONSUME) {
+            LOG_WARN(getName() << "CryptoKeyReader is not implemented. Consuming encrypted message.");
+            return true;
+        } else if (config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::DISCARD) {
+            LOG_WARN(getName() << "Skipping decryption since CryptoKeyReader is not implemented and config "
+                                  "is set to discard");
+            discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::DecryptionError);
+        } else {
+            LOG_ERROR(getName() << "Message delivery failed since CryptoKeyReader is not implemented to "
+                                   "consume encrypted message");
+        }
+        return false;
+    }
+
+    SharedBuffer decryptedPayload;
+    if (msgCrypto_->decrypt(metadata, payload, config_.getCryptoKeyReader(), decryptedPayload)) {
+        payload = decryptedPayload;
+        return true;
+    }
+
+    if (config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::CONSUME) {
+        // Note, batch message will fail to consume even if config is set to consume
+        LOG_WARN(
+            getName() << "Decryption failed. Consuming encrypted message since config is set to consume.");
+        return true;
+    } else if (config_.getCryptoFailureAction() == ConsumerCryptoFailureAction::DISCARD) {
+        LOG_WARN(getName() << "Discarding message since decryption failed and config is set to discard");
+        discardCorruptedMessage(cnx, msg.message_id(), proto::CommandAck::DecryptionError);
+    } else {
+        LOG_ERROR(getName() << "Message delivery failed since unable to decrypt incoming message");
+    }
+    return false;
 }
 
 bool ConsumerImpl::uncompressMessageIfNeeded(const ClientConnectionPtr& cnx, const proto::CommandMessage& msg,

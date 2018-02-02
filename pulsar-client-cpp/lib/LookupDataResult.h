@@ -32,8 +32,8 @@ class LookupDataResult {
    public:
     void setBrokerUrl(const std::string& brokerUrl) { brokerUrl_ = brokerUrl; }
     void setBrokerUrlSsl(const std::string& brokerUrlSsl) { brokerUrlSsl_ = brokerUrlSsl; }
-    std::string getBrokerUrl() { return brokerUrl_; }
-    std::string getBrokerUrlSsl() { return brokerUrlSsl_; }
+    const std::string& getBrokerUrl() const { return brokerUrl_; }
+    const std::string& getBrokerUrlSsl() const { return brokerUrlSsl_; }
 
     bool isAuthoritative() const { return authoritative; }
 
@@ -47,6 +47,12 @@ class LookupDataResult {
 
     void setRedirect(bool redirect) { this->redirect = redirect; }
 
+    bool shouldProxyThroughServiceUrl() const { return proxyThroughServiceUrl_; }
+
+    void setShouldProxyThroughServiceUrl(bool proxyThroughServiceUrl) {
+        proxyThroughServiceUrl_ = proxyThroughServiceUrl;
+    }
+
    private:
     friend inline std::ostream& operator<<(std::ostream& os, const LookupDataResult& b);
     std::string brokerUrl_;
@@ -54,12 +60,15 @@ class LookupDataResult {
     int partitions;
     bool authoritative;
     bool redirect;
+
+    bool proxyThroughServiceUrl_;
 };
 
 std::ostream& operator<<(std::ostream& os, const LookupDataResult& b) {
     os << "{ LookupDataResult [brokerUrl_ = " << b.brokerUrl_ << "] [brokerUrlSsl_ = " << b.brokerUrlSsl_
        << "] [partitions = " << b.partitions << "] [authoritative = " << b.authoritative
-       << "] [redirect = " << b.redirect << "]";
+       << "] [redirect = " << b.redirect << "] proxyThroughServiceUrl = " << b.proxyThroughServiceUrl_
+       << "] }";
     return os;
 }
 }  // namespace pulsar
