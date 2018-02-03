@@ -60,6 +60,8 @@ public class WorkerConfig implements Serializable {
     private String stateStorageServiceUrl;
     private String functionAssignmentTopicName;
     private String schedulerClassName;
+    private long failureCheckFreqMs;
+    private long rescheduleTimeoutMs;
 
     @Data
     @Setter

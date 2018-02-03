@@ -158,6 +158,12 @@ public class Worker extends AbstractService {
                     "snapshot",
                     this.workerConfig.getSnapshotFreqMs(),
                     () -> functionMetaDataManager.snapshot());
+
+            this.clusterServiceCoordinator.addTask("membership-monitor",
+                    this.workerConfig.getFailureCheckFreqMs(),
+                    () -> membershipManager.checkFailures(
+                            functionMetaDataManager, functionRuntimeManager, schedulerManager));
+
             this.clusterServiceCoordinator.start();
 
             // Start function runtime manager

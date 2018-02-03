@@ -48,3 +48,5 @@ processContainerFactory:
 
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"
+failureCheckFreqMs: 30000
+rescheduleTimeoutMs: 60000
