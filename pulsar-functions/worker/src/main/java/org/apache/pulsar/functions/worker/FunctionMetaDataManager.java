@@ -128,7 +128,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return getFunctionMetaData(functionMetaData.getFunctionConfig());
     }
 
-    List<FunctionMetaData> getAllFunctionMetaData() {
+    public List<FunctionMetaData> getAllFunctionMetaData() {
         List<FunctionMetaData> ret = new LinkedList<>();
         for (Map<String, Map<String, FunctionMetaData>> i : this.functionMetaDataMap.values()) {
             for (Map<String, FunctionMetaData> j : i.values()) {

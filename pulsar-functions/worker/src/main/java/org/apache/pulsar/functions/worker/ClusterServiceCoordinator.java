@@ -73,7 +73,7 @@ public class ClusterServiceCoordinator implements AutoCloseable {
                     try {
                         isLeader = membershipManager.becomeLeader().get(30, TimeUnit.SECONDS);
                     } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                        log.warn("Failed to attempt becoming leader", e);
+                        log.debug("Failed to attempt becoming leader", e);
                     }
 
                     if (isLeader) {

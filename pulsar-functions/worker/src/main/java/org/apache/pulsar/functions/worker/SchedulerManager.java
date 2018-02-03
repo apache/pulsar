@@ -35,6 +35,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -89,7 +90,7 @@ public class SchedulerManager implements AutoCloseable {
                 try {
                     isLeader = membershipManager.becomeLeader().get(30, TimeUnit.SECONDS);
                 } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                    log.warn("Failed to attempt becoming leader", e);
+                    log.debug("Failed to attempt becoming leader", e);
                 }
 
                 if (isLeader) {
@@ -99,13 +100,32 @@ public class SchedulerManager implements AutoCloseable {
         });
     }
 
-    public void invokeScheduler() {
+    private void invokeScheduler() {
         List<String> currentMembership = this.membershipManager.getCurrentMembership()
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
 
         List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
+        Set<String> fullyQualifiedNames = allFunctions.stream()
+                .map(functionMetaData -> FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()))
+                .collect(Collectors.toSet());
 
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager.getCurrentAssignments();
+
+        //delete assignments of functions that don't exist anymore
+        List<Assignment> invalidAssignments = new LinkedList<>();
+        for (Map<String, Assignment> entryMap : workerIdToAssignments.values()) {
+            for (Map.Entry<String, Assignment> entry : entryMap.entrySet()) {
+                String fullyQualifiedName = entry.getKey();
+                Assignment assignment = entry.getValue();
+                if (!fullyQualifiedNames.contains(fullyQualifiedName)) {
+                    invalidAssignments.add(assignment);
+                }
+            }
+        }
+
+        for (Assignment assignment : invalidAssignments) {
+            this.functionRuntimeManager.removeAssignment(assignment);
+        }
 
         List<Assignment> currentAssignments = workerIdToAssignments
                 .entrySet().stream()

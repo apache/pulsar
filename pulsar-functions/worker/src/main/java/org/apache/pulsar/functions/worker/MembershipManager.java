@@ -18,10 +18,18 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -38,6 +46,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.functions.proto.Function;
+import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 /**
  * A simple implementation of leader election using a pulsar topic.
@@ -120,7 +130,7 @@ public class MembershipManager implements AutoCloseable {
             persistentTopicStats = pulsarAdmin.persistentTopics().getStats(
                     this.workerConfig.getClusterCoordinationTopic());
         } catch (PulsarAdminException e) {
-            log.error("Failled to get status of coordinate topic {}",
+            log.error("Failed to get status of coordinate topic {}",
                     this.workerConfig.getClusterCoordinationTopic(), e);
             throw new RuntimeException(e);
         }
@@ -157,6 +167,10 @@ public class MembershipManager implements AutoCloseable {
         private String workerHostname;
         private int port;
 
+        public static WorkerInfo of (String workerId, String workerHostname, int port) {
+            return new WorkerInfo(workerId, workerHostname, port);
+        }
+
         public static WorkerInfo parseFrom(String str) {
             String[] tokens = str.split(":");
             if (tokens.length != 3) {
@@ -171,4 +185,86 @@ public class MembershipManager implements AutoCloseable {
         }
     }
 
+    @VisibleForTesting
+    Map<String, Long> unsignedFunctionDurations = new HashMap<>();
+    public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
+                              FunctionRuntimeManager functionRuntimeManager,
+                              SchedulerManager schedulerManager) {
+
+        Set<String> currentMembership = this.getCurrentMembership().stream()
+                .map(entry -> entry.getWorkerId()).collect(Collectors.toSet());
+        List<Function.FunctionMetaData> functionMetaDataList = functionMetaDataManager.getAllFunctionMetaData();
+        Map<String, Map<String, Function.Assignment>> currentAssignments = functionRuntimeManager.getCurrentAssignments();
+        Map<String, Function.Assignment> assignmentMap = new HashMap<>();
+        for (Map<String, Function.Assignment> entry : currentAssignments.values()) {
+            assignmentMap.putAll(entry);
+        }
+        long currentTimeMs = System.currentTimeMillis();
+
+        //remove functions that have been scheduled
+        Iterator<Map.Entry<String, Long>> it = unsignedFunctionDurations.entrySet().iterator();
+        while (it.hasNext()) {
+            Map.Entry<String, Long> entry = it.next();
+            String fullyQualifiedName = entry.getKey();
+            Function.Assignment assignment = assignmentMap.get(fullyQualifiedName);
+            if (assignment != null) {
+                String assignedWorkerId = assignment.getWorkerId();
+                // check if assigned to worker that has failed
+                if (currentMembership.contains(assignedWorkerId)) {
+                    it.remove();
+                }
+            }
+        }
+
+        // check for functions that haven't been assigned
+        for (Function.FunctionMetaData functionMetaData : functionMetaDataList) {
+            Function.Assignment assignment
+                    = functionRuntimeManager.findFunctionAssignment(functionMetaData.getFunctionConfig().getTenant(),
+                    functionMetaData.getFunctionConfig().getNamespace(),
+                    functionMetaData.getFunctionConfig().getName());
+
+            String fullyQualifiedName = FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig());
+            // Function is unassigned
+            if (assignment == null && !this.unsignedFunctionDurations.containsKey(fullyQualifiedName)) {
+                this.unsignedFunctionDurations.put(fullyQualifiedName, currentTimeMs);
+            }
+        }
+
+        // check failed nodes
+        for (Map.Entry<String, Map<String, Function.Assignment>> entry : currentAssignments.entrySet()) {
+            String workerId = entry.getKey();
+            Map<String, Function.Assignment> assignmentEntries = entry.getValue();
+            if (!currentMembership.contains(workerId)) {
+                for (Function.Assignment assignmentEntry : assignmentEntries.values()) {
+                    String fullyQualifiedName = FunctionConfigUtils.getFullyQualifiedName(
+                            assignmentEntry.getFunctionMetaData().getFunctionConfig());
+                    if (!this.unsignedFunctionDurations.containsKey(fullyQualifiedName)) {
+                        this.unsignedFunctionDurations.put(FunctionConfigUtils.getFullyQualifiedName(
+                                assignmentEntry.getFunctionMetaData().getFunctionConfig()), currentTimeMs);
+                    }
+                }
+            }
+        }
+
+        boolean triggerScheduler = false;
+        // check unassigned
+        Collection<String>  needSchedule = new LinkedList<>();
+        for (Map.Entry<String, Long> entry : this.unsignedFunctionDurations.entrySet()) {
+            String fullyQualifiedName = entry.getKey();
+            long unassignedDurationMs = entry.getValue();
+            if (currentTimeMs - unassignedDurationMs > this.workerConfig.getRescheduleTimeoutMs()) {
+                needSchedule.add(fullyQualifiedName);
+                // remove assignment from failed node
+                Function.Assignment assignment = assignmentMap.get(fullyQualifiedName);
+                if (assignment != null) {
+                    functionRuntimeManager.removeAssignment(assignment);
+                }
+                triggerScheduler = true;
+            }
+        }
+        if (triggerScheduler) {
+            log.info("Functions that need scheduling/rescheduling: {}", needSchedule);
+            schedulerManager.schedule();
+        }
+    }
 }

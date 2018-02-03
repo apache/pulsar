@@ -132,8 +132,16 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return this.functionRuntimeInfoMap.get(fullyQualifiedName);
     }
 
+    public synchronized Assignment findFunctionAssignment(String tenant, String namespace, String functionName) {
+        return this.findAssignment(tenant, namespace, functionName);
+    }
+
     public synchronized long getCurrentAssignmentVersion() {
         return this.currentAssignmentVersion;
+    }
+
+    public synchronized void removeAssignment(Assignment assignment) {
+        this.deleteAssignment(assignment);
     }
 
     public void start() {
