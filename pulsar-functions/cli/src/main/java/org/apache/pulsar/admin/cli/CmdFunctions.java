@@ -272,7 +272,7 @@ public class CmdFunctions extends CmdBase {
                                 inputSerializer, jarFile));
                     }
                     Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                    if (!serDeTypes[0].isAssignableFrom(typeArgs[0])) {
+                    if (!typeArgs[0].isAssignableFrom(serDeTypes[0])) {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[0] + " vs " + serDeTypes[0]);
                     }
                 }

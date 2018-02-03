@@ -513,24 +513,35 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         }
 
         for (SerDe serDe : inputSerDe.values()) {
-            Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-            if (!inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0])) {
-                throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
-                        + " function type = " + typeArgs[0] + ", serde type = " + inputSerdeTypeArgs[0]);
+            if (serDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
+                if (!DefaultSerDe.IsSupportedType(typeArgs[0])) {
+                    throw new RuntimeException("Default Serde does not support " + typeArgs[0]);
+                }
+            } else {
+                Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
+                if (!typeArgs[0].isAssignableFrom(inputSerdeTypeArgs[0])) {
+                    throw new RuntimeException("Inconsistent types found between function input type and input serde type: "
+                            + " function type = " + typeArgs[0] + " should be assignable from " + inputSerdeTypeArgs[0]);
+                }
             }
         }
 
         if (!Void.class.equals(typeArgs[1])) { // return type is not `Void.class`
-            if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null) {
+            if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() == null
+                || instanceConfig.getFunctionConfig().getOutputSerdeClassName().isEmpty()
+                || instanceConfig.getFunctionConfig().getOutputSerdeClassName().equals(DefaultSerDe.class.getName())) {
+                outputSerDe = initializeDefaultSerDe(typeArgs, false);
+            } else {
                 this.outputSerDe = initializeSerDe(instanceConfig.getFunctionConfig().getOutputSerdeClassName(), clsLoader, typeArgs, false);
             }
-            if (outputSerDe == null) {
-                outputSerDe = initializeDefaultSerDe(typeArgs, false);
-            }
             Class<?>[] outputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, outputSerDe.getClass());
-            if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
+            if (outputSerDe.getClass().getName().equals(DefaultSerDe.class.getName())) {
+                if (!DefaultSerDe.IsSupportedType(typeArgs[1])) {
+                    throw new RuntimeException("Default Serde does not support type " + typeArgs[1]);
+                }
+            } else if (!outputSerdeTypeArgs[0].isAssignableFrom(typeArgs[1])) {
                 throw new RuntimeException("Inconsistent types found between function output type and output serde type: "
-                        + " function type = " + typeArgs[1] + ", serde type = " + outputSerdeTypeArgs[0]);
+                        + " function type = " + typeArgs[1] + "should be assignable from " + outputSerdeTypeArgs[0]);
             }
         }
     }
