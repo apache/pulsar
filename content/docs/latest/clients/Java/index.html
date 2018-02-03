@@ -786,6 +786,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/reference/CliTools/">Pulsar command-line tools</a></li>
           
           
@@ -935,8 +937,6 @@
           
           
           
-          
-          
         </ul>
       </div>
     </div>
@@ -974,6 +974,8 @@
       </div>
       <div class="modal-body">
         <ul>
+          
+          
           
           
           
@@ -1065,8 +1067,6 @@
           
           
           <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
           
           
           
@@ -1536,9 +1536,7 @@
 
 <h2 id="reader-interface">Reader interface</h2>
 
-<p>The Pulsar <a href="../../getting-started/ConceptsAndArchitecture#reader-interface">Reader API</a> enables applications to access messages on Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span></p>
-
-<p>With the Reader API, Pulsar clients can “manually position” themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Reader.html"><code class="highlighter-rouge">Reader</code></a> objects by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a>, and <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ReaderConfiguration.html"><code class="highlighter-rouge">ReaderConfiguration</code></a>.</p>
+<p>With the <a href="../../getting-started/ConceptsAndArchitecture#reader-interface">reader interface</a>, Pulsar clients can “manually position” themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  <a target="_blank" href="/api/client/org/apache/pulsar/client/api/Reader.html"><code class="highlighter-rouge">Reader</code></a> objects by specifying a <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, a <a target="_blank" href="/api/client/org/apache/pulsar/client/api/MessageId.html"><code class="highlighter-rouge">MessageId</code></a>, and <a target="_blank" href="/api/client/org/apache/pulsar/client/api/ReaderConfiguration.html"><code class="highlighter-rouge">ReaderConfiguration</code></a>.</p>
 
 <p>Here’s an example:</p>
 
