@@ -56,6 +56,7 @@ class ProcessFunctionContainer implements FunctionContainer {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
     private Timer alivenessTimer;
     private int alivenessCheckInterval;
+    private volatile boolean markedKilled = false;
 
     ProcessFunctionContainer(InstanceConfig instanceConfig,
                              int maxBufferedTuples,
@@ -185,20 +186,7 @@ class ProcessFunctionContainer implements FunctionContainer {
         alivenessTimer.scheduleAtFixedRate(new TimerTask() {
             @Override
             public void run() {
-                if (!process.isAlive()) {
-                    log.error("Process is no longer alive, Restarting...");
-                    InputStream errorStream = process.getErrorStream();
-                    try {
-                        byte[] errorBytes = new byte[errorStream.available()];
-                        errorStream.read(errorBytes);
-                        String errorMessage = new String(errorBytes);
-                        startupException = new RuntimeException(errorMessage);
-                        log.error("ErrorStream was " + errorMessage);
-                    } catch (Exception ex) {
-                        startupException = ex;
-                    }
-                    startProcess();
-                }
+                checkForAliveness();
             }
         }, alivenessCheckInterval * 1000, alivenessCheckInterval * 1000);
     }
@@ -209,7 +197,8 @@ class ProcessFunctionContainer implements FunctionContainer {
     }
 
     @Override
-    public void stop() {
+    public synchronized void stop() {
+        markedKilled = true;
         process.destroy();
         channel.shutdown();
         alivenessTimer.cancel();
@@ -286,6 +275,24 @@ class ProcessFunctionContainer implements FunctionContainer {
             log.error("Instance Process quit unexpectedly with return value " + exitValue);
         } catch (IllegalThreadStateException ex) {
             log.info("Started process successfully");
+        }
+    }
+
+    private synchronized void checkForAliveness() {
+        if (markedKilled) return;
+        if (!process.isAlive()) {
+            log.error("Process is no longer alive, Restarting...");
+            InputStream errorStream = process.getErrorStream();
+            try {
+                byte[] errorBytes = new byte[errorStream.available()];
+                errorStream.read(errorBytes);
+                String errorMessage = new String(errorBytes);
+                startupException = new RuntimeException(errorMessage);
+                log.error("ErrorStream was " + errorMessage);
+            } catch (Exception ex) {
+                startupException = ex;
+            }
+            startProcess();
         }
     }
 }
