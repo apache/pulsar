@@ -778,8 +778,6 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
           
           
@@ -879,6 +877,8 @@
           
           
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -1078,9 +1078,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -1272,9 +1272,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -1466,9 +1466,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/advanced/RetentionExpiry/">Message retention and expiry</a></li>
+          
+          
           
           
           
@@ -1564,15 +1564,15 @@
 <p>Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span> are responsible for handling messages that pass through Pulsar, including <a href="../../getting-started/ConceptsAndArchitecture#persistent-storage">persistent storage</a> of messages. By default, brokers:</p>
 
 <ul>
-  <li>immediately delete all messages that have been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>, and</li>
+  <li>immediately delete all messages that have been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> on every <span class="popover-term" tabindex="0" title="What is a subscription?" data-placement="top" data-content="A lease on a topic established by a consumer. Pulsar has three subscription modes (exclusive, shared, and failover)." data-toggle="popover" data-trigger="focus">subscription</span>, and</li>
   <li>persistently store all <span class="popover-term" tabindex="0" title="What is an unacknowledged message?" data-placement="top" data-content="A message that has been delivered to a consumer for processing but not yet confirmed as processed by the consumer." data-toggle="popover" data-trigger="focus">unacknowledged</span> messages in a <a href="#backlog-quotas">backlog</a>.</li>
 </ul>
 
 <p>In Pulsar, you can override both of these default behaviors, at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level, in two ways:</p>
 
 <ul>
-  <li>You can persistently store messages that have already been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> by setting <a href="#retention-policies">retention policies</a>.</li>
-  <li>You can delete messages that have not been acknowledged within a specified timeframe using <a href="#time-to-live-ttl">time to live</a> (TTL).</li>
+  <li>You can persistently store messages that have already been consumed and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> for a minimum time by setting <a href="#retention-policies">retention policies</a>.</li>
+  <li>Messages that are not acknowledged within a specified timeframe, can be automatically marked as consumed, by specifying the <a href="#time-to-live-ttl">time to live</a> (TTL).</li>
 </ul>
 
 <p>Pulsar’s <a href="../../admin-api/overview">admin interface</a> enables you to manage both retention policies and TTL at the <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> level (and thus within a specific <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">property</span> and either on a specific <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> or in the <a href="../../getting-started/ConceptsAndArchitecture#global-cluster"><code class="highlighter-rouge">global</code></a> cluster).</p>
@@ -1598,11 +1598,16 @@
 
 -->
 <div class="admonition">
-  <div class="warning">
-    <span class="admonition-title"><p>Don’t use retention and TTL at the same time</p>
+  <div class="info">
+    <span class="admonition-title"><p>Retention and TTL are solving two different problems</p>
 </span>
     
-<p>Message retention policies and TTL fulfill similar purposes and should not be used in conjunction. For any given namespace, use one or the other.</p>
+<ul>
+  <li>Message retention: Keep the data for at least X hours (even if acknowledged)</li>
+  <li>Time-to-live: Discard data after some time (by automatically acknowledging)</li>
+</ul>
+
+<p>In most cases, applications will want to use either one or the other (or none).</p>
 
   </div>
 </div>
@@ -1613,9 +1618,12 @@
 
 <p>When you set a size limit of, say, 10 gigabytes, then messages in all topics in the namespace, <em>even acknowledged messages</em>, will be retained until the size limit for the topic is reached; if you set a time limit of, say, 1 day, then messages for all topics in the namespace will be retained for 24 hours.</p>
 
+<p>It is also possible to set <em>infinite</em> retention time or size, by setting <code class="highlighter-rouge">-1</code> for either time or
+size retention.</p>
+
 <h3 id="defaults">Defaults</h3>
 
-<p>There are two configuration parameters that you can use to set <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>-wide defaults for message retention: <a href="../../reference/Configuration#broker-defaultRetentionTimeInMinutes"><code class="highlighter-rouge">defaultRetentionTimeInMinutes</code></a> and <a href="../../reference/Configuration#broker-defaultRetentionSizeInMB"><code class="highlighter-rouge">defaultRetentionSizeInMB</code></a>.</p>
+<p>There are two configuration parameters that you can use to set <span class="popover-term" tabindex="0" title="What is a Pulsar instance?" data-placement="top" data-content="A group of Pulsar clusters that act together as a single unit." data-toggle="popover" data-trigger="focus">instance</span>-wide defaults for message retention: <a href="../../reference/Configuration#broker-defaultRetentionTimeInMinutes"><code class="highlighter-rouge">defaultRetentionTimeInMinutes=0</code></a> and <a href="../../reference/Configuration#broker-defaultRetentionSizeInMB"><code class="highlighter-rouge">defaultRetentionSizeInMB=0</code></a>.</p>
 
 <p>Both of these parameters are in the <a href="../../reference/Configuration#broker"><code class="highlighter-rouge">broker.conf</code></a> configuration file.</p>
 
@@ -1634,6 +1642,20 @@
 <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
   <span class="nt">--size</span> 10G <span class="se">\</span>
   <span class="nt">--time</span> 3h
+</code></pre></div></div>
+
+<p>To set retention with infinite time and a size limit:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--size</span> 1T <span class="se">\</span>
+  <span class="nt">--time</span> <span class="nt">-1</span>
+</code></pre></div></div>
+
+<p>Similarly, even the size can be to unlimited:</p>
+
+<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>pulsar-admin namespaces set-retention my-prop/my-cluster/my-ns <span class="se">\</span>
+  <span class="nt">--size</span> <span class="nt">-1</span> <span class="se">\</span>
+  <span class="nt">--time</span> <span class="nt">-1</span>
 </code></pre></div></div>
 
 <h4 id="rest-api">REST API</h4>
@@ -1840,7 +1862,7 @@
 
 <h2 id="time-to-live-ttl">Time to live (TTL)</h2>
 
-<p>By default, Pulsar stores all unacknowledged messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will</p>
+<p>By default, Pulsar stores all unacknowledged messages forever. This can lead to heavy disk space usage in cases where a lot of messages are going unacknowledged. If disk space is a concern, you can set a time to live (TTL) that determines how long unacknowledged messages will be retained.</p>
 
 <h3 id="set-the-ttl-for-a-namespace">Set the TTL for a namespace</h3>
 
