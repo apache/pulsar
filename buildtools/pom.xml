@@ -33,4 +33,11 @@
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
+  <dependencies>
+    <dependency>
+      <groupId>org.testng</groupId>
+      <artifactId>testng</artifactId>
+    </dependency>
+  </dependencies>
+
 </project>
