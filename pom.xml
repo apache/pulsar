@@ -108,7 +108,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.85-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.91-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.1.19.Final</netty.version>
     <storm.version>1.0.5</storm.version>
