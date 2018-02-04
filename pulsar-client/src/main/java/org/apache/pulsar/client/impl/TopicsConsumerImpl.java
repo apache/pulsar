@@ -21,6 +21,7 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
+import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +57,7 @@ import org.slf4j.LoggerFactory;
 public class TopicsConsumerImpl extends ConsumerBase {
 
     // All topics should be in same namespace
-    protected final NamespaceName namespaceName;
+    protected NamespaceName namespaceName;
 
     // Map <topic+partition, consumer>, when get do ACK, consumer will by find by topic name
     private final ConcurrentHashMap<String, ConsumerImpl> consumers;
@@ -80,10 +81,6 @@ public class TopicsConsumerImpl extends ConsumerBase {
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfiguration internalConfig;
 
-    // use in addConsumer
-    private AtomicReference<Throwable> subscribeFail = new AtomicReference<Throwable>();
-    private AtomicInteger completed = new AtomicInteger(0);
-
     TopicsConsumerImpl(PulsarClientImpl client, Collection<String> topics, String subscription,
                        ConsumerConfiguration conf, ExecutorService listenerExecutor,
                        CompletableFuture<Consumer> subscribeFuture) {
@@ -91,9 +88,8 @@ public class TopicsConsumerImpl extends ConsumerBase {
             conf, Math.max(2, conf.getReceiverQueueSize()), listenerExecutor,
             subscribeFuture);
 
-        this.namespaceName = DestinationName.get(topics.stream().findFirst().get()).getNamespaceObject();
-
-        checkArgument(!topicsNameInvalid(topics), "Topics should have same namespace " + this.namespaceName.toString());
+        checkArgument(conf.getReceiverQueueSize() > 0,
+            "Receiver queue size needs to be greater than 0 for Topics Consumer");
 
         this.topics = new ConcurrentHashMap<>();
         this.consumers = new ConcurrentHashMap<>();
@@ -107,43 +103,43 @@ public class TopicsConsumerImpl extends ConsumerBase {
             this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
-        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
-        checkArgument(conf.getReceiverQueueSize() > 0,
-            "Receiver queue size needs to be greater than 0 for Topics Consumer");
+        this.internalConfig = getInternalConsumerConfig();
+        this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
 
-        internalConfig = getInternalConsumerConfig();
-        topics.forEach(topic ->
-            client.getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
-                if (log.isDebugEnabled()) {
-                    log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
-                }
+        if (topics.isEmpty()) {
+            this.namespaceName = null;
+            setState(State.Ready);
+            // We have successfully created N consumers, so we can start receiving messages now
+            subscribeFuture().complete(TopicsConsumerImpl.this);
+            return;
+        }
 
-                if (metadata.partitions > 1) {
-                    numberTopicPartitions.addAndGet(metadata.partitions);
-                    this.topics.putIfAbsent(topic, metadata.partitions);
+        checkArgument(topics.isEmpty() || !topicsNameInvalid(topics), "Topics should have same namespace.");
+        this.namespaceName = DestinationName.get(topics.stream().findFirst().get()).getNamespaceObject();
 
-                    IntStream.range(0, metadata.partitions).forEach(partitionIndex -> {
-                        String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-                        addConsumer(
-                            new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                                client.externalExecutorProvider().getExecutor(), partitionIndex,
-                                new CompletableFuture<Consumer>()));
-                    });
-                } else {
-                    numberTopicPartitions.incrementAndGet();
-                    this.topics.putIfAbsent(topic, 1);
-
-                    addConsumer(
-                        new ConsumerImpl(client, topic, subscription, internalConfig,
-                            client.externalExecutorProvider().getExecutor(), 0,
-                            new CompletableFuture<Consumer>()));
-                }
-            }).exceptionally(ex -> {
-                log.warn("[{}] Failed to get partitioned topic metadata: {}", topic, ex.getMessage());
+        List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(topics.size());
+        topics.forEach(topic -> futures.add(subscribeAsync(topic)));
+        FutureUtil.waitForAll(futures)
+            .thenAccept(finalFuture -> {
+                try {
+                    if (numberTopicPartitions.get() > maxReceiverQueueSize) {
+                        setMaxReceiverQueueSize(numberTopicPartitions.get());
+                    }
+                    setState(State.Ready);
+                    // We have successfully created N consumers, so we can start receiving messages now
+                    startReceivingMessages(consumers.values().stream().collect(Collectors.toList()));
+                    subscribeFuture().complete(TopicsConsumerImpl.this);
+                    log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
+                        topic, subscription, numberTopicPartitions.get());
+                } catch (PulsarClientException e) {
+                    log.warn("[{}] Failed startReceivingMessages while subscribe topics: {}", topic, e.getMessage());
+                    subscribeFuture.completeExceptionally(e);
+                }})
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to subscribe topics: {}", topic, ex.getMessage());
                 subscribeFuture.completeExceptionally(ex);
                 return null;
-            })
-        );
+            });
     }
 
     // Check topics are valid.
@@ -175,56 +171,17 @@ public class TopicsConsumerImpl extends ConsumerBase {
         return result.isPresent();
     }
 
-    // add Consumer for all given topics when initiate.
-    private void addConsumer(ConsumerImpl consumer) {
-        consumers.putIfAbsent(consumer.getTopic(), consumer);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] Put topic consumer-{} into topics consumer", topic, consumer.getTopic());
-        }
-        consumer.subscribeFuture().handle((cons, subscribeException) -> {
-            if (subscribeException != null) {
-                setState(State.Failed);
-                subscribeFail.compareAndSet(null, subscribeException);
-                client.cleanupConsumer(this);
-            }
-            if (completed.incrementAndGet() == numberTopicPartitions.get()) {
-                if (subscribeFail.get() == null) {
-                    try {
-                        if (numberTopicPartitions.get() > maxReceiverQueueSize) {
-                            setMaxReceiverQueueSize(numberTopicPartitions.get());
-                        }
-                        // We have successfully created N consumers, so we can start receiving messages now
-                        startReceivingMessages(consumers.values().stream().collect(Collectors.toList()));
-                        setState(State.Ready);
-                        subscribeFuture().complete(TopicsConsumerImpl.this);
-                        log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
-                            topic, subscription, numberTopicPartitions.get());
-                        return null;
-                    } catch (PulsarClientException e) {
-                        subscribeFail.set(e);
-                    }
-                }
-                closeAsync().handle((ok, closeException) -> {
-                    subscribeFuture().completeExceptionally(subscribeFail.get());
-                    client.cleanupConsumer(this);
-                    return null;
-                });
-                log.error("[{}] [{}] Could not create topics consumer.", topic, subscription,
-                    subscribeFail.get().getCause());
-            }
-            return null;
-        });
-    }
-
     private void startReceivingMessages(List<ConsumerImpl> newConsumers) throws PulsarClientException {
         if (log.isDebugEnabled()) {
             log.debug("[{}] startReceivingMessages for {} new consumers in topics consumer",
                 topic, newConsumers.size());
         }
-        newConsumers.forEach(consumer -> {
-            consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
-            receiveMessageFromConsumer(consumer);
-        });
+        if (getState() == State.Ready) {
+            newConsumers.forEach(consumer -> {
+                consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
+                receiveMessageFromConsumer(consumer);
+            });
+        }
     }
 
     private void receiveMessageFromConsumer(ConsumerImpl consumer) {
@@ -666,13 +623,24 @@ public class TopicsConsumerImpl extends ConsumerBase {
         }
     }
 
+    private boolean topicNameValid(String topicName) {
+        checkArgument(DestinationName.isValid(topicName), "Invalid topic name:" + topicName);
+        checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
+
+        if (this.namespaceName != null) {
+            checkArgument(DestinationName.get(topicName).getNamespace().toString().equals(this.namespaceName.toString()),
+                "Topic " + topicName + " not in same namespace with Topics");
+        }
+
+        return true;
+    }
+
     // subscribe one more given topic
     public CompletableFuture<Void> subscribeAsync(String topicName) {
-        checkArgument(DestinationName.isValid(topicName), "Invalid topic name:" + topicName);
-        checkArgument(DestinationName.get(topicName).getNamespace().equals(
-            DestinationName.get(topics.keys().nextElement()).getNamespace()),
-            "Topic " + topicName + " not in same namespace with Topics" );
-        checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
+        if (!topicNameValid(topicName)) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.AlreadyClosedException("Topic name not valid"));
+        }
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -728,7 +696,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
         return subscribeResult;
     }
 
-    // handling failure during subscribe new topic
+    // handling failure during subscribe new topic, unsubscribe success created partitions
     private void handleSubscribeOneTopicError(String topicName, Throwable error) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer ", topic, topicName, error.getMessage());
 
@@ -815,6 +783,9 @@ public class TopicsConsumerImpl extends ConsumerBase {
                         resultFuture.complete(null);
                         log.info("[{}] [{}] Success subscribe new topic {} in topics consumer, numberTopicPartitions {}",
                             topic, subscription, topicName, numberTopicPartitions.get());
+                        if (this.namespaceName == null) {
+                            this.namespaceName = DestinationName.get(topicName).getNamespaceObject();
+                        }
                         return null;
                     } catch (PulsarClientException e) {
                         handleSubscribeOneTopicError(topicName, e);
