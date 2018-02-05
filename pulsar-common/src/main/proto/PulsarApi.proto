@@ -109,6 +109,8 @@ enum ServerError {
     ConsumerNotFound = 13; // Consumer not found
     TooManyRequests = 14; // Error with too many simultaneously request
     TopicTerminatedError = 15; // The topic has been terminated
+
+    ProducerBusy         = 16; // Producer with same name is already connected
 }
 
 enum AuthMethod {

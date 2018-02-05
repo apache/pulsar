@@ -130,6 +130,8 @@ public class BrokerServiceException extends Exception {
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;
+        } else if (t instanceof NamingException) {
+            return PulsarApi.ServerError.ProducerBusy;
         } else if (t instanceof PersistenceException) {
             return PulsarApi.ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {
