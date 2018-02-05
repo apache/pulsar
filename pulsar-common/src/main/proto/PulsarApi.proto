@@ -312,7 +312,7 @@ message CommandUnsubscribe {
 message CommandSeek {
 	required uint64 consumer_id = 1;
 	required uint64 request_id  = 2;
-	
+
 	optional MessageIdData message_id = 3;
 }
 
@@ -346,7 +346,7 @@ message CommandSuccess {
 message CommandProducerSuccess {
 	required uint64 request_id    = 1;
 	required string producer_name = 2;
-	
+
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
@@ -415,6 +415,18 @@ message CommandConsumerStatsResponse {
         optional uint64 msgBacklog                  = 15;
 }
 
+message CommandGetTopicsOfNamespace {
+	required uint64 request_id	= 1;
+	required string property    = 2;
+	required string cluster     = 3;
+	required string local_name  = 4;
+}
+
+message CommandGetTopicsOfNamespaceResponse {
+	required uint64 request_id	= 1;
+	repeated string topics 		= 2;
+}
+
 message BaseCommand {
 	enum Type {
 		CONNECT     = 2;
@@ -458,6 +470,9 @@ message BaseCommand {
 		REACHED_END_OF_TOPIC = 27;
 
 		SEEK = 28;
+
+		GET_TOPICS_OF_NAMESPACE 			= 29;
+		GET_TOPICS_OF_NAMESPACE_RESPONSE 	= 30;
 	}
 
 	required Type type = 1;
@@ -496,6 +511,9 @@ message BaseCommand {
 	optional CommandConsumerStatsResponse consumerStatsResponse         = 26;
 
 	optional CommandReachedEndOfTopic reachedEndOfTopic  = 27;
-	
+
 	optional CommandSeek seek = 28;
+
+	optional CommandGetTopicsOfNamespace getTopicsOfNamespace = 29;
+	optional CommandGetTopicsOfNamespaceResponse getTopicsOfNamespaceResponse = 30;
 }
