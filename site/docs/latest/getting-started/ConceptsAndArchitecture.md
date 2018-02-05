@@ -146,6 +146,12 @@ When the master consumer disconnects, all (non-acked and subsequent) messages wi
 
 In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 would be the next in line to receive messages if Consumer-C-2 disconnected.
 
+### Multi-topic subscriptions
+
+When a {% popover consumer %} subscribes to a Pulsar {% popover topic %}, by default it subscribes to one specific topic, such as `persistent://sample/ns1/standalone/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can subscribe to multiple topics whose names satisfy a provided [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex).
+
+{% include admonition.html type="info" content="When subscribing to multiple topics, all topics must be in the same [namespace](#namespaces)." %}
+
 ### Partitioned topics
 
 {% include explanations/partitioned-topics.md %}
