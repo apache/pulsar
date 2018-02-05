@@ -20,6 +20,7 @@ package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
 
+import com.google.common.collect.Lists;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Arrays;
@@ -197,7 +198,17 @@ public class BinaryProtoLookupService implements LookupService {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Success get topics list in request: {}", namespace.toString(), requestId);
                 }
-                topicsFuture.complete(topicsList);
+
+                // do not keep partition part of topic name
+                List<String> result = Lists.newArrayList();
+                topicsList.forEach(topic -> {
+                    String filtered = DestinationName.get(topic).getPartitionedTopicName();
+                    if (!result.contains(filtered)) {
+                        result.add(filtered);
+                    }
+                });
+
+                topicsFuture.complete(result);
             }).exceptionally((e) -> {
                 log.warn("[{}] failed to get topics list: {}", namespace.toString(), e.getCause().getMessage(), e);
                 topicsFuture.completeExceptionally(e);

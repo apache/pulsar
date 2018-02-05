@@ -18,15 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import java.net.InetAddress;
+import com.google.common.collect.Lists;
+import io.netty.channel.EventLoopGroup;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
-
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -37,8 +35,6 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import io.netty.channel.EventLoopGroup;
 
 class HttpLookupService implements LookupService {
 
@@ -96,10 +92,25 @@ class HttpLookupService implements LookupService {
 
     @Override
     public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
-        CompletableFuture<String[]> result = httpClient
-            .get(String.format("admin/namespaces/%s/destinations", namespace.getLookupName()), String[].class);
-
-        return result.thenApply(Arrays::asList);
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+        httpClient
+            .get(String.format("admin/namespaces/%s/destinations", namespace.getLookupName()), String[].class)
+            .thenAccept(topics -> {
+                List<String> result = Lists.newArrayList();
+                // do not keep partition part of topic name
+                Arrays.asList(topics).forEach(topic -> {
+                    String filtered = DestinationName.get(topic).getPartitionedTopicName();
+                    if (!result.contains(filtered)) {
+                        result.add(filtered);
+                    }
+                });
+                future.complete(result);})
+            .exceptionally(ex -> {
+                log.warn("Failed to getTopicsUnderNamespace namespace: {}.", namespace, ex.getMessage());
+                future.completeExceptionally(ex);
+                return null;
+            });
+        return future;
     }
 
     @Override

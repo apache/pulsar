@@ -18,17 +18,14 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static org.mockito.Mockito.doReturn;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
-import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -52,7 +49,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     @Override
     @BeforeMethod
     public void setup() throws Exception {
-
+        // set isTcpLookup = true, to use BinaryProtoLookupService to get topics for a pattern.
+        isTcpLookup = true;
+        super.internalSetup();
     }
 
     @Override
@@ -61,43 +60,47 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         super.internalCleanup();
     }
 
-    // set isTcpLookup = true, to use BinaryProtoLookupService to get topics for a pattern.
     // verify consumer create success, and works well.
     @Test(timeOut = testTimeout)
     public void testBinaryProtoToGetTopicsOfNamespace() throws Exception {
-        isTcpLookup = true;
-        super.internalSetup();
-
         String key = "BinaryProtoToGetTopics";
-        final String subscriptionName = "my-ex-subscription-" + key;
-        final String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1-" + key;
-        final String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2-" + key;
-        final String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3-" + key;
-        Pattern pattern = Pattern.compile("pattern-topic.*");
-        String namespace = "prop/use/ns-abc";
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
-
-        // 0. mock NamespaceService.getListOfDestinations, it is used in BinaryProtoLookupService.getTopicsUnderNamespace
-        NamespaceService nss = pulsar.getNamespaceService();
-        doReturn(topicNames).when(nss).getListOfDestinations("prop", "use", "ns-abc");
+        String subscriptionName = "my-ex-subscription-" + key;
+        String topicName1 = "persistent://prop/use/ns-abc/pattern-topic-1-" + key;
+        String topicName2 = "persistent://prop/use/ns-abc/pattern-topic-2-" + key;
+        String topicName3 = "persistent://prop/use/ns-abc/pattern-topic-3-" + key;
+        Pattern pattern = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
 
         // 1. create partition
         admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        // 2. Create consumer, this should success
+        // 2. create producer
+        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
+        producerConfiguration.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
+        String messagePredicate = "my-message-" + key + "-";
+        int totalMessages = 30;
+
+        Producer producer1 = pulsarClient.createProducer(topicName1);
+        Producer producer2 = pulsarClient.createProducer(topicName2, producerConfiguration);
+        Producer producer3 = pulsarClient.createProducer(topicName3, producerConfiguration);
+
+        // 3. Create consumer, this should success
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setReceiverQueueSize(4);
         conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
         conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribeAsync(namespace, pattern, subscriptionName, conf).get();
+        Consumer consumer = pulsarClient.subscribeAsync(pattern, subscriptionName, conf).get();
         assertTrue(consumer instanceof PatternTopicsConsumerImpl);
 
-        // 3. verify consumer get methods, to get right number of partitions and topics.
+        // 4. verify consumer get methods, to get right number of partitions and topics.
         assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
         List<String> topics = ((PatternTopicsConsumerImpl) consumer).getPartitionedTopics();
         List<ConsumerImpl> consumers = ((PatternTopicsConsumerImpl) consumer).getConsumers();
+
+        assertEquals(topics.size(), 6);
+        assertEquals(consumers.size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 3);
 
         topics.forEach(topic -> log.info("topic: {}", topic));
         consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
@@ -105,25 +108,16 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
             assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
 
-        assertTrue(((PatternTopicsConsumerImpl) consumer).getTopics().size() == 3);
+        ((PatternTopicsConsumerImpl) consumer).getTopics().forEach(topic -> log.info("getTopics topic: {}", topic));
 
-        // 4. producer publish messages
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        final String messagePredicate = "my-message-" + key + "-";
-        final int totalMessages = 30;
-
-        Producer producer1 = pulsarClient.createProducer(topicName1);
-        Producer producer2 = pulsarClient.createProducer(topicName2, producerConfiguration);
-        Producer producer3 = pulsarClient.createProducer(topicName3, producerConfiguration);
-
+        // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
             producer1.send((messagePredicate + "producer1-" + i).getBytes());
             producer2.send((messagePredicate + "producer2-" + i).getBytes());
             producer3.send((messagePredicate + "producer3-" + i).getBytes());
         }
 
-        // 5. should receive all the message
+        // 6. should receive all the message
         int messageSet = 0;
         Message message = consumer.receive();
         do {
@@ -141,4 +135,5 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         producer2.close();
         producer3.close();
     }
+
 }

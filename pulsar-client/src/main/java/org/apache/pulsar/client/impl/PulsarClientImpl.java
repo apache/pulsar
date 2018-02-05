@@ -341,8 +341,39 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     @Override
-    public CompletableFuture<Consumer> subscribeAsync(String namespace, Pattern topicsPattern,
-                                                      String subscription, ConsumerConfiguration conf) {
+    public Consumer subscribe(Pattern topicsPattern, final String subscription) throws PulsarClientException {
+        return subscribe(topicsPattern, subscription, new ConsumerConfiguration());
+    }
+
+    @Override
+    public Consumer subscribe(Pattern topicsPattern,
+                              String subscription,
+                              ConsumerConfiguration conf)
+        throws PulsarClientException {
+        try {
+            return subscribeAsync(topicsPattern, subscription, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(Pattern topicsPattern, String subscription) {
+        return subscribeAsync(topicsPattern, subscription, new ConsumerConfiguration());
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(Pattern topicsPattern,
+                                                      String subscription,
+                                                      ConsumerConfiguration conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -355,17 +386,18 @@ public class PulsarClientImpl implements PulsarClient {
                 new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        NamespaceName namespaceName = NamespaceName.get(namespace);
+        String regex = topicsPattern.pattern();
+        DestinationName destination = DestinationName.get(regex);
+        NamespaceName namespaceName = destination.getNamespaceObject();
 
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
-
         lookup.getTopicsUnderNamespace(namespaceName)
             .thenAccept(topics -> {
                 List<String> topicsList = topics.stream()
                     .filter(topic -> {
                         DestinationName destinationName = DestinationName.get(topic);
                         checkState(destinationName.getNamespaceObject().equals(namespaceName));
-                        return topicsPattern.matcher(destinationName.getLocalName()).matches();
+                        return topicsPattern.matcher(destinationName.toString()).matches();
                     })
                     .collect(Collectors.toList());
 
@@ -378,7 +410,7 @@ public class PulsarClientImpl implements PulsarClient {
                 }
             })
             .exceptionally(ex -> {
-                log.warn("[{}] Failed to get topics under namespace", namespace);
+                log.warn("[{}] Failed to get topics under namespace", namespaceName);
                 consumerSubscribedFuture.completeExceptionally(ex);
                 return null;
             });

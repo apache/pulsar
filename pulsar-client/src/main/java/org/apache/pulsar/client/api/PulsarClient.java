@@ -250,7 +250,7 @@ public interface PulsarClient extends Closeable {
 
 
     /**
-     * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}
+     * Subscribe to the given topics and subscription combination with default {@code ConsumerConfiguration}
      *
      * @param topics
      *            The collection of topic names, they should be under same namespace
@@ -287,9 +287,6 @@ public interface PulsarClient extends Closeable {
     Consumer subscribe(Collection<String> topics, String subscription, ConsumerConfiguration conf)
         throws PulsarClientException;
 
-    CompletableFuture<Consumer> subscribeAsync(String namespace, Pattern topicsPattern,
-                                               String subscription, ConsumerConfiguration conf);
-
     /**
      * Asynchronously subscribe to the given topics and subscription combination using given
      * {@code ConsumerConfiguration}
@@ -303,6 +300,62 @@ public interface PulsarClient extends Closeable {
      * @return Future of the {@code Consumer} object
      */
     CompletableFuture<Consumer> subscribeAsync(Collection<String> topics,
+                                               String subscription,
+                                               ConsumerConfiguration conf);
+
+    /**
+     * Subscribe to the topics with given regex pattern and subscription combination with default
+     * {@code ConsumerConfiguration}
+     *
+     * @param topics
+     *            The collection of topic names, they should be under same namespace
+     * @param subscription
+     *            The name of the subscription
+     * @return The {@code Consumer} object
+     * @throws PulsarClientException
+     */
+    Consumer subscribe(Pattern topicsPattern, String subscription) throws PulsarClientException;
+
+    /**
+     * Asynchronously subscribe to the topics with given regex pattern and subscription combination with
+     * default {@code ConsumerConfiguration}
+     *
+     * @param topics
+     *            The collection of topic names, they should be under same namespace
+     * @param subscription
+     *            The name of the subscription
+     * @return Future of the {@code Consumer} object
+     */
+    CompletableFuture<Consumer> subscribeAsync(Pattern topicsPattern, String subscription);
+
+    /**
+     * Subscribe to the topics with given regex pattern and subscription combination using given
+     * {@code ConsumerConfiguration}
+     *
+     * @param topicsPattern
+     *            The regex pattern that wanted to subscribe. e.g. "persistent://prop/cluster/ns/abc.*"
+     * @param subscription
+     *            The name of the subscription
+     * @param conf
+     *            The {@code ConsumerConfiguration} object
+     * @return Future of the {@code Consumer} object
+     */
+    Consumer subscribe(Pattern topicsPattern, String subscription, ConsumerConfiguration conf)
+        throws PulsarClientException;
+
+    /**
+     * Asynchronously subscribe to the topics with given regex pattern and subscription combination using given
+     * {@code ConsumerConfiguration}
+     *
+     * @param topicsPattern
+     *            The regex pattern that wanted to subscribe. e.g. "persistent://prop/cluster/ns/abc.*"
+     * @param subscription
+     *            The name of the subscription
+     * @param conf
+     *            The {@code ConsumerConfiguration} object
+     * @return Future of the {@code Consumer} object
+     */
+    CompletableFuture<Consumer> subscribeAsync(Pattern topicsPattern,
                                                String subscription,
                                                ConsumerConfiguration conf);
 
