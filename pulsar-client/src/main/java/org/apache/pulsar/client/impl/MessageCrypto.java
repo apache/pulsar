@@ -129,6 +129,7 @@ public class MessageCrypto {
 
     public MessageCrypto(String logCtx, boolean keyGenNeeded) {
 
+        this.logCtx = logCtx;
         encryptedDataKeyMap = new ConcurrentHashMap<String, EncryptionKeyInfo>();
         dataKeyCache = CacheBuilder.newBuilder().expireAfterAccess(4, TimeUnit.HOURS)
                 .build(new CacheLoader<ByteBuffer, SecretKey>() {
