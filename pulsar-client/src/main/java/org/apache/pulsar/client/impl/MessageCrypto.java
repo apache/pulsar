@@ -472,7 +472,7 @@ public class MessageCrypto {
             return false;
         }
 
-        // Generate a data key to encrypt messages
+        // Decrypt data key to decrypt messages
         Cipher dataKeyCipher = null;
         byte[] dataKeyValue = null;
         byte[] keyDigest = null;
