@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
@@ -59,6 +60,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
@@ -253,7 +255,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
         PublishContext callback = (PublishContext) ctx;
-        log.error("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+
+        if (exception instanceof ManagedLedgerAlreadyClosedException) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+            }
+
+            callback.completed(new TopicClosedException(exception), -1, -1);
+            return;
+
+        } else {
+            log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+        }
 
         if (exception instanceof ManagedLedgerTerminatedException) {
             // Signal the producer that this topic is no longer available
