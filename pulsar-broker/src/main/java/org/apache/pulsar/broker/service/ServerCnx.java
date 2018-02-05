@@ -93,7 +93,7 @@ public class ServerCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
     private volatile boolean isActive = true;
-    private String authRole = null;
+    String authRole = null;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -190,8 +190,8 @@ public class ServerCnx extends PulsarHandler {
 
     private boolean validateOriginalPrincipal(String originalPrincipal, ByteBuf errorResponse, String topicName,
             String msg) {
-        if (service.isAuthorizationEnabled() && proxyRoles.contains(authRole) && (StringUtils.isBlank(originalPrincipal)
-                || proxyRoles.contains(originalPrincipal))) {
+        if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
+                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal))) {
             log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
                     originalPrincipal, topicName);
             ctx.writeAndFlush(errorResponse);
