@@ -47,6 +47,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class TopicClosedException extends BrokerServiceException {
+        public TopicClosedException(Throwable t) {
+            super(t);
+        }
+    }
+
     public static class PersistenceException extends BrokerServiceException {
         public PersistenceException(Throwable t) {
             super(t);

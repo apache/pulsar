@@ -73,12 +73,14 @@ flexible messaging model and an intuitive client API.</description>
   </ciManagement>
 
   <modules>
+    <module>buildtools</module>
     <module>managed-ledger</module>
     <module>pulsar-common</module>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
     <module>pulsar-broker-shaded</module>
     <module>pulsar-client-admin</module>
+    <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client</module>
     <module>pulsar-client-shaded</module>
@@ -106,9 +108,9 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.85-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.91-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
-    <netty.version>4.1.20.Final</netty.version>
+    <netty.version>4.1.19.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.7.17</athenz.version>
@@ -118,6 +120,7 @@ flexible messaging model and an intuitive client API.</description>
     <slf4j.version>1.7.25</slf4j.version>
     <bouncycastle.version>1.55</bouncycastle.version>
     <jackson.version>2.9.3</jackson.version>
+    <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
   </properties>
 
   <dependencyManagement>
@@ -168,7 +171,6 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
-        <classifier>tests</classifier>
         <version>${zookeeper.version}</version>
         <exclusions>
           <exclusion>
@@ -179,9 +181,22 @@ flexible messaging model and an intuitive client API.</description>
             <artifactId>log4j</artifactId>
             <groupId>log4j</groupId>
           </exclusion>
+        </exclusions>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.zookeeper</groupId>
+        <artifactId>zookeeper</artifactId>
+        <classifier>tests</classifier>
+        <version>${zookeeper.version}</version>
+        <exclusions>
           <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
+            <artifactId>slf4j-log4j12</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j</artifactId>
+            <groupId>log4j</groupId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -571,6 +586,17 @@ flexible messaging model and an intuitive client API.</description>
     <finalName>${project.artifactId}</finalName>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>buildtools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <source>1.8</source>
@@ -622,6 +648,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
+            <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
@@ -741,7 +768,7 @@ flexible messaging model and an intuitive client API.</description>
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>2.3.2</version>
+          <version>3.7.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -831,6 +858,16 @@ flexible messaging model and an intuitive client API.</description>
       </build>
       <reporting>
         <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <version>3.0.0</version>
+            <configuration>
+              <configLocation>pulsar/checkstyle.xml</configLocation>
+              <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>
+              <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+            </configuration>
+          </plugin>
           <plugin>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>

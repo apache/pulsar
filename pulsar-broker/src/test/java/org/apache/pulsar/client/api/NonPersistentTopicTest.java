@@ -606,7 +606,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             LoadManager loadManager = pulsar.getLoadManager().get();
             ResourceUnit broker = null;
             try {
-                broker = loadManager.getLeastLoaded(fdqn);
+                broker = loadManager.getLeastLoaded(fdqn).get();
             } catch (Exception e) {
                 // Ok. (ModulearLoadManagerImpl throws RuntimeException incase don't find broker)
             }
@@ -695,7 +695,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             LoadManager loadManager = pulsar.getLoadManager().get();
             ResourceUnit broker = null;
             try {
-                broker = loadManager.getLeastLoaded(fdqn);
+                broker = loadManager.getLeastLoaded(fdqn).get();
             } catch (Exception e) {
                 // Ok. (ModulearLoadManagerImpl throws RuntimeException incase don't find broker)
             }

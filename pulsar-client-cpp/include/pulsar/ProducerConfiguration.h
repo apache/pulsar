@@ -23,6 +23,11 @@
 #include <pulsar/Result.h>
 #include <pulsar/Message.h>
 #include <boost/function.hpp>
+#include <pulsar/ProducerCryptoFailureAction.h>
+#include <pulsar/CryptoKeyReader.h>
+
+#include <set>
+
 #pragma GCC visibility push(default)
 
 namespace pulsar {
@@ -44,6 +49,12 @@ class ProducerConfiguration {
         RoundRobinDistribution,
         CustomPartition
     };
+    enum HashingScheme
+    {
+        Murmur3_32Hash,
+        BoostHash,
+        JavaStringHash
+    };
     ProducerConfiguration();
     ~ProducerConfiguration();
     ProducerConfiguration(const ProducerConfiguration&);
@@ -64,11 +75,30 @@ class ProducerConfiguration {
     ProducerConfiguration& setMaxPendingMessages(int maxPendingMessages);
     int getMaxPendingMessages() const;
 
+    /**
+     * Set the number of max pending messages across all the partitions
+     * <p>
+     * This setting will be used to lower the max pending messages for each partition
+     * ({@link #setMaxPendingMessages(int)}), if the total exceeds the configured value.
+     *
+     * @param maxPendingMessagesAcrossPartitions
+     */
+    ProducerConfiguration& setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
+
+    /**
+     *
+     * @return the maximum number of pending messages allowed across all the partitions
+     */
+    int getMaxPendingMessagesAcrossPartitions() const;
+
     ProducerConfiguration& setPartitionsRoutingMode(const PartitionsRoutingMode& mode);
     PartitionsRoutingMode getPartitionsRoutingMode() const;
 
     ProducerConfiguration& setMessageRouter(const MessageRoutingPolicyPtr& router);
     const MessageRoutingPolicyPtr& getMessageRouterPtr() const;
+
+    ProducerConfiguration& setHashingScheme(const HashingScheme& scheme);
+    HashingScheme getHashingScheme() const;
 
     ProducerConfiguration& setBlockIfQueueFull(bool);
     bool getBlockIfQueueFull() const;
@@ -86,6 +116,16 @@ class ProducerConfiguration {
 
     ProducerConfiguration& setBatchingMaxPublishDelayMs(const unsigned long& batchingMaxPublishDelayMs);
     const unsigned long& getBatchingMaxPublishDelayMs() const;
+
+    const CryptoKeyReaderPtr getCryptoKeyReader() const;
+    ProducerConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
+
+    ProducerCryptoFailureAction getCryptoFailureAction() const;
+    ProducerConfiguration& setCryptoFailureAction(ProducerCryptoFailureAction action);
+
+    std::set<std::string>& getEncryptionKeys();
+    bool isEncryptionEnabled() const;
+    ProducerConfiguration& addEncryptionKey(std::string key);
 
     friend class PulsarWrapper;
 

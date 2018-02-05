@@ -36,6 +36,8 @@ import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
@@ -96,7 +98,7 @@ public class PulsarAdminToolTest {
         brokerStats.run(split("monitoring-metrics"));
         verify(mockBrokerStats).getMetrics();
     }
-    
+
     @Test
     void getOwnedNamespaces() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -132,7 +134,7 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("delete use"));
         verify(mockClusters).deleteCluster("use");
-        
+
         clusters.run(split("list-failure-domains use"));
         verify(mockClusters).getFailureDomains("use");
 
@@ -303,19 +305,19 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("get-message-ttl myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceMessageTTL("myprop/clust/ns1");
-        
+
         namespaces.run(split("set-anti-affinity-group myprop/clust/ns1 -g group"));
         verify(mockNamespaces).setNamespaceAntiAffinityGroup("myprop/clust/ns1", "group");
 
         namespaces.run(split("get-anti-affinity-group myprop/clust/ns1"));
         verify(mockNamespaces).getNamespaceAntiAffinityGroup("myprop/clust/ns1");
-        
+
         namespaces.run(split("get-anti-affinity-namespaces -p dummy -c cluster -g group"));
         verify(mockNamespaces).getAntiAffinityNamespaces("dummy", "cluster", "group");
 
         namespaces.run(split("delete-anti-affinity-group myprop/clust/ns1 "));
         verify(mockNamespaces).deleteNamespaceAntiAffinityGroup("myprop/clust/ns1");
-        
+
 
         namespaces.run(split("set-retention myprop/clust/ns1 -t 1h -s 1M"));
         verify(mockNamespaces).setRetention("myprop/clust/ns1", new RetentionPolicies(60, 1));
@@ -444,6 +446,9 @@ public class PulsarAdminToolTest {
         topics.run(split("expire-messages-all-subscriptions persistent://myprop/clust/ns1/ds1 -t 100"));
         verify(mockTopics).expireMessagesForAllSubscriptions("persistent://myprop/clust/ns1/ds1", 100);
 
+        topics.run(split("create-subscription persistent://myprop/clust/ns1/ds1 -s sub1 --messageId earliest"));
+        verify(mockTopics).createSubscription("persistent://myprop/clust/ns1/ds1", "sub1", MessageId.earliest);
+
         topics.run(split("create-partitioned-topic persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("persistent://myprop/clust/ns1/ds1", 32);
 
@@ -494,10 +499,10 @@ public class PulsarAdminToolTest {
 
         topics.run(split("create-partitioned-topic non-persistent://myprop/clust/ns1/ds1 --partitions 32"));
         verify(mockTopics).createPartitionedTopic("non-persistent://myprop/clust/ns1/ds1", 32);
-        
+
         topics.run(split("list myprop/clust/ns1"));
         verify(mockTopics).getList("myprop/clust/ns1");
-        
+
         topics.run(split("list-in-bundle myprop/clust/ns1 --bundle 0x23d70a30_0x26666658"));
         verify(mockTopics).getListInBundle("myprop/clust/ns1", "0x23d70a30_0x26666658");
 

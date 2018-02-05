@@ -65,6 +65,42 @@ static void sendCallBack(Result r, const Message& msg, std::string prefix, doubl
     sendCallBack(r, msg, prefix);
 }
 
+class EncKeyReader : public CryptoKeyReader {
+   private:
+    void readFile(std::string fileName, std::string& fileContents) const {
+        std::ifstream ifs(fileName);
+        std::stringstream fileStream;
+        fileStream << ifs.rdbuf();
+
+        fileContents = fileStream.str();
+    }
+
+   public:
+    EncKeyReader() {}
+
+    Result getPublicKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
+                        EncryptionKeyInfo& encKeyInfo) const {
+        std::string CERT_FILE_PATH =
+            "../../pulsar-broker/src/test/resources/certificate/public-key." + keyName;
+        std::string keyContents;
+        readFile(CERT_FILE_PATH, keyContents);
+
+        encKeyInfo.setKey(keyContents);
+        return ResultOk;
+    }
+
+    Result getPrivateKey(const std::string& keyName, std::map<std::string, std::string>& metadata,
+                         EncryptionKeyInfo& encKeyInfo) const {
+        std::string CERT_FILE_PATH =
+            "../../pulsar-broker/src/test/resources/certificate/private-key." + keyName;
+        std::string keyContents;
+        readFile(CERT_FILE_PATH, keyContents);
+
+        encKeyInfo.setKey(keyContents);
+        return ResultOk;
+    }
+};
+
 TEST(BasicEndToEndTest, testBatchMessages) {
     ClientConfiguration config;
     Client client(lookupUrl);
@@ -1102,4 +1138,174 @@ TEST(BasicEndToEndTest, testHandlerReconnectionLogic) {
                     receivedMsgContent.end());
         ASSERT_TRUE(receivedMsgIndex.find(boost::lexical_cast<std::string>(i)) != receivedMsgIndex.end());
     }
+}
+
+TEST(BasicEndToEndTest, testRSAEncryption) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/my-rsaenctopic";
+    std::string subName = "my-sub-name";
+    Producer producer;
+
+    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+    ProducerConfiguration conf;
+    conf.setCompressionType(CompressionLZ4);
+    conf.addEncryptionKey("client-rsa.pem");
+    conf.setCryptoKeyReader(keyReader);
+
+    Promise<Result, Producer> producerPromise;
+    client.createProducerAsync(topicName, conf, WaitForCallbackValue<Producer>(producerPromise));
+    Future<Result, Producer> producerFuture = producerPromise.getFuture();
+    Result result = producerFuture.get(producer);
+    ASSERT_EQ(ResultOk, result);
+
+    ConsumerConfiguration consConfig;
+    consConfig.setCryptoKeyReader(keyReader);
+    // consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::CONSUME);
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    // Send 1000 messages synchronously
+    std::string msgContent = "msg-content";
+    LOG_INFO("Publishing 1000 messages synchronously");
+    int msgNum = 0;
+    for (; msgNum < 1000; msgNum++) {
+        std::stringstream stream;
+        stream << msgContent << msgNum;
+        Message msg = MessageBuilder().setContent(stream.str()).build();
+        ASSERT_EQ(ResultOk, producer.send(msg));
+    }
+
+    LOG_INFO("Trying to receive 1000 messages");
+    Message msgReceived;
+    for (msgNum = 0; msgNum < 1000; msgNum++) {
+        consumer.receive(msgReceived, 1000);
+        LOG_DEBUG("Received message :" << msgReceived.getMessageId());
+        std::stringstream expected;
+        expected << msgContent << msgNum;
+        ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
+    }
+
+    ASSERT_EQ(ResultOk, consumer.unsubscribe());
+    ASSERT_EQ(ResultAlreadyClosed, consumer.close());
+    ASSERT_EQ(ResultOk, producer.close());
+    ASSERT_EQ(ResultOk, client.close());
+}
+
+TEST(BasicEndToEndTest, testEncryptionFailure) {
+    ClientConfiguration config;
+    Client client(lookupUrl);
+    std::string topicName = "persistent://prop/unit/ns1/my-rsaencfailtopic";
+    std::string subName = "my-sub-name";
+    Producer producer;
+
+    boost::shared_ptr<EncKeyReader> keyReader = boost::make_shared<EncKeyReader>();
+
+    ConsumerConfiguration consConfig;
+
+    Consumer consumer;
+    Promise<Result, Consumer> consumerPromise;
+    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise));
+    Future<Result, Consumer> consumerFuture = consumerPromise.getFuture();
+    Result result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, result);
+
+    std::string msgContent = "msg-content";
+    int msgNum = 0;
+    int totalMsgs = 10;
+    std::stringstream stream;
+    stream << msgContent << msgNum;
+    Message msg = MessageBuilder().setContent(msgContent).build();
+
+    // 1. Non existing key
+
+    {
+        ProducerConfiguration prodConf;
+        prodConf.setCryptoKeyReader(keyReader);
+        prodConf.addEncryptionKey("client-non-existing-rsa.pem");
+
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, prodConf, WaitForCallbackValue<Producer>(producerPromise));
+        Future<Result, Producer> producerFuture = producerPromise.getFuture();
+        result = producerFuture.get(producer);
+        ASSERT_EQ(ResultOk, result);
+
+        ASSERT_EQ(ResultCryptoError, producer.send(msg));
+    }
+
+    // 2. Add valid key
+    {
+        ProducerConfiguration prodConf;
+        prodConf.setCryptoKeyReader(keyReader);
+        prodConf.addEncryptionKey("client-rsa.pem");
+
+        Promise<Result, Producer> producerPromise;
+        client.createProducerAsync(topicName, prodConf, WaitForCallbackValue<Producer>(producerPromise));
+        Future<Result, Producer> producerFuture = producerPromise.getFuture();
+        result = producerFuture.get(producer);
+        ASSERT_EQ(ResultOk, result);
+
+        msgNum++;
+        for (; msgNum < totalMsgs; msgNum++) {
+            std::stringstream stream;
+            stream << msgContent << msgNum;
+            Message msg = MessageBuilder().setContent(stream.str()).build();
+            ASSERT_EQ(ResultOk, producer.send(msg));
+        }
+    }
+
+    // 3. Key reader is not set by consumer
+    Message msgReceived;
+    ASSERT_EQ(ResultTimeout, consumer.receive(msgReceived, 5000));
+    ASSERT_EQ(ResultOk, consumer.close());
+
+    // 4. Set consumer config to consume even if decryption fails
+    consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::CONSUME);
+
+    Promise<Result, Consumer> consumerPromise2;
+    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise2));
+    consumerFuture = consumerPromise2.getFuture();
+    result = consumerFuture.get(consumer);
+    ASSERT_EQ(ResultOk, consumer.receive(msgReceived, 1000));
+
+    // Received message 0. Skip message comparision since its encrypted
+    ASSERT_EQ(ResultOk, result);
+    ASSERT_EQ(ResultOk, consumer.close());
+
+    // 5. Set valid keyreader and consume messages
+    msgNum = 1;
+    consConfig.setCryptoKeyReader(keyReader);
+    consConfig.setCryptoFailureAction(ConsumerCryptoFailureAction::FAIL);
+    Promise<Result, Consumer> consumerPromise3;
+    client.subscribeAsync(topicName, subName, consConfig, WaitForCallbackValue<Consumer>(consumerPromise3));
+    consumerFuture = consumerPromise3.getFuture();
+    result = consumerFuture.get(consumer);
+
+    for (; msgNum < totalMsgs - 1; msgNum++) {
+        ASSERT_EQ(ResultOk, consumer.receive(msgReceived, 1000));
+        LOG_DEBUG("Received message :" << msgReceived.getMessageId());
+        std::stringstream expected;
+        expected << msgContent << msgNum;
+        ASSERT_EQ(expected.str(), msgReceived.getDataAsString());
+        ASSERT_EQ(ResultOk, consumer.acknowledge(msgReceived));
+    }
+    ASSERT_EQ(ResultOk, consumer.close());
+
+    // 6. Discard message if decryption fails
+    ConsumerConfiguration consConfig2;
+    consConfig2.setCryptoFailureAction(ConsumerCryptoFailureAction::DISCARD);
+
+    Promise<Result, Consumer> consumerPromise4;
+    client.subscribeAsync(topicName, subName, consConfig2, WaitForCallbackValue<Consumer>(consumerPromise4));
+    consumerFuture = consumerPromise4.getFuture();
+    result = consumerFuture.get(consumer);
+
+    // Since messag is discarded, no message will be received.
+    ASSERT_EQ(ResultTimeout, consumer.receive(msgReceived, 5000));
 }

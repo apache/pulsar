@@ -73,6 +73,18 @@ ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendi
 
 int ProducerConfiguration::getMaxPendingMessages() const { return impl_->maxPendingMessages; }
 
+ProducerConfiguration& ProducerConfiguration::setMaxPendingMessagesAcrossPartitions(int maxPendingMessages) {
+    if (maxPendingMessages <= 0) {
+        throw "maxPendingMessages needs to be greater than 0";
+    }
+    impl_->maxPendingMessagesAcrossPartitions = maxPendingMessages;
+    return *this;
+}
+
+int ProducerConfiguration::getMaxPendingMessagesAcrossPartitions() const {
+    return impl_->maxPendingMessagesAcrossPartitions;
+}
+
 ProducerConfiguration& ProducerConfiguration::setPartitionsRoutingMode(const PartitionsRoutingMode& mode) {
     impl_->routingMode = mode;
     return *this;
@@ -90,6 +102,15 @@ ProducerConfiguration& ProducerConfiguration::setMessageRouter(const MessageRout
 
 const MessageRoutingPolicyPtr& ProducerConfiguration::getMessageRouterPtr() const {
     return impl_->messageRouter;
+}
+
+ProducerConfiguration& ProducerConfiguration::setHashingScheme(const HashingScheme& scheme) {
+    impl_->hashingScheme = scheme;
+    return *this;
+}
+
+ProducerConfiguration::HashingScheme ProducerConfiguration::getHashingScheme() const {
+    return impl_->hashingScheme;
 }
 
 ProducerConfiguration& ProducerConfiguration::setBlockIfQueueFull(bool flag) {
@@ -136,4 +157,32 @@ ProducerConfiguration& ProducerConfiguration::setBatchingMaxPublishDelayMs(
 const unsigned long& ProducerConfiguration::getBatchingMaxPublishDelayMs() const {
     return impl_->batchingMaxPublishDelayMs;
 }
+
+const CryptoKeyReaderPtr ProducerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
+
+ProducerConfiguration& ProducerConfiguration::setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader) {
+    impl_->cryptoKeyReader = cryptoKeyReader;
+    return *this;
+}
+
+ProducerCryptoFailureAction ProducerConfiguration::getCryptoFailureAction() const {
+    return impl_->cryptoFailureAction;
+}
+
+ProducerConfiguration& ProducerConfiguration::setCryptoFailureAction(ProducerCryptoFailureAction action) {
+    impl_->cryptoFailureAction = action;
+    return *this;
+}
+
+std::set<std::string>& ProducerConfiguration::getEncryptionKeys() { return impl_->encryptionKeys; }
+
+bool ProducerConfiguration::isEncryptionEnabled() const {
+    return (!impl_->encryptionKeys.empty() && (impl_->cryptoKeyReader != NULL));
+}
+
+ProducerConfiguration& ProducerConfiguration::addEncryptionKey(std::string key) {
+    impl_->encryptionKeys.insert(key);
+    return *this;
+}
+
 }  // namespace pulsar

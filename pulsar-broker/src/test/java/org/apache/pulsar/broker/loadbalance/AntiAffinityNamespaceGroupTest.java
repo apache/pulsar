@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
@@ -68,8 +69,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-
-import junit.framework.Assert;
 
 public class AntiAffinityNamespaceGroupTest {
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -185,27 +184,27 @@ public class AntiAffinityNamespaceGroupTest {
     }
 
     /**
-     * 
+     *
      * It verifies anti-affinity-namespace assignment with failure-domain
-     * 
+     *
      * <pre>
      * Domain     Brokers-count
      * ________  ____________
      * domain-0   broker-0,broker-1
      * domain-1   broker-2,broker-3
-     * 
+     *
      * Anti-affinity-namespace assignment
-     * 
+     *
      * (1) ns0 -> candidate-brokers: b0, b1, b2, b3 => selected b0
      * (2) ns1 -> candidate-brokers: b2, b3         => selected b2
      * (3) ns2 -> candidate-brokers: b1, b3         => selected b1
      * (4) ns3 -> candidate-brokers: b3             => selected b3
      * (5) ns4 -> candidate-brokers: b0, b1, b2, b3 => selected b0
-     * 
+     *
      * "candidate" broker to own anti-affinity-namespace = b2 or b4
-     * 
+     *
      * </pre>
-     * 
+     *
      */
     @Test
     public void testAntiAffinityNamespaceFilteringWithDomain() throws Exception {
@@ -240,7 +239,7 @@ public class AntiAffinityNamespaceGroupTest {
         Set<String> candidate = Sets.newHashSet();
         Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
 
-        Assert.assertEquals(brokers.size(), totalBrokers);
+        assertEquals(brokers.size(), totalBrokers);
 
         String assignedNamespace = namespace + "0" + bundle;
         candidate.addAll(brokers);
@@ -248,7 +247,7 @@ public class AntiAffinityNamespaceGroupTest {
         // for namespace-0 all brokers available
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(brokers.size(), totalBrokers);
+        assertEquals(brokers.size(), totalBrokers);
 
         // add namespace-0 to broker-0 of domain-0 => state: n0->b0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-0", namespace + "0", assignedNamespace);
@@ -257,8 +256,8 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "1" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 2);
-        candidate.forEach(broker -> Assert.assertEquals(brokerToDomainMap.get(broker), "domain-1"));
+        assertEquals(candidate.size(), 2);
+        candidate.forEach(broker -> assertEquals(brokerToDomainMap.get(broker), "domain-1"));
 
         // add namespace-1 to broker-2 of domain-1 => state: n0->b0, n1->b2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-2", namespace + "1", assignedNamespace);
@@ -267,9 +266,9 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "2" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 2);
-        Assert.assertTrue(candidate.contains("brokerName-1"));
-        Assert.assertTrue(candidate.contains("brokerName-3"));
+        assertEquals(candidate.size(), 2);
+        assertTrue(candidate.contains("brokerName-1"));
+        assertTrue(candidate.contains("brokerName-3"));
 
         // add namespace-2 to broker-1 of domain-0 => state: n0->b0, n1->b2, n2->b1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-1", namespace + "2", assignedNamespace);
@@ -278,8 +277,8 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "3" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 1);
-        Assert.assertTrue(candidate.contains("brokerName-3"));
+        assertEquals(candidate.size(), 1);
+        assertTrue(candidate.contains("brokerName-3"));
         // add namespace-3 to broker-3 of domain-1 => state: n0->b0, n1->b2, n2->b1, n3->b3
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-3", namespace + "3", assignedNamespace);
         candidate.addAll(brokers);
@@ -287,22 +286,22 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "4" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 4);
+        assertEquals(candidate.size(), 4);
     }
 
     /**
      * It verifies anti-affinity-namespace assignment without failure-domain enabled
-     * 
+     *
      * <pre>
      *  Anti-affinity-namespace assignment
-     * 
+     *
      * (1) ns0 -> candidate-brokers: b0, b1, b2     => selected b0
      * (2) ns1 -> candidate-brokers: b1, b2         => selected b1
      * (3) ns2 -> candidate-brokers: b2             => selected b2
      * (5) ns3 -> candidate-brokers: b0, b1, b2     => selected b0
      * </pre>
-     * 
-     * 
+     *
+     *
      * @throws Exception
      */
     @Test
@@ -335,7 +334,7 @@ public class AntiAffinityNamespaceGroupTest {
         candidate.addAll(brokers);
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(brokers.size(), 3);
+        assertEquals(brokers.size(), 3);
 
         // add ns-0 to broker-0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-0", namespace + "0", assignedNamespace);
@@ -344,9 +343,9 @@ public class AntiAffinityNamespaceGroupTest {
         // available brokers for ns-1 => broker-1, broker-2
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(candidate.size(), 2);
-        Assert.assertTrue(candidate.contains("broker-1"));
-        Assert.assertTrue(candidate.contains("broker-2"));
+        assertEquals(candidate.size(), 2);
+        assertTrue(candidate.contains("broker-1"));
+        assertTrue(candidate.contains("broker-2"));
 
         // add ns-1 to broker-1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1", assignedNamespace);
@@ -355,8 +354,8 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "2" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(candidate.size(), 1);
-        Assert.assertTrue(candidate.contains("broker-2"));
+        assertEquals(candidate.size(), 1);
+        assertTrue(candidate.contains("broker-2"));
 
         // add ns-2 to broker-2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2", assignedNamespace);
@@ -365,7 +364,7 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "3" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(candidate.size(), 3);
+        assertEquals(candidate.size(), 3);
     }
 
     private void selectBrokerForNamespace(Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,
@@ -377,15 +376,15 @@ public class AntiAffinityNamespaceGroupTest {
 
     /**
      * It verifies anti-affinity with failure domain enabled with 2 brokers.
-     * 
+     *
      * <pre>
      * 1. Register brokers to domain: domain-1: broker1 & domain-2: broker2
      * 2. Load-Manager receives a watch and updates brokerToDomain cache with new domain data
      * 3. Create two namespace with anti-affinity
      * 4. Load-manager selects broker for each namespace such that from different domains
-     * 
+     *
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -420,10 +419,10 @@ public class AntiAffinityNamespaceGroupTest {
         assertTrue(isLoadManagerUpdatedDomainCache(secondaryLoadManager));
 
         ServiceUnitId serviceUnit = makeBundle(property, cluster, "ns1");
-        String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit);
+        String selectedBroker1 = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
 
         serviceUnit = makeBundle(property, cluster, "ns2");
-        String selectedBroker2 = primaryLoadManager.selectBrokerForAssignment(serviceUnit);
+        String selectedBroker2 = primaryLoadManager.selectBrokerForAssignment(serviceUnit).get();
 
         assertNotEquals(selectedBroker1, selectedBroker2);
 
@@ -432,13 +431,13 @@ public class AntiAffinityNamespaceGroupTest {
     /**
      * It verifies that load-shedding task should unload namespace only if there is a broker available which doesn't
      * cause uneven anti-affinitiy namespace distribution.
-     * 
+     *
      * <pre>
      * 1. broker1 owns ns-0 => broker1 can unload ns-0
      * 1. broker2 owns ns-1 => broker1 can unload ns-0
      * 1. broker3 owns ns-2 => broker1 can't unload ns-0 as all brokers have same no NS
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -491,7 +490,7 @@ public class AntiAffinityNamespaceGroupTest {
     /**
      * It verifies that load-manager::shouldAntiAffinityNamespaceUnload checks that unloading should only happen if all
      * brokers have same number of anti-affinity namespaces
-     * 
+     *
      * @throws Exception
      */
     @Test

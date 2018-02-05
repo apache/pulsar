@@ -50,7 +50,9 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
       producerStr_("[" + topic_ + ", " + producerName_ + "] "),
       producerId_(client->newProducerId()),
       msgSequenceGenerator_(0),
-      sendTimer_() {
+      sendTimer_(),
+      msgCrypto_(),
+      dataKeyGenIntervalSec_(4 * 60 * 60) {
     LOG_DEBUG("ProducerName - " << producerName_ << " Created producer on topic " << topic_
                                 << " id: " << producerId_);
 
@@ -70,10 +72,26 @@ ProducerImpl::ProducerImpl(ClientImplPtr client, const std::string& topic, const
     } else {
         producerStatsBasePtr_ = boost::make_shared<ProducerStatsDisabled>();
     }
+
+    if (conf_.isEncryptionEnabled()) {
+        std::ostringstream logCtxStream;
+        logCtxStream << "[" << topic_ << ", " << producerName_ << ", " << producerId_ << "]";
+        std::string logCtx = logCtxStream.str();
+        msgCrypto_ = boost::make_shared<MessageCrypto>(logCtx, true);
+        msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
+
+        dataKeyGenTImer_ = executor_->createDeadlineTimer();
+        dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
+        dataKeyGenTImer_->async_wait(
+            boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, this, boost::asio::placeholders::error));
+    }
 }
 
 ProducerImpl::~ProducerImpl() {
     LOG_DEBUG(getName() << "~ProducerImpl");
+    if (dataKeyGenTImer_) {
+        dataKeyGenTImer_->cancel();
+    }
     closeAsync(ResultCallback());
     printStats();
 }
@@ -83,6 +101,19 @@ const std::string& ProducerImpl::getTopic() const { return topic_; }
 const std::string& ProducerImpl::getProducerName() const { return producerName_; }
 
 int64_t ProducerImpl::getLastSequenceId() const { return lastSequenceIdPublished_; }
+
+void ProducerImpl::refreshEncryptionKey(const boost::system::error_code& ec) {
+    if (ec) {
+        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
+        return;
+    }
+
+    msgCrypto_->addPublicKeyCipher(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader());
+
+    dataKeyGenTImer_->expires_from_now(boost::posix_time::seconds(dataKeyGenIntervalSec_));
+    dataKeyGenTImer_->async_wait(
+        boost::bind(&pulsar::ProducerImpl::refreshEncryptionKey, this, boost::asio::placeholders::error));
+}
 
 void ProducerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
     Lock lock(mutex_);
@@ -262,14 +293,23 @@ void ProducerImpl::sendAsync(const Message& msg, SendCallback callback) {
     SharedBuffer& payload = msg.impl_->payload;
 
     uint32_t uncompressedSize = payload.readableBytes();
+    uint32_t payloadSize = uncompressedSize;
 
     if (!batchMessageContainer) {
         // If batching is enabled we compress all the payloads together before sending the batch
         payload = CompressionCodecProvider::getCodec(conf_.getCompressionType()).encode(payload);
+        payloadSize = payload.readableBytes();
+
+        // Encrypt the payload if enabled
+        SharedBuffer encryptedPayload;
+        if (!encryptMessage(msg.impl_->metadata, payload, encryptedPayload)) {
+            cb(ResultCryptoError, msg);
+            return;
+        }
+        payload = encryptedPayload;
     }
-    uint32_t compressedSize = payload.readableBytes();
-    if (compressedSize > Commands::MaxMessageSize) {
-        LOG_DEBUG(getName() << " - compressed Message payload size" << compressedSize << "cannot exceed "
+    if (payloadSize > Commands::MaxMessageSize) {
+        LOG_DEBUG(getName() << " - compressed Message payload size" << payloadSize << "cannot exceed "
                             << Commands::MaxMessageSize << " bytes");
         cb(ResultMessageTooBig, msg);
         return;
@@ -557,6 +597,17 @@ bool ProducerImpl::ackReceived(uint64_t sequenceId) {
         }
         return true;
     }
+}
+
+bool ProducerImpl::encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
+                                  SharedBuffer& encryptedPayload) {
+    if (!conf_.isEncryptionEnabled() || msgCrypto_ == NULL) {
+        encryptedPayload = payload;
+        return true;
+    }
+
+    return msgCrypto_->encrypt(conf_.getEncryptionKeys(), conf_.getCryptoKeyReader(), metadata, payload,
+                               encryptedPayload);
 }
 
 void ProducerImpl::disconnectProducer() {

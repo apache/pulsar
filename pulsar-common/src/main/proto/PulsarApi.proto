@@ -101,9 +101,9 @@ message MessageMetadata {
 	// differentiate single and batch message metadata
 	optional int32 num_messages_in_batch = 11 [default = 1];
 
-        // the timestamp that this event occurs. it is typically set by applications.
-        // if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
-        optional uint64 event_time = 12 [default = 0];
+	// the timestamp that this event occurs. it is typically set by applications.
+	// if this field is omitted, `publish_time` can be used for the purpose of `event_time`.
+	optional uint64 event_time = 12 [default = 0];
 	// Contains encryption key name, encrypted key and metadata to describe the key
 	repeated EncryptionKeys encryption_keys = 13;
 	// Algorithm used to encrypt data key
@@ -218,6 +218,7 @@ message CommandSubscribe {
 message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
+	optional string original_principal = 3;
 }
 
 message CommandPartitionedTopicMetadataResponse {
@@ -230,13 +231,13 @@ message CommandPartitionedTopicMetadataResponse {
 	optional LookupType response          = 3;
 	optional ServerError error            = 4;
 	optional string message               = 5;
-
 }
 
 message CommandLookupTopic {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
+	optional string original_principal = 4;
 }
 
 message CommandLookupTopicResponse {

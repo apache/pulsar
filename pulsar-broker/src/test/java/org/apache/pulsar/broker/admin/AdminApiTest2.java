@@ -126,13 +126,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      * 1. create a partitioned-topic
      * 2. update partitions with larger number of partitions
      * 3. verify: getPartitionedMetadata and check number of partitions
-     * 4. verify: this api creates existing subscription to new partitioned-topics 
-     *            so, message will not be lost in new partitions 
+     * 4. verify: this api creates existing subscription to new partitioned-topics
+     *            so, message will not be lost in new partitions
      *  a. start producer and produce messages
      *  b. check existing subscription for new topics and it should have backlog msgs
-     * 
+     *
      * </pre>
-     * 
+     *
      * @param topicName
      * @throws Exception
      */
@@ -224,6 +224,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer2.close();
     }
 
+
     /**
      * verifies admin api command for non-persistent topic.
      * It verifies: partitioned-topic, stats
@@ -280,10 +281,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         producer.close();
     }
-    
+
     /**
      * verifies validation on persistent-policies
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -321,7 +322,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * validates update of persistent-policies reflects on managed-ledger and managed-cursor
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -360,7 +361,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * Verify unloading topic
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "topicType")
@@ -412,14 +413,14 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * Verifies reset-cursor at specific position using admin-api.
-     * 
+     *
      * <pre>
      * 1. Publish 50 messages
      * 2. Consume 20 messages
      * 3. reset cursor position on 10th message
      * 4. consume 40 messages from reset position
      * </pre>
-     * 
+     *
      * @param namespaceName
      * @throws Exception
      */
@@ -519,7 +520,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * It verifies that pulsar with different load-manager generates different load-report and returned by admin-api
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -589,7 +590,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * It validates that peer-cluster can't coexist in replication-cluster list
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -709,14 +710,14 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
         assertEquals(namespaces2.size(), 0);
     }
-    
+
     @Test
     public void testNonPersistentTopics() throws Exception {
         final String namespace = "prop-xyz/use/ns2";
         final String topicName = "non-persistent://" + namespace + "/topic";
         admin.namespaces().createNamespace(namespace, 20);
         int totalTopics = 100;
-        
+
         Set<String> topicNames = Sets.newHashSet();
         for (int i = 0; i < totalTopics; i++) {
             topicNames.add(topicName + i);
