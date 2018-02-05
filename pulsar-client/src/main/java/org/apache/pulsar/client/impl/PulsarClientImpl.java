@@ -19,7 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static com.google.common.base.Preconditions.checkState;
 
+import java.util.Collection;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -30,6 +32,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -43,6 +47,7 @@ import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
@@ -271,6 +276,160 @@ public class PulsarClientImpl implements PulsarClient {
         return consumerSubscribedFuture;
     }
 
+
+    @Override
+    public Consumer subscribe(Collection<String> topics, final String subscription) throws PulsarClientException {
+        return subscribe(topics, subscription, new ConsumerConfiguration());
+    }
+
+    @Override
+    public Consumer subscribe(Collection<String> topics,
+                              String subscription,
+                              ConsumerConfiguration conf)
+        throws PulsarClientException {
+        try {
+            return subscribeAsync(topics, subscription, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(Collection<String> topics, String subscription) {
+        return subscribeAsync(topics, subscription, new ConsumerConfiguration());
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(Collection<String> topics,
+                                                      String subscription,
+                                                      ConsumerConfiguration conf) {
+        if (topics == null || topics.isEmpty()) {
+            return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Empty topics name"));
+        }
+
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+
+        if (isBlank(subscription)) {
+            return FutureUtil
+                .failedFuture(new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+
+        CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
+
+        ConsumerBase consumer = new TopicsConsumerImpl(PulsarClientImpl.this, topics, subscription,
+            conf, externalExecutorProvider.getExecutor(),
+            consumerSubscribedFuture);
+        synchronized (consumers) {
+            consumers.put(consumer, Boolean.TRUE);
+        }
+
+        return consumerSubscribedFuture;
+    }
+
+    @Override
+    public Consumer subscribe(Pattern topicsPattern, final String subscription) throws PulsarClientException {
+        return subscribe(topicsPattern, subscription, new ConsumerConfiguration());
+    }
+
+    @Override
+    public Consumer subscribe(Pattern topicsPattern,
+                              String subscription,
+                              ConsumerConfiguration conf)
+        throws PulsarClientException {
+        try {
+            return subscribeAsync(topicsPattern, subscription, conf).get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(Pattern topicsPattern, String subscription) {
+        return subscribeAsync(topicsPattern, subscription, new ConsumerConfiguration());
+    }
+
+    @Override
+    public CompletableFuture<Consumer> subscribeAsync(Pattern topicsPattern,
+                                                      String subscription,
+                                                      ConsumerConfiguration conf) {
+        if (state.get() != State.Open) {
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+        }
+        if (isBlank(subscription)) {
+            return FutureUtil
+                .failedFuture(new PulsarClientException.InvalidConfigurationException("Empty subscription name"));
+        }
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+
+        String regex = topicsPattern.pattern();
+        DestinationName destination = DestinationName.get(regex);
+        NamespaceName namespaceName = destination.getNamespaceObject();
+
+        CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
+        lookup.getTopicsUnderNamespace(namespaceName)
+            .thenAccept(topics -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
+                    topics.forEach(topicName ->
+                        log.debug("Get topics under namespace {}, topic: {}", namespaceName.toString(), topicName));
+                }
+
+                List<String> topicsList = topicsPatternFilter(topics, topicsPattern);
+
+                ConsumerBase consumer = new PatternTopicsConsumerImpl(topicsPattern, PulsarClientImpl.this,
+                    topicsList, subscription,
+                    conf, externalExecutorProvider.getExecutor(),
+                    consumerSubscribedFuture);
+
+                synchronized (consumers) {
+                    consumers.put(consumer, Boolean.TRUE);
+                }
+            })
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to get topics under namespace", namespaceName);
+                consumerSubscribedFuture.completeExceptionally(ex);
+                return null;
+            });
+
+        return consumerSubscribedFuture;
+    }
+
+    // get topics that match 'topicsPattern' from original topics list
+    // return result should contain only topic names, without partition part
+    public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
+        return original.stream()
+            .filter(topic -> {
+                DestinationName destinationName = DestinationName.get(topic);
+                return topicsPattern.matcher(destinationName.toString()).matches();
+            })
+            .collect(Collectors.toList());
+    }
+
     @Override
     public Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf)
             throws PulsarClientException {
@@ -447,6 +606,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     public EventLoopGroup eventLoopGroup() {
         return eventLoopGroup;
+    }
+
+    public LookupService getLookup() {
+        return lookup;
     }
 
     public CompletableFuture<Integer> getNumberOfPartitions(String topic) {

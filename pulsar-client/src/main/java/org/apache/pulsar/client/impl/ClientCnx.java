@@ -24,6 +24,7 @@ import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -41,6 +42,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
@@ -70,6 +72,9 @@ public class ClientCnx extends PulsarHandler {
             16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(
             16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<List<String>>> pendingGetTopicsRequests = new ConcurrentLongHashMap<>(
+        16, 1);
+
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
@@ -144,6 +149,7 @@ public class ClientCnx extends PulsarHandler {
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingLookupRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingGetTopicsRequests.forEach((key, future) -> future.completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
@@ -436,6 +442,42 @@ public class ClientCnx extends PulsarHandler {
                     "Failed due to too many pending lookup requests"));
         }
         return future;
+    }
+
+    public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+
+        pendingGetTopicsRequests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
+                    writeFuture.cause().getMessage());
+                pendingGetTopicsRequests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+
+        return future;
+    }
+
+    @Override
+    protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse success) {
+        checkArgument(state == State.Ready);
+
+        long requestId = success.getRequestId();
+        List<String> topics = success.getTopicsList();
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received get topics of namespace success response from server: {} - topics.size: {}",
+                ctx.channel(), success.getRequestId(), topics.size());
+        }
+
+        CompletableFuture<List<String>> requestFuture = pendingGetTopicsRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(topics);
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
+        }
     }
 
     Promise<Void> newPromise() {

@@ -30,6 +30,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -253,6 +255,18 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
                 cmd.getReachedEndOfTopic().recycle();
                 break;
+
+            case GET_TOPICS_OF_NAMESPACE:
+                checkArgument(cmd.hasGetTopicsOfNamespace());
+                handleGetTopicsOfNamespace(cmd.getGetTopicsOfNamespace());
+                cmd.getGetTopicsOfNamespace().recycle();
+                break;
+
+            case GET_TOPICS_OF_NAMESPACE_RESPONSE:
+                checkArgument(cmd.hasGetTopicsOfNamespaceResponse());
+                handleGetTopicsOfNamespaceSuccess(cmd.getGetTopicsOfNamespaceResponse());
+                cmd.getGetTopicsOfNamespaceResponse().recycle();
+                break;
             }
         } finally {
             if (cmdBuilder != null) {
@@ -374,6 +388,14 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse response) {
         throw new UnsupportedOperationException();
     }
 
