@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
@@ -279,8 +280,12 @@ public class Producer {
                         ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
 
                 producer.cnx.ctx().channel().eventLoop().execute(() -> {
-                    producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId, serverError,
-                            exception.getMessage()));
+                    if (!(exception instanceof TopicClosedException)) {
+                        // For TopicClosed exception there's no need to send explicit error, since the client was
+                        // already notified
+                        producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId,
+                                serverError, exception.getMessage()));
+                    }
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
                     producer.publishOperationCompleted();
                     recycle();

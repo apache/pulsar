@@ -30,10 +30,13 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.BookKeeperTestClient;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -461,4 +464,44 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         factory2.shutdown();
         factory.shutdown();
     }
+
+    @Test(timeOut = 30000)
+    public void managedLedgerClosed() throws Exception {
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        ManagedLedgerImpl ledger1 = (ManagedLedgerImpl) factory.open("my_test_ledger", config);
+
+        int N = 100;
+
+        AtomicReference<ManagedLedgerException> res = new AtomicReference<>();
+        CountDownLatch latch = new CountDownLatch(N);
+
+        for (int i = 0; i < N; i++) {
+            ledger1.asyncAddEntry(("entry-" + i).getBytes(), new AddEntryCallback() {
+
+                @Override
+                public void addComplete(Position position, Object ctx) {
+                    latch.countDown();
+                }
+
+                @Override
+                public void addFailed(ManagedLedgerException exception, Object ctx) {
+                    res.compareAndSet(null, exception);
+                    latch.countDown();
+                }
+            }, null);
+
+            if (i == 1) {
+                ledger1.close();
+            }
+        }
+
+        // Ensures all the callback must have been invoked
+        latch.await();
+        assertNotNull(res.get());
+        assertEquals(res.get().getClass(), ManagedLedgerAlreadyClosedException.class);
+        factory.shutdown();
+    }
+
 }
