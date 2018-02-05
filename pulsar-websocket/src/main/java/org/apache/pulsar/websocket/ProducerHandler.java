@@ -39,6 +39,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -234,6 +235,18 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         conf.setBlockIfQueueFull(false);
+
+        if (queryParams.containsKey("producerName")) {
+            conf.setProducerName(queryParams.get("producerName"));
+        }
+
+        if (queryParams.containsKey("initialSequenceId")) {
+            conf.setInitialSequenceId(Long.parseLong("initialSequenceId"));
+        }
+
+        if (queryParams.containsKey("hashingScheme")) {
+            conf.setHashingScheme(HashingScheme.valueOf(queryParams.get("hashingScheme")));
+        }
 
         if (queryParams.containsKey("sendTimeoutMillis")) {
             conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
