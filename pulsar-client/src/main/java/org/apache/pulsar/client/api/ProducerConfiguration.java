@@ -344,7 +344,7 @@ public class ProducerConfiguration implements Serializable {
      *
      */
     public boolean isEncryptionEnabled() {
-        return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty();
+        return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty() && (this.cryptoKeyReader != null);
     }
 
     /**
