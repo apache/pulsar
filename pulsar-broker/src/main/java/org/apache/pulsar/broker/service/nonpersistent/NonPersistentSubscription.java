@@ -39,7 +39,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,6 +55,7 @@ public class NonPersistentSubscription implements Subscription {
     private static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentSubscription.class, "isFenced");
+    @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
 
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
@@ -86,12 +86,12 @@ public class NonPersistentSubscription implements Subscription {
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this.subName);
+                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this.subName);
+                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
                 }
                 break;
             case Failover:
@@ -103,7 +103,7 @@ public class NonPersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
-                            topic, this.subName);
+                            topic, this);
                 }
                 break;
             default:

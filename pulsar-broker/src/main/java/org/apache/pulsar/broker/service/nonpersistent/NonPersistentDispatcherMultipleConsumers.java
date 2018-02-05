@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.broker.service.nonpersistent;
 
+import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
+
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -27,7 +29,7 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
-import static org.apache.pulsar.broker.service.Consumer.getBatchSizeforEntry;
+import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -38,18 +40,20 @@ import org.slf4j.LoggerFactory;
 public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements NonPersistentDispatcher {
 
-    private final NonPersistentTopic topic;
     private CompletableFuture<Void> closeFuture = null;
     private final String name;
     private final Rate msgDrop;
     protected static final AtomicIntegerFieldUpdater<NonPersistentDispatcherMultipleConsumers> TOTAL_AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentDispatcherMultipleConsumers.class, "totalAvailablePermits");
+    @SuppressWarnings("unused")
     private volatile int totalAvailablePermits = 0;
 
-    public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, String dispatcherName) {
-        this.name = topic.getName() + " / " + dispatcherName;
-        this.topic = topic;
+    private final Subscription subscription;
+
+    public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription) {
+        this.name = topic.getName() + " / " + subscription.getName();
         this.msgDrop = new Rate();
+        this.subscription = subscription;
     }
 
     @Override
@@ -148,7 +152,7 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
             TOTAL_AVAILABLE_PERMITS_UPDATER.addAndGet(this, -consumer.sendMessages(entries).getTotalSentMessages());
         } else {
             entries.forEach(entry -> {
-                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), name, -1);
+                int totalMsgs = getBatchSizeforEntry(entry.getDataBuffer(), subscription, -1);
                 if (totalMsgs > 0) {
                     msgDrop.recordEvent();
                 }
