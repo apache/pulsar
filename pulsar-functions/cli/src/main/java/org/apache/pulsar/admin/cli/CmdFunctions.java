@@ -27,6 +27,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
+import java.net.MalformedURLException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -224,6 +225,13 @@ public class CmdFunctions extends CmdBase {
                         functionConfigBuilder.getClassName(), jarFile));
             }
 
+            ClassLoader userJarLoader;
+            try {
+                userJarLoader = Reflections.loadJar(file);
+            } catch (MalformedURLException e) {
+                throw new RuntimeException("Failed to load user jar " + file, e);
+            }
+
             Object userClass = Reflections.createInstance(functionConfigBuilder.getClassName(), file);
             Class<?>[] typeArgs;
             if (userClass instanceof PulsarFunction) {
@@ -272,7 +280,19 @@ public class CmdFunctions extends CmdBase {
                                 inputSerializer, jarFile));
                     }
                     Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                    if (!typeArgs[0].isAssignableFrom(serDeTypes[0])) {
+
+                    // type inheritance information seems to be lost in generic type
+                    // load the actual type class for verification
+                    Class<?> fnInputClass;
+                    Class<?> serdeInputClass;
+                    try {
+                        fnInputClass = Class.forName(typeArgs[0].getName(), true, userJarLoader);
+                        serdeInputClass = Class.forName(serDeTypes[0].getName(), true, userJarLoader);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException("Failed to load type class", e);
+                    }
+
+                    if (!fnInputClass.isAssignableFrom(serdeInputClass)) {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[0] + " vs " + serDeTypes[0]);
                     }
                 }
@@ -296,7 +316,19 @@ public class CmdFunctions extends CmdBase {
                                 functionConfigBuilder.getOutputSerdeClassName(), jarFile));
                     }
                     Class<?>[] serDeTypes = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
-                    if (!serDeTypes[0].isAssignableFrom(typeArgs[1])) {
+
+                    // type inheritance information seems to be lost in generic type
+                    // load the actual type class for verification
+                    Class<?> fnOutputClass;
+                    Class<?> serdeOutputClass;
+                    try {
+                        fnOutputClass = Class.forName(typeArgs[1].getName(), true, userJarLoader);
+                        serdeOutputClass = Class.forName(serDeTypes[0].getName(), true, userJarLoader);
+                    } catch (ClassNotFoundException e) {
+                        throw new RuntimeException("Failed to load type class", e);
+                    }
+
+                    if (!serdeOutputClass.isAssignableFrom(fnOutputClass)) {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
                     }
                 }
