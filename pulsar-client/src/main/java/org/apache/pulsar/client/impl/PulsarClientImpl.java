@@ -393,15 +393,16 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
         lookup.getTopicsUnderNamespace(namespaceName)
             .thenAccept(topics -> {
-                List<String> topicsList = topics.stream()
-                    .filter(topic -> {
-                        DestinationName destinationName = DestinationName.get(topic);
-                        checkState(destinationName.getNamespaceObject().equals(namespaceName));
-                        return topicsPattern.matcher(destinationName.toString()).matches();
-                    })
-                    .collect(Collectors.toList());
+                if (log.isDebugEnabled()) {
+                    log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
+                    topics.forEach(topicName ->
+                        log.debug("Get topics under namespace {}, topic: {}", namespaceName.toString(), topicName));
+                }
 
-                ConsumerBase consumer = new PatternTopicsConsumerImpl(topicsPattern, PulsarClientImpl.this, topicsList, subscription,
+                List<String> topicsList = topicsPatternFilter(topics, topicsPattern);
+
+                ConsumerBase consumer = new PatternTopicsConsumerImpl(topicsPattern, PulsarClientImpl.this,
+                    topicsList, subscription,
                     conf, externalExecutorProvider.getExecutor(),
                     consumerSubscribedFuture);
 
@@ -416,6 +417,17 @@ public class PulsarClientImpl implements PulsarClient {
             });
 
         return consumerSubscribedFuture;
+    }
+
+    // get topics that match 'topicsPattern' from original topics list
+    // return result should contain only topic names, without partition part
+    public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
+        return original.stream()
+            .filter(topic -> {
+                DestinationName destinationName = DestinationName.get(topic);
+                return topicsPattern.matcher(destinationName.toString()).matches();
+            })
+            .collect(Collectors.toList());
     }
 
     @Override
@@ -594,6 +606,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     public EventLoopGroup eventLoopGroup() {
         return eventLoopGroup;
+    }
+
+    public LookupService getLookup() {
+        return lookup;
     }
 
     public CompletableFuture<Integer> getNumberOfPartitions(String topic) {

@@ -348,7 +348,8 @@ public interface PulsarClient extends Closeable {
      * {@code ConsumerConfiguration}
      *
      * @param topicsPattern
-     *            The regex pattern that wanted to subscribe. e.g. "persistent://prop/cluster/ns/abc.*"
+     *            The regex pattern that wanted to subscribe. e.g. "persistent://prop/cluster/ns/abc.*".
+     *            It should contains valid namespace name.
      * @param subscription
      *            The name of the subscription
      * @param conf

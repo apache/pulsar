@@ -39,7 +39,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -63,7 +62,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
     private final ConcurrentHashMap<String, ConsumerImpl> consumers;
 
     // Map <topic, partitionNumber>, store partition number for each topic
-    private final ConcurrentHashMap<String, Integer> topics;
+    protected final ConcurrentHashMap<String, Integer> topics;
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
@@ -146,8 +145,8 @@ public class TopicsConsumerImpl extends ConsumerBase {
     // - each topic is valid,
     // - every topic has same namespace.
     private static boolean topicsNameInvalid(Collection<String> topics) {
-        checkState(topics != null && topics.size() > 1,
-            "topics should should contain more than 1 topics");
+        checkState(topics != null && topics.size() >= 1,
+            "topics should should contain more than 1 topic");
 
         final String namespace = DestinationName.get(topics.stream().findFirst().get()).getNamespace();
 
@@ -771,8 +770,8 @@ public class TopicsConsumerImpl extends ConsumerBase {
                             consumers.values().stream()
                                 .filter(consumer1 -> {
                                     String consumerTopicName = consumer1.getTopic();
-                                    if (DestinationName.get(consumerTopicName)
-                                        .getPartitionedTopicName().equals(topicName)) {
+                                    if (DestinationName.get(consumerTopicName).getPartitionedTopicName().equals(
+                                        DestinationName.get(topicName).getPartitionedTopicName().toString())) {
                                         return true;
                                     } else {
                                         return false;
