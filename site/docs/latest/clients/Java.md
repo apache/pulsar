@@ -215,6 +215,39 @@ CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 
 Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
+### Multi-topic subscriptions
+
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](../../getting-started/ConceptsAndArchitecture#multi-topic-subscriptions). To use multi-topic subscriptions:
+
+* All topics must be within the same Pulsar {% popover namespace %}
+* You must supply a regular expression (regex)
+
+Here are some examples:
+
+```java
+import java.util.regex.Pattern;
+
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.PulsarClient;
+
+PulsarClient pulsarClient = // Instantiate Pulsar client object
+
+// Subscribe to all topics in a namespace
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
+Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, "subscription-1");
+
+// Subscribe to a subsets of topics in a namespace, based on regex
+Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo*");
+Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "subscription-1");
+```
+
+You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
+
+```java
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
+CompletableFuture<Consumer> consumer = client.subscribeAsync(allTopicsInNamespace, "subscription-1");
+```
+
 ## Reader interface
 
 With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
