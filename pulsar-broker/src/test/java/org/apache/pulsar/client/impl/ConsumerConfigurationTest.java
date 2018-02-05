@@ -24,7 +24,7 @@ import com.google.common.collect.Sets;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.SubscriptionType;
 
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -73,14 +73,14 @@ public class ConsumerConfigurationTest extends MockedPulsarServiceBaseTest {
         pulsarClient.subscribe(persistentTopic, "sub1", conf).close();
     }
 
-    @Test(expectedExceptions=PulsarClientException.class)
+    @Test(expectedExceptions=InvalidConfigurationException.class)
     public void testReadCompactPersistentShared() throws Exception {
         ConsumerConfiguration conf = new ConsumerConfiguration().setReadCompacted(true);
         conf.setSubscriptionType(SubscriptionType.Shared);
         pulsarClient.subscribe(persistentTopic, "sub1", conf).close();
     }
 
-    @Test(expectedExceptions=PulsarClientException.class)
+    @Test(expectedExceptions=InvalidConfigurationException.class)
     public void testReadCompactNonPersistentExclusive() throws Exception {
         ConsumerConfiguration conf = new ConsumerConfiguration().setReadCompacted(true);
         conf.setSubscriptionType(SubscriptionType.Exclusive);
