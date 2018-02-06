@@ -427,7 +427,7 @@ The protobuf object accepts a list of message ids that the consumer wants to
 be redelivered. If the list is empty, the broker will redeliver all the
 pending messages.
 
-On redelivery, messages an be sent to the same consumer or, in the case of a
+On redelivery, messages can be sent to the same consumer or, in the case of a
 shared subscription, spread across all available consumers.
 
 
