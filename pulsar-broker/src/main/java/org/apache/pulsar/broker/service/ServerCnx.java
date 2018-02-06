@@ -27,6 +27,7 @@ import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -77,6 +79,8 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Sets;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -89,7 +93,7 @@ public class ServerCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
     private volatile boolean isActive = true;
-    private String authRole = null;
+    String authRole = null;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -101,7 +105,8 @@ public class ServerCnx extends PulsarHandler {
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
     private String originalPrincipal = null;
-
+    private Set<String> proxyRoles = Sets.newHashSet();
+    
     enum State {
         Start, Connected, Failed
     }
@@ -117,6 +122,7 @@ public class ServerCnx extends PulsarHandler {
         this.replicatorPrefix = service.pulsar().getConfiguration().getReplicatorPrefix();
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
+        this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
     }
 
     @Override
@@ -180,6 +186,19 @@ public class ServerCnx extends PulsarHandler {
         ctx.close();
     }
 
+    private boolean validateOriginalPrincipal(String originalPrincipal, ByteBuf errorResponse, String topicName,
+            String msg) {
+        if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
+                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal))) {
+            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                    originalPrincipal, topicName);
+            ctx.writeAndFlush(errorResponse);
+            return false;
+        }
+
+        return true;
+    }
+    
     // ////
     // // Incoming commands handling
     // ////
@@ -196,6 +215,13 @@ public class ServerCnx extends PulsarHandler {
         if (lookupSemaphore.tryAcquire()) {
             final String originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
                     : this.originalPrincipal;
+            if (!validateOriginalPrincipal(originalPrincipal,
+                    newLookupErrorResponse(ServerError.AuthorizationError,
+                            "Valid Proxy Client role should be provided for lookup ", requestId),
+                    topicName, "Valid Proxy Client role should be provided for lookup ")) {
+                lookupSemaphore.release();
+                return;
+            }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationManager()
@@ -253,9 +279,15 @@ public class ServerCnx extends PulsarHandler {
         }
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-
             final String originalPrincipal = partitionMetadata.hasOriginalPrincipal()
                     ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
+            if (!validateOriginalPrincipal(originalPrincipal,
+                    Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                            "Valid Proxy Client role should be provided for getPartitionMetadataRequest ", requestId),
+                    topicName, "Valid Proxy Client role should be provided for getPartitionMetadataRequest ")) {
+                lookupSemaphore.release();
+                return;
+            }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationManager()
@@ -417,7 +449,12 @@ public class ServerCnx extends PulsarHandler {
         final String topicName = subscribe.getTopic();
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
-
+        if (!validateOriginalPrincipal(originalPrincipal,
+                Commands.newError(requestId, ServerError.AuthorizationError,
+                        "Valid Proxy Client role should be provided while subscribing "),
+                topicName, "Valid Proxy Client role should be provided while subscribing ")) {
+            return;
+        }
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
             isProxyAuthorizedFuture = service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topicName),
@@ -570,6 +607,13 @@ public class ServerCnx extends PulsarHandler {
         final long producerId = cmdProducer.getProducerId();
         final long requestId = cmdProducer.getRequestId();
 
+        if (!validateOriginalPrincipal(originalPrincipal,
+                Commands.newError(requestId, ServerError.AuthorizationError,
+                        "Valid Proxy Client role should be provided while creating producer "),
+                topicName, "Valid Proxy Client role should be provided while creating producer ")) {
+            return;
+        }
+        
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
             isProxyAuthorizedFuture = service.getAuthorizationManager().canProduceAsync(DestinationName.get(topicName),
