@@ -353,7 +353,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
 
     // Option to override the auto-detected network interfaces max speed
-    private Integer loadBalancerOverrideBrokerNicSpeedGbps;
+    private Double loadBalancerOverrideBrokerNicSpeedGbps;
 
     /**** --- Replication --- ****/
     // Enable replication metrics
@@ -1232,11 +1232,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return this.loadBalancerNamespaceMaximumBundles;
     }
 
-    public Optional<Integer> getLoadBalancerOverrideBrokerNicSpeedGbps() {
+    public Optional<Double> getLoadBalancerOverrideBrokerNicSpeedGbps() {
         return Optional.ofNullable(loadBalancerOverrideBrokerNicSpeedGbps);
     }
 
-    public void setLoadBalancerOverrideBrokerNicSpeedGbps(int loadBalancerOverrideBrokerNicSpeedGbps) {
+    public void setLoadBalancerOverrideBrokerNicSpeedGbps(double loadBalancerOverrideBrokerNicSpeedGbps) {
         this.loadBalancerOverrideBrokerNicSpeedGbps = loadBalancerOverrideBrokerNicSpeedGbps;
     }
 
