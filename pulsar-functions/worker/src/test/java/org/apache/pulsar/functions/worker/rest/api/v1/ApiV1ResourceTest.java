@@ -327,7 +327,7 @@ public class ApiV1ResourceTest {
     public void testRegisterExistedFunction() throws InvalidProtocolBufferException {
         Configurator.setRootLevel(Level.DEBUG);
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         Response response = registerDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -343,7 +343,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = registerDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
@@ -359,7 +359,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
@@ -380,7 +380,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         RequestResult rr = new RequestResult()
             .setSuccess(false)
@@ -402,7 +402,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
             new IOException("Function registeration interrupted"));
@@ -610,7 +610,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testUpdateNotExistedFunction() throws InvalidProtocolBufferException {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = updateDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
@@ -626,7 +626,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         Response response = updateDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
@@ -642,7 +642,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
@@ -663,7 +663,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(false)
@@ -685,7 +685,7 @@ public class ApiV1ResourceTest {
             any(InputStream.class),
             anyString());
 
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
             new IOException("Function registeration interrupted"));
@@ -751,7 +751,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testDeregisterNotExistedFunction() {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = deregisterDefaultFunction();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
@@ -760,7 +760,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testDeregisterFunctionSuccess() throws Exception {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(true)
@@ -775,7 +775,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testDeregisterFunctionFailure() throws Exception {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         RequestResult rr = new RequestResult()
             .setSuccess(false)
@@ -790,7 +790,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testDeregisterFunctionInterrupted() throws Exception {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         CompletableFuture<RequestResult> requestResult = FutureUtil.failedFuture(
             new IOException("Function deregisteration interrupted"));
@@ -856,7 +856,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testGetNotExistedFunction() throws InvalidProtocolBufferException {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.NOT_FOUND.getStatusCode(), response.getStatus());
@@ -865,7 +865,7 @@ public class ApiV1ResourceTest {
 
     @Test
     public void testGetFunctionSuccess() throws Exception {
-        when(mockedManager.containsFunctionMetaData(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
+        when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
 
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setClassName(className)

@@ -124,6 +124,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.membershipManager = membershipManager;
     }
 
+    /**
+     * Public methods
+     */
+
     public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {
         return this.workerIdToAssignments;
     }
@@ -319,6 +323,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
+    /**
+     * Private methods for internal use.  Should not be used outside of this class
+     */
+
+    @VisibleForTesting
     void insertStopAction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionAction functionAction = new FunctionAction();
         functionAction.setAction(FunctionAction.Action.STOP);
@@ -331,6 +340,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     }
 
+    @VisibleForTesting
     void insertStartAction(FunctionRuntimeInfo functionRuntimeInfo) {
         FunctionAction functionAction = new FunctionAction();
         functionAction.setAction(FunctionAction.Action.START);
