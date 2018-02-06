@@ -37,7 +37,7 @@ public class ManagedLedgerException extends Exception {
         }
         return new ManagedLedgerException(e);
     }
-    
+
     public static class MetaStoreException extends ManagedLedgerException {
         public MetaStoreException(Exception e) {
             super(e);
@@ -80,6 +80,12 @@ public class ManagedLedgerException extends Exception {
 
     public static class ConcurrentFindCursorPositionException extends ManagedLedgerException {
         public ConcurrentFindCursorPositionException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class ManagedLedgerAlreadyClosedException extends ManagedLedgerException {
+        public ManagedLedgerAlreadyClosedException(String msg) {
             super(msg);
         }
     }
