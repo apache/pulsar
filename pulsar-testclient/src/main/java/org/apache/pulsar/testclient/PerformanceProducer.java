@@ -269,6 +269,7 @@ public class PerformanceProducer {
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setSendTimeout(0, TimeUnit.SECONDS);
         producerConf.setCompressionType(arguments.compression);
+        producerConf.setMaxPendingMessages(arguments.maxOutstanding);
         // enable round robin message routing if it is a partitioned topic
         producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         if (arguments.batchTime > 0) {
