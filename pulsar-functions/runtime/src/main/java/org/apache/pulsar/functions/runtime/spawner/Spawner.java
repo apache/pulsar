@@ -70,6 +70,7 @@ public class Spawner implements AutoCloseable {
     private MetricsSink metricsSink;
     private int metricsCollectionInterval;
     private Timer metricsCollectionTimer;
+    private int numRestarts;
 
     private Spawner(LimitsConfig limitsConfig,
                     AssignmentInfo assignmentInfo,
@@ -83,12 +84,14 @@ public class Spawner implements AutoCloseable {
         this.codeFile = codeFile;
         this.metricsSink = metricsSink;
         this.metricsCollectionInterval = metricsCollectionInterval;
+        this.numRestarts = 0;
     }
 
     public void start() throws Exception {
         log.info("Spawner starting function {}", this.assignmentInfo.getFunctionConfig().getName());
         functionContainer = functionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         functionContainer.start();
+        numRestarts++;
         if (metricsSink != null) {
             log.info("Scheduling Metrics Collection every " + metricsCollectionInterval + " secs for " + FunctionConfigUtils.getFullyQualifiedName(assignmentInfo.getFunctionConfig()));
             metricsCollectionTimer = new Timer();
@@ -107,6 +110,7 @@ public class Spawner implements AutoCloseable {
                         log.error("Function Container is dead with exception", functionContainer.getDeathException());
                         log.error("Restarting...");
                         functionContainer.start();
+                        numRestarts++;
                     }
                 }
             }, metricsCollectionInterval * 1000, metricsCollectionInterval * 1000);
@@ -120,7 +124,14 @@ public class Spawner implements AutoCloseable {
     }
 
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        return functionContainer.getFunctionStatus();
+        return functionContainer.getFunctionStatus().thenApply(f -> {
+           FunctionStatus.Builder builder = FunctionStatus.newBuilder();
+           builder.mergeFrom(f).setNumRestarts(numRestarts);
+           if (functionContainer.getDeathException() != null) {
+               builder.setFailureException(functionContainer.getDeathException().getMessage());
+           }
+           return builder.build();
+        });
     }
 
     @Override
