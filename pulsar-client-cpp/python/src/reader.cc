@@ -23,11 +23,11 @@ Message Reader_readNext(Reader& reader) {
     Result res;
 
     while (true) {
-        Py_BEGIN_ALLOW_THREADS
+        Py_BEGIN_ALLOW_THREADS;
         // Use 100ms timeout to periodically check whether the
         // interpreter was interrupted
         res = reader.readNext(msg, 100);
-        Py_END_ALLOW_THREADS
+        Py_END_ALLOW_THREADS;
 
         if (res != ResultTimeout) {
             // In case of timeout we keep calling receive() to simulate a
@@ -49,9 +49,9 @@ Message Reader_readNext(Reader& reader) {
 Message Reader_readNextTimeout(Reader& reader, int timeoutMs) {
     Message msg;
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = reader.readNext(msg, timeoutMs);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
     return msg;
@@ -59,9 +59,9 @@ Message Reader_readNextTimeout(Reader& reader, int timeoutMs) {
 
 void Reader_close(Reader& reader) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = reader.close();
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
@@ -70,9 +70,8 @@ void export_reader() {
     using namespace boost::python;
 
     class_<Reader>("Reader", no_init)
-            .def("topic", &Reader::getTopic, return_value_policy<copy_const_reference>())
-            .def("read_next", &Reader_readNext)
-            .def("read_next", &Reader_readNextTimeout)
-            .def("close", &Reader_close)
-            ;
+        .def("topic", &Reader::getTopic, return_value_policy<copy_const_reference>())
+        .def("read_next", &Reader_readNext)
+        .def("read_next", &Reader_readNextTimeout)
+        .def("close", &Reader_close);
 }

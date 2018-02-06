@@ -18,61 +18,55 @@
  */
 #include "utils.h"
 
-
 void export_enums() {
     using namespace boost::python;
 
     enum_<ProducerConfiguration::PartitionsRoutingMode>("PartitionsRoutingMode")
-            .value("UseSinglePartition", ProducerConfiguration::UseSinglePartition)
-            .value("RoundRobinDistribution", ProducerConfiguration::RoundRobinDistribution)
-            .value("CustomPartition", ProducerConfiguration::CustomPartition)
-            ;
+        .value("UseSinglePartition", ProducerConfiguration::UseSinglePartition)
+        .value("RoundRobinDistribution", ProducerConfiguration::RoundRobinDistribution)
+        .value("CustomPartition", ProducerConfiguration::CustomPartition);
 
     enum_<CompressionType>("CompressionType")
-            .value("NONE", CompressionNone) // Don't use 'None' since it's a keyword in py3
-            .value("LZ4", CompressionLZ4)
-            .value("ZLib", CompressionZLib)
-            ;
+        .value("NONE", CompressionNone)  // Don't use 'None' since it's a keyword in py3
+        .value("LZ4", CompressionLZ4)
+        .value("ZLib", CompressionZLib);
 
     enum_<ConsumerType>("ConsumerType")
-            .value("Exclusive", ConsumerExclusive)
-            .value("Shared", ConsumerShared)
-            .value("Failover", ConsumerFailover)
-            ;
+        .value("Exclusive", ConsumerExclusive)
+        .value("Shared", ConsumerShared)
+        .value("Failover", ConsumerFailover);
 
-    enum_<Result >("Result", "Collection of return codes")
-            .value("Ok", ResultOk)
-            .value("UnknownError", ResultUnknownError)
-            .value("InvalidConfiguration", ResultInvalidConfiguration)
-            .value("Timeout", ResultTimeout)
-            .value("LookupError", ResultLookupError)
-            .value("ConnectError", ResultConnectError)
-            .value("ReadError", ResultReadError)
-            .value("AuthenticationError", ResultAuthenticationError)
-            .value("AuthorizationError", ResultAuthorizationError)
-            .value("ErrorGettingAuthenticationData", ResultErrorGettingAuthenticationData)
-            .value("BrokerMetadataError", ResultBrokerMetadataError)
-            .value("BrokerPersistenceError", ResultBrokerPersistenceError)
-            .value("ChecksumError", ResultChecksumError)
-            .value("ConsumerBusy", ResultConsumerBusy)
-            .value("NotConnected", ResultNotConnected)
-            .value("AlreadyClosed", ResultAlreadyClosed)
-            .value("InvalidMessage", ResultInvalidMessage)
-            .value("ConsumerNotInitialized", ResultConsumerNotInitialized)
-            .value("ProducerNotInitialized", ResultProducerNotInitialized)
-            .value("TooManyLookupRequestException", ResultTooManyLookupRequestException)
-            .value("InvalidTopicName", ResultInvalidTopicName)
-            .value("InvalidUrl", ResultInvalidUrl)
-            .value("ServiceUnitNotReady", ResultServiceUnitNotReady)
-            .value("OperationNotSupported", ResultOperationNotSupported)
-            .value("ProducerBlockedQuotaExceededError", ResultProducerBlockedQuotaExceededError)
-            .value("ProducerBlockedQuotaExceededException", ResultProducerBlockedQuotaExceededException)
-            .value("ProducerQueueIsFull", ResultProducerQueueIsFull)
-            .value("MessageTooBig", ResultMessageTooBig)
-            .value("TopicNotFound", ResultTopicNotFound)
-            .value("SubscriptionNotFound", ResultSubscriptionNotFound)
-            .value("ConsumerNotFound", ResultConsumerNotFound)
-            .value("UnsupportedVersionError", ResultUnsupportedVersionError)
-            ;
-
+    enum_<Result>("Result", "Collection of return codes")
+        .value("Ok", ResultOk)
+        .value("UnknownError", ResultUnknownError)
+        .value("InvalidConfiguration", ResultInvalidConfiguration)
+        .value("Timeout", ResultTimeout)
+        .value("LookupError", ResultLookupError)
+        .value("ConnectError", ResultConnectError)
+        .value("ReadError", ResultReadError)
+        .value("AuthenticationError", ResultAuthenticationError)
+        .value("AuthorizationError", ResultAuthorizationError)
+        .value("ErrorGettingAuthenticationData", ResultErrorGettingAuthenticationData)
+        .value("BrokerMetadataError", ResultBrokerMetadataError)
+        .value("BrokerPersistenceError", ResultBrokerPersistenceError)
+        .value("ChecksumError", ResultChecksumError)
+        .value("ConsumerBusy", ResultConsumerBusy)
+        .value("NotConnected", ResultNotConnected)
+        .value("AlreadyClosed", ResultAlreadyClosed)
+        .value("InvalidMessage", ResultInvalidMessage)
+        .value("ConsumerNotInitialized", ResultConsumerNotInitialized)
+        .value("ProducerNotInitialized", ResultProducerNotInitialized)
+        .value("TooManyLookupRequestException", ResultTooManyLookupRequestException)
+        .value("InvalidTopicName", ResultInvalidTopicName)
+        .value("InvalidUrl", ResultInvalidUrl)
+        .value("ServiceUnitNotReady", ResultServiceUnitNotReady)
+        .value("OperationNotSupported", ResultOperationNotSupported)
+        .value("ProducerBlockedQuotaExceededError", ResultProducerBlockedQuotaExceededError)
+        .value("ProducerBlockedQuotaExceededException", ResultProducerBlockedQuotaExceededException)
+        .value("ProducerQueueIsFull", ResultProducerQueueIsFull)
+        .value("MessageTooBig", ResultMessageTooBig)
+        .value("TopicNotFound", ResultTopicNotFound)
+        .value("SubscriptionNotFound", ResultSubscriptionNotFound)
+        .value("ConsumerNotFound", ResultConsumerNotFound)
+        .value("UnsupportedVersionError", ResultUnsupportedVersionError);
 }

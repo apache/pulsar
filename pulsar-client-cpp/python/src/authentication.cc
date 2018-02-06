@@ -26,6 +26,5 @@ AuthenticationWrapper::AuthenticationWrapper(const std::string& dynamicLibPath,
 void export_authentication() {
     using namespace boost::python;
 
-    class_<AuthenticationWrapper>("Authentication", init<const std::string&, const std::string&>())
-            ;
+    class_<AuthenticationWrapper>("Authentication", init<const std::string&, const std::string&>());
 }

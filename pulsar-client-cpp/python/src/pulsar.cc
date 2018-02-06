@@ -27,7 +27,6 @@ void export_config();
 void export_enums();
 void export_authentication();
 
-
 static void translateException(const PulsarException& ex) {
     std::string err = "Pulsar error: ";
     err += strResult(ex._result);
@@ -35,8 +34,7 @@ static void translateException(const PulsarException& ex) {
     PyErr_SetString(PyExc_Exception, err.c_str());
 }
 
-BOOST_PYTHON_MODULE(_pulsar)
-{
+BOOST_PYTHON_MODULE(_pulsar) {
     py::register_exception_translator<PulsarException>(translateException);
 
     // Initialize thread support so that we can grab the GIL mutex

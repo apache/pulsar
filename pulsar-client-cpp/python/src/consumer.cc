@@ -20,9 +20,9 @@
 
 void Consumer_unsubscribe(Consumer& consumer) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.unsubscribe();
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
@@ -32,11 +32,11 @@ Message Consumer_receive(Consumer& consumer) {
     Result res;
 
     while (true) {
-        Py_BEGIN_ALLOW_THREADS
+        Py_BEGIN_ALLOW_THREADS;
         // Use 100ms timeout to periodically check whether the
         // interpreter was interrupted
         res = consumer.receive(msg, 100);
-        Py_END_ALLOW_THREADS
+        Py_END_ALLOW_THREADS;
 
         if (res != ResultTimeout) {
             // In case of timeout we keep calling receive() to simulate a
@@ -58,9 +58,9 @@ Message Consumer_receive(Consumer& consumer) {
 Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
     Message msg;
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.receive(msg, timeoutMs);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
     return msg;
@@ -68,74 +68,69 @@ Message Consumer_receive_timeout(Consumer& consumer, int timeoutMs) {
 
 void Consumer_acknowledge(Consumer& consumer, const Message& msg) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.acknowledge(msg);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
 
 void Consumer_acknowledge_message_id(Consumer& consumer, const MessageId& msgId) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.acknowledge(msgId);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
 
 void Consumer_acknowledge_cumulative(Consumer& consumer, const Message& msg) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.acknowledgeCumulative(msg);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
 
 void Consumer_acknowledge_cumulative_message_id(Consumer& consumer, const MessageId& msgId) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.acknowledgeCumulative(msgId);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
 
 void Consumer_close(Consumer& consumer) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = consumer.close();
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
 
-void Consumer_pauseMessageListener(Consumer& consumer) {
-    CHECK_RESULT(consumer.pauseMessageListener());
-}
+void Consumer_pauseMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.pauseMessageListener()); }
 
-void Consumer_resumeMessageListener(Consumer& consumer) {
-    CHECK_RESULT(consumer.resumeMessageListener());
-}
+void Consumer_resumeMessageListener(Consumer& consumer) { CHECK_RESULT(consumer.resumeMessageListener()); }
 
 void export_consumer() {
     using namespace boost::python;
 
     class_<Consumer>("Consumer", no_init)
-            .def("topic", &Consumer::getTopic, "return the topic this consumer is subscribed to",
-                 return_value_policy<copy_const_reference>())
-            .def("subscription_name", &Consumer::getSubscriptionName, return_value_policy<copy_const_reference>())
-            .def("unsubscribe", &Consumer_unsubscribe)
-            .def("receive", &Consumer_receive)
-            .def("receive", &Consumer_receive_timeout)
-            .def("acknowledge", &Consumer_acknowledge)
-            .def("acknowledge", &Consumer_acknowledge_message_id)
-            .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative)
-            .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative_message_id)
-            .def("close", &Consumer_close)
-            .def("pause_message_listener", &Consumer_pauseMessageListener)
-            .def("resume_message_listener", &Consumer_resumeMessageListener)
-            .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages)
-            ;
+        .def("topic", &Consumer::getTopic, "return the topic this consumer is subscribed to",
+             return_value_policy<copy_const_reference>())
+        .def("subscription_name", &Consumer::getSubscriptionName, return_value_policy<copy_const_reference>())
+        .def("unsubscribe", &Consumer_unsubscribe)
+        .def("receive", &Consumer_receive)
+        .def("receive", &Consumer_receive_timeout)
+        .def("acknowledge", &Consumer_acknowledge)
+        .def("acknowledge", &Consumer_acknowledge_message_id)
+        .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative)
+        .def("acknowledge_cumulative", &Consumer_acknowledge_cumulative_message_id)
+        .def("close", &Consumer_close)
+        .def("pause_message_listener", &Consumer_pauseMessageListener)
+        .def("resume_message_listener", &Consumer_resumeMessageListener)
+        .def("redeliver_unacknowledged_messages", &Consumer::redeliverUnacknowledgedMessages);
 }

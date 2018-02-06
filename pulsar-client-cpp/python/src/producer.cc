@@ -20,9 +20,9 @@
 
 void Producer_send(Producer& producer, const Message& message) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = producer.send(message);
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
@@ -48,16 +48,16 @@ void Producer_sendAsync(Producer& producer, const Message& message, py::object c
     PyObject* pyCallback = callback.ptr();
     Py_XINCREF(pyCallback);
 
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     producer.sendAsync(message, boost::bind(Producer_sendAsyncCallback, pyCallback, _1, _2));
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 }
 
 void Producer_close(Producer& producer) {
     Result res;
-    Py_BEGIN_ALLOW_THREADS
+    Py_BEGIN_ALLOW_THREADS;
     res = producer.close();
-    Py_END_ALLOW_THREADS
+    Py_END_ALLOW_THREADS;
 
     CHECK_RESULT(res);
 }
@@ -66,26 +66,26 @@ void export_producer() {
     using namespace boost::python;
 
     class_<Producer>("Producer", no_init)
-            .def("topic", &Producer::getTopic, "return the topic to which producer is publishing to",
-                 return_value_policy<copy_const_reference>())
-            .def("producer_name", &Producer::getProducerName,
-                 "return the producer name which could have been assigned by the system or specified by the client",
-                 return_value_policy<copy_const_reference>())
-            .def("last_sequence_id", &Producer::getLastSequenceId)
-            .def("send", &Producer_send,
-                 "Publish a message on the topic associated with this Producer.\n"
-                         "\n"
-                         "This method will block until the message will be accepted and persisted\n"
-                         "by the broker. In case of errors, the client library will try to\n"
-                         "automatically recover and use a different broker.\n"
-                         "\n"
-                         "If it wasn't possible to successfully publish the message within the sendTimeout,\n"
-                         "an error will be returned.\n"
-                         "\n"
-                         "This method is equivalent to asyncSend() and wait until the callback is triggered.\n"
-                         "\n"
-                         "@param msg message to publish\n")
-            .def("send_async", &Producer_sendAsync)
-            .def("close", &Producer_close)
-            ;
+        .def("topic", &Producer::getTopic, "return the topic to which producer is publishing to",
+             return_value_policy<copy_const_reference>())
+        .def("producer_name", &Producer::getProducerName,
+             "return the producer name which could have been assigned by the system or specified by the "
+             "client",
+             return_value_policy<copy_const_reference>())
+        .def("last_sequence_id", &Producer::getLastSequenceId)
+        .def("send", &Producer_send,
+             "Publish a message on the topic associated with this Producer.\n"
+             "\n"
+             "This method will block until the message will be accepted and persisted\n"
+             "by the broker. In case of errors, the client library will try to\n"
+             "automatically recover and use a different broker.\n"
+             "\n"
+             "If it wasn't possible to successfully publish the message within the sendTimeout,\n"
+             "an error will be returned.\n"
+             "\n"
+             "This method is equivalent to asyncSend() and wait until the callback is triggered.\n"
+             "\n"
+             "@param msg message to publish\n")
+        .def("send_async", &Producer_sendAsync)
+        .def("close", &Producer_close);
 }
