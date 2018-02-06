@@ -209,7 +209,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 2. Add consumer
         Consumer consumer1 = new Consumer(sub, SubType.Exclusive, topic.getName(), 1 /* consumer id */, 0,
-                "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap());
+                "Cons1"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */);
         pdfc.addConsumer(consumer1);
         List<Consumer> consumers = pdfc.getConsumers();
         assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
@@ -226,7 +227,7 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 5. Add another consumer which does not change active consumer
         Consumer consumer2 = new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
-                50000, serverCnx, "myrole-1", Collections.emptyMap());
+                50000, serverCnx, "myrole-1", Collections.emptyMap(), false /* read compacted */);
         pdfc.addConsumer(consumer2);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
@@ -234,7 +235,8 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // 6. Add a consumer which changes active consumer
         Consumer consumer0 = new Consumer(sub, SubType.Exclusive, topic.getName(), 0 /* consumer id */, 0,
-                "Cons0"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap());
+                "Cons0"/* consumer name */, 50000, serverCnx, "myrole-1", Collections.emptyMap(),
+                false /* read compacted */);
         pdfc.addConsumer(consumer0);
         consumers = pdfc.getConsumers();
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer0.consumerName());
@@ -443,7 +445,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     private Consumer createConsumer(int priority, int permit, boolean blocked, int id) throws Exception {
         Consumer consumer =
                 new Consumer(null, SubType.Shared, null, id, priority, ""+id, 5000,
-                        serverCnx, "appId", Collections.emptyMap());
+                        serverCnx, "appId", Collections.emptyMap(), false /* read compacted */);
         try {
             consumer.flowPermits(permit);
         } catch (Exception e) {
