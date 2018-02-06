@@ -148,12 +148,12 @@ message CommandConnect {
 
 	// Original principal that was verified by
 	// a Pulsar proxy. In this case the auth info above
-	// will the the auth of the proxy itself
+	// will be the auth of the proxy itself
 	optional string original_principal = 7;
 	
 	// Original auth role and auth Method that was passed 
 	// to the proxy. In this case the auth info above
-	// will the the auth of the proxy itself	
+	// will be the auth of the proxy itself	
 	optional string original_auth_data = 8;
 	optional string original_auth_method = 9;
 	
@@ -196,13 +196,11 @@ message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
 	// Original principal that was verified by
-	// a Pulsar proxy. In this case the auth info above
-	// will the the auth of the proxy itself
+	// a Pulsar proxy.
 	optional string original_principal = 3;
 	
 	// Original auth role and auth Method that was passed 
-	// to the proxy. In this case the auth info above
-	// will the the auth of the proxy itself	
+	// to the proxy.	
 	optional string original_auth_data = 4;
 	optional string original_auth_method = 5;
 }
@@ -225,13 +223,11 @@ message CommandLookupTopic {
 	optional bool authoritative      = 3 [default = false];
 	
 	// Original principal that was verified by
-	// a Pulsar proxy. In this case the auth info above
-	// will the the auth of the proxy itself
+	// a Pulsar proxy.
 	optional string original_principal = 4;
 	
 	// Original auth role and auth Method that was passed 
-	// to the proxy. In this case the auth info above
-	// will the the auth of the proxy itself	
+	// to the proxy. 	
 	optional string original_auth_data = 5;
 	optional string original_auth_method = 6;
 }

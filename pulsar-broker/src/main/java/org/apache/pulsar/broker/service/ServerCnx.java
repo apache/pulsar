@@ -105,7 +105,7 @@ public class ServerCnx extends PulsarHandler {
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
     private String originalPrincipal = null;
-    private Set<String> proxyRoles = Sets.newHashSet();
+    private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
     
     enum State {
@@ -188,6 +188,12 @@ public class ServerCnx extends PulsarHandler {
         ctx.close();
     }
 
+    /*
+     * If authentication and authorization is enabled if the  authRole is one of proxyRoles we want to enforce 
+     * - the originalPrincipal is given while connecting 
+     * - originalPrincipal is not blank
+     * - originalPrincipal is not a proxy principal
+     */
     private boolean validateOriginalPrincipal(String originalPrincipal, ByteBuf errorResponse, String topicName,
             String msg) {
         if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
