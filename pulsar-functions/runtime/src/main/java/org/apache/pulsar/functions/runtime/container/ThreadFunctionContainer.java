@@ -44,6 +44,7 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Getter
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
+    private Exception startupException;
 
     ThreadFunctionContainer(InstanceConfig instanceConfig,
                             int maxBufferedTuples,
@@ -73,6 +74,13 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public void start() {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
+        startupException = null;
+        this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+            @Override
+            public void uncaughtException(Thread t, Throwable e) {
+                startupException = new Exception(e);
+            }
+        });
         this.fnThread.start();
     }
 
@@ -108,5 +116,16 @@ class ThreadFunctionContainer implements FunctionContainer {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         return CompletableFuture.completedFuture(javaInstanceRunnable.getAndResetMetrics());
+    }
+
+    @Override
+    public boolean isAlive() {
+        return this.fnThread.isAlive();
+    }
+
+    @Override
+    public Exception getDeathException() {
+        if (isAlive()) return null;
+        else return startupException;
     }
 }

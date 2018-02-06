@@ -54,17 +54,13 @@ class ProcessFunctionContainer implements FunctionContainer {
     private Exception startupException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
-    private Timer alivenessTimer;
-    private int alivenessCheckInterval;
-    private volatile boolean markedKilled = false;
 
     ProcessFunctionContainer(InstanceConfig instanceConfig,
                              int maxBufferedTuples,
                              String instanceFile,
                              String logDirectory,
                              String codeFile,
-                             String pulsarServiceUrl,
-                             int alivenessCheckInterval) {
+                             String pulsarServiceUrl) {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
             args.add("java");
@@ -168,27 +164,19 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add(String.valueOf(instancePort));
 
         processBuilder = new ProcessBuilder(args);
-        this.alivenessCheckInterval = alivenessCheckInterval;
     }
 
     /**
      * The core logic that initialize the thread container and executes the function
      */
     @Override
-    public void start() throws Exception {
+    public void start() {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
         startProcess();
         channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
                 .usePlaintext(true)
                 .build();
         stub = InstanceControlGrpc.newFutureStub(channel);
-        alivenessTimer = new Timer();
-        alivenessTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                checkForAliveness();
-            }
-        }, alivenessCheckInterval * 1000, alivenessCheckInterval * 1000);
     }
 
     @Override
@@ -197,11 +185,9 @@ class ProcessFunctionContainer implements FunctionContainer {
     }
 
     @Override
-    public synchronized void stop() {
-        markedKilled = true;
+    public void stop() {
         process.destroy();
         channel.shutdown();
-        alivenessTimer.cancel();
     }
 
     @Override
@@ -262,6 +248,7 @@ class ProcessFunctionContainer implements FunctionContainer {
     }
 
     private void startProcess() {
+        startupException = null;
         try {
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
@@ -278,21 +265,24 @@ class ProcessFunctionContainer implements FunctionContainer {
         }
     }
 
-    private synchronized void checkForAliveness() {
-        if (markedKilled) return;
-        if (!process.isAlive()) {
-            log.error("Process is no longer alive, Restarting...");
-            InputStream errorStream = process.getErrorStream();
-            try {
-                byte[] errorBytes = new byte[errorStream.available()];
-                errorStream.read(errorBytes);
-                String errorMessage = new String(errorBytes);
-                startupException = new RuntimeException(errorMessage);
-                log.error("ErrorStream was " + errorMessage);
-            } catch (Exception ex) {
-                startupException = ex;
-            }
-            startProcess();
+    @Override
+    public boolean isAlive() {
+        return process.isAlive();
+    }
+
+    @Override
+    public Exception getDeathException() {
+        if (isAlive()) return null;
+        if (startupException != null) return startupException;
+        InputStream errorStream = process.getErrorStream();
+        try {
+            byte[] errorBytes = new byte[errorStream.available()];
+            errorStream.read(errorBytes);
+            String errorMessage = new String(errorBytes);
+            startupException = new RuntimeException(errorMessage);
+        } catch (Exception ex) {
+            startupException = ex;
         }
+        return startupException;
     }
 }

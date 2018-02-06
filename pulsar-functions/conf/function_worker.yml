@@ -44,8 +44,8 @@ metricsConfig:
 # threadContainerFactory:
 #   threadGroupName: "Thread Function Container Group"
 processContainerFactory:
-  livenessCheckInterval: 10
-
+  logDirectory:
+  
 schedulerClassName: "org.apache.pulsar.functions.worker.scheduler.RoundRobinScheduler"
 functionAssignmentTopicName: "assignments"
 failureCheckFreqMs: 30000

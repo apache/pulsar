@@ -28,11 +28,15 @@ import java.util.concurrent.CompletableFuture;
  */
 public interface FunctionContainer {
 
-    void start() throws Exception;
+    void start();
 
     void join() throws Exception;
 
     void stop();
+
+    boolean isAlive();
+
+    Exception getDeathException();
 
     CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
 
