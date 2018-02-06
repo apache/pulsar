@@ -160,10 +160,10 @@ public class FunctionMetaDataSnapshotManager implements AutoCloseable{
         try {
             List<String> topics = pulsarAdmin.persistentTopics().getList(namespace);
             for (String topic : topics) {
-                if (topic.startsWith(snapshotTopicPath)) {
+                String prefix = String.format("%s/snapshot-", snapshotTopicPath);
+                if (topic.startsWith(prefix)) {
                     ret.add(Integer.parseInt(
-                            topic.replace(
-                                    String.format("%s/snapshot-", snapshotTopicPath, snapshotsTopicPath), "")));
+                            topic.replace(prefix, "")));
                 }
             }
         } catch (PulsarAdminException e) {
