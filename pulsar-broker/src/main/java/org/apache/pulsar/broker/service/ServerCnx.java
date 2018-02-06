@@ -186,6 +186,12 @@ public class ServerCnx extends PulsarHandler {
         ctx.close();
     }
 
+    /*
+     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce 
+     * - the originalPrincipal is given while connecting 
+     * - originalPrincipal is not blank
+     * - originalPrincipal is not a proxy principal
+     */
     private boolean invalidOriginalPrincipal(String originalPrincipal) {
         return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
                 && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
