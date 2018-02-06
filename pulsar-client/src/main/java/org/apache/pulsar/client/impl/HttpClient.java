@@ -48,7 +48,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 
 public class HttpClient implements Closeable {
 
-    public final static int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
+    protected final static int DEFAULT_CONNECT_TIMEOUT_IN_SECONDS = 10;
     protected final static int DEFAULT_READ_TIMEOUT_IN_SECONDS = 30;
 
     protected final AsyncHttpClient httpClient;

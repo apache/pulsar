@@ -61,7 +61,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.util.concurrent.Promise;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
-import static org.apache.pulsar.client.impl.HttpClient.DEFAULT_CONNECT_TIMEOUT_IN_SECONDS;
 
 public class ClientCnx extends PulsarHandler {
 
@@ -85,6 +84,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
+    private final long operationTimeoutMs;
 
     private String proxyToTargetBrokerAddress = null;
 
@@ -98,6 +98,7 @@ public class ClientCnx extends PulsarHandler {
         this.authentication = conf.getAuthentication();
         this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
+        this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
     }
 
@@ -349,9 +350,9 @@ public class ClientCnx extends PulsarHandler {
             eventLoopGroup.schedule(() -> {
                 if (!future.isDone()) {
                     future.completeExceptionally(new TimeoutException(
-                            requestId + " lookup request timedout after ms " + DEFAULT_CONNECT_TIMEOUT_IN_SECONDS));
+                            requestId + " lookup request timedout after ms " + operationTimeoutMs));
                 }
-            }, DEFAULT_CONNECT_TIMEOUT_IN_SECONDS, TimeUnit.SECONDS);
+            }, operationTimeoutMs, TimeUnit.MILLISECONDS);
             return true;
         }
         return false;
