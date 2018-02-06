@@ -28,6 +28,7 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -92,7 +93,7 @@ public class MembershipManagerTest {
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
         verify(schedulerManager, times(0)).schedule();
-        verify(functionRuntimeManager, times(0)).removeAssignment(any(Function.Assignment.class));
+        verify(functionRuntimeManager, times(0)).removeAssignments(any());
         Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 0);
     }
 
@@ -147,7 +148,7 @@ public class MembershipManagerTest {
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
         verify(schedulerManager, times(0)).schedule();
-        verify(functionRuntimeManager, times(0)).removeAssignment(any(Function.Assignment.class));
+        verify(functionRuntimeManager, times(0)).removeAssignments(any());
         Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
         Assert.assertTrue(membershipManager.unsignedFunctionDurations.get("test-tenant/test-namespace/func-2") != null);
 
@@ -156,14 +157,14 @@ public class MembershipManagerTest {
 
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
-        verify(functionRuntimeManager, times(1)).removeAssignment(
-                argThat(new ArgumentMatcher<Function.Assignment>() {
+        verify(functionRuntimeManager, times(1)).removeAssignments(
+                argThat(new ArgumentMatcher<Collection<Function.Assignment>>() {
             @Override
             public boolean matches(Object o) {
-                if (o instanceof Function.Assignment) {
-                    Function.Assignment assignment = (Function.Assignment) o;
+                if (o instanceof Collection) {
+                    Collection<Function.Assignment> assignments = (Collection) o;
 
-                    if (!assignment.equals(assignment2)) {
+                    if (!assignments.contains(assignment2)) {
                         return false;
                     }
                     return true;
@@ -223,7 +224,7 @@ public class MembershipManagerTest {
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
         verify(schedulerManager, times(0)).schedule();
-        verify(functionRuntimeManager, times(0)).removeAssignment(any(Function.Assignment.class));
+        verify(functionRuntimeManager, times(0)).removeAssignments(any());
         Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
         Assert.assertTrue(membershipManager.unsignedFunctionDurations.get("test-tenant/test-namespace/func-2") != null);
 
@@ -233,6 +234,6 @@ public class MembershipManagerTest {
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
         verify(schedulerManager, times(1)).schedule();
-        verify(functionRuntimeManager, times(0)).removeAssignment(any(Function.Assignment.class));
+        verify(functionRuntimeManager, times(0)).removeAssignments(any());
     }
 }

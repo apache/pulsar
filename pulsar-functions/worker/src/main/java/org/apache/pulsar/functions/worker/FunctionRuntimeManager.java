@@ -41,6 +41,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.MediaType;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -125,29 +126,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     /**
-     * Public methods
+     * Starts the function runtime manager
      */
-
-    public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {
-        return this.workerIdToAssignments;
-    }
-
-    public synchronized FunctionRuntimeInfo getFunctionRuntimeInfo(String fullyQualifiedName) {
-        return this.functionRuntimeInfoMap.get(fullyQualifiedName);
-    }
-
-    public synchronized Assignment findFunctionAssignment(String tenant, String namespace, String functionName) {
-        return this.findAssignment(tenant, namespace, functionName);
-    }
-
-    public synchronized long getCurrentAssignmentVersion() {
-        return this.currentAssignmentVersion;
-    }
-
-    public synchronized void removeAssignment(Assignment assignment) {
-        this.deleteAssignment(assignment);
-    }
-
     public void start() {
         log.info("/** Starting Function Runtime Manager **/");
         log.info("Initialize metrics sink...");
@@ -158,10 +138,62 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.functionAssignmentTailer.start();
     }
 
-    public InstanceCommunication.FunctionStatus getFunctionStatus(String tenant, String namespace, String functionName) {
-        Map<String, Map<String, Function.Assignment>> currentAssignments = this.getCurrentAssignments();
+    /**
+     * Public methods
+     */
 
-        log.info("this.getCurrentAssignments(): {}", this.getCurrentAssignments());
+    /**
+     * Get current assignments
+     * @return a map of current assignments in the follwing format
+     * {workerId : {FullyQualifiedFunctionName : Assignment}}
+     */
+    public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {
+        Map<String, Map<String, Assignment>> copy = new HashMap<>();
+        for (Map.Entry<String, Map<String, Assignment>> entry : this.workerIdToAssignments.entrySet()) {
+            Map<String, Assignment> tmp = new HashMap<>();
+            tmp.putAll(entry.getValue());
+            copy.put(entry.getKey(), tmp);
+        }
+        return copy;
+    }
+
+    /**
+     * Find a assignment of a function
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @return the assignment of the function
+     */
+    public synchronized Assignment findFunctionAssignment(String tenant, String namespace, String functionName) {
+        return this.findAssignment(tenant, namespace, functionName);
+    }
+
+    /**
+     * get the current version number of assignments
+     * @return assignments version number
+     */
+    public synchronized long getCurrentAssignmentVersion() {
+        return new Long(this.currentAssignmentVersion);
+    }
+
+    /**
+     * Removes a collection of assignments
+     * @param assignments assignments to remove
+     */
+    public synchronized void removeAssignments(Collection<Assignment> assignments) {
+        for (Assignment assignment : assignments) {
+            this.deleteAssignment(assignment);
+        }
+    }
+
+    /**
+     * Get status of a function.  If this worker is not running the function, route to worker that is to get the status
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @return the function status
+     */
+    public InstanceCommunication.FunctionStatus getFunctionStatus(String tenant, String namespace, String functionName) {
         String workerId = this.workerConfig.getWorkerId();
 
         Function.Assignment assignment = this.findAssignment(tenant, namespace, functionName);
@@ -233,6 +265,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return functionStatus;
     }
 
+    /**
+     * Process an assignment update from the assignment topic
+     * @param messageId the message id of the update assignment
+     * @param assignmentsUpdate the assignment update
+     */
     public synchronized void processAssignmentUpdate(MessageId messageId, AssignmentsUpdate assignmentsUpdate) {
         if (assignmentsUpdate.getVersion() > this.currentAssignmentVersion) {
 
@@ -398,11 +435,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    void deleteFunctionRuntimeInfo(String fullyQualifiedName) {
+    private void deleteFunctionRuntimeInfo(String fullyQualifiedName) {
         this.functionRuntimeInfoMap.remove(fullyQualifiedName);
     }
 
-    void setFunctionRuntimeInfo(String fullyQualifiedName, FunctionRuntimeInfo functionRuntimeInfo) {
+    private void setFunctionRuntimeInfo(String fullyQualifiedName, FunctionRuntimeInfo functionRuntimeInfo) {
         this.functionRuntimeInfoMap.put(fullyQualifiedName, functionRuntimeInfo);
     }
 
@@ -426,7 +463,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    Map<String, Assignment> diff(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {
+    private Map<String, Assignment> diff(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {
         Map<String, Assignment> result = new HashMap<>();
         for (Map.Entry<String, Assignment> entry : assignmentMap1.entrySet()) {
             if (!assignmentMap2.containsKey(entry.getKey())) {
@@ -436,7 +473,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return result;
     }
 
-    Map<String, Assignment> inCommon(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {
+    private Map<String, Assignment> inCommon(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {
 
         Map<String, Assignment> result = new HashMap<>();
         for (Map.Entry<String, Assignment> entry : assignmentMap1.entrySet()) {
@@ -445,5 +482,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
             }
         }
         return result;
+    }
+
+    private FunctionRuntimeInfo getFunctionRuntimeInfo(String fullyQualifiedName) {
+        return this.functionRuntimeInfoMap.get(fullyQualifiedName);
     }
 }

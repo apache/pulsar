@@ -122,10 +122,7 @@ public class SchedulerManager implements AutoCloseable {
                 }
             }
         }
-
-        for (Assignment assignment : invalidAssignments) {
-            this.functionRuntimeManager.removeAssignment(assignment);
-        }
+        this.functionRuntimeManager.removeAssignments(invalidAssignments);
 
         List<Assignment> currentAssignments = workerIdToAssignments
                 .entrySet().stream()
