@@ -34,6 +34,8 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
+import javax.ws.rs.core.Response;
+
 @Slf4j
 public class Worker extends AbstractService {
 
@@ -94,14 +96,17 @@ public class Worker extends AbstractService {
         try {
             admin.namespaces().getPolicies(this.workerConfig.getPulsarFunctionsNamespace());
         } catch (PulsarAdminException e) {
-            if (e.getStatusCode() == 404) {
+            if (e.getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()) {
                 // if not found than create
                 try {
                     admin.namespaces().createNamespace(this.workerConfig.getPulsarFunctionsNamespace());
                 } catch (PulsarAdminException e1) {
-                    log.error("Failed to create namespace {} for pulsar functions", this.workerConfig
-                            .getPulsarFunctionsNamespace(), e1);
-                    throw new RuntimeException(e1);
+                    // prevent race condition with other workers starting up
+                    if (e1.getStatusCode() != Response.Status.CONFLICT.getStatusCode()) {
+                        log.error("Failed to create namespace {} for pulsar functions", this.workerConfig
+                                .getPulsarFunctionsNamespace(), e1);
+                        throw new RuntimeException(e1);
+                    }
                 }
                 try {
                     admin.namespaces().setRetention(
