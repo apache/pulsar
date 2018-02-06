@@ -80,6 +80,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Sets;
+import com.google.protobuf.GeneratedMessageLite;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
@@ -211,7 +212,7 @@ public class ServerCnx extends PulsarHandler {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
 
-        DestinationName topicName = validateTopicName(lookup.getTopic(), requestId, true);
+        DestinationName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
         if (topicName == null) {
             return;
         }
@@ -283,15 +284,8 @@ public class ServerCnx extends PulsarHandler {
                     remoteAddress, requestId);
         }
 
-        DestinationName topicName;
-        try {
-            topicName = DestinationName.get(partitionMetadata.getTopic());
-        } catch (Throwable t) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, partitionMetadata.getTopic(), t);
-            }
-            ctx.writeAndFlush(newLookupErrorResponse(ServerError.InvalidTopicName,
-                    "Invalid topic name: " + t.getMessage(), requestId));
+        DestinationName topicName = validateTopicName(partitionMetadata.getTopic(), requestId, partitionMetadata);
+        if (topicName == null) {
             return;
         }
 
@@ -468,7 +462,7 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
 
-        DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, false);
+        DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
         if (topicName == null) {
             return;
         }
@@ -637,7 +631,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
 
-        DestinationName topicName = validateTopicName(cmdProducer.getTopic(), requestId, false);
+        DestinationName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
             return;
         }
@@ -1156,7 +1150,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    private DestinationName validateTopicName(String topic, long requestId, boolean isLookupRequest) {
+    private DestinationName validateTopicName(String topic, long requestId, GeneratedMessageLite requestCommand) {
         try {
             return DestinationName.get(topic);
         } catch (Throwable t) {
@@ -1164,8 +1158,11 @@ public class ServerCnx extends PulsarHandler {
                 log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, t);
             }
 
-            if (isLookupRequest) {
+            if (requestCommand instanceof CommandLookupTopic) {
                 ctx.writeAndFlush(Commands.newLookupErrorResponse(ServerError.InvalidTopicName,
+                        "Invalid topic name: " + t.getMessage(), requestId));
+            } else if (requestCommand instanceof CommandPartitionedTopicMetadata) {
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.InvalidTopicName,
                         "Invalid topic name: " + t.getMessage(), requestId));
             } else {
                 ctx.writeAndFlush(Commands.newError(requestId, ServerError.InvalidTopicName,
