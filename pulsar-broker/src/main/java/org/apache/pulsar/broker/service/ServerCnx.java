@@ -211,15 +211,8 @@ public class ServerCnx extends PulsarHandler {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
 
-        DestinationName topicName;
-        try {
-            topicName = DestinationName.get(lookup.getTopic());
-        } catch (Throwable t) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, lookup.getTopic(), t);
-            }
-            ctx.writeAndFlush(newLookupErrorResponse(ServerError.InvalidTopicName,
-                    "Invalid topic name: " + t.getMessage(), requestId));
+        DestinationName topicName = validateTopicName(lookup.getTopic(), requestId, true);
+        if (topicName == null) {
             return;
         }
 
@@ -475,15 +468,8 @@ public class ServerCnx extends PulsarHandler {
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
 
-        DestinationName topicName;
-        try {
-            topicName = DestinationName.get(subscribe.getTopic());
-        } catch (Throwable t) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, subscribe.getTopic(), t);
-            }
-            ctx.writeAndFlush(Commands.newError(requestId, ServerError.InvalidTopicName,
-                    "Invalid topic name: " + t.getMessage()));
+        DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, false);
+        if (topicName == null) {
             return;
         }
 
@@ -651,15 +637,8 @@ public class ServerCnx extends PulsarHandler {
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
 
-        DestinationName topicName;
-        try {
-            topicName = DestinationName.get(cmdProducer.getTopic());
-        } catch (Throwable t) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, cmdProducer.getTopic(), t);
-            }
-            ctx.writeAndFlush(Commands.newError(requestId, ServerError.InvalidTopicName,
-                    "Invalid topic name: " + t.getMessage()));
+        DestinationName topicName = validateTopicName(cmdProducer.getTopic(), requestId, false);
+        if (topicName == null) {
             return;
         }
 
@@ -1174,6 +1153,26 @@ public class ServerCnx extends PulsarHandler {
                 log.warn("[{}] [{}] Failed to remove TCP no-delay property on client cnx {}", topic, producerName,
                         ctx.channel());
             }
+        }
+    }
+
+    private DestinationName validateTopicName(String topic, long requestId, boolean isLookupRequest) {
+        try {
+            return DestinationName.get(topic);
+        } catch (Throwable t) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, t);
+            }
+
+            if (isLookupRequest) {
+                ctx.writeAndFlush(Commands.newLookupErrorResponse(ServerError.InvalidTopicName,
+                        "Invalid topic name: " + t.getMessage(), requestId));
+            } else {
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.InvalidTopicName,
+                        "Invalid topic name: " + t.getMessage()));
+            }
+
+            return null;
         }
     }
 
