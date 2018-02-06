@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.AccessLevel;
@@ -65,6 +64,11 @@ public class MembershipManager implements AutoCloseable {
 
     private static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
+    // How long functions have remained assigned or scheduled on a failed node
+    // FullyQualifiedFunctionName -> time in millis
+    @VisibleForTesting
+    Map<String, Long> unsignedFunctionDurations = new HashMap<>();
+
     MembershipManager(WorkerConfig workerConfig, SchedulerManager schedulerManager, PulsarClient client)
             throws PulsarClientException {
         producer = client.createProducer(workerConfig.getClusterCoordinationTopic());
@@ -77,48 +81,16 @@ public class MembershipManager implements AutoCloseable {
         this.schedulerManager = schedulerManager;
     }
 
-    public CompletableFuture<Boolean> becomeLeader() {
+    /**
+     * Public methods
+     */
+
+    public synchronized CompletableFuture<Boolean> becomeLeader() {
         long time = System.currentTimeMillis();
         String str = String.format("%s-%d", this.workerConfig.getWorkerId(), time);
         return producer.sendAsync(str.getBytes())
                 .thenCompose(messageId -> MembershipManager.this.receiveTillMessage((MessageIdImpl) messageId))
                 .exceptionally(cause -> false);
-    }
-
-    private CompletableFuture<Boolean> receiveTillMessage(MessageIdImpl endMsgId) {
-        CompletableFuture<Boolean> finalFuture = new CompletableFuture<>();
-        receiveOne(endMsgId, finalFuture);
-        return finalFuture;
-    }
-
-    private void receiveOne(MessageIdImpl endMsgId, CompletableFuture<Boolean> finalFuture) {
-        consumer.receiveAsync()
-                .thenAccept(message -> {
-                    MessageIdImpl idReceived = (MessageIdImpl) message.getMessageId();
-
-                    int compareResult = idReceived.compareTo(endMsgId);
-                    if (compareResult < 0) {
-                        // drop the message
-                        consumer.acknowledgeCumulativeAsync(message);
-                        // receive next message
-                        receiveOne(endMsgId, finalFuture);
-                        return;
-                    } else if (compareResult > 0) {
-                        // the end message is consumed by other participants, which it means some other
-                        // consumers take over the leadership at some time. so `becomeLeader` fails
-                        finalFuture.complete(false);
-                        return;
-                    } else {
-                        // i got what I published, i become the leader
-                        consumer.acknowledgeCumulativeAsync(message);
-                        finalFuture.complete(true);
-                        return;
-                    }
-                })
-                .exceptionally(cause -> {
-                    finalFuture.completeExceptionally(cause);
-                    return null;
-                });
     }
 
     public List<WorkerInfo> getCurrentMembership() {
@@ -141,13 +113,6 @@ public class MembershipManager implements AutoCloseable {
             workerIds.add(workerInfo);
         }
         return workerIds;
-    }
-
-    private PulsarAdmin getPulsarAdminClient() {
-        if (this.pulsarAdminClient == null) {
-            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
-        }
-        return this.pulsarAdminClient;
     }
 
     @Override
@@ -185,8 +150,6 @@ public class MembershipManager implements AutoCloseable {
         }
     }
 
-    @VisibleForTesting
-    Map<String, Long> unsignedFunctionDurations = new HashMap<>();
     public void checkFailures(FunctionMetaDataManager functionMetaDataManager,
                               FunctionRuntimeManager functionRuntimeManager,
                               SchedulerManager schedulerManager) {
@@ -248,7 +211,8 @@ public class MembershipManager implements AutoCloseable {
 
         boolean triggerScheduler = false;
         // check unassigned
-        Collection<String>  needSchedule = new LinkedList<>();
+        Collection<String> needSchedule = new LinkedList<>();
+        Collection<Function.Assignment> needRemove = new LinkedList<>();
         for (Map.Entry<String, Long> entry : this.unsignedFunctionDurations.entrySet()) {
             String fullyQualifiedName = entry.getKey();
             long unassignedDurationMs = entry.getValue();
@@ -257,14 +221,64 @@ public class MembershipManager implements AutoCloseable {
                 // remove assignment from failed node
                 Function.Assignment assignment = assignmentMap.get(fullyQualifiedName);
                 if (assignment != null) {
-                    functionRuntimeManager.removeAssignment(assignment);
+                    needRemove.add(assignment);
                 }
                 triggerScheduler = true;
             }
+        }
+        if (!needRemove.isEmpty()) {
+            functionRuntimeManager.removeAssignments(needRemove);
         }
         if (triggerScheduler) {
             log.info("Functions that need scheduling/rescheduling: {}", needSchedule);
             schedulerManager.schedule();
         }
+    }
+
+    /**
+     * Private methods
+     */
+
+    private PulsarAdmin getPulsarAdminClient() {
+        if (this.pulsarAdminClient == null) {
+            this.pulsarAdminClient = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+        }
+        return this.pulsarAdminClient;
+    }
+
+    private CompletableFuture<Boolean> receiveTillMessage(MessageIdImpl endMsgId) {
+        CompletableFuture<Boolean> finalFuture = new CompletableFuture<>();
+        receiveOne(endMsgId, finalFuture);
+        return finalFuture;
+    }
+
+    private void receiveOne(MessageIdImpl endMsgId, CompletableFuture<Boolean> finalFuture) {
+        consumer.receiveAsync()
+                .thenAccept(message -> {
+                    MessageIdImpl idReceived = (MessageIdImpl) message.getMessageId();
+
+                    int compareResult = idReceived.compareTo(endMsgId);
+                    if (compareResult < 0) {
+                        // drop the message
+                        consumer.acknowledgeCumulativeAsync(message);
+                        // receive next message
+                        receiveOne(endMsgId, finalFuture);
+                        return;
+                    } else if (compareResult > 0) {
+                        // the end message is consumed by other participants, which it means some other
+                        // consumers take over the leadership at some time. so `becomeLeader` fails
+                        finalFuture.complete(false);
+                        return;
+                    } else {
+                        // i got what I published, i become the leader
+                        consumer.acknowledgeCumulativeAsync(message);
+                        finalFuture.complete(true);
+                        return;
+                    }
+                })
+                .exceptionally(cause -> {
+                    finalFuture.completeExceptionally(cause);
+                    return null;
+                });
     }
 }
