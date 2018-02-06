@@ -25,11 +25,10 @@ import java.util.Enumeration;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
 import org.apache.pulsar.utils.SimpleTextOutputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
+import io.netty.util.internal.PlatformDependent;
 import io.prometheus.client.Collector;
 import io.prometheus.client.Collector.MetricFamilySamples;
 import io.prometheus.client.Collector.MetricFamilySamples.Sample;
@@ -56,10 +55,9 @@ public class PrometheusMetricsGenerator {
         }).register(CollectorRegistry.defaultRegistry);
 
         Gauge.build("jvm_memory_direct_bytes_max", "-").create().setChild(new Child() {
-            @SuppressWarnings("restriction")
             @Override
             public double get() {
-                return sun.misc.VM.maxDirectMemory();
+                return PlatformDependent.maxDirectMemory();
             }
         }).register(CollectorRegistry.defaultRegistry);
     }
