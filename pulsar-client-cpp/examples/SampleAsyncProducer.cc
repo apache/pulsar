@@ -28,9 +28,7 @@ DECLARE_LOG_OBJECT()
 
 using namespace pulsar;
 
-void callback(Result code, const Message& msg) {
-    LOG_INFO("Received code: " << code << " -- Msg: " << msg);
-}
+void callback(Result code, const Message& msg) { LOG_INFO("Received code: " << code << " -- Msg: " << msg); }
 
 int main() {
     Client client("pulsar://localhost:6650");

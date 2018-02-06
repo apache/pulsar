@@ -27,7 +27,6 @@ DECLARE_LOG_OBJECT()
 using namespace pulsar;
 
 int main() {
-
     Client client("pulsar://localhost:6650");
 
     Consumer consumer;

@@ -25,7 +25,6 @@
 /* Name of package */
 #define PACKAGE "|pulsar|"
 
-
 #ifdef VERSION
 #undef VERSION
 #endif
