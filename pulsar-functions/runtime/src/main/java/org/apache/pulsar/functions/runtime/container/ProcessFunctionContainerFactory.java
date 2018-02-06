@@ -30,7 +30,6 @@ import org.apache.pulsar.functions.proto.Function;
 public class ProcessFunctionContainerFactory implements FunctionContainerFactory {
 
     private int maxBufferedTuples;
-    private int livenessCheckInterval;
     private String pulsarServiceUrl;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
@@ -38,14 +37,12 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
 
     @VisibleForTesting
     public ProcessFunctionContainerFactory(int maxBufferedTuples,
-                                           int livenessCheckInterval,
                                            String pulsarServiceUrl,
                                            String javaInstanceJarFile,
                                            String pythonInstanceFile,
                                            String logDirectory) {
 
         this.maxBufferedTuples = maxBufferedTuples;
-        this.livenessCheckInterval = livenessCheckInterval;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
@@ -71,8 +68,7 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
             instanceFile,
             logDirectory,
             codeFile,
-            pulsarServiceUrl,
-            livenessCheckInterval);
+            pulsarServiceUrl);
     }
 
     @Override

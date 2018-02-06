@@ -95,13 +95,19 @@ public class Spawner implements AutoCloseable {
             metricsCollectionTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    log.info("Collecting metrics for function" + FunctionConfigUtils.getFullyQualifiedName(assignmentInfo.getFunctionConfig()));
-                    functionContainer.getAndResetMetrics().thenAccept(t -> {
-                        if (t != null) {
-                            log.debug("Collected metrics {}", t);
-                            metricsSink.processRecord(t, assignmentInfo.getFunctionConfig());
-                        }
-                    });
+                    if (functionContainer.isAlive()) {
+                        log.info("Collecting metrics for function" + FunctionConfigUtils.getFullyQualifiedName(assignmentInfo.getFunctionConfig()));
+                        functionContainer.getAndResetMetrics().thenAccept(t -> {
+                            if (t != null) {
+                                log.debug("Collected metrics {}", t);
+                                metricsSink.processRecord(t, assignmentInfo.getFunctionConfig());
+                            }
+                        });
+                    } else {
+                        log.error("Function Container is dead with exception", functionContainer.getDeathException());
+                        log.error("Restarting...");
+                        functionContainer.start();
+                    }
                 }
             }, metricsCollectionInterval * 1000, metricsCollectionInterval * 1000);
         }

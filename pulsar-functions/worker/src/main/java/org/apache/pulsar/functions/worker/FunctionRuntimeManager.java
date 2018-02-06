@@ -105,7 +105,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
         } else if (workerConfig.getProcessContainerFactory() != null) {
             this.functionContainerFactory = new ProcessFunctionContainerFactory(
                     workerConfig.getLimitsConfig().getMaxBufferedTuples(),
-                    workerConfig.getProcessContainerFactory().getLivenessCheckInterval(),
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),

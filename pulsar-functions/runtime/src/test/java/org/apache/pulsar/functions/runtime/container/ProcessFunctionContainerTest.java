@@ -58,7 +58,7 @@ public class ProcessFunctionContainerTest {
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.logDirectory = "Users/user/logs";
         this.factory = new ProcessFunctionContainerFactory(
-            1024, 10, pulsarServiceUrl, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+            1024, pulsarServiceUrl, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod
