@@ -209,6 +209,7 @@ add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
         ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
         ${CMAKE_SOURCE_DIR}/lib
         ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/python/src
         ${CMAKE_SOURCE_DIR}/include)
 
 # `make check-format` option (for CI test)
