@@ -85,7 +85,7 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        if (functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
+        if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
@@ -137,7 +137,7 @@ public class ApiV1Resource extends BaseApiResource {
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
 
-        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
@@ -149,7 +149,6 @@ public class ApiV1Resource extends BaseApiResource {
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
-        WorkerConfig workerConfig = getWorkerConfig();
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
                 .setPackagePath(String.format(
                         // TODO: dlog 0.5.0 doesn't support filesystem path
@@ -182,7 +181,7 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
-        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function to deregister does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
@@ -238,7 +237,7 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
-        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function in getFunction does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)
@@ -269,7 +268,7 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
-        if (!functionMetaDataManager.containsFunctionMetaData(tenant, namespace, functionName)) {
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
             return Response.status(Status.NOT_FOUND)

@@ -83,6 +83,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
         this.schedulerManager = schedulerManager;
     }
 
+    /**
+     * Public methods. Please use these methods if references FunctionMetaManager from an external class
+     */
+
+    /**
+     * Initializes the FunctionMetaDataManager.  Does the following:
+     * 1. Restores from snapshot if one exists
+     * 2. Sends out initialize marker to FMT and consume messages until the initialize marker is consumed
+     */
     public void initialize() {
         log.info("/** Initializing Function Metadata Manager **/");
         log.info("Restoring metadata store from snapshot...");
@@ -104,31 +113,22 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
-        return new ServiceRequestManager(pulsarClient.createProducer(functionMetadataTopic));
-    }
-
-    void sendIntializationMarker() {
-        log.info("Sending Initialize message...");
-        this.serviceRequestManager.submitRequest(
-                ServiceRequestUtils.getIntializationRequest(
-                        this.initializeMarkerRequestId,
-                        this.workerConfig.getWorkerId()));
-    }
-
-    public FunctionMetaData getFunctionMetaData(String tenant, String namespace, String functionName) {
+    /**
+     * Get the function metadata for a function
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @return FunctionMetaData that contains the function metadata
+     */
+    public synchronized FunctionMetaData getFunctionMetaData(String tenant, String namespace, String functionName) {
         return this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
     }
 
-    public FunctionMetaData getFunctionMetaData(Function.FunctionConfig functionConfig) {
-        return getFunctionMetaData(functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
-    }
-
-    public FunctionMetaData getFunctionMetaData(FunctionMetaData functionMetaData) {
-        return getFunctionMetaData(functionMetaData.getFunctionConfig());
-    }
-
-    public List<FunctionMetaData> getAllFunctionMetaData() {
+    /**
+     * Get a list of all the meta for every function
+     * @return list of function metadata
+     */
+    public synchronized List<FunctionMetaData> getAllFunctionMetaData() {
         List<FunctionMetaData> ret = new LinkedList<>();
         for (Map<String, Map<String, FunctionMetaData>> i : this.functionMetaDataMap.values()) {
             for (Map<String, FunctionMetaData> j : i.values()) {
@@ -138,7 +138,13 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return ret;
     }
 
-    public Collection<String> listFunctions(String tenant, String namespace) {
+    /**
+     * List all the functions in a namespace
+     * @param tenant the tenant the namespace belongs to
+     * @param namespace the namespace
+     * @return a list of function names
+     */
+    public synchronized Collection<String> listFunctions(String tenant, String namespace) {
         List<String> ret = new LinkedList<>();
 
         if (!this.functionMetaDataMap.containsKey(tenant)) {
@@ -154,27 +160,23 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return ret;
     }
 
-    public boolean containsFunctionMetaData(FunctionMetaData functionMetaData) {
-        return containsFunctionMetaData(functionMetaData.getFunctionConfig());
+    /**
+     * Check if the function exists
+     * @param tenant tenant that the function belongs to
+     * @param namespace namespace that the function belongs to
+     * @param functionName name of function
+     * @return true if function exists and false if it does not
+     */
+    public synchronized boolean containsFunction(String tenant, String namespace, String functionName) {
+        return containsFunctionMetaData(tenant, namespace, functionName);
     }
 
-    boolean containsFunctionMetaData(Function.FunctionConfig functionConfig) {
-        return containsFunctionMetaData(
-                functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
-    }
-
-    public boolean containsFunctionMetaData(String tenant, String namespace, String functionName) {
-        if (this.functionMetaDataMap.containsKey(tenant)) {
-            if (this.functionMetaDataMap.get(tenant).containsKey(namespace)) {
-                if (this.functionMetaDataMap.get(tenant).get(namespace).containsKey(functionName)) {
-                    return true;
-                }
-            }
-        }
-        return false;
-    }
-
-    public CompletableFuture<RequestResult> updateFunction(FunctionMetaData functionMetaData) {
+    /**
+     * Sends an update request to the FMT (Function Metadata Topic)
+     * @param functionMetaData The function metadata that needs to be updated
+     * @return a completable future of when the update has been applied
+     */
+    public synchronized CompletableFuture<RequestResult> updateFunction(FunctionMetaData functionMetaData) {
 
         long version = 0;
 
@@ -203,7 +205,15 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return submit(updateRequest);
     }
 
-    public CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
+
+    /**
+     * Sends a deregister request to the FMT (Function Metadata Topic) for a function
+     * @param tenant the tenant the function that needs to be deregistered belongs to
+     * @param namespace the namespace the function that needs to be deregistered belongs to
+     * @param functionName the name of the function
+     * @return a completable future of when the deregister has been applied
+     */
+    public synchronized CompletableFuture<RequestResult> deregisterFunction(String tenant, String namespace, String functionName) {
         FunctionMetaData functionMetaData = this.functionMetaDataMap.get(tenant).get(namespace).get(functionName);
 
         FunctionMetaData newFunctionMetaData = functionMetaData.toBuilder()
@@ -216,7 +226,12 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return submit(deregisterRequest);
     }
 
-    void processRequest(MessageId messageId, Request.ServiceRequest serviceRequest) {
+    /**
+     * Processes a request received from the FMT (Function Metadata Topic)
+     * @param messageId The message id of the request
+     * @param serviceRequest The request
+     */
+    public void processRequest(MessageId messageId, Request.ServiceRequest serviceRequest) {
 
         // make sure that snapshotting and processing requests don't happen simultaneously
         synchronized (this) {
@@ -237,7 +252,39 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    void proccessDeregister(Request.ServiceRequest deregisterRequest) {
+    /**
+     * Creates a snapshot of the FMT (Function Metadata Topic) that can be restored at a later time
+     */
+    public void snapshot() {
+        this.functionMetaDataSnapshotManager.snapshot();
+    }
+
+    /**
+     * Private methods for internal use.  Should not be used outside of this class
+     */
+
+    private boolean containsFunctionMetaData(FunctionMetaData functionMetaData) {
+        return containsFunctionMetaData(functionMetaData.getFunctionConfig());
+    }
+
+    private boolean containsFunctionMetaData(Function.FunctionConfig functionConfig) {
+        return containsFunctionMetaData(
+                functionConfig.getTenant(), functionConfig.getNamespace(), functionConfig.getName());
+    }
+
+    private boolean containsFunctionMetaData(String tenant, String namespace, String functionName) {
+        if (this.functionMetaDataMap.containsKey(tenant)) {
+            if (this.functionMetaDataMap.get(tenant).containsKey(namespace)) {
+                if (this.functionMetaDataMap.get(tenant).get(namespace).containsKey(functionName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    @VisibleForTesting
+    synchronized void proccessDeregister(Request.ServiceRequest deregisterRequest) {
 
         FunctionMetaData deregisterRequestFs = deregisterRequest.getFunctionMetaData();
         String functionName = deregisterRequestFs.getFunctionConfig().getName();
@@ -269,7 +316,8 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    void processUpdate(Request.ServiceRequest updateRequest) {
+    @VisibleForTesting
+    synchronized void processUpdate(Request.ServiceRequest updateRequest) {
 
         log.debug("Process update request: {}", updateRequest);
 
@@ -303,6 +351,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
+    @VisibleForTesting
     void processInitializeMarker(Request.ServiceRequest serviceRequest) {
         if (isMyInitializeMarkerRequest(serviceRequest)) {
             this.completeInitializePhase();
@@ -310,12 +359,9 @@ public class FunctionMetaDataManager implements AutoCloseable {
         }
     }
 
-    MessageId restore() {
-       return this.functionMetaDataSnapshotManager.restore();
-    }
 
-    void snapshot() {
-        this.functionMetaDataSnapshotManager.snapshot();
+    private MessageId restore() {
+       return this.functionMetaDataSnapshotManager.restore();
     }
 
     /**
@@ -349,6 +395,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return currentFunctionMetaData.getVersion() >= requestFunctionMetaData.getVersion();
     }
 
+    @VisibleForTesting
     void setFunctionMetaData(FunctionMetaData functionMetaData) {
         Function.FunctionConfig functionConfig = functionMetaData.getFunctionConfig();
         if (!this.functionMetaDataMap.containsKey(functionConfig.getTenant())) {
@@ -363,6 +410,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
                 .get(functionConfig.getNamespace()).put(functionConfig.getName(), functionMetaData);
     }
 
+    @VisibleForTesting
     CompletableFuture<RequestResult> submit(Request.ServiceRequest serviceRequest) {
         ServiceRequestInfo serviceRequestInfo = ServiceRequestInfo.of(serviceRequest);
         CompletableFuture<MessageId> messageIdCompletableFuture = this.serviceRequestManager.submitRequest(serviceRequest);
@@ -385,7 +433,7 @@ public class FunctionMetaDataManager implements AutoCloseable {
         return this.workerConfig.getWorkerId().equals(serviceRequest.getWorkerId());
     }
 
-    void completeInitializePhase() {
+    private void completeInitializePhase() {
         this.initializePhase.complete(null);
     }
 
@@ -400,5 +448,17 @@ public class FunctionMetaDataManager implements AutoCloseable {
         if (this.functionMetaDataSnapshotManager != null) {
             this.functionMetaDataSnapshotManager.close();
         }
+    }
+
+    private ServiceRequestManager getServiceRequestManager(PulsarClient pulsarClient, String functionMetadataTopic) throws PulsarClientException {
+        return new ServiceRequestManager(pulsarClient.createProducer(functionMetadataTopic));
+    }
+
+    void sendIntializationMarker() {
+        log.info("Sending Initialize message...");
+        this.serviceRequestManager.submitRequest(
+                ServiceRequestUtils.getIntializationRequest(
+                        this.initializeMarkerRequestId,
+                        this.workerConfig.getWorkerId()));
     }
 }
