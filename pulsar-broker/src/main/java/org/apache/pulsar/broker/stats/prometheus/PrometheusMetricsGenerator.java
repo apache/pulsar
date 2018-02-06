@@ -90,7 +90,9 @@ public class PrometheusMetricsGenerator {
                     stream.write(sample.labelNames.get(j));
                     stream.write("=\"");
                     stream.write(sample.labelValues.get(j));
-                    stream.write("\",");
+                    if (j != sample.labelNames.size() - 1) {
+                        stream.write("\",");
+                    }
                 }
 
                 stream.write("} ");
