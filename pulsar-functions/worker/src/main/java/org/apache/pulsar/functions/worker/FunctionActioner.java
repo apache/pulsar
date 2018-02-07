@@ -114,14 +114,15 @@ public class FunctionActioner implements AutoCloseable {
         pkgDir.mkdirs();
 
         File pkgFile = new File(pkgDir, new File(FunctionConfigUtils.getDownloadFileName(functionMetaData.getFunctionConfig())).getName());
-        if (!pkgFile.exists()) {
-            log.info("Function package file {} doesn't exist, downloading from {}",
-                    pkgFile, functionMetaData.getPackageLocation());
-            Utils.downloadFromBookkeeper(
-                    dlogNamespace,
-                    new FileOutputStream(pkgFile),
-                    functionMetaData.getPackageLocation().getPackagePath());
+        if (pkgFile.exists()) {
+            pkgFile.delete();
         }
+        log.info("Function package file {} will be downloaded from {}",
+                pkgFile, functionMetaData.getPackageLocation());
+        Utils.downloadFromBookkeeper(
+                dlogNamespace,
+                new FileOutputStream(pkgFile),
+                functionMetaData.getPackageLocation().getPackagePath());
         Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), workerConfig.getLimitsConfig(),
                 pkgFile.getAbsolutePath(), functionContainerFactory,
                 metricsSink, metricsCollectionInterval);
