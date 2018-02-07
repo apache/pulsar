@@ -302,7 +302,7 @@ by load balancer to be transferred to a different broker).
 
 When receiving the `CloseProducer`, the client is expected to go through the
 service discovery lookup again and recreate the producer again. The TCP
-connection is not being affected.
+connection is not affected.
 
 ### Consumer
 
