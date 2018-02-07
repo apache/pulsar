@@ -187,17 +187,15 @@ public class ServerCnx extends PulsarHandler {
         ctx.close();
     }
 
-    private boolean validateOriginalPrincipal(String originalPrincipal, ByteBuf errorResponse, String topicName,
-            String msg) {
-        if (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
-                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal))) {
-            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
-                    originalPrincipal, topicName);
-            ctx.writeAndFlush(errorResponse);
-            return false;
-        }
-
-        return true;
+    /*
+     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce 
+     * - the originalPrincipal is given while connecting 
+     * - originalPrincipal is not blank
+     * - originalPrincipal is not a proxy principal
+     */
+    private boolean invalidOriginalPrincipal(String originalPrincipal) {
+        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
+                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
     }
 
     // ////
@@ -221,10 +219,11 @@ public class ServerCnx extends PulsarHandler {
         if (lookupSemaphore.tryAcquire()) {
             final String originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
                     : this.originalPrincipal;
-            if (!validateOriginalPrincipal(originalPrincipal,
-                    newLookupErrorResponse(ServerError.AuthorizationError,
-                            "Valid Proxy Client role should be provided for lookup ", requestId),
-                    topicName.toString(), "Valid Proxy Client role should be provided for lookup ")) {
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String msg = "Valid Proxy Client role should be provided for lookup ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                        originalPrincipal, topicName);
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
                 return;
             }
@@ -293,11 +292,12 @@ public class ServerCnx extends PulsarHandler {
         if (lookupSemaphore.tryAcquire()) {
             final String originalPrincipal = partitionMetadata.hasOriginalPrincipal()
                     ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
-            if (!validateOriginalPrincipal(originalPrincipal,
-                    Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
-                            "Valid Proxy Client role should be provided for getPartitionMetadataRequest ", requestId),
-                    topicName.toString(),
-                    "Valid Proxy Client role should be provided for getPartitionMetadataRequest ")) {
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String msg = "Valid Proxy Client role should be provided for getPartitionMetadataRequest ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                        originalPrincipal, topicName);
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                        msg, requestId));
                 lookupSemaphore.release();
                 return;
             }
@@ -346,7 +346,7 @@ public class ServerCnx extends PulsarHandler {
             }).exceptionally(ex -> {
                 final String msg = "Exception occured while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
                 return null;
             });
@@ -461,16 +461,16 @@ public class ServerCnx extends PulsarHandler {
         checkArgument(state == State.Connected);
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
-
         DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
         if (topicName == null) {
             return;
-        }
+        }  
 
-        if (!validateOriginalPrincipal(originalPrincipal,
-                Commands.newError(requestId, ServerError.AuthorizationError,
-                        "Valid Proxy Client role should be provided while subscribing "),
-                topicName.toString(), "Valid Proxy Client role should be provided while subscribing ")) {
+        if (invalidOriginalPrincipal(originalPrincipal)) {
+            final String msg = "Valid Proxy Client role should be provided while subscribing ";
+            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                    originalPrincipal, topicName);
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             return;
         }
 
@@ -636,10 +636,11 @@ public class ServerCnx extends PulsarHandler {
             return;
         }
 
-        if (!validateOriginalPrincipal(originalPrincipal,
-                Commands.newError(requestId, ServerError.AuthorizationError,
-                        "Valid Proxy Client role should be provided while creating producer "),
-                topicName.toString(), "Valid Proxy Client role should be provided while creating producer ")) {
+        if (invalidOriginalPrincipal(originalPrincipal)) {
+            final String msg = "Valid Proxy Client role should be provided while creating producer ";
+            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                    originalPrincipal, topicName);
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
             return;
         }
 
