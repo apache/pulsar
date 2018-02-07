@@ -116,6 +116,7 @@ class PythonInstance(object):
     self.consumers = {}
     self.output_serde = None
     self.function_class = None
+    self.function_purefunction = None
     self.producer = None
     self.exeuction_thread = None
     self.atmost_once = self.instance_config.function_config.processingGuarantees == Function_pb2.FunctionConfig.ProcessingGuarantees.Value('ATMOST_ONCE')
@@ -161,7 +162,7 @@ class PythonInstance(object):
     try:
       self.function_class = function_kclass()
     except:
-      self.function_class = function_kclass
+      self.function_purefunction = function_kclass
 
     self.contextimpl = contextimpl.ContextImpl(self.instance_config, Log, self.pulsar_client, self.user_code, self.consumers)
     # Now launch a thread that does execution
@@ -190,7 +191,10 @@ class PythonInstance(object):
       output_object = None
       try:
         start_time = time.time()
-        output_object = self.function_class.process(input_object, self.contextimpl)
+        if self.function_class is not None:
+          output_object = self.function_class.process(input_object, self.contextimpl)
+        else:
+          output_object = self.function_purefunction.process(input_object)
         end_time = time.time()
         latency = (end_time - start_time) * 1000
         self.total_stats.increment_successfully_processed(latency)

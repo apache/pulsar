@@ -64,11 +64,20 @@ def import_class_from_path(from_path, full_class_name):
   if from_path not in sys.path:
     Log.info("Add a new dependency to the path: %s" % from_path)
     sys.path.insert(0, from_path)
-  try:
-    mod = __import__(classname_path, fromlist=[class_name], level=-1)
-    retval = getattr(mod, class_name)
-    return retval
-  except Exception as e:
-    Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
-    Log.info(e, exc_info=True)
-    return None
+  if not classname_path:
+    try:
+      mod = __import__(class_name, level=-1)
+      return mod
+    except Exception as e:
+      Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
+      Log.info(e, exc_info=True)
+      return None
+  else:
+    try:
+      mod = __import__(classname_path, fromlist=[class_name], level=-1)
+      retval = getattr(mod, class_name)
+      return retval
+    except Exception as e:
+      Log.info("Import failed class_name %s from path %s" % (class_name, from_path))
+      Log.info(e, exc_info=True)
+      return None
