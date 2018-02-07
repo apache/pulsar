@@ -61,6 +61,8 @@ public class ConsumerConfiguration implements Serializable {
 
     private final Map<String, String> properties = new HashMap<>();
 
+    private boolean readCompacted = false;
+
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
@@ -268,6 +270,27 @@ public class ConsumerConfiguration implements Serializable {
      */
     public void setPriorityLevel(int priorityLevel) {
         this.priorityLevel = priorityLevel;
+    }
+
+    public boolean getReadCompacted() {
+        return readCompacted;
+    }
+
+    /**
+     * If enabled, the consumer will read messages from the compacted topic rather than reading the full message
+     * backlog of the topic. This means that, if the topic has been compacted, the consumer will only see the latest
+     * value for each key in the topic, up until the point in the topic message backlog that has been compacted.
+     * Beyond that point, the messages will be sent as normal.
+     *
+     * readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer
+     * (i.e. failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent
+     * topics or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
+     *
+     * @param readCompacted whether to read from the compacted topic
+     */
+    public ConsumerConfiguration setReadCompacted(boolean readCompacted) {
+        this.readCompacted = readCompacted;
+        return this;
     }
 
     /**

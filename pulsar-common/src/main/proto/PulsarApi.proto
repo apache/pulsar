@@ -111,6 +111,7 @@ enum ServerError {
     TopicTerminatedError = 15; // The topic has been terminated
 
     ProducerBusy         = 16; // Producer with same name is already connected
+    InvalidTopicName = 17; // The topic name is not valid
 }
 
 enum AuthMethod {
@@ -190,6 +191,8 @@ message CommandSubscribe {
 
 	/// Add optional metadata key=value to this consumer
     repeated KeyValue metadata = 10;
+
+    optional bool read_compacted = 11;
 }
 
 message CommandPartitionedTopicMetadata {

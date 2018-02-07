@@ -56,6 +56,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -396,10 +397,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata) {
+            Map<String, String> metadata, boolean readCompacted) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
+        if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
+            future.completeExceptionally(
+                    new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
+            return future;
+        }
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -447,7 +453,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                        maxUnackedMessages, cnx, cnx.getRole(), metadata);
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted);
                 subscription.addConsumer(consumer);
                 if (!cnx.isActive()) {
                     consumer.close();
