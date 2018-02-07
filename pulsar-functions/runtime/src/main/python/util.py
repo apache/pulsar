@@ -46,12 +46,14 @@ import sys
 import log
 
 Log = log.Log
+PULSARFUNCTIONAPIROOT = 'pulsarfunction'
 
-def import_class(from_path, full_class_name, try_internal=True):
+def import_class(from_path, full_class_name):
   kclass = import_class_from_path(from_path, full_class_name)
-  if kclass is None and try_internal:
+  if kclass is None:
     our_dir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
-    kclass = import_class_from_path(our_dir, full_class_name)
+    api_dir = os.path.join(our_dir, PULSARFUNCTIONAPIROOT)
+    kclass = import_class_from_path(api_dir, full_class_name)
   return kclass
 
 def import_class_from_path(from_path, full_class_name):

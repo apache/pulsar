@@ -141,7 +141,8 @@ class ContextImpl(context.Context):
       )
 
     if serde_class_name not in self.publish_serializers:
-      self.publish_serializers[serde_class_name] = util.import_class(self.user_code_dir, serde_class_name)
+      serde_klass = util.import_class(self.user_code_dir, serde_class_name)
+      self.publish_serializers[serde_class_name] = serde_klass()
 
     output_bytes = self.publish_serializers[serde_class_name].serialize(message)
     self.publish_producers[topic_name].send_async(output_bytes, None)
