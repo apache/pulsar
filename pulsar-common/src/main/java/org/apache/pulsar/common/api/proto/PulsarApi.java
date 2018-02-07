@@ -71,6 +71,7 @@ public final class PulsarApi {
     TooManyRequests(14, 14),
     TopicTerminatedError(15, 15),
     ProducerBusy(16, 16),
+    InvalidTopicName(17, 17),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -90,6 +91,7 @@ public final class PulsarApi {
     public static final int TooManyRequests_VALUE = 14;
     public static final int TopicTerminatedError_VALUE = 15;
     public static final int ProducerBusy_VALUE = 16;
+    public static final int InvalidTopicName_VALUE = 17;
     
     
     public final int getNumber() { return value; }
@@ -113,6 +115,7 @@ public final class PulsarApi {
         case 14: return TooManyRequests;
         case 15: return TopicTerminatedError;
         case 16: return ProducerBusy;
+        case 17: return InvalidTopicName;
         default: return null;
       }
     }
