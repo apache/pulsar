@@ -115,7 +115,7 @@ class ContextImpl(context.Context):
 
   def get_user_config_value(self, key):
     if key in self.instance_config.function_config.userConfig:
-      return self.instance_config.function_config.userConfig[key]
+      return str(self.instance_config.function_config.userConfig[key])
     else:
       return None
 
