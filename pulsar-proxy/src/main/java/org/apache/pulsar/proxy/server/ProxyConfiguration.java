@@ -61,7 +61,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean authorizationEnabled = false;
     // Forward client authData to Broker for re authorization
     // make sure authentication is enabled for this to take effect
-    private boolean forwardAuthData = false;
+    private boolean forwardAuthorizationCredentials = false;
             
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
@@ -85,12 +85,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     private Properties properties = new Properties();
 
-    public boolean forwardAuthData() {
-        return forwardAuthData;
+    public boolean forwardAuthorizationCredentials() {
+        return forwardAuthorizationCredentials;
     }
     
-    public void setForwardAuthData(boolean forwardAuthData) {
-        this.forwardAuthData = forwardAuthData;
+    public void setForwardAuthorizationCredentials(boolean forwardAuthorizationCredentials) {
+        this.forwardAuthorizationCredentials = forwardAuthorizationCredentials;
     }
     
     public String getBrokerServiceURLTLS() {

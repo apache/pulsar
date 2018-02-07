@@ -67,7 +67,7 @@ public class DirectProxyHandler {
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         ProxyConfiguration config = service.getConfiguration();
-        this.forwardAuthData = service.getConfiguration().forwardAuthData();
+        this.forwardAuthData = service.getConfiguration().forwardAuthorizationCredentials();
         
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();

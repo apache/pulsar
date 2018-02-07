@@ -213,7 +213,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             }
             String authData = connect.getAuthData().toStringUtf8();
 
-            if (service.getConfiguration().forwardAuthData()) {
+            if (service.getConfiguration().forwardAuthorizationCredentials()) {
                 clientAuthData = authData;
                 clientAuthMethod = authMethod;
             }

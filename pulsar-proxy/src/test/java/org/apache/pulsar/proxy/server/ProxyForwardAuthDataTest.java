@@ -133,7 +133,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyService.close();
         
         // Step 3: Create proxy with forwardAuthData enabled
-        proxyConfig.setForwardAuthData(true);
+        proxyConfig.setForwardAuthorizationCredentials(true);
         proxyService = new ProxyService(proxyConfig);
 
         proxyService.start();
