@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.api;
 
 import java.util.Map;
-import java.util.HashMap;
 
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
@@ -27,21 +26,6 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 
 public final class AuthenticationFactory {
-
-    private static Map<String, String> parseAuthParamsString(String authParamsString) {
-        Map<String, String> authParams = new HashMap<>();
-
-        if (isNotBlank(authParamsString)) {
-            String[] params = authParamsString.split(",");
-            for (String p : params) {
-                String[] kv = p.split(":");
-                if (kv.length == 2) {
-                    authParams.put(kv[0], kv[1]);
-                }
-            }
-        }
-        return authParams;
-    }
 
     /**
      * Create an instance of the Authentication-Plugin
@@ -63,7 +47,7 @@ public final class AuthenticationFactory {
                     ((EncodedAuthenticationParameterSupport) auth).configure(authParamsString);
                 } else {
                     // Parse parameters by default parse logic.
-                    auth.configure(parseAuthParamsString(authParamsString));
+                    auth.configure(AuthenticationUtil.configureFromPulsar1AuthParamString(authParamsString));
                 }
                 return auth;
             } else {
