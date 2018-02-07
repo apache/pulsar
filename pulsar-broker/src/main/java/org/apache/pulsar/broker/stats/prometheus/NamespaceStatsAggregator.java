@@ -36,10 +36,17 @@ public class NamespaceStatsAggregator {
         }
     };
 
+    private static FastThreadLocal<TopicStats> localTopicStats = new FastThreadLocal<TopicStats>() {
+        @Override
+        protected TopicStats initialValue() throws Exception {
+            return new TopicStats();
+        }
+    };
+
     public static void generate(PulsarService pulsar, boolean includeTopicMetrics, SimpleTextOutputStream stream) {
         String cluster = pulsar.getConfiguration().getClusterName();
         AggregatedNamespaceStats namespaceStats = localNamespaceStats.get();
-        TopicStats topicStats = new TopicStats();
+        TopicStats topicStats = localTopicStats.get();
 
         pulsar.getBrokerService().getMultiLayerTopicMap().forEach((namespace, bundlesMap) -> {
             namespaceStats.reset();
@@ -47,27 +54,36 @@ public class NamespaceStatsAggregator {
             bundlesMap.forEach((bundle, topicsMap) -> {
                 topicsMap.forEach((name, topic) -> {
                     getTopicStats(topic, topicStats);
-                    namespaceStats.updateStats(topicStats);
+
                     if (includeTopicMetrics) {
-                        TopicStats.printNamespaceStats(stream, cluster, namespace, name, topicStats);
+                        TopicStats.printTopicStats(stream, cluster, namespace, name, topicStats);
+                    } else {
+                        namespaceStats.updateStats(topicStats);
                     }
                 });
             });
 
-            printNamespaceStats(stream, cluster, namespace, namespaceStats);
+            if (!includeTopicMetrics) {
+                // Only include namespace level stats if we don't have the per-topic, otherwise we're going to report
+                // the same data twice, and it will make the aggregation difficult
+                printNamespaceStats(stream, cluster, namespace, namespaceStats);
+            }
         });
     }
 
     private static void getTopicStats(Topic topic, TopicStats stats) {
         stats.reset();
 
-        if(topic instanceof PersistentTopic) {
+        if (topic instanceof PersistentTopic) {
             // Managed Ledger stats
             ManagedLedgerMBeanImpl mlStats = (ManagedLedgerMBeanImpl) ((PersistentTopic)topic).getManagedLedger().getStats();
 
             stats.storageSize = mlStats.getStoredMessagesSize();
+
             stats.storageWriteLatencyBuckets.addAll(mlStats.getInternalAddEntryLatencyBuckets());
+            stats.storageWriteLatencyBuckets.refresh();
             stats.entrySizeBuckets.addAll(mlStats.getInternalEntrySizeBuckets());
+            stats.entrySizeBuckets.refresh();
 
             stats.storageWriteRate = mlStats.getAddEntryMessagesRate();
             stats.storageReadRate = mlStats.getReadEntriesRate();
