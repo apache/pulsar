@@ -520,7 +520,8 @@ void ClientConnection::processIncomingBuffer() {
     readNextCommand();
 }
 
-bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes, proto::BaseCommand& incomingCmd_) {
+bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes,
+                                      proto::BaseCommand& incomingCmd_) {
     int readerIndex = incomingBuffer_.readerIndex();
     bool isChecksumValid = true;
 
