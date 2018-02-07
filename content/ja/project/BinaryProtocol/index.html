@@ -177,7 +177,7 @@
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Resources</h3>
-          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/resources">Resources</a>
           <a class="dropdown-item" href="/team">Team</a>
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Apache</h3>
@@ -3970,6 +3970,16 @@ will send messages from that point</td>
               <td></td>
               <td>Add optional metadata key=value to this consumer</td>
             </tr>
+            
+            <tr>
+              <td class="wrap">read_compacted</td>
+              
+              <td class="wrap">bool</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -5282,6 +5292,20 @@ incrementally added to the protocol</p>
               <td>TopicTerminatedError</td>
               <td>15</td>
               <td><p>The topic has been terminated</p>
+</td>
+            </tr>
+            
+            <tr>
+              <td>ProducerBusy</td>
+              <td>16</td>
+              <td><p>Producer with same name is already connected</p>
+</td>
+            </tr>
+            
+            <tr>
+              <td>InvalidTopicName</td>
+              <td>17</td>
+              <td><p>The topic name is not valid</p>
 </td>
             </tr>
              <!-- for value in values -->

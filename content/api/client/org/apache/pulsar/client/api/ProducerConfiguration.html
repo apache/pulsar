@@ -450,7 +450,10 @@ implements Serializable</pre>
  <a href="../../../../../org/apache/pulsar/client/api/Producer.html#getProducerName--"><code>Producer.getProducerName()</code></a>.
  <p>
  When specifying a name, it is app to the user to ensure that, for a given topic, the producer name is unique
- across all Pulsar's clusters.</div>
+ across all Pulsar's clusters.
+ <p>
+ If a producer with the same name is already connected to a particular topic, the
+ <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-"><code>PulsarClient.createProducer(String)</code></a> operation will fail with <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerBusyException</code></a>.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>producerName</code> - the custom name to use for the producer</dd>

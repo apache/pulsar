@@ -177,7 +177,7 @@
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Resources</h3>
-          <a class="dropdown-item" href="/presentations">Presentations</a>
+          <a class="dropdown-item" href="/resources">Resources</a>
           <a class="dropdown-item" href="/team">Team</a>
           <div class="dropdown-divider"></div>
           <h3 class="dropdown-header">Apache</h3>
@@ -305,33 +305,14 @@
   </tbody>
 </table>
 
-<!--
+<h3 id="release-integrity">Release Integrity</h3>
 
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="admonition">
-  <div class="info">
-    
-    <p>You can download the <a href="http://www.apache.org/dev/release-signing#keys-policy">KEYS</a> file for Pulsar <a href="https://www.apache.org/dist/incubator/pulsar/KEYS" download="">here</a>.</p>
-
-  </div>
-</div>
+<p>You must <a href="https://www.apache.org/info/verification.html">verify</a> the integrity of the downloaded files.
+We provide OpenPGP signatures for every release file. This signature should be matched against the
+<a href="https://www.apache.org/dist/incubator/pulsar/KEYS">KEYS</a> file which contains the OpenPGP keys of
+Pulsar’s Release Managers. We also provide <code class="highlighter-rouge">MD5</code> and <code class="highlighter-rouge">SHA-512</code> checksums for every release file.
+After you download the file, you should calculate a checksum for your download, and make sure it is
+the same as ours.</p>
 
 <h3 id="release-notes-for-the-1210-incubating-release">Release notes for the 1.21.0-incubating release</h3>
 

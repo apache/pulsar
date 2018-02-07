@@ -448,6 +448,8 @@
 <dd>
 <div class="block">Get the publish time of this message.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getReadCompacted--">getReadCompacted()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getReaderListener--">getReaderListener()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getReaderName--">getReaderName()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
@@ -644,6 +646,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBlockedQuotaExceededException.html#ProducerBlockedQuotaExceededException-java.lang.String-">ProducerBlockedQuotaExceededException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBlockedQuotaExceededException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ProducerBlockedQuotaExceededException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html#ProducerBusyException-java.lang.String-">ProducerBusyException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ProducerBusyException</a></dt>
+<dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerConfiguration</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Producer's configuration</div>
@@ -707,6 +711,8 @@
 <dt><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBlockedQuotaExceededError.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClientException.ProducerBlockedQuotaExceededError</span></a> - Exception in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBlockedQuotaExceededException.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClientException.ProducerBlockedQuotaExceededException</span></a> - Exception in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClientException.ProducerBusyException</span></a> - Exception in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClientException.ProducerQueueIsFullError</span></a> - Exception in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
@@ -988,6 +994,11 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setProperty-java.lang.String-java.lang.String-">setProperty(String, String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
 <div class="block">Set a name/value property with this producer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setReadCompacted-boolean-">setReadCompacted(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
+<dd>
+<div class="block">If enabled, the consumer will read messages from the compacted topic rather than reading the full message
+ backlog of the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setReaderListener-org.apache.pulsar.client.api.ReaderListener-">setReaderListener(ReaderListener)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
