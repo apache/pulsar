@@ -185,7 +185,7 @@ used by broker is 60s).
 
 A valid implementation of a Pulsar client is not required to send the `Ping`
 probe, though it is required to promptly reply after receiving one from the
-broker, in order to prevent the remote side to forcibly close the TCP connection.
+broker in order to prevent the remote side from forcibly closing the TCP connection.
 
 
 ### Producer
