@@ -18,10 +18,9 @@
  */
 package org.apache.pulsar.broker;
 
-import java.lang.reflect.Field;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -61,6 +60,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;
+    // Enable cluster's failure-domain which can distribute brokers into logical region
+    @FieldContext(dynamic = true)
+    private boolean failureDomainsEnabled = false;
     // Zookeeper session timeout in milliseconds
     private long zooKeeperSessionTimeoutMillis = 30000;
     // Time to wait for broker graceful shutdown. After this time elapses, the
@@ -160,6 +162,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable broker to load non-persistent topics
     private boolean enableNonPersistentTopics = true;
 
+    // Enable to run bookie along with broker
+    private boolean enableRunBookieTogether = false;
+
+    // Enable to run bookie autorecovery along with broker
+    private boolean enableRunBookieAutoRecoveryTogether = false;
+
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -185,6 +193,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
 
+    // Role names that are treated as "proxy roles". If the broker sees a request with
+    // role as proxyRoles - it will demand to see the original client role or certificate.
+    private Set<String> proxyRoles = Sets.newTreeSet();
+
     // Allow wildcard matching in authorization
     // (wildcard matching only applicable if wildcard-char:
     // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
@@ -194,6 +206,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // to other brokers, either in same or other clusters. Default uses plugin which disables authentication
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     private String brokerClientAuthenticationParameters = "";
+
+    // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
+    private String anonymousUserRole = null;
 
     /**** --- BookKeeper Client --- ****/
     // Authentication plugin to use when connecting to bookies
@@ -276,10 +291,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // than this limit then broker will persist unacked ranges into bookkeeper to avoid additional data overhead into
     // zookeeper.
     private int managedLedgerMaxUnackedRangesToPersistInZooKeeper = 1000;
+    // Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
+    // corrupted at bookkeeper and managed-cursor is stuck at that ledger.
+    @FieldContext(dynamic = true)
+    private boolean autoSkipNonRecoverableData = false;
 
     /*** --- Load balancer --- ****/
     // Enable load balancer
-    private boolean loadBalancerEnabled = false;
+    private boolean loadBalancerEnabled = true;
     // load placement strategy[weightedRandomSelection/leastLoadedServer] (only used by SimpleLoadManagerImpl)
     @Deprecated
     private String loadBalancerPlacementStrategy = "leastLoadedServer"; // weighted random selection
@@ -291,6 +310,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int loadBalancerReportUpdateMaxIntervalMinutes = 15;
     // Frequency of report to collect
     private int loadBalancerHostUsageCheckIntervalMinutes = 1;
+    // Enable/disable automatic bundle unloading for load-shedding
+    @FieldContext(dynamic = true)
+    private boolean loadBalancerSheddingEnabled = true;
     // Load shedding interval. Broker periodically checks whether some traffic should be offload from some over-loaded
     // broker to other under-loaded brokers
     private int loadBalancerSheddingIntervalMinutes = 5;
@@ -300,8 +322,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Usage threshold to determine a broker as under-loaded (only used by SimpleLoadManagerImpl)
     @Deprecated
     private int loadBalancerBrokerUnderloadedThresholdPercentage = 50;
-    // Usage threshold to determine a broker as over-loaded (only used by SimpleLoadManagerImpl)
-    @Deprecated
+    // Usage threshold to allocate max number of topics to broker
+    @FieldContext(dynamic = true)
+    private int loadBalancerBrokerMaxTopics = 50000;
+    // Usage threshold to determine a broker as over-loaded
     private int loadBalancerBrokerOverloadedThresholdPercentage = 85;
     // Interval to flush dynamic resource quota to ZooKeeper
     private int loadBalancerResourceQuotaUpdateIntervalMinutes = 15;
@@ -327,6 +351,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Name of load manager to use
     @FieldContext(dynamic = true)
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
+
+    // Option to override the auto-detected network interfaces max speed
+    private Double loadBalancerOverrideBrokerNicSpeedGbps;
 
     /**** --- Replication --- ****/
     // Enable replication metrics
@@ -363,6 +390,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
     // Number of connections per Broker in Pulsar Client used in WebSocket proxy
     private int webSocketConnectionsPerBroker = Runtime.getRuntime().availableProcessors();
+
+    /**** --- Metrics --- ****/
+    // If true, export topic level metrics otherwise namespace level
+    private boolean exposeTopicLevelMetricsInPrometheus = true;
+
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -447,6 +479,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setClusterName(String clusterName) {
         this.clusterName = clusterName;
+    }
+
+    public boolean isFailureDomainsEnabled() {
+        return failureDomainsEnabled;
+    }
+
+    public void setFailureDomainsEnabled(boolean failureDomainsEnabled) {
+        this.failureDomainsEnabled = failureDomainsEnabled;
     }
 
     public long getBrokerShutdownTimeoutMs() {
@@ -675,6 +715,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.enableNonPersistentTopics = enableNonPersistentTopics;
     }
 
+    public boolean isEnableRunBookieTogether() {
+        return enableRunBookieTogether;
+    }
+
+    public void setEnableRunBookieTogether(boolean enableRunBookieTogether) {
+        this.enableRunBookieTogether = enableRunBookieTogether;
+    }
+
+    public boolean isEnableRunBookieAutoRecoveryTogether() {
+        return enableRunBookieAutoRecoveryTogether;
+    }
+
+    public void setEnableRunBookieAutoRecoveryTogether(boolean enableRunBookieAutoRecoveryTogether) {
+        this.enableRunBookieAutoRecoveryTogether = enableRunBookieAutoRecoveryTogether;
+    }
+
     public boolean isTlsEnabled() {
         return tlsEnabled;
     }
@@ -742,7 +798,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
-
+ 
+    public Set<String> getProxyRoles() {
+        return proxyRoles;
+    }
+    
+    public void setProxyRoles(Set<String> proxyRoles) {
+        this.proxyRoles = proxyRoles;
+    }
+    
     public boolean getAuthorizationAllowWildcardsMatching() {
         return authorizationAllowWildcardsMatching;
     }
@@ -769,6 +833,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setBrokerClientAuthenticationParameters(String brokerClientAuthenticationParameters) {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
+    }
+
+    public String getAnonymousUserRole() {
+        return anonymousUserRole;
+    }
+
+    public void setAnonymousUserRole(String anonymousUserRole) {
+        this.anonymousUserRole = anonymousUserRole;
     }
 
     public String getBookkeeperClientAuthenticationPlugin() {
@@ -990,6 +1062,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.managedLedgerMaxUnackedRangesToPersistInZooKeeper = managedLedgerMaxUnackedRangesToPersistInZookeeper;
     }
 
+    public boolean isAutoSkipNonRecoverableData() {
+        return autoSkipNonRecoverableData;
+    }
+
+    public void setAutoSkipNonRecoverableData(boolean skipNonRecoverableLedger) {
+        this.autoSkipNonRecoverableData = skipNonRecoverableLedger;
+    }
+
     public boolean isLoadBalancerEnabled() {
         return loadBalancerEnabled;
     }
@@ -1030,6 +1110,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.loadBalancerHostUsageCheckIntervalMinutes = loadBalancerHostUsageCheckIntervalMinutes;
     }
 
+    public boolean isLoadBalancerSheddingEnabled() {
+        return loadBalancerSheddingEnabled;
+    }
+
+    public void setLoadBalancerSheddingEnabled(boolean loadBalancerSheddingEnabled) {
+        this.loadBalancerSheddingEnabled = loadBalancerSheddingEnabled;
+    }
+
     public int getLoadBalancerSheddingIntervalMinutes() {
         return loadBalancerSheddingIntervalMinutes;
     }
@@ -1065,6 +1153,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getLoadBalancerBrokerOverloadedThresholdPercentage() {
         return loadBalancerBrokerOverloadedThresholdPercentage;
+    }
+
+    public int getLoadBalancerBrokerMaxTopics() {
+        return loadBalancerBrokerMaxTopics;
+    }
+
+    public void setLoadBalancerBrokerMaxTopics(int loadBalancerBrokerMaxTopics) {
+        this.loadBalancerBrokerMaxTopics = loadBalancerBrokerMaxTopics;
     }
 
     public void setLoadBalancerNamespaceBundleMaxTopics(int topics) {
@@ -1134,6 +1230,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public int getLoadBalancerNamespaceMaximumBundles() {
         return this.loadBalancerNamespaceMaximumBundles;
+    }
+
+    public Optional<Double> getLoadBalancerOverrideBrokerNicSpeedGbps() {
+        return Optional.ofNullable(loadBalancerOverrideBrokerNicSpeedGbps);
+    }
+
+    public void setLoadBalancerOverrideBrokerNicSpeedGbps(double loadBalancerOverrideBrokerNicSpeedGbps) {
+        this.loadBalancerOverrideBrokerNicSpeedGbps = loadBalancerOverrideBrokerNicSpeedGbps;
     }
 
     public boolean isReplicationMetricsEnabled() {
@@ -1265,4 +1369,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public int getWebSocketConnectionsPerBroker() { return webSocketConnectionsPerBroker; }
 
     public void setWebSocketConnectionsPerBroker(int webSocketConnectionsPerBroker) { this.webSocketConnectionsPerBroker = webSocketConnectionsPerBroker; }
+
+    public boolean exposeTopicLevelMetricsInPrometheus() {
+        return exposeTopicLevelMetricsInPrometheus;
+    }
+
+    public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
+        this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+    }
 }

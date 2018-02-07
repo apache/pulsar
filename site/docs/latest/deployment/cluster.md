@@ -126,22 +126,6 @@ $ echo 1 > data/zookeeper/myid
 
 On `zk2.us-west.example.com` the command would be `echo 2 > data/zookeeper/myid` and so on.
 
-Once you've done that, add a server configuration in the [`conf/global_zookeeper.conf`](../../../reference/Configuration#global-zookeeper) configuration file that includes the same ZooKeeper hosts as the `conf/zookeeper.conf` file but specifies different ports, as well as a `clientPort` parameter. Here's an example:
-
-```properties
-clientPort=2184
-server.1=zk1.us-west.example.com:2185:2186
-server.2=zk2.us-west.example.com:2185:2186
-server.3=zk3.us-west.example.com:2185:2186
-```
-
-As before, create `myid` files for each server in `data/global-zookeeper/myid`, and then make sure that the server IDs match up across `data/global-zookeeper/myid` and `data/zookeeper/myid`.
-
-```bash
-$ cat data/zookeeper/myid
-$ cat data/global-zookeeper/myid
-```
-
 Once each server has been added to the `zookeeper.conf` configuration and has the appropriate `myid` entry, you can start ZooKeeper on all hosts (in the background, using nohup) with the [`pulsar-daemon`](../../../reference/CliTools#pulsar-daemon) CLI tool:
 
 ```bash
@@ -158,7 +142,7 @@ You can initialize this metadata using the [`initialize-cluster-metadata`](../..
 $ bin/pulsar initialize-cluster-metadata \
   --cluster pulsar-cluster-1 \
   --zookeeper zk1.us-west.example.com:2181 \
-  --global-zookeeper zk1.us-west.example.com:2184 \
+  --global-zookeeper zk1.us-west.example.com:2181 \
   --web-service-url http://pulsar.us-west.example.com:8080 \
   --web-service-url-tls https://pulsar.us-west.example.com:8443 \
   --broker-service-url pulsar://pulsar.us-west.example.com:6650 \
@@ -215,14 +199,16 @@ This will create an ephemeral BookKeeper {% popover ledger %} on the local booki
 
 Pulsar {% popover brokers %} are the last thing you need to deploy in your Pulsar cluster. Brokers handle Pulsar messages and provide Pulsar's administrative interface. We recommend running **3 brokers**, one for each machine that's already running a BookKeeper bookie.
 
-The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](../../../reference/Configuration#broker-zookeeperServers) and [`globalZookeeperServers`](../../../reference/Configuration#broker-globalZookeeperServers) parameters
+The most important element of broker configuration is ensuring that that each broker is aware of the ZooKeeper cluster that you've deployed. Make sure that the [`zookeeperServers`](../../../reference/Configuration#broker-zookeeperServers) and [`globalZookeeperServers`](../../../reference/Configuration#broker-globalZookeeperServers) parameters.
+In this case, since we only have 1 cluster and no global ZooKeeper setup, the `globalZookeeperServers`
+will point to the same `zookeeperServers`.
 
 ```properties
 zookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
-globalZookeeperServers=zk1.us-west.example.com:2184,zk2.us-west.example.com:2184,zk3.us-west.example.com:2184
+globalZookeeperServers=zk1.us-west.example.com:2181,zk2.us-west.example.com:2181,zk3.us-west.example.com:2181
 ```
 
-The only difference between the two connection strings should be the port for each host (2181 and 2184 are the defaults). You also need to specify the cluster name (matching the name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata):
+You also need to specify the cluster name (matching the name that you provided when [initializing the cluster's metadata](#initializing-cluster-metadata):
 
 ```properties
 clusterName=pulsar-cluster-1

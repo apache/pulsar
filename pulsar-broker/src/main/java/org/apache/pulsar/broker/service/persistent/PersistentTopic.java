@@ -22,11 +22,9 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -46,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
@@ -57,10 +56,12 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
@@ -89,7 +90,6 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -155,6 +155,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     private final MessageDeduplication messageDeduplication;
 
+    // Whether messages published must be encrypted or not in this topic
+    private volatile boolean isEncryptionRequired = false;
+
     private static final FastThreadLocal<TopicStats> threadLocalTopicStats = new FastThreadLocal<TopicStats>() {
         @Override
         protected TopicStats initialValue() {
@@ -218,6 +221,16 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         this.lastActive = System.nanoTime();
 
         this.messageDeduplication = new MessageDeduplication(brokerService.pulsar(), this, ledger);
+
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            isEncryptionRequired = policies.encryption_required;
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
+            isEncryptionRequired = false;
+        }
     }
 
     @Override
@@ -243,7 +256,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
         PublishContext callback = (PublishContext) ctx;
-        log.error("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+
+        if (exception instanceof ManagedLedgerAlreadyClosedException) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+            }
+
+            callback.completed(new TopicClosedException(exception), -1, -1);
+            return;
+
+        } else {
+            log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+        }
 
         if (exception instanceof ManagedLedgerTerminatedException) {
             // Signal the producer that this topic is no longer available
@@ -372,10 +396,16 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId) {
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+            Map<String, String> metadata, boolean readCompacted) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
+        if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
+            future.completeExceptionally(
+                    new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
+            return future;
+        }
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -423,7 +453,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                        maxUnackedMessages, cnx, cnx.getRole());
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted);
                 subscription.addConsumer(consumer);
                 if (!cnx.isActive()) {
                     consumer.close();
@@ -1312,9 +1342,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()));
             // If no policies, the default is to have no retention and delete the inactive topic
-            return policies.map(p -> p.retention_policies)
-                    .map(rp -> System.nanoTime() - lastActive < TimeUnit.MINUTES.toNanos(rp.getRetentionTimeInMinutes()))
-                    .orElse(false).booleanValue();
+            return policies.map(p -> p.retention_policies).map(rp -> {
+                long retentionTime = TimeUnit.MINUTES.toNanos(rp.getRetentionTimeInMinutes());
+
+                // Negative retention time means the topic should be retained indefinitely,
+                // because its own data has to be retained
+                return retentionTime < 0 || (System.nanoTime() - lastActive) < retentionTime;
+            }).orElse(false).booleanValue();
         } catch (Exception e) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Error getting policies", topic);
@@ -1327,7 +1361,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
-        producers.forEach(Producer::checkPermissions);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
+        }
+        isEncryptionRequired = data.encryption_required;
+        producers.forEach(producer -> {
+            producer.checkPermissions();
+            producer.checkEncryption();
+        });
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
         checkMessageExpiry();
         CompletableFuture<Void> replicationFuture = checkReplicationAndRetryOnFailure();
@@ -1371,6 +1412,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             }
         }
         return false;
+    }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        return isEncryptionRequired;
     }
 
     public CompletableFuture<MessageId> terminate() {

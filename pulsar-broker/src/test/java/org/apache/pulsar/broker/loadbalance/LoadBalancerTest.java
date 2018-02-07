@@ -137,11 +137,13 @@ public class LoadBalancerTest {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setClusterName("use");
+            config.setAdvertisedAddress("localhost");
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setLoadManagerClassName(SimpleLoadManagerImpl.class.getName());
-            config.setAdvertisedAddress(localhost+i);;
+            config.setAdvertisedAddress(localhost+i);
+            config.setLoadBalancerEnabled(false);
 
             pulsarServices[i] = new PulsarService(config);
             pulsarServices[i].start();
@@ -223,7 +225,7 @@ public class LoadBalancerTest {
                 assertEquals(brokerCount, BROKER_COUNT);
                 DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns/test-topic");
                 ResourceUnit found = pulsarServices[i].getLoadManager().get()
-                        .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(fqdn));
+                        .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(fqdn)).get();
                 assertTrue(found != null);
             }
         } catch (InterruptedException | KeeperException e) {
@@ -262,7 +264,7 @@ public class LoadBalancerTest {
         for (int i = 0; i < totalNamespaces; i++) {
             DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
             ResourceUnit found = pulsarServices[0].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn));
+                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -402,7 +404,7 @@ public class LoadBalancerTest {
         for (int i = 0; i < totalNamespaces; i++) {
             DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
             ResourceUnit found = pulsarServices[0].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn));
+                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -829,7 +831,7 @@ public class LoadBalancerTest {
         sortedRankings.set(loadManager, sortedRankingsInstance);
 
         ResourceUnit found = ((SimpleLoadManagerImpl) loadManager)
-                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10"));
+                .getLeastLoaded(NamespaceName.get("pulsar/use/primary-ns.10")).get();
         assertEquals("http://prod1-broker1.messaging.use.example.com:8080", found.getResourceId());
 
         zkCacheField.set(pulsarServices[0], originalLZK1);
@@ -949,7 +951,7 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
-                    .getLeastLoaded(DestinationName.get("persistent://pulsar/use/primary-ns/topic" + i));
+                    .getLeastLoaded(DestinationName.get("persistent://pulsar/use/primary-ns/topic" + i)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -1010,7 +1012,7 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
-                    .getLeastLoaded(DestinationName.get("persistent://pulsar/use/primary-ns/topic-" + i));
+                    .getLeastLoaded(DestinationName.get("persistent://pulsar/use/primary-ns/topic-" + i)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {

@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
+import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -30,6 +31,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
@@ -47,7 +49,6 @@ import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.PlacementStrategy;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.BrokerTopicLoadingPredicate;
-import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
@@ -228,7 +229,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-        
+
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
             public LoadReport deserialize(String key, byte[] content) throws Exception {
@@ -913,7 +914,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             brokerCandidateCache.clear();
             try {
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
+                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
                         brokerTopicLoadingPredicate);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
@@ -940,8 +941,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
-    public ResourceUnit getLeastLoaded(ServiceUnitId serviceUnit) throws Exception {
-        return getLeastLoadedBroker(serviceUnit, getAvailableBrokers(serviceUnit));
+    public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId serviceUnit) throws Exception {
+        return Optional.ofNullable(getLeastLoadedBroker(serviceUnit, getAvailableBrokers(serviceUnit)));
     }
 
     public Multimap<Long, ResourceUnit> getResourceAvailabilityFor(ServiceUnitId serviceUnitId) throws Exception {
@@ -1098,8 +1099,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
         return generateLoadReportForcefully();
     }
-    
-    private LoadReport generateLoadReportForcefully() throws Exception {    
+
+    private LoadReport generateLoadReportForcefully() throws Exception {
         synchronized (bundleGainsCache) {
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
@@ -1272,7 +1273,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     /**
      * Check if last generated load-report time passed the minimum time for load-report update.
-     * 
+     *
      * @return true: if last load-report generation passed the minimum interval and load-report can be generated false:
      *         if load-report generation has not passed minimum interval to update load-report again
      */
@@ -1318,7 +1319,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             String bundleName = bundle.getValue();
             try {
                 if (unloadedHotNamespaceCache.getIfPresent(bundleName) == null) {
-                    if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
+                    if (LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
                         log.info("Unloading namespace {} from overloaded broker {}", bundleName, brokerName);
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
@@ -1476,7 +1477,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         availableActiveBrokers.close();
         scheduler.shutdown();
     }
-    
+
     private long getBrokerZnodeOwner() {
         try {
             Stat stat = new Stat();

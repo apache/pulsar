@@ -21,11 +21,14 @@ package org.apache.pulsar.broker.service;
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
@@ -66,6 +69,7 @@ public class Consumer {
 
     private final long consumerId;
     private final int priorityLevel;
+    private final boolean readCompacted;
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
@@ -93,14 +97,19 @@ public class Consumer {
     private volatile int unackedMessages = 0;
     private volatile boolean blockedConsumerOnUnackedMsgs = false;
 
-    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId, int priorityLevel, String consumerName,
-            int maxUnackedMessages, ServerCnx cnx, String appId) throws BrokerServiceException {
+    private final Map<String, String> metadata;
+
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    int maxUnackedMessages, ServerCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
         this.consumerId = consumerId;
         this.priorityLevel = priorityLevel;
+        this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
         this.cnx = cnx;
@@ -111,11 +120,14 @@ public class Consumer {
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
 
+        this.metadata = metadata != null ? metadata : Collections.emptyMap();
+
         stats = new ConsumerStats();
         stats.address = cnx.clientAddress().toString();
         stats.consumerName = consumerName;
         stats.connectedSince = DateFormatter.now();
         stats.clientVersion = cnx.getClientVersion();
+        stats.metadata = this.metadata;
 
         if (subType == SubType.Shared) {
             this.pendingAcks = new ConcurrentLongLongPairHashMap(256, 1);
@@ -135,6 +147,10 @@ public class Consumer {
 
     public String consumerName() {
         return consumerName;
+    }
+
+    public boolean readCompacted() {
+        return readCompacted;
     }
 
     /**
@@ -218,7 +234,7 @@ public class Consumer {
         }
     }
 
-    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, String subscription, long consumerId) {
+    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, Subscription subscription, long consumerId) {
         try {
             // save the reader index and restore after parsing
             metadataAndPayload.markReaderIndex();
@@ -245,13 +261,13 @@ public class Consumer {
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription.toString(), consumerId);
+            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription, consumerId);
             if (batchSize == -1) {
                 // this would suggest that the message might have been corrupted
                 iter.remove();
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
-                subscription.acknowledgeMessage(pos, AckType.Individual);
+                subscription.acknowledgeMessage(pos, AckType.Individual, Collections.emptyMap());
                 continue;
             }
             if (pendingAcks != null) {
@@ -334,15 +350,21 @@ public class Consumer {
                     position, ack.getValidationError());
         }
 
+        Map<String,Long> properties = Collections.emptyMap();
+        if (ack.getPropertiesCount() > 0) {
+            properties = ack.getPropertiesList().stream()
+                .collect(Collectors.toMap((e) -> e.getKey(),
+                                          (e) -> e.getValue()));
+        }
         if (subType == SubType.Shared) {
             // On shared subscriptions, cumulative ack is not supported
             checkArgument(ack.getAckType() == AckType.Individual);
 
             // Only ack a single message
             removePendingAcks(position);
-            subscription.acknowledgeMessage(position, AckType.Individual);
+            subscription.acknowledgeMessage(position, AckType.Individual, properties);
         } else {
-            subscription.acknowledgeMessage(position, ack.getAckType());
+            subscription.acknowledgeMessage(position, ack.getAckType(), properties);
         }
 
     }
@@ -444,7 +466,7 @@ public class Consumer {
         DestinationName destination = DestinationName.get(subscription.getDestination());
         if (cnx.getBrokerService().getAuthorizationManager() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId)) {
+                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId, subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {

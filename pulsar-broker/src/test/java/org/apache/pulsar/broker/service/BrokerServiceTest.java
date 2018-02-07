@@ -510,7 +510,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             consumer.close();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("General SSLEngine problem"));
+            assertTrue(e.getMessage().contains("General OpenSslEngine problem"));
         } finally {
             pulsarClient.close();
         }

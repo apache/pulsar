@@ -23,16 +23,20 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -72,8 +76,12 @@ public class Producer {
     private final boolean isRemote;
     private final String remoteCluster;
     private final boolean isNonPersistentTopic;
+    private final boolean isEncrypted;
 
-    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId) {
+    private final Map<String, String> metadata;
+
+    public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
+        boolean isEncrypted, Map<String, String> metadata) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -83,16 +91,22 @@ public class Producer {
         this.msgIn = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
+
+        this.metadata = metadata != null ? metadata : Collections.emptyMap();
+
         this.stats = isNonPersistentTopic ? new NonPersistentPublisherStats() : new PublisherStats();
         stats.address = cnx.clientAddress().toString();
         stats.connectedSince = DateFormatter.now();
         stats.clientVersion = cnx.getClientVersion();
         stats.producerName = producerName;
         stats.producerId = producerId;
+        stats.metadata = this.metadata;
 
         this.isRemote = producerName
                 .startsWith(cnx.getBrokerService().pulsar().getConfiguration().getReplicatorPrefix());
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
+
+        this.isEncrypted = isEncrypted;
     }
 
     @Override
@@ -128,6 +142,24 @@ public class Producer {
                 cnx.completedSendOperation(isNonPersistentTopic);
             });
             return;
+        }
+
+        if (topic.isEncryptionRequired()) {
+
+            headersAndPayload.markReaderIndex();
+            MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
+            headersAndPayload.resetReaderIndex();
+
+            // Check whether the message is encrypted or not
+            if (msgMetadata.getEncryptionKeysCount() < 1) {
+                log.warn("[{}] Messages must be encrypted", getTopic().getName());
+                cnx.ctx().channel().eventLoop().execute(() -> {
+                    cnx.ctx().writeAndFlush(Commands.newSendError(producerId, sequenceId, ServerError.MetadataError,
+                            "Messages must be encrypted"));
+                    cnx.completedSendOperation(isNonPersistentTopic);
+                });
+                return;
+            }
         }
 
         startPublishOperation();
@@ -248,8 +280,12 @@ public class Producer {
                         ? ServerError.TopicTerminatedError : ServerError.PersistenceError;
 
                 producer.cnx.ctx().channel().eventLoop().execute(() -> {
-                    producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId, serverError,
-                            exception.getMessage()));
+                    if (!(exception instanceof TopicClosedException)) {
+                        // For TopicClosed exception there's no need to send explicit error, since the client was
+                        // already notified
+                        producer.cnx.ctx().writeAndFlush(Commands.newSendError(producer.producerId, sequenceId,
+                                serverError, exception.getMessage()));
+                    }
                     producer.cnx.completedSendOperation(producer.isNonPersistentTopic);
                     producer.publishOperationCompleted();
                     recycle();
@@ -333,6 +369,10 @@ public class Producer {
 
     public long getProducerId() {
         return producerId;
+    }
+
+    public Map<String, String> getMetadata() {
+        return metadata;
     }
 
     @Override
@@ -436,6 +476,14 @@ public class Producer {
                         e);
             }
             log.info("[{}] is not allowed to produce from destination [{}] anymore", appId, topic.getName());
+            disconnect();
+        }
+    }
+
+    public void checkEncryption() {
+        if (topic.isEncryptionRequired() && !isEncrypted) {
+            log.info("[{}] [{}] Unencrypted producer is not allowed to produce from destination [{}] anymore",
+                    producerId, producerName, topic.getName());
             disconnect();
         }
     }

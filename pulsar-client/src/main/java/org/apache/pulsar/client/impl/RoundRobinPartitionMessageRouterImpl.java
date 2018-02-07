@@ -21,27 +21,28 @@ package org.apache.pulsar.client.impl;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.TopicMetadata;
 
-public class RoundRobinPartitionMessageRouterImpl implements MessageRouter {
+public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
 
     private static final AtomicIntegerFieldUpdater<RoundRobinPartitionMessageRouterImpl> PARTITION_INDEX_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(RoundRobinPartitionMessageRouterImpl.class, "partitionIndex");
     private volatile int partitionIndex = 0;
-    private final int numPartitions;
 
-    public RoundRobinPartitionMessageRouterImpl(int numPartitions) {
-        this.numPartitions = numPartitions;
+    public RoundRobinPartitionMessageRouterImpl(ProducerConfiguration.HashingScheme hashingScheme) {
+        super(hashingScheme);
         PARTITION_INDEX_UPDATER.set(this, 0);
     }
 
     @Override
-    public int choosePartition(Message msg) {
+    public int choosePartition(Message msg, TopicMetadata topicMetadata) {
         // If the message has a key, it supersedes the round robin routing policy
         if (msg.hasKey()) {
-            return ((msg.getKey().hashCode() & Integer.MAX_VALUE) % numPartitions);
+            return hash.makeHash(msg.getKey()) % topicMetadata.numPartitions();
         }
-        return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % numPartitions);
+
+        return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());
     }
 
 }

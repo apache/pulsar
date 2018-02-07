@@ -24,6 +24,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -40,6 +41,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -129,6 +131,9 @@ public class NonPersistentTopic implements Topic {
         }
     };
 
+    // Whether messages published must be encrypted or not in this topic
+    private volatile boolean isEncryptionRequired = false;
+
     private static class TopicStats {
         public double averageMsgSize;
         public double aggMsgRateIn;
@@ -164,6 +169,16 @@ public class NonPersistentTopic implements Topic {
         USAGE_COUNT_UPDATER.set(this, 0);
 
         this.lastActive = System.nanoTime();
+
+        try {
+            Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .orElseThrow(() -> new KeeperException.NoNodeException());
+            isEncryptionRequired = policies.encryption_required;
+        } catch (Exception e) {
+            log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
+            isEncryptionRequired = false;
+        }
     }
 
     @Override
@@ -282,7 +297,8 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId) {
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+            Map<String, String> metadata, boolean readCompacted) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -297,6 +313,11 @@ public class NonPersistentTopic implements Topic {
         if (subscriptionName.startsWith(replicatorPrefix)) {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
+            return future;
+        }
+
+        if (readCompacted) {
+            future.completeExceptionally(new NotAllowedException("readCompacted only valid on persistent topics"));
             return future;
         }
 
@@ -321,7 +342,7 @@ public class NonPersistentTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0, cnx,
-                    cnx.getRole());
+                                             cnx.getRole(), metadata, readCompacted);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();
@@ -441,7 +462,7 @@ public class NonPersistentTopic implements Topic {
 
         FutureUtil.waitForAll(futures).thenRun(() -> {
             log.info("[{}] Topic closed", topic);
-            brokerService.removeTopicFromCache(topic);
+            brokerService.pulsar().getExecutor().submit(() -> brokerService.removeTopicFromCache(topic));
             closeFuture.complete(null);
         }).exceptionally(exception -> {
             log.error("[{}] Error closing topic", topic, exception);
@@ -845,7 +866,14 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
-        producers.forEach(Producer::checkPermissions);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);
+        }
+        isEncryptionRequired = data.encryption_required;
+        producers.forEach(producer -> {
+            producer.checkPermissions();
+            producer.checkEncryption();
+        });
         subscriptions.forEach((subName, sub) -> sub.getConsumers().forEach(Consumer::checkPermissions));
         return checkReplicationAndRetryOnFailure();
     }
@@ -868,6 +896,11 @@ public class NonPersistentTopic implements Topic {
     public boolean isBacklogQuotaExceeded(String producerName) {
         // No-op
         return false;
+    }
+
+    @Override
+    public boolean isEncryptionRequired() {
+        return isEncryptionRequired;
     }
 
     @Override

@@ -73,12 +73,14 @@ flexible messaging model and an intuitive client API.</description>
   </ciManagement>
 
   <modules>
+    <module>buildtools</module>
     <module>managed-ledger</module>
     <module>pulsar-common</module>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
     <module>pulsar-broker-shaded</module>
     <module>pulsar-client-admin</module>
+    <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
     <module>pulsar-client</module>
     <module>pulsar-client-shaded</module>
@@ -106,9 +108,9 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.83-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.3.1.91-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
-    <netty.version>4.1.12.Final</netty.version>
+    <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.7.17</athenz.version>
@@ -117,6 +119,8 @@ flexible messaging model and an intuitive client API.</description>
     <rocksdb.version>5.8.6</rocksdb.version>
     <slf4j.version>1.7.25</slf4j.version>
     <bouncycastle.version>1.55</bouncycastle.version>
+    <jackson.version>2.9.3</jackson.version>
+    <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
   </properties>
 
   <dependencyManagement>
@@ -137,7 +141,7 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
-        <version>6.8.5</version>
+        <version>6.13.1</version>
       </dependency>
 
       <dependency>
@@ -168,6 +172,16 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.apache.zookeeper</groupId>
         <artifactId>zookeeper</artifactId>
         <version>${zookeeper.version}</version>
+        <exclusions>
+          <exclusion>
+            <artifactId>slf4j-log4j12</artifactId>
+            <groupId>org.slf4j</groupId>
+          </exclusion>
+          <exclusion>
+            <artifactId>log4j</artifactId>
+            <groupId>log4j</groupId>
+          </exclusion>
+        </exclusions>
       </dependency>
 
       <dependency>
@@ -183,30 +197,6 @@ flexible messaging model and an intuitive client API.</description>
           <exclusion>
             <artifactId>log4j</artifactId>
             <groupId>log4j</groupId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
-          </exclusion>
-        </exclusions>
-      </dependency>
-
-      <dependency>
-        <groupId>org.apache.bookkeeper</groupId>
-        <artifactId>bookkeeper-server</artifactId>
-        <version>${bookkeeper.version}</version>
-        <exclusions>
-          <exclusion>
-            <artifactId>slf4j-log4j12</artifactId>
-            <groupId>org.slf4j</groupId>
-          </exclusion>
-          <exclusion>
-            <artifactId>log4j</artifactId>
-            <groupId>log4j</groupId>
-          </exclusion>
-          <exclusion>
-            <groupId>org.jboss.netty</groupId>
-            <artifactId>netty</artifactId>
           </exclusion>
         </exclusions>
       </dependency>
@@ -388,19 +378,43 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>com.fasterxml.jackson.jaxrs</groupId>
         <artifactId>jackson-jaxrs-json-provider</artifactId>
-        <version>2.4.3</version>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.core</groupId>
+        <artifactId>jackson-core</artifactId>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-databind</artifactId>
-        <version>2.4.3</version>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
         <groupId>com.fasterxml.jackson.core</groupId>
         <artifactId>jackson-annotations</artifactId>
-        <version>2.4.3</version>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.jaxrs</groupId>
+        <artifactId>jackson-jaxrs-base </artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.datatype</groupId>
+        <artifactId>jackson-datatype-joda</artifactId>
+        <version>${jackson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.fasterxml.jackson.dataformat</groupId>
+        <artifactId>jackson-dataformat-yaml</artifactId>
+        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
@@ -572,6 +586,17 @@ flexible messaging model and an intuitive client API.</description>
     <finalName>${project.artifactId}</finalName>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-checkstyle-plugin</artifactId>
+        <dependencies>
+          <dependency>
+            <groupId>org.apache.pulsar</groupId>
+            <artifactId>buildtools</artifactId>
+            <version>${project.version}</version>
+          </dependency>
+        </dependencies>
+      </plugin>
+      <plugin>
         <artifactId>maven-compiler-plugin</artifactId>
         <configuration>
           <source>1.8</source>
@@ -610,6 +635,7 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <exclude>LICENSE</exclude>
             <exclude>NOTICE</exclude>
+            <exclude>DISCLAIMER</exclude>
             <exclude>**/*.txt</exclude>
             <exclude>**/*.pem</exclude>
             <exclude>**/*.crt</exclude>
@@ -623,6 +649,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>logs/**</exclude>
             <exclude>**/*.versionsBackup</exclude>
             <exclude>**/circe/**</exclude>
+            <exclude>pulsar-broker/src/test/resources/authentication/basic/.htpasswd</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/int_types.h</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/gf2.hpp</exclude>
             <exclude>pulsar-client-cpp/lib/checksum/crc32c_sse42.cc</exclude>
@@ -660,9 +687,22 @@ flexible messaging model and an intuitive client API.</description>
             <conf>SCRIPT_STYLE</conf>
             <ini>SCRIPT_STYLE</ini>
             <yaml>SCRIPT_STYLE</yaml>
+            <tf>SCRIPT_STYLE</tf>
+            <cfg>SCRIPT_STYLE</cfg>
+            <Makefile>SCRIPT_STYLE</Makefile>
+            <service>SCRIPT_STYLE</service>
             <cc>JAVADOC_STYLE</cc>
             <md>XML_STYLE</md>
+            <txt>SCRIPT_STYLE</txt>
             <scss>JAVADOC_STYLE</scss>
+            <Doxyfile>SCRIPT_STYLE</Doxyfile>
+            <pulsar>SCRIPT_STYLE</pulsar>
+            <pulsar-managed-ledger-admin>SCRIPT_STYLE</pulsar-managed-ledger-admin>
+            <pulsar-daemon>SCRIPT_STYLE</pulsar-daemon>
+            <pulsar-admin>SCRIPT_STYLE</pulsar-admin>
+            <pulsar-perf>SCRIPT_STYLE</pulsar-perf>
+            <pulsar-client>SCRIPT_STYLE</pulsar-client>
+            <bookkeeper>SCRIPT_STYLE</bookkeeper>
           </mapping>
         </configuration>
       </plugin>
@@ -700,6 +740,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
+            <!-- This is generated during maven build -->
+            <exclude>dependency-reduced-pom.xml</exclude>
+
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
 
@@ -718,7 +761,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
             <exclude>**/*.json</exclude>
+            <exclude>**/*.htpasswd</exclude>
             <exclude>src/test/resources/athenz.conf.test</exclude>
+            <exclude>deployment/terraform-ansible/templates/myid</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -742,7 +787,7 @@ flexible messaging model and an intuitive client API.</description>
         </plugin>
         <plugin>
           <artifactId>maven-compiler-plugin</artifactId>
-          <version>2.3.2</version>
+          <version>3.7.0</version>
         </plugin>
         <plugin>
           <groupId>org.apache.maven.plugins</groupId>
@@ -765,6 +810,11 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>maven-archiver</artifactId>
           <version>2.5</version>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>3.0.0</version>
+      </plugin>
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
           <artifactId>lifecycle-mapping</artifactId>
@@ -832,6 +882,15 @@ flexible messaging model and an intuitive client API.</description>
       </build>
       <reporting>
         <plugins>
+          <plugin>
+            <groupId>org.apache.maven.plugins</groupId>
+            <artifactId>maven-checkstyle-plugin</artifactId>
+            <configuration>
+              <configLocation>pulsar/checkstyle.xml</configLocation>
+              <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>
+              <suppressionsFileExpression>checkstyle.suppressions.file</suppressionsFileExpression>
+            </configuration>
+          </plugin>
           <plugin>
             <artifactId>maven-javadoc-plugin</artifactId>
             <configuration>

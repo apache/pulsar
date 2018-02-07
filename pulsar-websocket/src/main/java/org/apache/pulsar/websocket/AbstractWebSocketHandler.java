@@ -46,6 +46,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected final String topic;
     protected final Map<String, String> queryParams;
+    protected final boolean authResult;
 
     public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
@@ -57,10 +58,10 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
             queryParams.put(key, values[0]);
         });
 
-        checkAuth(response);
+        authResult = checkAuth(response);
     }
 
-    private void checkAuth(ServletUpgradeResponse response) {
+    private boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
         if (service.isAuthenticationEnabled()) {
             try {
@@ -77,7 +78,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                     log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                             e1.getMessage(), e1);
                 }
-                return;
+                return false;
             }
         }
 
@@ -87,7 +88,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                     log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
                             request.getRemotePort(), authRole, topic);
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
-                    return;
+                    return false;
                 }
             } catch (Exception e) {
                 log.warn("[{}:{}] Got an exception when authorizing WebSocket client {} on topic {} on: {}",
@@ -98,10 +99,10 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
                     log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                             e1.getMessage(), e1);
                 }
-                return;
+                return false;
             }
         }
-
+        return true;
     }
 
     @Override

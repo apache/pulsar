@@ -44,10 +44,11 @@
 		<dependency>
 			<groupId>org.apache.zookeeper</groupId>
 			<artifactId>zookeeper</artifactId>
+			<version>${zookeeper.version}</version>
 		</dependency>
         <dependency>
             <groupId>${project.groupId}</groupId>
-            <artifactId>pulsar-client-admin</artifactId>
+            <artifactId>pulsar-client-admin-original</artifactId>
             <version>${project.version}</version>
         </dependency>
 		<dependency>

@@ -30,7 +30,7 @@ namespace pulsar {
 class LookupDataResult;
 
 class BinaryProtoLookupService : public LookupService {
- public:
+   public:
     /*
      * constructor
      */
@@ -40,8 +40,7 @@ class BinaryProtoLookupService : public LookupService {
 
     Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr& dn);
 
- private:
-
+   private:
     boost::mutex mutex_;
     uint64_t requestIdGenerator_;
 
@@ -49,26 +48,24 @@ class BinaryProtoLookupService : public LookupService {
     ConnectionPool& cnxPool_;
 
     void sendTopicLookupRequest(const std::string& destinationName, bool authoritative, Result result,
-                     const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
+                                const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
 
     void handleLookup(const std::string& destinationName, Result result, LookupDataResultPtr data,
                       const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
 
-
     void sendPartitionMetadataLookupRequest(const std::string& destinationName, Result result,
-                                   const ClientConnectionWeakPtr& clientCnx,
-                                   LookupDataResultPromisePtr promise);
+                                            const ClientConnectionWeakPtr& clientCnx,
+                                            LookupDataResultPromisePtr promise);
 
-    void handlePartitionMetadataLookup(const std::string& destinationName, Result result, LookupDataResultPtr data,
-                          const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
-
+    void handlePartitionMetadataLookup(const std::string& destinationName, Result result,
+                                       LookupDataResultPtr data, const ClientConnectionWeakPtr& clientCnx,
+                                       LookupDataResultPromisePtr promise);
 
     uint64_t newRequestId();
-
 };
 typedef boost::shared_ptr<BinaryProtoLookupService> BinaryProtoLookupServicePtr;
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif //_PULSAR_BINARY_LOOKUP_SERVICE_HEADER_
+#endif  //_PULSAR_BINARY_LOOKUP_SERVICE_HEADER_

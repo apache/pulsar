@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -77,7 +78,8 @@ public interface Topic {
     void removeProducer(Producer producer);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
+            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+            Map<String, String> metadata, boolean readCompacted);
 
     CompletableFuture<Subscription> createSubscription(String subscriptionName);
 
@@ -104,6 +106,8 @@ public interface Topic {
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     boolean isBacklogQuotaExceeded(String producerName);
+
+    boolean isEncryptionRequired();
 
     BacklogQuota getBacklogQuota();
 

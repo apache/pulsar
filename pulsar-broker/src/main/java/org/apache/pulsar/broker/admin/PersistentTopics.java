@@ -24,14 +24,13 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
@@ -66,6 +65,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerOfflineBacklog;
 import org.apache.bookkeeper.mledger.impl.MetaStore.MetaStoreCallback;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -77,6 +77,8 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.MessageId;
@@ -106,6 +108,7 @@ import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.github.zafarkhaja.semver.Version;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -116,7 +119,6 @@ import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
-import com.github.zafarkhaja.semver.Version;
 
 /**
  */
@@ -615,7 +617,7 @@ public class PersistentTopics extends AdminResource {
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
-        } 
+        }
         List<String> subscriptions = Lists.newArrayList();
         PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
                 destination, authoritative);
@@ -656,7 +658,7 @@ public class PersistentTopics extends AdminResource {
         validateAdminAndClientPermission(dn);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
-        } 
+        }
         validateDestinationOwnership(dn, authoritative);
         Topic topic = getTopicReference(dn);
         return topic.getStats();
@@ -676,7 +678,7 @@ public class PersistentTopics extends AdminResource {
         validateAdminAndClientPermission(dn);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
-        } 
+        }
         validateDestinationOwnership(dn, authoritative);
         Topic topic = getTopicReference(dn);
         return topic.getInternalStats();
@@ -1024,6 +1026,67 @@ public class PersistentTopics extends AdminResource {
         }
     }
 
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subscriptionName}")
+    @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "Creates a subscription on the topic at the specified message id")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Topic/Subscription does not exist"),
+            @ApiResponse(code = 405, message = "Not supported for partitioned topics") })
+    public void createSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
+            @PathParam("subscriptionName") String subscriptionName,
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) throws PulsarServerException {
+        destination = decode(destination);
+        DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
+        if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
+            validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
+        }
+        log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), destination,
+                subscriptionName, messageId);
+
+        PartitionedTopicMetadata partitionMetadata = getPartitionedTopicMetadata(property, cluster, namespace,
+                destination, authoritative);
+
+        try {
+            if (partitionMetadata.partitions > 0) {
+                // Create the subscription on each partition
+                List<CompletableFuture<Void>> futures = Lists.newArrayList();
+                PulsarAdmin admin = pulsar().getAdminClient();
+
+                for (int i = 0; i < partitionMetadata.partitions; i++) {
+                    futures.add(admin.persistentTopics().createSubscriptionAsync(dn.getPartition(i).toString(),
+                            subscriptionName, messageId));
+                }
+
+                FutureUtil.waitForAll(futures).join();
+            } else {
+                validateAdminOperationOnDestination(dn, authoritative);
+
+                PersistentTopic topic = (PersistentTopic) getOrCreateTopic(dn);
+
+                if (topic.getSubscriptions().containsKey(subscriptionName)) {
+                    throw new RestException(Status.CONFLICT, "Subscription already exists for topic");
+                }
+
+                PersistentSubscription subscription = (PersistentSubscription) topic
+                        .createSubscription(subscriptionName).get();
+                subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
+                log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), dn,
+                        subscriptionName, messageId);
+            }
+        } catch (Exception e) {
+            Throwable t = e.getCause();
+            log.warn("[{}] [{}] Failed to create subscription {} at message id {}", clientAppId(), dn, subscriptionName,
+                    messageId, e);
+            if (t instanceof SubscriptionInvalidCursorPosition) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "Unable to find position for position specified: " + t.getMessage());
+            } else {
+                throw new RestException(e);
+            }
+        }
+    }
+
     @POST
     @Path("/{property}/{cluster}/{namespace}/{destination}/subscription/{subName}/resetcursor")
     @ApiOperation(value = "Reset subscription to message position closest to given position.", notes = "It fence cursor and disconnects all active consumers before reseting cursor.")
@@ -1314,7 +1377,7 @@ public class PersistentTopics extends AdminResource {
                     validateAdminAccessOnProperty(pulsar, clientAppId, dn.getProperty());
                 } catch (RestException authException) {
                     log.warn("Failed to authorize {} on cluster {}", clientAppId, dn.toString());
-                    throw new PulsarClientException(String.format("Authorization failed %s on cluster %s with error %s",
+                    throw new PulsarClientException(String.format("Authorization failed %s on topic %s with error %s",
                             clientAppId, dn.toString(), authException.getMessage()));
                 }
             } catch (Exception ex) {
@@ -1324,10 +1387,10 @@ public class PersistentTopics extends AdminResource {
                         dn.toString(), ex.getMessage(), ex);
                 throw ex;
             }
-            
+
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, dn.getProperty(), dn.getCluster(),
                     dn.getNamespacePortion(), "persistent", dn.getEncodedLocalName());
-            
+
             // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
             // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
             // producer/consumer
@@ -1358,6 +1421,14 @@ public class PersistentTopics extends AdminResource {
             return topic;
         } catch (Exception e) {
             throw new RestException(Status.NOT_FOUND, "Topic not found");
+        }
+    }
+
+    private Topic getOrCreateTopic(DestinationName dn) {
+        try {
+            return pulsar().getBrokerService().getTopic(dn.toString()).get();
+        } catch (InterruptedException | ExecutionException e) {
+           throw new RestException(e);
         }
     }
 
@@ -1435,78 +1506,43 @@ public class PersistentTopics extends AdminResource {
                 return;
             }
 
-            // get list of cursors name of partition-1
-            final String ledgerName = dn.getPartition(1).getPersistenceNamingEncoding();
-            final Set<Topic> topics = Sets.newConcurrentHashSet();
-            ((ManagedLedgerFactoryImpl) pulsar().getManagedLedgerFactory()).getMetaStore().getCursors(ledgerName,
-                    new MetaStoreCallback<List<String>>() {
+            PulsarAdmin admin;
+            try {
+                admin = pulsar().getAdminClient();
+            } catch (PulsarServerException e1) {
+                result.completeExceptionally(e1);
+                return;
+            }
 
-                        @Override
-                        public void operationComplete(List<String> cursors,
-                                org.apache.bookkeeper.mledger.impl.MetaStore.Stat stat) {
-                            List<CompletableFuture<Void>> subscriptionCreationFuture = Lists.newArrayList();
-                            // create subscriptions for all new partition-topics
-                            cursors.forEach(cursor -> {
-                                String subName = Codec.decode(cursor);
-                                for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
-                                    final String topicName = dn.getPartition(i).toString();
-                                    CompletableFuture<Void> future = new CompletableFuture<>();
-                                    pulsar().getBrokerService().getTopic(topicName).handle((topic, ex) -> {
-                                        // cache topic to close all of them after creating all subscriptions
-                                        topics.add(topic);
-                                        if (ex != null) {
-                                            log.warn("[{}] Failed to create topic {}", clientAppId(), topicName);
-                                            future.completeExceptionally(ex);
-                                            return null;
-                                        } else {
-                                            topic.createSubscription(subName).handle((sub, e) -> {
-                                                if (e != null) {
-                                                    log.warn("[{}] Failed to create subsciption {} {}", clientAppId(),
-                                                            topicName, subName);
-                                                    future.completeExceptionally(e);
-                                                    return null;
-                                                } else {
-                                                    log.info("[{}] Successfully created subsciption {} {}",
-                                                            clientAppId(), topicName, subName);
-                                                    future.complete(null);
-                                                    return null;
-                                                }
-                                            });
-                                            return null;
-                                        }
-                                    });
-                                    subscriptionCreationFuture.add(future);
-                                }
-                            });
-                            // wait for all subscriptions to be created
-                            FutureUtil.waitForAll(subscriptionCreationFuture).handle((res, subscriptionException) -> {
-                                // close all topics and then complete result future
-                                FutureUtil.waitForAll(
-                                        topics.stream().map(topic -> topic.close()).collect(Collectors.toList()))
-                                        .handle((closed, topicCloseException) -> {
-                                            if (topicCloseException != null) {
-                                                log.warn("Failed to close newly created partitioned topics for {} ", dn,
-                                                        topicCloseException);
-                                            }
-                                            if (subscriptionException != null) {
-                                                result.completeExceptionally(subscriptionException);
-                                            } else {
-                                                log.info("[{}] Successfully created new partitions {}", clientAppId(),
-                                                        dn.toString());
-                                                result.complete(null);
-                                            }
-                                            return null;
-                                        });
-                                return null;
-                            });
-                        }
+            admin.persistentTopics().getStatsAsync(dn.getPartition(0).toString()).thenAccept(stats -> {
+                stats.subscriptions.keySet().forEach(subscription -> {
+                    List<CompletableFuture<Void>> subscriptionFutures = new ArrayList<>();
+                    for (int i = partitionMetadata.partitions; i < numPartitions; i++) {
+                        final String topicName = dn.getPartition(i).toString();
 
-                        @Override
-                        public void operationFailed(MetaStoreException ex) {
-                            log.warn("[{}] Failed to get list of cursors of {}", clientAppId(), ledgerName);
-                            result.completeExceptionally(ex);
-                        }
+                        subscriptionFutures.add(admin.persistentTopics().createSubscriptionAsync(topicName,
+                                subscription, MessageId.latest));
+                    }
+
+                    FutureUtil.waitForAll(subscriptionFutures).thenRun(() -> {
+                        log.info("[{}] Successfully created new partitions {}", clientAppId(), dn);
+                        result.complete(null);
+                    }).exceptionally(ex -> {
+                        log.warn("[{}] Failed to create subscriptions on new partitions for {}", clientAppId(), dn, ex);
+                        result.completeExceptionally(ex);
+                        return null;
                     });
+                });
+            }).exceptionally(ex -> {
+                if (ex.getCause() instanceof PulsarAdminException.NotFoundException) {
+                    // The first partition doesn't exist, so there are currently to subscriptions to recreate
+                    result.complete(null);
+                } else {
+                    log.warn("[{}] Failed to get list of subscriptions of {}", clientAppId(), dn.getPartition(0), ex);
+                    result.completeExceptionally(ex);
+                }
+                return null;
+            });
         }).exceptionally(ex -> {
             log.warn("[{}] Failed to get partition metadata for {}", clientAppId(), dn.toString());
             result.completeExceptionally(ex);

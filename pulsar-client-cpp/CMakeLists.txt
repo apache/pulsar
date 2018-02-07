@@ -19,6 +19,7 @@
 
 cmake_minimum_required(VERSION 2.8)
 project (pulsar-cpp)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules")
 
 option(LINK_STATIC "Link against static libraries" OFF)
 MESSAGE(STATUS "LINK_STATIC:  " ${LINK_STATIC})
@@ -92,20 +93,36 @@ MESSAGE(STATUS "PYTHON: " ${PYTHONLIBS_VERSION_STRING})
 
 if (PYTHONLIBS_VERSION_STRING MATCHES "^3.+$")
     MESSAGE(STATUS "DETECTED Python 3")
+    string(REPLACE "." ";" PYTHONLIBS_VERSION_NO_LIST ${PYTHONLIBS_VERSION_STRING})
+    list(GET PYTHONLIBS_VERSION_NO_LIST 0 PYTHONLIBS_VERSION_MAJOR)
+    list(GET PYTHONLIBS_VERSION_NO_LIST 1 PYTHONLIBS_VERSION_MINOR)
+    set(BOOST_PYTHON_NAME_POSTFIX ${PYTHONLIBS_VERSION_MAJOR}${PYTHONLIBS_VERSION_MINOR})
     # For python3 the lib name is boost_python3
-    set(BOOST_PYTHON_NAME python3)
+    set(BOOST_PYTHON_NAME_LIST python3;python3-mt;python-py${BOOST_PYTHON_NAME_POSTFIX})
 else ()
     # Regular boost_python
-    set(BOOST_PYTHON_NAME python)
+    set(BOOST_PYTHON_NAME_LIST python;python-mt;python-py27)
+endif ()
+
+foreach (BOOST_PYTHON_NAME IN LISTS BOOST_PYTHON_NAME_LIST)
+    find_package(Boost QUIET COMPONENTS ${BOOST_PYTHON_NAME})
+    if (${Boost_FOUND})
+        set(BOOST_PYTHON_NAME_FOUND ${BOOST_PYTHON_NAME})
+        break()
+    endif()
+endforeach()
+
+if (NOT ${Boost_FOUND})
+    MESSAGE(FATAL_ERROR "Could not find Boost Python library")
 endif ()
 
 find_package(Boost REQUIRED COMPONENTS program_options filesystem regex
-                    thread system ${BOOST_PYTHON_NAME})
-
+                                       thread system ${BOOST_PYTHON_NAME_FOUND})
 
 
 find_package(OpenSSL REQUIRED)
 find_path(GTEST_INCLUDE_PATH gtest/gtest.h)
+find_path(GMOCK_INCLUDE_PATH gmock/gmock.h)
 find_path(JSON_INCLUDE_PATH jsoncpp)
 find_path(LOG4CXX_INCLUDE_PATH log4cxx/logger.h)
 
@@ -131,6 +148,7 @@ include_directories(
   ${PROTOBUF_INCLUDE_DIR}
   ${LOG4CXX_INCLUDE_PATH}
   ${GTEST_INCLUDE_PATH}
+  ${GMOCK_INCLUDE_PATH}
   ${JSON_INCLUDE_PATH}
 )
 
@@ -180,3 +198,24 @@ add_subdirectory(perf)
 add_subdirectory(examples)
 add_subdirectory(tests)
 add_subdirectory(python)
+
+# `make format` option
+set(CLANG_FORMAT_VERSION "5.0")
+find_package(ClangTools)
+set(BUILD_SUPPORT_DIR "${CMAKE_SOURCE_DIR}/build-support")
+add_custom_target(format ${BUILD_SUPPORT_DIR}/run_clang_format.py
+        ${CLANG_FORMAT_BIN}
+        0
+        ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
+        ${CMAKE_SOURCE_DIR}/lib
+        ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/include)
+
+# `make check-format` option (for CI test)
+add_custom_target(check-format ${BUILD_SUPPORT_DIR}/run_clang_format.py
+        ${CLANG_FORMAT_BIN}
+        1
+        ${BUILD_SUPPORT_DIR}/clang_format_exclusions.txt
+        ${CMAKE_SOURCE_DIR}/lib
+        ${CMAKE_SOURCE_DIR}/tests
+        ${CMAKE_SOURCE_DIR}/include)

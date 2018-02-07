@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
@@ -25,7 +26,9 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.net.URL;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
@@ -54,6 +57,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
 import org.apache.pulsar.common.policies.data.PartitionedTopicStats;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
@@ -71,6 +75,7 @@ import org.testng.annotations.Test;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
@@ -121,13 +126,13 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
      * 1. create a partitioned-topic
      * 2. update partitions with larger number of partitions
      * 3. verify: getPartitionedMetadata and check number of partitions
-     * 4. verify: this api creates existing subscription to new partitioned-topics 
-     *            so, message will not be lost in new partitions 
+     * 4. verify: this api creates existing subscription to new partitioned-topics
+     *            so, message will not be lost in new partitions
      *  a. start producer and produce messages
      *  b. check existing subscription for new topics and it should have backlog msgs
-     * 
+     *
      * </pre>
-     * 
+     *
      * @param topicName
      * @throws Exception
      */
@@ -219,6 +224,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         consumer2.close();
     }
 
+
     /**
      * verifies admin api command for non-persistent topic.
      * It verifies: partitioned-topic, stats
@@ -275,10 +281,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         producer.close();
     }
-    
+
     /**
      * verifies validation on persistent-policies
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -316,7 +322,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * validates update of persistent-policies reflects on managed-ledger and managed-cursor
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -340,12 +346,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final int newEnsembleSize = 5;
         admin.namespaces().setPersistence(namespace, new PersistencePolicies(newEnsembleSize, 3, 3, newThrottleRate));
 
-        for (int i = 0; i < 5; i++) {
-            if ((managedLedger.getConfig().getEnsembleSize() != newEnsembleSize
-                    && cursor.getThrottleMarkDelete() != newThrottleRate) || i == 4) {
-                Thread.sleep(200);
-            }
-        }
+        retryStrategically((test) -> managedLedger.getConfig().getEnsembleSize() != newEnsembleSize
+                && cursor.getThrottleMarkDelete() != newThrottleRate, 5, 200);
 
         // (1) verify cursor.markDelete has been updated
         assertEquals(cursor.getThrottleMarkDelete(), newThrottleRate);
@@ -359,7 +361,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * Verify unloading topic
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "topicType")
@@ -411,14 +413,14 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * Verifies reset-cursor at specific position using admin-api.
-     * 
+     *
      * <pre>
      * 1. Publish 50 messages
      * 2. Consume 20 messages
      * 3. reset cursor position on 10th message
      * 4. consume 40 messages from reset position
      * </pre>
-     * 
+     *
      * @param namespaceName
      * @throws Exception
      */
@@ -518,7 +520,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     /**
      * It verifies that pulsar with different load-manager generates different load-report and returned by admin-api
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -585,10 +587,10 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             assertTrue(e instanceof PreconditionFailedException);
         }
     }
-    
+
     /**
      * It validates that peer-cluster can't coexist in replication-cluster list
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -643,4 +645,94 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }
 
+    @Test
+    public void clusterFailureDomain() throws PulsarAdminException {
+
+        final String cluster = pulsar.getConfiguration().getClusterName();
+        admin.clusters().updateCluster(cluster,
+                new ClusterData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls()));
+        // create
+        FailureDomain domain = new FailureDomain();
+        domain.setBrokers(Sets.newHashSet("b1", "b2", "b3"));
+        admin.clusters().createFailureDomain(cluster, "domain-1", domain);
+        admin.clusters().updateFailureDomain(cluster, "domain-1", domain);
+
+        assertEquals(admin.clusters().getFailureDomain(cluster, "domain-1"), domain);
+
+        Map<String, FailureDomain> domains = admin.clusters().getFailureDomains(cluster);
+        assertEquals(domains.size(), 1);
+        assertTrue(domains.containsKey("domain-1"));
+
+        try {
+            // try to create domain with already registered brokers
+            admin.clusters().createFailureDomain(cluster, "domain-2", domain);
+            fail("should have failed because of brokers are already registered");
+        } catch (PulsarAdminException.ConflictException e) {
+            // Ok
+        }
+
+        admin.clusters().deleteFailureDomain(cluster, "domain-1");
+        assertTrue(admin.clusters().getFailureDomains(cluster).isEmpty());
+
+        admin.clusters().createFailureDomain(cluster, "domain-2", domain);
+        domains = admin.clusters().getFailureDomains(cluster);
+        assertEquals(domains.size(), 1);
+        assertTrue(domains.containsKey("domain-2"));
+    }
+
+    @Test
+    public void namespaceAntiAffinity() throws PulsarAdminException {
+        final String namespace = "prop-xyz/use/ns1";
+        final String antiAffinityGroup = "group";
+        assertTrue(isBlank(admin.namespaces().getNamespaceAntiAffinityGroup(namespace)));
+        admin.namespaces().setNamespaceAntiAffinityGroup(namespace, antiAffinityGroup);
+        assertEquals(admin.namespaces().getNamespaceAntiAffinityGroup(namespace), antiAffinityGroup);
+        admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
+        assertTrue(isBlank(admin.namespaces().getNamespaceAntiAffinityGroup(namespace)));
+
+        final String ns1 = "prop-xyz/use/antiAG1";
+        final String ns2 = "prop-xyz/use/antiAG2";
+        final String ns3 = "prop-xyz/use/antiAG3";
+        admin.namespaces().createNamespace(ns1);
+        admin.namespaces().createNamespace(ns2);
+        admin.namespaces().createNamespace(ns3);
+        admin.namespaces().setNamespaceAntiAffinityGroup(ns1, antiAffinityGroup);
+        admin.namespaces().setNamespaceAntiAffinityGroup(ns2, antiAffinityGroup);
+        admin.namespaces().setNamespaceAntiAffinityGroup(ns3, antiAffinityGroup);
+
+        Set<String> namespaces = new HashSet<>(
+                admin.namespaces().getAntiAffinityNamespaces("dummy", "use", antiAffinityGroup));
+        assertEquals(namespaces.size(), 3);
+        assertTrue(namespaces.contains(ns1));
+        assertTrue(namespaces.contains(ns2));
+        assertTrue(namespaces.contains(ns3));
+
+        List<String> namespaces2 = admin.namespaces().getAntiAffinityNamespaces("dummy", "use", "invalid-group");
+        assertEquals(namespaces2.size(), 0);
+    }
+
+    @Test
+    public void testNonPersistentTopics() throws Exception {
+        final String namespace = "prop-xyz/use/ns2";
+        final String topicName = "non-persistent://" + namespace + "/topic";
+        admin.namespaces().createNamespace(namespace, 20);
+        int totalTopics = 100;
+
+        Set<String> topicNames = Sets.newHashSet();
+        for (int i = 0; i < totalTopics; i++) {
+            topicNames.add(topicName + i);
+            Producer producer = pulsarClient.createProducer(topicName + i);
+            producer.close();
+        }
+
+        for (int i = 0; i < totalTopics; i++) {
+            Topic topic = pulsar.getBrokerService().getTopicReference(topicName + i);
+            assertNotNull(topic);
+        }
+
+        Set<String> topicsInNs = Sets.newHashSet(admin.nonPersistentTopics().getList(namespace));
+        assertEquals(topicsInNs.size(), totalTopics);
+        topicsInNs.removeAll(topicNames);
+        assertEquals(topicsInNs.size(), 0);
+    }
 }

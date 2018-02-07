@@ -135,7 +135,7 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
         doNothing().when(namespaces).validateAdminAccessOnProperty("other-property");
         doNothing().when(namespaces).validateAdminAccessOnProperty("new-property");
 
-        admin.clusters().createCluster("use", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
+        admin.clusters().updateCluster("use", new ClusterData("http://broker-use.com:" + BROKER_WEBSERVICE_PORT));
         admin.clusters().createCluster("usw", new ClusterData("http://broker-usw.com:" + BROKER_WEBSERVICE_PORT));
         admin.clusters().createCluster("usc", new ClusterData("http://broker-usc.com:" + BROKER_WEBSERVICE_PORT));
         admin.properties().createProperty(this.testProperty,
@@ -821,7 +821,6 @@ public class NamespacesTest extends MockedPulsarServiceBaseTest {
 
         }));
 
-        doNothing().when(nsSvc).unloadNamespace(testNs);
         NamespaceBundle bundle = nsSvc.getNamespaceBundleFactory().getFullBundle(testNs);
         doNothing().when(namespaces).validateBundleOwnership(bundle, false, true);
 

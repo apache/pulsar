@@ -23,6 +23,7 @@ import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -31,6 +32,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.common.api.Commands;
@@ -56,6 +58,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
+import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.util.concurrent.Promise;
 
 public class ClientCnx extends PulsarHandler {
@@ -84,17 +87,15 @@ public class ClientCnx extends PulsarHandler {
     private String proxyToTargetBrokerAddress = null;
 
     enum State {
-        None, SentConnectFrame, Ready
+        None, SentConnectFrame, Ready, Failed
     }
 
-    public ClientCnx(PulsarClientImpl pulsarClient) {
+    public ClientCnx(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
         super(30, TimeUnit.SECONDS);
-        this.pendingLookupRequestSemaphore = new Semaphore(pulsarClient.getConfiguration().getConcurrentLookupRequest(),
-                true);
-        this.authentication = pulsarClient.getConfiguration().getAuthentication();
-        this.eventLoopGroup = pulsarClient.eventLoopGroup();
-        this.maxNumberOfRejectedRequestPerConnection = pulsarClient.getConfiguration()
-                .getMaxNumberOfRejectedRequestPerConnection();
+        this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
+        this.authentication = conf.getAuthentication();
+        this.eventLoopGroup = eventLoopGroup;
+        this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.state = State.None;
     }
 
@@ -153,8 +154,24 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.warn("{} Exception caught: {}", ctx.channel(), cause.getMessage(), cause);
+        if (state != State.Failed) {
+            // No need to report stack trace for known exceptions that happen in disconnections
+            log.warn("[{}] Got exception {} : {}", remoteAddress, cause.getClass().getSimpleName(), cause.getMessage(),
+                    isKnownException(cause) ? null : cause);
+            state = State.Failed;
+        } else {
+            // At default info level, suppress all subsequent exceptions that are thrown when the connection has already
+            // failed
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Got exception: {}", remoteAddress, cause.getMessage(), cause);
+            }
+        }
+
         ctx.close();
+    }
+
+    public static boolean isKnownException(Throwable t) {
+        return t instanceof NativeIoException || t instanceof ClosedChannelException;
     }
 
     @Override
@@ -510,6 +527,8 @@ public class ClientCnx extends PulsarHandler {
             return new PulsarClientException.AuthenticationException(errorMsg);
         case AuthorizationError:
             return new PulsarClientException.AuthorizationException(errorMsg);
+        case ProducerBusy:
+            return new PulsarClientException.ProducerBusyException(errorMsg);
         case ConsumerBusy:
             return new PulsarClientException.ConsumerBusyException(errorMsg);
         case MetadataError:

@@ -86,6 +86,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
 
+        if (!authResult) {
+            return;
+        }
+
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             if (!this.service.addConsumer(this)) {
@@ -270,12 +274,16 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             conf.setConsumerName(queryParams.get("consumerName"));
         }
 
+        if (queryParams.containsKey("priorityLevel")) {
+            conf.setPriorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
+        }
+
         return conf;
     }
 
     @Override
     protected Boolean isAuthorized(String authRole) throws Exception {
-        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
+        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole, this.subscription);
     }
 
     private static String extractSubscription(HttpServletRequest request) {

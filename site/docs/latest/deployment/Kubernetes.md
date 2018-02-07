@@ -1,6 +1,6 @@
 ---
 title: Deploying Pulsar on Kubernetes
-tags: [Kubernetes, Google Container Engine]
+tags: [Kubernetes, Google Kubernetes Engine]
 ---
 
 <!--
@@ -24,7 +24,7 @@ tags: [Kubernetes, Google Container Engine]
 
 -->
 
-Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Container Engine](#pulsar-on-google-container-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
+Pulsar can be easily deployed in [Kubernetes](https://kubernetes.io/) clusters, either in managed clusters on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or [Amazon Web Services](https://aws.amazon.com/) or in [custom clusters](#pulsar-on-a-custom-kubernetes-cluster).
 
 The deployment method shown in this guide relies on [YAML](http://yaml.org/) definitions for Kubernetes [resources](https://kubernetes.io/docs/resources-reference/v1.6/). The [`kubernetes`]({{ site.pulsar_repo }}/kubernetes) subdirectory of the [Pulsar package](/download) holds resource definitions for:
 
@@ -42,9 +42,9 @@ To get started, install a source package from the [downloads page](/download).
 
 If you'd like to change the number of bookies, brokers, or ZooKeeper nodes in your Pulsar cluster, modify the `replicas` parameter in the `spec` section of the appropriate [`Deployment`](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/) or [`StatefulSet`](https://kubernetes.io/docs/concepts/workloads/controllers/statefulset/) resource.
 
-## Pulsar on Google Container Engine
+## Pulsar on Google Kubernetes Engine
 
-[Google Container Engine](https://cloud.google.com/container-engine) (GKE) automates the creation and management of Kubernetes clusters in [Google Compute Engine](https://cloud.google.com/compute/) (GCE).
+[Google Kubernetes Engine](https://cloud.google.com/kubernetes-engine) (GKE) automates the creation and management of Kubernetes clusters in [Google Compute Engine](https://cloud.google.com/compute/) (GCE).
 
 ### Prerequisites
 
@@ -156,9 +156,9 @@ Now you can access the web interface at [localhost:8001/ui](http://localhost:800
 
 ## Deploying Pulsar components
 
-Now that you've set up a Kubernetes cluster, either on [Google Container Engine](#pulsar-on-google-container-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](/download).
+Now that you've set up a Kubernetes cluster, either on [Google Kubernetes Engine](#pulsar-on-google-kubernetes-engine) or on a [custom cluster](#pulsar-on-a-custom-kubernetes-cluster), you can begin deploying the components that make up Pulsar. The YAML resource definitions for Pulsar components can be found in the `kubernetes` folder of the [Pulsar source package](/download).
 
-In that package, there are two sets of resource definitions, one for Google Container Engine (GKE) in the `kubernetes/google-container-engine` folder and one for a custom Kubernetes cluster in the `kubernetes/generic` folder. To begin, `cd` into the appropriate folder.
+In that package, there are two sets of resource definitions, one for Google Kubernetes Engine (GKE) in the `deployment/kubernetes/google-kubernetes-engine` folder and one for a custom Kubernetes cluster in the `deployment/kubernetes/generic` folder. To begin, `cd` into the appropriate folder.
 
 ### ZooKeeper
 
@@ -182,34 +182,38 @@ This step may take several minutes, as Kubernetes needs to download the Docker i
 
 #### Initialize cluster metadata
 
-Once ZooKeeper is running, you need to [initialize the metadata](../InstanceSetup#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for {% popover BookKeeper %} and Pulsar more broadly.
+Once ZooKeeper is running, you need to [initialize the metadata](../InstanceSetup#cluster-metadata-initialization) for the Pulsar cluster in ZooKeeper. This includes system metadata for {% popover BookKeeper %} and Pulsar more broadly. There is a Kubernetes [job](https://kubernetes.io/docs/concepts/workloads/controllers/jobs-run-to-completion/) in the `cluster-metadata.yaml` file that you only need to run once:
 
 ```bash
-$ kubectl exec -it zk-0 -- \
-    bin/pulsar initialize-cluster-metadata \
-      --cluster us-central \
-      --zookeeper zookeeper \
-      --global-zookeeper zookeeper \
-      --web-service-url http://broker.default.svc.cluster.local:8080/ \
-      --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
+$ kubectl apply -f cluster-metadata.yaml
 ```
 
-Make sure to modify the metadata values for your own cluster when necessary.
+For the sake of reference, that job runs the following command on an ephemeral pod:
+
+```bash
+$ bin/pulsar initialize-cluster-metadata \
+  --cluster us-central \
+  --zookeeper zookeeper \
+  --global-zookeeper zookeeper \
+  --web-service-url http://broker.default.svc.cluster.local:8080/ \
+  --broker-service-url pulsar://broker.default.svc.cluster.local:6650/
+```
 
 #### Deploy the rest of the components
 
-Once cluster metadata has been successfully initialized, you can then deploy the {% popover bookies %}, {% popover brokers %}, and monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](../../admin/Dashboard)).
+Once cluster metadata has been successfully initialized, you can then deploy the {% popover bookies %}, {% popover brokers %}, monitoring stack ([Prometheus](https://prometheus.io), [Grafana](https://grafana.com), and the [Pulsar dashboard](../../admin/Dashboard)), and Pulsar cluster proxy:
 
 ```bash
 $ kubectl apply -f bookie.yaml
 $ kubectl apply -f broker.yaml
 $ kubectl apply -f monitoring.yaml
+$ kubectl apply -f proxy.yaml
 ```
 
 You can check on the status of the pods for these components either in the Kubernetes Dashboard or using `kubectl`:
 
 ```bash
-$ kubectl get pods
+$ kubectl get pods -w -l app=pulsar
 ```
 
 #### Set up properties and namespaces
@@ -220,47 +224,66 @@ Once all of the components are up and running, you'll need to create at least on
 This step is not strictly required if Pulsar [authentication and authorization](../../admin/Authz) is turned on, though it allows you to change [policies](../../admin/PropertiesNamespaces#managing-namespaces) for each of the namespaces later.
 ' %}
 
-To create properties and namespaces, connect to the `pulsar-admin` pod that has already been configured to act as a client for your newly created Pulsar cluster.
+You can create properties and namespaces (and perform any other administrative tasks) using the `pulsar-admin` pod that is already configured to act as an admin client for your newly created Pulsar cluster. One easy way to perform administrative tasks is to create an alias for the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool installed on the admin pod.
 
 ```bash
-$ kubectl exec pulsar-admin -it -- bash
+$ alias pulsar-admin='kubectl exec pulsar-admin -it -- bin/pulsar-admin'
 ```
 
-From there, you can issue all admin commands. Here's an example command that would create a property named `prop` and a namespace within that property named `prop/us-central/ns`.
+Now, any time you run `pulsar-admin`, you will be running commands from that pod. This command will create a property called `prop`:
 
 ```bash
-export MY_PROPERTY=prop
-export MY_NAMESPACE=prop/us-central/ns
-
-# Provision a new Pulsar property
-$ bin/pulsar-admin properties create $MY_PROPERTY \
+$ pulsar-admin properties create prop \
   --admin-roles admin \
   --allowed-clusters us-central
-
-# Create a namespace
-$ bin/pulsar-admin namespaces create $MY_NAMESPACE
 ```
+
+This command will create a `ns` namespace under the `prop` property and the `us-central` cluster:
+
+```bash
+$ pulsar-admin namespaces create prop/us-central/ns
+```
+
+To verify that everything has gone as planned:
+
+```bash
+$ pulsar-admin properties list
+prop
+
+$ pulsar-admin namespaces list prop/us-central
+ns
+```
+
+Now that you have a namespace and property set up, you can move on to [experimenting with your Pulsar cluster](#experimenting-with-your-cluster) from within the cluster or [connecting to the cluster](#client-connections) using a Pulsar client.
 
 #### Experimenting with your cluster
 
-Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. From the same `pulsar-admin` pod, for example, you can use [`pulsar-perf`](../../reference/CliTools#pulsar-perf) to create a test {% popover producer %} to publish 10,000 messages a second on a topic in the {% popover property %} and {% popover namespace %} you created:
+Now that a property and namespace have been created, you can begin experimenting with your running Pulsar cluster. Using the same `pulsar-admin` pod via an alias, as in the section above, you can use [`pulsar-perf`](../../reference/CliTools#pulsar-perf) to create a test {% popover producer %} to publish 10,000 messages a second on a topic in the {% popover property %} and {% popover namespace %} you created.
+
+First, create an alias to use the `pulsar-perf` tool via the admin pod:
 
 ```bash
-$ bin/pulsar-perf produce persistent://prop/us-central/ns/my-topic \
+$ alias pulsar-perf='kubectl exec pulsar-admin -it -- bin/pulsar-perf'
+```
+
+Now, produce messages:
+
+```bash
+$ pulsar-perf produce persistent://prop/us-central/ns/my-topic \
   --rate 10000
 ```
 
 Similarly, you can start a {% popover consumer %} to subscribe to and receive all the messages on that topic:
 
 ```bash
-$ bin/pulsar-perf consume persistent://prop/us-central/ns/my-topic \
+$ pulsar-perf consume persistent://prop/us-central/ns/my-topic \
   --subscriber-name my-subscription-name
 ```
 
 You can also view [stats](../../admin/Stats) for the topic using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin-persistent-stats) tool:
 
 ```bash
-$ bin/pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
+$ pulsar-admin persistent stats persistent://prop/us-central/ns/my-topic
 ```
 
 ### Monitoring
@@ -276,7 +299,8 @@ All Pulsar metrics in Kubernetes are collected by a [Prometheus](https://prometh
 In your Kubernetes cluster, you can use [Grafana](https://grafana.com) to view dashbaords for Pulsar {% popover namespaces %} (message rates, latency, and storage), JVM stats, {% popover ZooKeeper %}, and {% popover BookKeeper %}. You can get access to the pod serving Grafana using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
 
 ```bash
-$ kubectl port-forward $(kubectl get pods | grep grafana | awk '{print $1}') 3000
+$ kubectl port-forward \
+  $(kubectl get pods -l component=grafana -o jsonpath='{.items[*].metadata.name}') 3000
 ```
 
 You can then access the dashboard in your web browser at [localhost:3000](http://localhost:3000).
@@ -290,7 +314,25 @@ For example, you can have sortable tables showing all namespaces, topics, and br
 You can access to the pod serving the Pulsar dashboard using `kubectl`'s [`port-forward`](https://kubernetes.io/docs/tasks/access-application-cluster/port-forward-access-application-cluster) command:
 
 ```bash
-$ kubectl port-forward $(kubectl get pods | grep pulsar-dashboard | awk '{print $1}') 8080:80
+$ kubectl port-forward \
+  $(kubectl get pods -l component=dashboard -o jsonpath='{.items[*].metadata.name}') 8080:80
 ```
 
 You can then access the dashboard in your web browser at [localhost:8080](http://localhost:8080).
+
+### Client connections
+
+Once your Pulsar cluster is running on Kubernetes, you can connect to it using a Pulsar client. You can fetch the IP address for the Pulsar proxy running in your Kubernetes cluster using kubectl:
+
+```bash
+$ kubectl get service broker-proxy \
+  --output=jsonpath='{.status.loadBalancer.ingress[*].ip}'
+```
+
+If the IP address for the proxy were, for example, 35.12.13.198, you could connect to Pulsar using `pulsar://35.12.13.198:6650`.
+
+You can find client documentation for:
+
+* [Java](../../clients/Java)
+* [Python](../../clients/Python)
+* [C++](../../clients/Cpp)

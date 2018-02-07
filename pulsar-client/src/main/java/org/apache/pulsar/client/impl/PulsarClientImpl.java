@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static org.apache.commons.lang3.StringUtils.isBlank;
+
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -38,8 +40,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -53,8 +57,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
-
-import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class PulsarClientImpl implements PulsarClient {
 
@@ -86,13 +88,19 @@ public class PulsarClientImpl implements PulsarClient {
 
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
+        this(serviceUrl, conf, eventLoopGroup, new ConnectionPool(conf, eventLoopGroup));
+    }
+
+    public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup,
+            ConnectionPool cnxPool)
+            throws PulsarClientException {
         if (isBlank(serviceUrl) || conf == null || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
         }
         this.eventLoopGroup = eventLoopGroup;
         this.conf = conf;
         conf.getAuthentication().start();
-        cnxPool = new ConnectionPool(this, eventLoopGroup);
+        this.cnxPool = cnxPool;
         if (serviceUrl.startsWith("http")) {
             lookup = new HttpLookupService(serviceUrl, conf, eventLoopGroup);
         } else {
@@ -233,6 +241,14 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+        if (conf.getReadCompacted()
+            && (!DestinationName.get(topic).getDomain().equals(DestinationDomain.persistent)
+                    || (conf.getSubscriptionType() != SubscriptionType.Exclusive
+                        && conf.getSubscriptionType() != SubscriptionType.Failover))) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                            "Read compacted can only be used with exclusive of failover persistent subscriptions"));
         }
 
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
@@ -439,7 +455,7 @@ public class PulsarClientImpl implements PulsarClient {
         return cnxPool;
     }
 
-    EventLoopGroup eventLoopGroup() {
+    public EventLoopGroup eventLoopGroup() {
         return eventLoopGroup;
     }
 

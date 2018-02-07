@@ -71,6 +71,7 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Maps;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
+import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
 public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetaStore store;
@@ -432,7 +433,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
                             // Completed all the cursors info
                             callback.getInfoComplete(info, ctx);
                         }).exceptionally((ex) -> {
-                            callback.getInfoFailed(new ManagedLedgerException(ex), ctx);
+                            callback.getInfoFailed(getManagedLedgerException(ex.getCause()), ctx);
                             return null;
                         });
                     }

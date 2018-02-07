@@ -18,18 +18,12 @@
  */
 #include <lib/ProducerConfigurationImpl.h>
 
-
 namespace pulsar {
-ProducerConfiguration::ProducerConfiguration()
-        : impl_(boost::make_shared<ProducerConfigurationImpl>()) {
-}
+ProducerConfiguration::ProducerConfiguration() : impl_(boost::make_shared<ProducerConfigurationImpl>()) {}
 
-ProducerConfiguration::~ProducerConfiguration() {
-}
+ProducerConfiguration::~ProducerConfiguration() {}
 
-ProducerConfiguration::ProducerConfiguration(const ProducerConfiguration& x)
-        : impl_(x.impl_) {
-}
+ProducerConfiguration::ProducerConfiguration(const ProducerConfiguration& x) : impl_(x.impl_) {}
 
 ProducerConfiguration& ProducerConfiguration::operator=(const ProducerConfiguration& x) {
     impl_ = x.impl_;
@@ -60,18 +54,14 @@ ProducerConfiguration& ProducerConfiguration::setSendTimeout(int sendTimeoutMs) 
     return *this;
 }
 
-int ProducerConfiguration::getSendTimeout() const {
-    return impl_->sendTimeoutMs;
-}
+int ProducerConfiguration::getSendTimeout() const { return impl_->sendTimeoutMs; }
 
 ProducerConfiguration& ProducerConfiguration::setCompressionType(CompressionType compressionType) {
     impl_->compressionType = compressionType;
     return *this;
 }
 
-CompressionType ProducerConfiguration::getCompressionType() const {
-    return impl_->compressionType;
-}
+CompressionType ProducerConfiguration::getCompressionType() const { return impl_->compressionType; }
 
 ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendingMessages) {
     if (maxPendingMessages <= 0) {
@@ -81,12 +71,21 @@ ProducerConfiguration& ProducerConfiguration::setMaxPendingMessages(int maxPendi
     return *this;
 }
 
-int ProducerConfiguration::getMaxPendingMessages() const {
-    return impl_->maxPendingMessages;
+int ProducerConfiguration::getMaxPendingMessages() const { return impl_->maxPendingMessages; }
+
+ProducerConfiguration& ProducerConfiguration::setMaxPendingMessagesAcrossPartitions(int maxPendingMessages) {
+    if (maxPendingMessages <= 0) {
+        throw "maxPendingMessages needs to be greater than 0";
+    }
+    impl_->maxPendingMessagesAcrossPartitions = maxPendingMessages;
+    return *this;
 }
 
-ProducerConfiguration& ProducerConfiguration::setPartitionsRoutingMode(
-        const PartitionsRoutingMode& mode) {
+int ProducerConfiguration::getMaxPendingMessagesAcrossPartitions() const {
+    return impl_->maxPendingMessagesAcrossPartitions;
+}
+
+ProducerConfiguration& ProducerConfiguration::setPartitionsRoutingMode(const PartitionsRoutingMode& mode) {
     impl_->routingMode = mode;
     return *this;
 }
@@ -95,8 +94,7 @@ ProducerConfiguration::PartitionsRoutingMode ProducerConfiguration::getPartition
     return impl_->routingMode;
 }
 
-ProducerConfiguration& ProducerConfiguration::setMessageRouter(
-        const MessageRoutingPolicyPtr& router) {
+ProducerConfiguration& ProducerConfiguration::setMessageRouter(const MessageRoutingPolicyPtr& router) {
     impl_->routingMode = ProducerConfiguration::CustomPartition;
     impl_->messageRouter = router;
     return *this;
@@ -106,25 +104,30 @@ const MessageRoutingPolicyPtr& ProducerConfiguration::getMessageRouterPtr() cons
     return impl_->messageRouter;
 }
 
+ProducerConfiguration& ProducerConfiguration::setHashingScheme(const HashingScheme& scheme) {
+    impl_->hashingScheme = scheme;
+    return *this;
+}
+
+ProducerConfiguration::HashingScheme ProducerConfiguration::getHashingScheme() const {
+    return impl_->hashingScheme;
+}
+
 ProducerConfiguration& ProducerConfiguration::setBlockIfQueueFull(bool flag) {
     impl_->blockIfQueueFull = flag;
     return *this;
 }
 
-bool ProducerConfiguration::getBlockIfQueueFull() const {
-    return impl_->blockIfQueueFull;
-}
+bool ProducerConfiguration::getBlockIfQueueFull() const { return impl_->blockIfQueueFull; }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingEnabled(const bool& batchingEnabled) {
     impl_->batchingEnabled = batchingEnabled;
     return *this;
 }
-const bool& ProducerConfiguration::getBatchingEnabled() const {
-    return impl_->batchingEnabled;
-}
+const bool& ProducerConfiguration::getBatchingEnabled() const { return impl_->batchingEnabled; }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxMessages(
-        const unsigned int& batchingMaxMessages) {
+    const unsigned int& batchingMaxMessages) {
     if (batchingMaxMessages <= 1) {
         throw "batchingMaxMessages needs to be greater than 1";
     }
@@ -137,7 +140,7 @@ const unsigned int& ProducerConfiguration::getBatchingMaxMessages() const {
 }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxAllowedSizeInBytes(
-        const unsigned long& batchingMaxAllowedSizeInBytes) {
+    const unsigned long& batchingMaxAllowedSizeInBytes) {
     impl_->batchingMaxAllowedSizeInBytes = batchingMaxAllowedSizeInBytes;
     return *this;
 }
@@ -146,7 +149,7 @@ const unsigned long& ProducerConfiguration::getBatchingMaxAllowedSizeInBytes() c
 }
 
 ProducerConfiguration& ProducerConfiguration::setBatchingMaxPublishDelayMs(
-        const unsigned long& batchingMaxPublishDelayMs) {
+    const unsigned long& batchingMaxPublishDelayMs) {
     impl_->batchingMaxPublishDelayMs = batchingMaxPublishDelayMs;
     return *this;
 }
@@ -154,4 +157,32 @@ ProducerConfiguration& ProducerConfiguration::setBatchingMaxPublishDelayMs(
 const unsigned long& ProducerConfiguration::getBatchingMaxPublishDelayMs() const {
     return impl_->batchingMaxPublishDelayMs;
 }
+
+const CryptoKeyReaderPtr ProducerConfiguration::getCryptoKeyReader() const { return impl_->cryptoKeyReader; }
+
+ProducerConfiguration& ProducerConfiguration::setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader) {
+    impl_->cryptoKeyReader = cryptoKeyReader;
+    return *this;
 }
+
+ProducerCryptoFailureAction ProducerConfiguration::getCryptoFailureAction() const {
+    return impl_->cryptoFailureAction;
+}
+
+ProducerConfiguration& ProducerConfiguration::setCryptoFailureAction(ProducerCryptoFailureAction action) {
+    impl_->cryptoFailureAction = action;
+    return *this;
+}
+
+std::set<std::string>& ProducerConfiguration::getEncryptionKeys() { return impl_->encryptionKeys; }
+
+bool ProducerConfiguration::isEncryptionEnabled() const {
+    return (!impl_->encryptionKeys.empty() && (impl_->cryptoKeyReader != NULL));
+}
+
+ProducerConfiguration& ProducerConfiguration::addEncryptionKey(std::string key) {
+    impl_->encryptionKeys.insert(key);
+    return *this;
+}
+
+}  // namespace pulsar

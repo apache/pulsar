@@ -39,7 +39,7 @@ To get started running Pulsar, download a binary tarball release in one of the f
 
   ```shell
   # Binary release
-  $ wget http://archive.apache.org/dist/incubator/pulsar/pulsar-{{site.current_version}}/apache-pulsar-{{site.current_version}}-bin.tar.gz
+  $ wget {{ binary_release_url }}
   ```
 
 Once the tarball is downloaded, untar it and `cd` into the resulting directory:

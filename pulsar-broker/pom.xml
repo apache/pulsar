@@ -75,7 +75,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-admin</artifactId>
+      <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -224,10 +224,29 @@
       <groupId>com.ea.agentloader</groupId>
       <artifactId>ea-agent-loader</artifactId>
     </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>buildtools</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
   </dependencies>
 
   <build>
     <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <properties>
+            <property>
+              <name>listener</name>
+              <value>org.apache.pulsar.tests.AnnotationListener</value>
+            </property>
+          </properties>
+        </configuration>
+      </plugin>
       <plugin>
         <groupId>org.codehaus.mojo</groupId>
         <artifactId>aspectj-maven-plugin</artifactId>
@@ -246,7 +265,6 @@
         </configuration>
         <executions>
           <execution>
-            <phase>process-sources</phase>
             <goals>
               <goal>compile</goal>
             </goals>

@@ -31,9 +31,10 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -43,12 +44,10 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
-import org.mockito.Mockito;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
@@ -56,17 +55,16 @@ import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -81,18 +79,24 @@ import org.testng.collections.Lists;
 public class ReplicatorTest extends ReplicatorTestBase {
 
     @Override
-    @BeforeClass
+    @BeforeClass(timeOut = 30000)
     void setup() throws Exception {
         super.setup();
     }
 
     @Override
-    @AfterClass
+    @AfterClass(timeOut = 30000)
     void shutdown() throws Exception {
-        super.shutdown();
+        ForkJoinPool.commonPool().execute(() -> {
+            try {
+                super.shutdown();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testConfigChange() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
         // This test is to verify that the config change on global namespace is successfully applied in broker during
@@ -177,7 +181,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // Case 3: TODO: Once automatic cleanup is implemented, add tests case to verify auto removal of clusters
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testConcurrentReplicator() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testConcurrentReplicator ---");
@@ -220,7 +224,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, timeOut = 30000)
     public void testConfigChangeNegativeCases() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChangeNegativeCases ---");
         // Negative test cases for global namespace config change. Verify that the namespace config change can not be
@@ -254,7 +258,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ownerCache.tryAcquiringOwnership(globalNsBundle);
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testReplication() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplication ---");
@@ -355,7 +359,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test(enabled = false)
+    @Test(enabled = false, timeOut = 30000)
     public void testReplicationOverrides() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicationOverrides ---");
@@ -438,7 +442,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testFailures() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testFailures ---");
@@ -459,7 +463,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testReplicatePeekAndSkip() throws Exception {
 
         SortedSet<String> testDests = new TreeSet<String>();
@@ -482,7 +486,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.close();
     }
 
-    @Test
+    @Test(timeOut = 30000)
     public void testReplicatorClearBacklog() throws Exception {
 
         // This test is to verify that reset cursor fails on global topic
@@ -509,7 +513,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         consumer1.close();
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testResetCursorNotFail() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testResetCursorNotFail ---");
@@ -555,7 +559,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         admin1.persistentTopics().resetCursor(testDests.first(), "sub-id", System.currentTimeMillis());
     }
 
-    @Test(enabled = true)
+    @Test(enabled = true, timeOut = 30000)
     public void testReplicationForBatchMessages() throws Exception {
 
         log.info("--- Starting ReplicatorTest::testReplicationForBatchMessages ---");
@@ -629,7 +633,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 30000)
     public void testDeleteReplicatorFailure() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
@@ -664,9 +668,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertNull(topic.getPersistentReplicator(replicatorClusterName));
             return null;
         });
+
+        producer1.close();
     }
 
-    @Test(priority = 5)
+    @Test(priority = 5, timeOut = 30000)
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
@@ -683,6 +689,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         field.setAccessible(true);
         ProducerImpl producer = (ProducerImpl) field.get(replicator);
         assertNull(producer);
+        producer1.close();
     }
 
     /**
