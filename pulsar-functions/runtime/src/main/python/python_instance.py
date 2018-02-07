@@ -45,6 +45,7 @@ import Queue
 import threading
 from functools import partial
 from collections import namedtuple
+import traceback
 
 import pulsar
 import contextimpl
@@ -70,8 +71,10 @@ class Stats(object):
     self.nprocessed = 0
     self.nsuccessfullyprocessed = 0
     self.nuserexceptions = 0
+    self.latestuserexceptions = []
     self.ntimeoutexceptions = 0
     self.nsystemexceptions = 0
+    self.latestsystemexceptions = []
     self.ndeserialization_exceptions = {}
     self.nserialization_exceptions = 0
     self.latency = 0
@@ -84,6 +87,18 @@ class Stats(object):
   def increment_successfully_processed(self, latency):
     self.nsuccessfullyprocessed += 1
     self.latency += latency
+
+  def record_user_exception(self, ex):
+    self.latestuserexceptions.append((traceback.format_exc(), int(time.time() * 1000)))
+    if len(self.latestuserexceptions) > 10:
+      self.latestuserexceptions.pop(0)
+    self.nuserexceptions = self.nuserexceptions + 1
+
+  def record_system_exception(self, ex):
+    self.latestsystemexceptions.append((traceback.format_exc(), int(time.time() * 1000)))
+    if len(self.latestsystemexceptions) > 10:
+      self.latestsystemexceptions.pop(0)
+    self.nsystemexceptions = self.nsystemexceptions + 1
 
   def compute_latency(self):
     if self.nsuccessfullyprocessed <= 0:
@@ -183,8 +198,8 @@ class PythonInstance(object):
         self.process_result(output_object, msg)
       except Exception as e:
         Log.exception("Exception while executing user method")
-        self.total_stats.nuserexceptions += 1
-        self.current_stats.nuserexceptions += 1
+        self.total_stats.record_user_exception(ex)
+        self.current_stats.record_user_exception(ex)
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
@@ -205,9 +220,9 @@ class PythonInstance(object):
       if output_bytes is not None:
         try:
           self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message))
-        except:
-          self.current_stats.nsystemexceptions += 1
-          self.total_stats.nsystemexceptions += 1
+        except Exception as e:
+          self.current_stats.record_system_exception(e)
+          self.total_stats.record_system_exception(e)
     elif self.auto_ack and self.atleast_once:
       msg.consumer.acknowledge(msg.message)
 
@@ -267,7 +282,15 @@ class PythonInstance(object):
     status.numSuccessfullyProcessed = self.total_stats.nsuccessfullyprocessed
     status.numTimeouts = self.total_stats.ntimeoutexceptions
     status.numUserExceptions = self.total_stats.nuserexceptions
+    for ex, tm in self.total_stats.latestuserexceptions:
+      to_add = status.latestUserExceptions.add()
+      to_add.exceptionString = ex
+      to_add.msSinceEpoch = tm
     status.numSystemExceptions = self.total_stats.nsystemexceptions
+    for ex, tm in self.total_stats.latestsystemexceptions:
+      to_add = status.latestSystemExceptions.add()
+      to_add.exceptionString = ex
+      to_add.msSinceEpoch = tm
     for (topic, metric) in self.total_stats.ndeserialization_exceptions.items():
       status.deserializationExceptions[topic] = metric
     status.serializationExceptions = self.total_stats.nserialization_exceptions
