@@ -130,6 +130,9 @@ class ContextImpl(context.Context):
   def get_output_serde_class_name(self):
     return self.instance_config.function_config.outputSerdeClassName
 
+  def publish(self, topic_name, message):
+    return self.publish(topic_name, message, "serde.IdentitySerDe")
+
   def publish(self, topic_name, message, serde_class_name):
     if topic_name not in self.publish_producers:
       self.publish_producers[topic_name] = self.pulsar_client.create_producer(
