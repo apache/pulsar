@@ -176,7 +176,11 @@ public abstract class MockedPulsarServiceBaseTest {
         PulsarService pulsar = spy(new PulsarService(conf));
 
         setupBrokerMocks(pulsar);
+        boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
+        // enable authrorization to initialize authorization service which is used by grant-permission
+        conf.setAuthorizationEnabled(true);
         pulsar.start();
+        conf.setAuthorizationEnabled(isAuthorizationEnabled);
         return pulsar;
     }
 
