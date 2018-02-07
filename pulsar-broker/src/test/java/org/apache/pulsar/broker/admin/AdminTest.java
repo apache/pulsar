@@ -34,14 +34,21 @@ import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
@@ -51,6 +58,9 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
+import org.apache.pulsar.broker.service.MockSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -62,6 +72,8 @@ import org.apache.pulsar.common.policies.data.NamespaceIsolationData;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.ResourceQuota;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.stats.AllocatorStats;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -70,6 +82,9 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.Code;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.ZooDefs.Ids;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
+import org.mockito.Matchers;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -88,10 +103,16 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private Brokers brokers;
     private ResourceQuotas resourceQuotas;
     private BrokerStats brokerStats;
+    private SchemasResource schemasResource;
 
     private Field uriField;
     private UriInfo uriInfo;
     private final String configClusterName = "use";
+
+    private Clock mockClock = Clock.fixed(
+        Instant.ofEpochSecond(365248800),
+        ZoneId.of("-05:00")
+    );
 
     public AdminTest() {
         super();
@@ -177,6 +198,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mockZookKeeper).when(brokerStats).localZk();
         doReturn(configurationCache.propertiesCache()).when(brokerStats).propertiesCache();
         doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
+
+        schemasResource = spy(new SchemasResource(mockClock));
+        schemasResource.setServletContext(new MockServletContext());
+        schemasResource.setPulsar(pulsar);
+        doReturn(mockZookKeeper).when(schemasResource).globalZk();
+        doReturn(mockZookKeeper).when(schemasResource).localZk();
+        doReturn(configurationCache.propertiesCache()).when(schemasResource).propertiesCache();
+        doReturn(configurationCache.policiesCache()).when(schemasResource).policiesCache();
     }
 
     @Override
@@ -633,6 +662,48 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         String message = "my-message";
         RestException exception = new RestException(Status.PRECONDITION_FAILED, message);
         assertEquals(exception.getMessage(), message);
+
+    }
+
+    @Test
+    public void testRestSchemaResources() throws Exception {
+
+        String schema = "message foo {};";
+
+
+
+        doReturn("test").when(schemasResource).clientAppId();
+
+        SchemaRegistryService mockSchemaRegistryService = spy(new MockSchemaRegistryService());
+        doReturn(CompletableFuture.completedFuture(1L))
+            .when(mockSchemaRegistryService).putSchema(Matchers.anyString(), Matchers.anyObject());
+        doReturn(mockSchemaRegistryService).when(pulsar).getSchemaRegistryService();
+
+        String requestUri = "persistent/property/cluster/namespace/topic";
+        doReturn(requestUri).when(uriInfo).getPath();
+        uriField.set(schemasResource, uriInfo);
+
+        AsyncResponse mockPostResponse = mock(AsyncResponse.class);
+        ArgumentCaptor<Response> postResponseCaptor = ArgumentCaptor.forClass(Response.class);
+        schemasResource.postSchema(
+            "property", "cluster", "namespace", "topic",
+            new SchemasResource.PostSchemaPayload("PROTOBUF", schema),
+            mockPostResponse
+        );
+        verify(mockPostResponse).resume(postResponseCaptor.capture());
+        assertEquals(new SchemasResource.PostSchemaResponse(1L), postResponseCaptor.getValue().getEntity());
+        assertEquals(Status.ACCEPTED, Status.fromStatusCode(postResponseCaptor.getValue().getStatus()));
+
+        verify(mockSchemaRegistryService).putSchema(
+            "property_cluster_namespace_topic",
+            Schema.newBuilder()
+                .data(schema.getBytes())
+                .isDeleted(false)
+                .timestamp(mockClock.millis())
+                .type(SchemaType.PROTOBUF)
+                .user("test")
+                .build()
+        );
 
     }
     

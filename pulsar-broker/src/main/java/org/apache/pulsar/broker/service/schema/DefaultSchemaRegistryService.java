@@ -79,7 +79,8 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
         this.clock = clock;
     }
 
-    private DefaultSchemaRegistryService(PulsarService pulsar) {
+    @VisibleForTesting
+    public DefaultSchemaRegistryService(PulsarService pulsar) {
         this(pulsar, Clock.systemUTC());
     }
 

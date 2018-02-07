@@ -18,36 +18,45 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.util.Objects.isNull;
+import static org.apache.pulsar.common.util.Codec.decode;
+
+import com.google.common.annotations.VisibleForTesting;
 import io.swagger.annotations.ApiOperation;
-import org.apache.pulsar.broker.service.BrokerService;
+import java.time.Clock;
+import java.util.Objects;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
+import javax.ws.rs.Produces;
+import javax.ws.rs.container.AsyncResponse;
+import javax.ws.rs.container.Suspended;
+import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 
-import javax.ws.rs.*;
-import javax.ws.rs.container.AsyncResponse;
-import javax.ws.rs.container.Suspended;
-import javax.ws.rs.core.MediaType;
-import javax.ws.rs.core.Response;
-import java.time.Clock;
-
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.Objects.isNull;
-import static org.apache.pulsar.common.util.Codec.decode;
-
 @Path("/schemas")
 public class SchemasResource extends AdminResource {
 
-    private final Clock clock = Clock.systemUTC();
+    private final Clock clock;
 
-    private final SchemaRegistryService schemaRegistryService =
-        pulsar().getSchemaRegistryService();
+    @VisibleForTesting
+    SchemasResource(Clock clock) {
+        super();
+        this.clock = clock;
+    }
 
-    private final BrokerService brokerService =
-        pulsar().getBrokerService();
+    public SchemasResource() {
+        this(Clock.systemUTC());
+    }
 
     @GET @Path("/{property}/{cluster}/{namespace}/{topic}/schema")
     @Produces(MediaType.APPLICATION_JSON)
@@ -62,7 +71,7 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
-        schemaRegistryService.getSchema(schemaId)
+        pulsar().getSchemaRegistryService().getSchema(schemaId)
             .handle((schema, error) -> {
                 if (isNull(error)) {
                     response.resume(
@@ -92,7 +101,7 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
-        schemaRegistryService.getSchema(schemaId, version)
+        pulsar().getSchemaRegistryService().getSchema(schemaId, version)
             .handle((schema, error) -> {
                 if (isNull(error)) {
                     response.resume(
@@ -121,7 +130,7 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
-        schemaRegistryService.deleteSchema(schemaId, clientAppId())
+        pulsar().getSchemaRegistryService().deleteSchema(schemaId, clientAppId())
             .handle((version, error) -> {
                 if (isNull(error)) {
                     response.resume(
@@ -150,7 +159,7 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
-        schemaRegistryService.putSchema(
+        pulsar().getSchemaRegistryService().putSchema(
             buildSchemaId(property, cluster, namespace, topic),
             Schema.newBuilder()
                 .data(payload.schema.getBytes())
@@ -161,7 +170,7 @@ public class SchemasResource extends AdminResource {
                 .build()
         ).thenAccept(version ->
             response.resume(
-                Response.ok().entity(
+                Response.accepted().entity(
                     new PostSchemaResponse(version)
                 ).build()
             )
@@ -169,7 +178,7 @@ public class SchemasResource extends AdminResource {
     }
 
     private String buildSchemaId(String property, String cluster, String namespace, String topic) {
-        return property + "/" + cluster + "/" + namespace + "/" + topic;
+        return property + "_" + cluster + "_" + namespace + "_" + topic;
     }
 
     private void validateDestinationAndAdminOperation(String property, String cluster, String namespace, String topic) {
@@ -184,27 +193,51 @@ public class SchemasResource extends AdminResource {
 
     private void validateDestinationExists(DestinationName dn) {
         try {
-            Topic topic = brokerService.getTopicReference(dn.toString());
+            Topic topic = pulsar().getBrokerService().getTopicReference(dn.toString());
             checkNotNull(topic);
         } catch (Exception e) {
             throw new RestException(Response.Status.NOT_FOUND, "Topic not found");
         }
     }
 
-    class PostSchemaPayload {
-        public String type;
-        public String schema;
+    static class PostSchemaPayload {
+        public final String type;
+        public final String schema;
+
+        @VisibleForTesting
+        PostSchemaPayload(String type, String schema) {
+            this.type = type;
+            this.schema = schema;
+        }
     }
 
-    class PostSchemaResponse {
+    static class PostSchemaResponse {
         public long version;
 
         PostSchemaResponse(long version) {
             this.version = version;
         }
+
+        @Override
+        public boolean equals(Object o) {
+            if (this == o) {
+                return true;
+            }
+            if (o == null || getClass() != o.getClass()) {
+                return false;
+            }
+            PostSchemaResponse that = (PostSchemaResponse) o;
+            return version == that.version;
+        }
+
+        @Override
+        public int hashCode() {
+
+            return Objects.hash(version);
+        }
     }
 
-    class DeleteSchemaResponse {
+    static class DeleteSchemaResponse {
         public long version;
 
         DeleteSchemaResponse(long version) {

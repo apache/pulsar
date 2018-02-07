@@ -912,8 +912,11 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<SchemaRegistry.SchemaAndMetadata> getSchema() {
-        String namespace = DestinationName.get(topic).getNamespace();
-        return brokerService.pulsar().getSchemaRegistryService().getSchema(namespace);
+        DestinationName destination = DestinationName.get(getName());
+        String schema = destination.getProperty()
+            + "_" + destination.getCluster()
+            + "_" + destination.getNamespacePortion()
+            + "_" + destination.getPartitionedTopicName();
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(schema);
     }
-
 }
