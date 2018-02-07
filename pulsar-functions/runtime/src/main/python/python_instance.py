@@ -198,8 +198,8 @@ class PythonInstance(object):
         self.process_result(output_object, msg)
       except Exception as e:
         Log.exception("Exception while executing user method")
-        self.total_stats.record_user_exception(ex)
-        self.current_stats.record_user_exception(ex)
+        self.total_stats.record_user_exception(e)
+        self.current_stats.record_user_exception(e)
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
