@@ -27,20 +27,17 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.PrivateKey;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationUtil;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
-import org.apache.pulsar.common.util.ObjectMapperFactory;
 
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Splitter;
 import com.yahoo.athenz.auth.ServiceIdentityProvider;
 import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
@@ -108,15 +105,10 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
             throw new IllegalArgumentException("authParams must not be empty");
         }
 
-        // Convert JSON to Map
         try {
-            ObjectMapper jsonMapper = ObjectMapperFactory.create();
-            Map<String, String> authParamsMap = jsonMapper.readValue(encodedAuthParamString,
-                    new TypeReference<HashMap<String, String>>() {
-                    });
-            setAuthParams(authParamsMap);
+            setAuthParams(AuthenticationUtil.configureFromJsonString(encodedAuthParamString));
         } catch (IOException e) {
-            throw new IllegalArgumentException("Failed to parse authParams");
+            throw new IllegalArgumentException("Failed to parse authParams", e);
         }
     }
 

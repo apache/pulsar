@@ -23,6 +23,8 @@ import java.util.Map;
 
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
+import org.apache.pulsar.client.api.AuthenticationUtil;
+import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 /**
@@ -32,7 +34,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
  * tlsCertFile: A file path for a client certificate. tlsKeyFile: A file path for a client private key.
  *
  */
-public class AuthenticationTls implements Authentication {
+public class AuthenticationTls implements Authentication, EncodedAuthenticationParameterSupport {
 
     private static final long serialVersionUID = 1L;
 
@@ -59,14 +61,24 @@ public class AuthenticationTls implements Authentication {
     }
 
     @Override
+    public void configure(String encodedAuthParamString) {
+        setAuthParams(AuthenticationUtil.configureFromPulsar1AuthParamString(encodedAuthParamString));
+    }
+
+    @Override
+    @Deprecated
     public void configure(Map<String, String> authParams) {
-        certFilePath = authParams.get("tlsCertFile");
-        keyFilePath = authParams.get("tlsKeyFile");
+        setAuthParams(authParams);
     }
 
     @Override
     public void start() throws PulsarClientException {
         // noop
+    }
+
+    private void setAuthParams(Map<String, String> authParams) {
+        certFilePath = authParams.get("tlsCertFile");
+        keyFilePath = authParams.get("tlsKeyFile");
     }
 
 }

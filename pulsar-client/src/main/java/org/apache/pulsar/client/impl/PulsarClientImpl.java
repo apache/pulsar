@@ -40,8 +40,10 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -239,6 +241,14 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+        if (conf.getReadCompacted()
+            && (!DestinationName.get(topic).getDomain().equals(DestinationDomain.persistent)
+                    || (conf.getSubscriptionType() != SubscriptionType.Exclusive
+                        && conf.getSubscriptionType() != SubscriptionType.Failover))) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                            "Read compacted can only be used with exclusive of failover persistent subscriptions"));
         }
 
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();

@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
@@ -88,6 +89,9 @@ public class ProducerConfiguration implements Serializable {
      * <p>
      * When specifying a name, it is app to the user to ensure that, for a given topic, the producer name is unique
      * across all Pulsar's clusters.
+     * <p>
+     * If a producer with the same name is already connected to a particular topic, the
+     * {@link PulsarClient#createProducer(String)} operation will fail with {@link ProducerBusyException}.
      *
      * @param producerName
      *            the custom name to use for the producer
@@ -344,7 +348,7 @@ public class ProducerConfiguration implements Serializable {
      *
      */
     public boolean isEncryptionEnabled() {
-        return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty();
+        return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty() && (this.cryptoKeyReader != null);
     }
 
     /**

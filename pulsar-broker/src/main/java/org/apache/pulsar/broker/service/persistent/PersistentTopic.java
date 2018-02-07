@@ -44,6 +44,7 @@ import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.Position;
@@ -55,10 +56,12 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.UnsupportedVersionException;
@@ -253,7 +256,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public void addFailed(ManagedLedgerException exception, Object ctx) {
         PublishContext callback = (PublishContext) ctx;
-        log.error("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+
+        if (exception instanceof ManagedLedgerAlreadyClosedException) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+            }
+
+            callback.completed(new TopicClosedException(exception), -1, -1);
+            return;
+
+        } else {
+            log.warn("[{}] Failed to persist msg in store: {}", topic, exception.getMessage());
+        }
 
         if (exception instanceof ManagedLedgerTerminatedException) {
             // Signal the producer that this topic is no longer available
@@ -383,10 +397,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata) {
+            Map<String, String> metadata, boolean readCompacted) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
+        if (readCompacted && !(subType == SubType.Failover || subType == SubType.Exclusive)) {
+            future.completeExceptionally(
+                    new NotAllowedException("readCompacted only allowed on failover or exclusive subscriptions"));
+            return future;
+        }
         if (isBlank(subscriptionName)) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Empty subscription name", topic);
@@ -434,7 +453,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                        maxUnackedMessages, cnx, cnx.getRole(), metadata);
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted);
                 subscription.addConsumer(consumer);
                 if (!cnx.isActive()) {
                     consumer.close();

@@ -70,6 +70,8 @@ public final class PulsarApi {
     ConsumerNotFound(13, 13),
     TooManyRequests(14, 14),
     TopicTerminatedError(15, 15),
+    ProducerBusy(16, 16),
+    InvalidTopicName(17, 17),
     ;
     
     public static final int UnknownError_VALUE = 0;
@@ -88,6 +90,8 @@ public final class PulsarApi {
     public static final int ConsumerNotFound_VALUE = 13;
     public static final int TooManyRequests_VALUE = 14;
     public static final int TopicTerminatedError_VALUE = 15;
+    public static final int ProducerBusy_VALUE = 16;
+    public static final int InvalidTopicName_VALUE = 17;
     
     
     public final int getNumber() { return value; }
@@ -110,6 +114,8 @@ public final class PulsarApi {
         case 13: return ConsumerNotFound;
         case 14: return TooManyRequests;
         case 15: return TopicTerminatedError;
+        case 16: return ProducerBusy;
+        case 17: return InvalidTopicName;
         default: return null;
       }
     }
@@ -5635,6 +5641,10 @@ public final class PulsarApi {
         getMetadataList();
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index);
     int getMetadataCount();
+    
+    // optional bool read_compacted = 11;
+    boolean hasReadCompacted();
+    boolean getReadCompacted();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -5894,6 +5904,16 @@ public final class PulsarApi {
       return metadata_.get(index);
     }
     
+    // optional bool read_compacted = 11;
+    public static final int READ_COMPACTED_FIELD_NUMBER = 11;
+    private boolean readCompacted_;
+    public boolean hasReadCompacted() {
+      return ((bitField0_ & 0x00000200) == 0x00000200);
+    }
+    public boolean getReadCompacted() {
+      return readCompacted_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -5905,6 +5925,7 @@ public final class PulsarApi {
       durable_ = true;
       startMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       metadata_ = java.util.Collections.emptyList();
+      readCompacted_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -5985,6 +6006,9 @@ public final class PulsarApi {
       for (int i = 0; i < metadata_.size(); i++) {
         output.writeMessage(10, metadata_.get(i));
       }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        output.writeBool(11, readCompacted_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -6032,6 +6056,10 @@ public final class PulsarApi {
       for (int i = 0; i < metadata_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(10, metadata_.get(i));
+      }
+      if (((bitField0_ & 0x00000200) == 0x00000200)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(11, readCompacted_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -6166,6 +6194,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000100);
         metadata_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000200);
+        readCompacted_ = false;
+        bitField0_ = (bitField0_ & ~0x00000400);
         return this;
       }
       
@@ -6240,6 +6270,10 @@ public final class PulsarApi {
           bitField0_ = (bitField0_ & ~0x00000200);
         }
         result.metadata_ = metadata_;
+        if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
+          to_bitField0_ |= 0x00000200;
+        }
+        result.readCompacted_ = readCompacted_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6282,6 +6316,9 @@ public final class PulsarApi {
             metadata_.addAll(other.metadata_);
           }
           
+        }
+        if (other.hasReadCompacted()) {
+          setReadCompacted(other.getReadCompacted());
         }
         return this;
       }
@@ -6402,6 +6439,11 @@ public final class PulsarApi {
               org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addMetadata(subBuilder.buildPartial());
+              break;
+            }
+            case 88: {
+              bitField0_ |= 0x00000400;
+              readCompacted_ = input.readBool();
               break;
             }
           }
@@ -6754,6 +6796,27 @@ public final class PulsarApi {
       public Builder removeMetadata(int index) {
         ensureMetadataIsMutable();
         metadata_.remove(index);
+        
+        return this;
+      }
+      
+      // optional bool read_compacted = 11;
+      private boolean readCompacted_ ;
+      public boolean hasReadCompacted() {
+        return ((bitField0_ & 0x00000400) == 0x00000400);
+      }
+      public boolean getReadCompacted() {
+        return readCompacted_;
+      }
+      public Builder setReadCompacted(boolean value) {
+        bitField0_ |= 0x00000400;
+        readCompacted_ = value;
+        
+        return this;
+      }
+      public Builder clearReadCompacted() {
+        bitField0_ = (bitField0_ & ~0x00000400);
+        readCompacted_ = false;
         
         return this;
       }

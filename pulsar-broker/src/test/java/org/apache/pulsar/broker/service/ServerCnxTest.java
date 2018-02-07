@@ -45,8 +45,6 @@ import java.util.concurrent.TimeUnit;
 
 import javax.naming.AuthenticationException;
 
-import com.google.common.collect.Maps;
-import com.google.protobuf.ByteString;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -67,29 +65,28 @@ import org.apache.pulsar.broker.authorization.AuthorizationManager;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.ServerCnx;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
+import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducerSuccess;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.EncryptionKeys;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.AuthAction;
@@ -105,6 +102,9 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Maps;
+import com.google.protobuf.ByteString;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import io.netty.channel.embedded.EmbeddedChannel;
@@ -114,19 +114,19 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
  */
 @Test
 public class ServerCnxTest {
-    private EmbeddedChannel channel;
+    protected EmbeddedChannel channel;
     private ServiceConfiguration svcConfig;
     private ServerCnx serverCnx;
-    private BrokerService brokerService;
+    protected BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ClientChannelHelper clientChannelHelper;
     private PulsarService pulsar;
     private ConfigurationCacheService configCacheService;
-    private NamespaceService namespaceService;
+    protected NamespaceService namespaceService;
     private final int currentProtocolVersion = ProtocolVersion.values()[ProtocolVersion.values().length - 1]
             .getNumber();
 
-    private final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
+    protected final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
     private final String failTopicName = "persistent://prop/use/ns-abc/failTopic";
     private final String nonOwnedTopicName = "persistent://prop/use/ns-abc/success-not-owned-topic";
     private final String encryptionRequiredTopicName = "persistent://prop/use/ns-abc/successEncryptionRequiredTopic";
@@ -1334,17 +1334,18 @@ public class ServerCnxTest {
         channel.finish();
     }
 
-    private void resetChannel() throws Exception {
+    protected void resetChannel() throws Exception {
         int MaxMessageSize = 5 * 1024 * 1024;
         if (channel != null && channel.isActive()) {
             serverCnx.close();
             channel.close().get();
         }
         serverCnx = new ServerCnx(brokerService);
+        serverCnx.authRole = "";
         channel = new EmbeddedChannel(new LengthFieldBasedFrameDecoder(MaxMessageSize, 0, 4, 0, 4), serverCnx);
     }
 
-    private void setChannelConnected() throws Exception {
+    protected void setChannelConnected() throws Exception {
         Field channelState = ServerCnx.class.getDeclaredField("state");
         channelState.setAccessible(true);
         channelState.set(serverCnx, State.Connected);
@@ -1357,7 +1358,7 @@ public class ServerCnxTest {
         versionField.set(cnx, version);
     }
 
-    private Object getResponse() throws Exception {
+    protected Object getResponse() throws Exception {
         // Wait at most for 10s to get a response
         final long sleepTimeMs = 10;
         final long iterations = TimeUnit.SECONDS.toMillis(10) / sleepTimeMs;
@@ -1457,6 +1458,67 @@ public class ServerCnxTest {
         }).when(cursorMock).asyncClose(any(CloseCallback.class), anyObject());
 
         doReturn(successSubName).when(cursorMock).getName();
+    }
+
+    @Test(timeOut = 30000)
+    public void testInvalidTopicOnLookup() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        String invalidTopicName = "xx/ass/aa/aaa";
+
+        resetChannel();
+        setChannelConnected();
+
+
+        channel.writeInbound(Commands.newLookup(invalidTopicName, true, 1));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandLookupTopicResponse.class);
+        CommandLookupTopicResponse res = (CommandLookupTopicResponse) obj;
+        assertEquals(res.getError(), ServerError.InvalidTopicName);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testInvalidTopicOnProducer() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        String invalidTopicName = "xx/ass/aa/aaa";
+
+        resetChannel();
+        setChannelConnected();
+
+        ByteBuf clientCommand = Commands.newProducer(invalidTopicName, 1 /* producer id */, 1 /* request id */,
+                "prod-name", Collections.emptyMap());
+        channel.writeInbound(clientCommand);
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandError.class);
+        CommandError res = (CommandError) obj;
+        assertEquals(res.getError(), ServerError.InvalidTopicName);
+
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
+    public void testInvalidTopicOnSubscribe() throws Exception {
+        resetChannel();
+        setChannelConnected();
+
+        String invalidTopicName = "xx/ass/aa/aaa";
+
+        resetChannel();
+        setChannelConnected();
+
+        channel.writeInbound(Commands.newSubscribe(invalidTopicName, "test-subscription", 1, 1, SubType.Exclusive, 0,
+                "consumerName"));
+        Object obj = getResponse();
+        assertEquals(obj.getClass(), CommandError.class);
+        CommandError res = (CommandError) obj;
+        assertEquals(res.getError(), ServerError.InvalidTopicName);
+
+        channel.finish();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ServerCnxTest.class);
