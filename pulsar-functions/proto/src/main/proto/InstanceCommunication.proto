@@ -25,6 +25,10 @@ option java_package = "org.apache.pulsar.functions.proto";
 option java_outer_classname = "InstanceCommunication";
 
 message FunctionStatus {
+    message ExceptionInformation {
+        string exceptionString = 1;
+        int64 msSinceEpoch = 2;
+    }
     bool running = 1;
     string failureException = 2;
     int64 numRestarts = 11;
@@ -32,7 +36,9 @@ message FunctionStatus {
     int64 numSuccessfullyProcessed = 4;
     int64 numTimeouts = 5;
     int64 numUserExceptions = 6;
+    repeated ExceptionInformation latestUserExceptions = 12;
     int64 numSystemExceptions = 7;
+    repeated ExceptionInformation latestSystemExceptions = 13;
     // map from topic name to number of deserialization exceptions
     map<string, int64> deserializationExceptions = 8;
     // number of serialization exceptions on the output

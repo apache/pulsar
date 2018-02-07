@@ -348,10 +348,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                                long startTime, long endTime) {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
-            stats.incrementUserExceptions();
+            stats.incrementUserExceptions(result.getUserException());
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
-            stats.incrementSystemExceptions();
+            stats.incrementSystemExceptions(result.getSystemException());
         } else if (result.getTimeoutException() != null) {
             log.info("Timedout when processing message {}", msg, result.getTimeoutException());
             stats.incrementTimeoutExceptions();
@@ -458,7 +458,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         functionStatusBuilder.setNumProcessed(stats.getTotalStats().getTotalProcessed());
         functionStatusBuilder.setNumSuccessfullyProcessed(stats.getTotalStats().getTotalSuccessfullyProcessed());
         functionStatusBuilder.setNumUserExceptions(stats.getTotalStats().getTotalUserExceptions());
+        stats.getTotalStats().getLatestUserExceptions().forEach(ex -> {
+            functionStatusBuilder.addLatestUserExceptions(ex);
+        });
         functionStatusBuilder.setNumSystemExceptions(stats.getTotalStats().getTotalSystemExceptions());
+        stats.getTotalStats().getLatestSystemExceptions().forEach(ex -> {
+            functionStatusBuilder.addLatestSystemExceptions(ex);
+        });
         functionStatusBuilder.setNumTimeouts(stats.getTotalStats().getTotalTimeoutExceptions());
         functionStatusBuilder.putAllDeserializationExceptions(stats.getTotalStats().getTotalDeserializationExceptions());
         functionStatusBuilder.setSerializationExceptions(stats.getTotalStats().getTotalSerializationExceptions());

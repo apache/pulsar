@@ -21,8 +21,11 @@ package org.apache.pulsar.functions.runtime.instance;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -38,7 +41,11 @@ public class FunctionStats {
         private long totalProcessed;
         private long totalSuccessfullyProcessed;
         private long totalUserExceptions;
+        private List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestUserExceptions =
+                new LinkedList<>();
         private long totalSystemExceptions;
+        private List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
+                new LinkedList<>();
         private long totalTimeoutExceptions;
         private Map<String, Long> totalDeserializationExceptions = new HashMap<>();
         private long totalSerializationExceptions;
@@ -49,8 +56,26 @@ public class FunctionStats {
             totalSuccessfullyProcessed++;
             totalLatencyMs += latency;
         }
-        public void incrementUserExceptions() { totalUserExceptions++; }
-        public void incrementSystemExceptions() { totalSystemExceptions++; }
+        public void incrementUserExceptions(Exception ex) {
+            InstanceCommunication.FunctionStatus.ExceptionInformation info =
+                    InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
+                    .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
+            latestUserExceptions.add(info);
+            if (latestUserExceptions.size() > 10) {
+                latestUserExceptions.remove(0);
+            }
+            totalUserExceptions++;
+        }
+        public void incrementSystemExceptions(Exception ex) {
+            InstanceCommunication.FunctionStatus.ExceptionInformation info =
+                    InstanceCommunication.FunctionStatus.ExceptionInformation.newBuilder()
+                            .setExceptionString(ex.getMessage()).setMsSinceEpoch(System.currentTimeMillis()).build();
+            latestSystemExceptions.add(info);
+            if (latestSystemExceptions.size() > 10) {
+                latestSystemExceptions.remove(0);
+            }
+            totalSystemExceptions++;
+        }
         public void incrementTimeoutExceptions() { totalTimeoutExceptions++; }
         public void incrementDeserializationExceptions(String topic) {
             if (!totalDeserializationExceptions.containsKey(topic)) {
@@ -95,13 +120,13 @@ public class FunctionStats {
         currentStats.incrementSuccessfullyProcessed(latency);
         totalStats.incrementSuccessfullyProcessed(latency);
     }
-    public void incrementUserExceptions() {
-        currentStats.incrementUserExceptions();
-        totalStats.incrementUserExceptions();
+    public void incrementUserExceptions(Exception ex) {
+        currentStats.incrementUserExceptions(ex);
+        totalStats.incrementUserExceptions(ex);
     }
-    public void incrementSystemExceptions() {
-        currentStats.incrementSystemExceptions();
-        totalStats.incrementSystemExceptions();
+    public void incrementSystemExceptions(Exception ex) {
+        currentStats.incrementSystemExceptions(ex);
+        totalStats.incrementSystemExceptions(ex);
     }
     public void incrementTimeoutExceptions() {
         currentStats.incrementTimeoutExceptions();
