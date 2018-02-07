@@ -91,7 +91,6 @@ public class Spawner implements AutoCloseable {
         log.info("Spawner starting function {}", this.assignmentInfo.getFunctionConfig().getName());
         functionContainer = functionContainerFactory.createContainer(createJavaInstanceConfig(), codeFile);
         functionContainer.start();
-        numRestarts++;
         if (metricsSink != null) {
             log.info("Scheduling Metrics Collection every " + metricsCollectionInterval + " secs for " + FunctionConfigUtils.getFullyQualifiedName(assignmentInfo.getFunctionConfig()));
             metricsCollectionTimer = new Timer();
