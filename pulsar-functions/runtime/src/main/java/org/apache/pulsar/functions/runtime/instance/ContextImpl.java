@@ -210,6 +210,11 @@ class ContextImpl implements Context {
     }
 
     @Override
+    public <O> CompletableFuture<Void> publish(String topicName, O object) {
+        return publish(topicName, object, DefaultSerDe.class.getName());
+    }
+
+    @Override
     public <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName) {
         if (!publishProducers.containsKey(topicName)) {
             try {

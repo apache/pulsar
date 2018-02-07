@@ -110,6 +110,11 @@ class Context(object):
     pass
 
   @abstractmethod
+  def publish(self, topic_name, message):
+    """Publishes message to topic_name by first serializing the message using IdentitySerDe"""
+    pass
+
+  @abstractmethod
   def get_sink_topic(self):
     '''Returns the sink topic of function'''
     pass

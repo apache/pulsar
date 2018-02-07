@@ -153,5 +153,13 @@ public interface Context {
      */
     <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
 
+    /**
+     * Publish an object using DefaultSerDe for serializing to the topic
+     * @param topicName The name of the topic for publishing
+     * @param object The object that needs to be published
+     * @return
+     */
+    <O> CompletableFuture<Void> publish(String topicName, O object);
+
     CompletableFuture<Void> ack(byte[] messageId, String topic);
 }
