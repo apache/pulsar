@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,7 +27,8 @@ import java.time.ZoneId;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.schema.SchemaRegistry;
-import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
@@ -69,16 +70,15 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         .data("message { required int64 b = 1};".getBytes())
         .build();
 
-    DefaultSchemaRegistryService schemaRegistryService;
+    SchemaRegistryServiceImpl schemaRegistryService;
 
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        schemaRegistryService =
-            new DefaultSchemaRegistryService(pulsar, MockClock);
-        schemaRegistryService.init();
-        schemaRegistryService.start();
+        BookkeeperSchemaStorage storage = BookkeeperSchemaStorage.create(pulsar);
+        storage.start();
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage);
     }
 
     @AfterMethod
@@ -202,7 +202,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         return schemaAndVersion.schema;
     }
 
-    private long deleteScehma(String schemaId, long expectedVersion) throws Exception{
+    private long deleteScehma(String schemaId, long expectedVersion) throws Exception {
         long version = schemaRegistryService.deleteSchema(schemaId, userId).get();
         assertEquals(expectedVersion, version);
         return version;

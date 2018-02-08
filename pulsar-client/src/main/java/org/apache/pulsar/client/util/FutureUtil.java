@@ -70,10 +70,4 @@ public class FutureUtil {
         }
         return future;
     }
-
-    public static <T> CompletableFuture<T> completedFuture(T value) {
-        CompletableFuture<T> future = new CompletableFuture<>();
-        future.complete(value);
-        return future;
-    }
 }

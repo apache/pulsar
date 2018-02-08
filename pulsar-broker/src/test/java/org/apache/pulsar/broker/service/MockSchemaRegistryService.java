@@ -18,13 +18,11 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.util.concurrent.CompletableFuture.completedFuture;
+
+import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.common.schema.Schema;
-
-import java.io.IOException;
-import java.util.concurrent.CompletableFuture;
-
-import static java.util.concurrent.CompletableFuture.completedFuture;
 
 public class MockSchemaRegistryService implements SchemaRegistryService {
     @Override
@@ -45,11 +43,6 @@ public class MockSchemaRegistryService implements SchemaRegistryService {
     @Override
     public CompletableFuture<Long> deleteSchema(String schemaId, String user) {
         return completedFuture(-1L);
-    }
-
-    @Override
-    public void start() throws IOException {
-
     }
 
     @Override

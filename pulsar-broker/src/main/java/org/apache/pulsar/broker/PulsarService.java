@@ -48,7 +48,7 @@ import org.apache.pulsar.broker.loadbalance.LoadSheddingTask;
 import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
@@ -346,8 +346,7 @@ public class PulsarService implements AutoCloseable {
 
             this.metricsGenerator = new MetricsGenerator(this);
 
-            schemaRegistryService = DefaultSchemaRegistryService.create(this);
-            schemaRegistryService.start();
+            schemaRegistryService = SchemaRegistryServiceImpl.create(this);
 
             state = State.Started;
 

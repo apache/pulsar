@@ -32,6 +32,7 @@ public class Schema {
     public final long timestamp;
     public final String user;
     public final byte[] data;
+    public final long version;
 
     private Schema(Builder builder) {
         this.type = builder.type;
@@ -40,6 +41,7 @@ public class Schema {
         this.timestamp = builder.timestamp;
         this.user = builder.user;
         this.data = builder.data;
+        this.version = builder.version;
     }
 
     @Override
@@ -51,16 +53,22 @@ public class Schema {
             .add("timestamp", timestamp)
             .add("user", user)
             .add("data", data)
+            .add("version", version)
             .toString();
     }
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         Schema schema = (Schema) o;
         return isDeleted == schema.isDeleted &&
             timestamp == schema.timestamp &&
+//            version == schema.version &&
             type == schema.type &&
             Objects.equals(schemaInfo, schema.schemaInfo) &&
             Objects.equals(user, schema.user) &&
@@ -69,7 +77,8 @@ public class Schema {
 
     @Override
     public int hashCode() {
-        int result = Objects.hash(type, isDeleted, schemaInfo, timestamp, user);
+
+        int result = Objects.hash(type, isDeleted, schemaInfo, timestamp, user, version);
         result = 31 * result + Arrays.hashCode(data);
         return result;
     }
@@ -81,6 +90,7 @@ public class Schema {
         private long timestamp;
         private String user;
         private byte[] data;
+        private long version;
 
         public Builder type(SchemaType type) {
             this.type = type;
@@ -109,6 +119,11 @@ public class Schema {
 
         public Builder data(byte[] data) {
             this.data = data;
+            return this;
+        }
+
+        public Builder version(long version) {
+            this.version = version;
             return this;
         }
 

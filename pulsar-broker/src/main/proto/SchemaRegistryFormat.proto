@@ -22,11 +22,6 @@ package pulsar.schema;
 option java_package = "org.apache.pulsar.broker.schema";
 option optimize_for = LITE_RUNTIME;
 
-message PositionInfo {
-    required int64 ledgerId = 1;
-    required int64 entryId = 2;
-}
-
 message SchemaInfo {
     enum SchemaType {
         NONE = 1;
@@ -35,12 +30,22 @@ message SchemaInfo {
         JSON = 4;
         PROTO = 5;
     }
+    message KeyValuePair {
+        required string key = 1;
+        required string value = 2;
+    }
     required string schema_id = 1;
-    required int64 version = 2;
     required SchemaType type = 3;
-    optional int64 timestamp = 4;
-    optional string added_by = 5;
-    optional bytes hash = 6;
+    required bytes schema = 4;
+    repeated KeyValuePair meta = 7;
+    required bool deleted = 8 [default = false];
+}
+
+// STORAGE
+
+message PositionInfo {
+    required int64 ledgerId = 1;
+    required int64 entryId = 2;
 }
 
 message IndexEntry {
@@ -49,15 +54,12 @@ message IndexEntry {
 }
 
 message SchemaEntry {
-    required SchemaInfo info = 1;
-    optional bytes schema_data = 2;
-    optional string schema_location = 3;
-    required bool isDeleted = 4;
+    required bytes schema_data = 2;
     repeated IndexEntry index = 5;
 }
 
 message SchemaLocator {
-    required SchemaInfo info = 1;
+    required int64 version = 1;
     required PositionInfo position = 2;
     repeated IndexEntry index = 3;
 }
