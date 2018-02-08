@@ -116,7 +116,8 @@ public class LookupProxyHandler {
             long requestId = service.newRequestId();
             ByteBuf command;
             if (service.getConfiguration().isAuthenticationEnabled()) {
-                command = Commands.newLookup(topic, authoritative, proxyConnection.clientAuthRole, requestId);
+                command = Commands.newLookup(topic, authoritative, proxyConnection.clientAuthRole,
+                        proxyConnection.clientAuthData, proxyConnection.clientAuthMethod, requestId);
             } else {
                 command = Commands.newLookup(topic, authoritative, requestId);
             }
@@ -196,7 +197,9 @@ public class LookupProxyHandler {
                 long requestId = service.newRequestId();
                 ByteBuf command;
                 if (service.getConfiguration().isAuthenticationEnabled()) {
-                    command = Commands.newPartitionMetadataRequest(dn.toString(), requestId, proxyConnection.clientAuthRole);
+                    command = Commands.newPartitionMetadataRequest(dn.toString(), requestId,
+                            proxyConnection.clientAuthRole, proxyConnection.clientAuthData,
+                            proxyConnection.clientAuthMethod);
                 } else {
                     command = Commands.newPartitionMetadataRequest(dn.toString(), requestId);
                 }
