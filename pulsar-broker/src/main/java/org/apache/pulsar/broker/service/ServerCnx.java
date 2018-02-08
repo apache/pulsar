@@ -484,9 +484,6 @@ public class ServerCnx extends PulsarHandler {
 
                 final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
                 final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
-                final boolean initializeOnLatest = subscribe.hasInitializeOnLatest()
-                    ? subscribe.getInitializeOnLatest()
-                    : true;
 
                 authorizationFuture.thenApply(isAuthorized -> {
                     if (isAuthorized) {
@@ -531,7 +528,7 @@ public class ServerCnx extends PulsarHandler {
 
                         service.getTopic(topicName)
                                 .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                        subType, priorityLevel, consumerName, isDurable, startMessageId, metadata, initializeOnLatest))
+                                        subType, priorityLevel, consumerName, isDurable, startMessageId, metadata))
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,

@@ -106,8 +106,6 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final Map<String, String> metadata;
 
-    private final boolean initializeSubscriptionOnLatest;
-
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -137,7 +135,6 @@ public class ConsumerImpl extends ConsumerBase {
         this.codecProvider = new CompressionCodecProvider();
         this.priorityLevel = conf.getPriorityLevel();
         this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
-        this.initializeSubscriptionOnLatest = conf.getInitializeSubscriptionOnLatest();
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);
         } else {
@@ -553,7 +550,7 @@ public class ConsumerImpl extends ConsumerBase {
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, metadata, initializeSubscriptionOnLatest);
+                consumerName, isDurable, startMessageIdData, metadata);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }

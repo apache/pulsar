@@ -38,7 +38,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URL;
@@ -364,7 +363,7 @@ public class PersistentTopicTest {
                 .setSubscription("").setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
         try {
             f1.get();
             fail("should fail with exception");
@@ -383,12 +382,12 @@ public class PersistentTopicTest {
 
         // 1. simple subscribe
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
         f1.get();
 
         // 2. duplicate subscribe
         Future<Consumer> f2 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
 
         try {
             f2.get();
@@ -494,7 +493,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
         f1.get();
 
         assertTrue(topic.delete().isCompletedExceptionally());
@@ -509,7 +508,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -563,7 +562,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -650,7 +649,7 @@ public class PersistentTopicTest {
                 .setSubscription(successSubName).setRequestId(1).setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), true);
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap());
 
         try {
             f.get();
@@ -761,7 +760,7 @@ public class PersistentTopicTest {
 
         // 1. Subscribe with non partition topic
         Future<Consumer> f1 = topic1.subscribe(serverCnx, cmd1.getSubscription(), cmd1.getConsumerId(),
-                cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.getDurable(), null, Collections.emptyMap(), true);
+                cmd1.getSubType(), 0, cmd1.getConsumerName(), cmd1.getDurable(), null, Collections.emptyMap());
         f1.get();
 
         // 2. Subscribe with partition topic
@@ -772,7 +771,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Failover).build();
 
         Future<Consumer> f2 = topic2.subscribe(serverCnx, cmd2.getSubscription(), cmd2.getConsumerId(),
-                cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.getDurable(), null, Collections.emptyMap(), true);
+                cmd2.getSubType(), 0, cmd2.getConsumerName(), cmd2.getDurable(), null, Collections.emptyMap());
         f2.get();
 
         // 3. Subscribe and create second consumer
@@ -781,7 +780,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Failover).build();
 
         Future<Consumer> f3 = topic2.subscribe(serverCnx, cmd3.getSubscription(), cmd3.getConsumerId(),
-                cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.getDurable(), null, Collections.emptyMap(), true);
+                cmd3.getSubType(), 0, cmd3.getConsumerName(), cmd3.getDurable(), null, Collections.emptyMap());
         f3.get();
 
         assertEquals(
@@ -801,7 +800,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Failover).build();
 
         Future<Consumer> f4 = topic2.subscribe(serverCnx, cmd4.getSubscription(), cmd4.getConsumerId(),
-                cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.getDurable(), null, Collections.emptyMap(), true);
+                cmd4.getSubType(), 0, cmd4.getConsumerName(), cmd4.getDurable(), null, Collections.emptyMap());
         f4.get();
 
         assertEquals(
@@ -826,7 +825,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f5 = topic2.subscribe(serverCnx, cmd5.getSubscription(), cmd5.getConsumerId(),
-                cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.getDurable(), null, Collections.emptyMap(), true);
+                cmd5.getSubType(), 0, cmd5.getConsumerName(), cmd5.getDurable(), null, Collections.emptyMap());
 
         try {
             f5.get();
@@ -842,7 +841,7 @@ public class PersistentTopicTest {
                 .setSubType(SubType.Exclusive).build();
 
         Future<Consumer> f6 = topic2.subscribe(serverCnx, cmd6.getSubscription(), cmd6.getConsumerId(),
-                cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.getDurable(), null, Collections.emptyMap(), true);
+                cmd6.getSubType(), 0, cmd6.getConsumerName(), cmd6.getDurable(), null, Collections.emptyMap());
         f6.get();
 
         // 7. unsubscribe exclusive sub
@@ -971,33 +970,6 @@ public class PersistentTopicTest {
         replicator.startProducer();
 
         verify(clientImpl, Mockito.times(2)).createProducerAsync(globalTopicName, replicator.getProducerConfiguration());
-    }
-
-    @Test
-    public void testSubscribeInitialization() throws Exception {
-        PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-        final String latestSubscriptionName = "test-subscription-latest";
-        CommandSubscribe latestCmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(latestSubscriptionName).setRequestId(1).setSubType(SubType.Exclusive).build();
-
-        // 1. initialize subscription on latest
-        Future<Consumer> f1 = topic.subscribe(serverCnx, latestCmd.getSubscription(), latestCmd.getConsumerId(), latestCmd.getSubType(),
-                0, latestCmd.getConsumerName(), latestCmd.getDurable(), null, Collections.emptyMap(), true);
-        f1.get();
-        PersistentSubscription latestScubscription = topic.getSubscription(latestSubscriptionName);
-        Field cursorField = latestScubscription.getClass().getDeclaredField("cursor");
-        cursorField.setAccessible(true);
-        assertEquals(((ManagedCursor)cursorField.get(latestScubscription)).getReadPosition(), PositionImpl.latest);
-
-        // 2. initialize subscription on earliest
-        final String earliestSubscriptionName = "test-subscription-earlist";
-        CommandSubscribe earliestCmd = CommandSubscribe.newBuilder().setConsumerId(1).setTopic(successTopicName)
-                .setSubscription(earliestSubscriptionName).setRequestId(1).setSubType(SubType.Exclusive).build();
-        Future<Consumer> f2 = topic.subscribe(serverCnx, earliestCmd.getSubscription(), earliestCmd.getConsumerId(), earliestCmd.getSubType(),
-                0, earliestCmd.getConsumerName(), earliestCmd.getDurable(), null, Collections.emptyMap(), false);
-        f2.get();
-        PersistentSubscription earliestScubscription = topic.getSubscription(earliestSubscriptionName);
-        assertEquals(((ManagedCursor)cursorField.get(earliestScubscription)).getReadPosition(), PositionImpl.earliest);
     }
 
 }

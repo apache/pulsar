@@ -396,7 +396,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean initializeOnLatest) {
+            Map<String, String> metadata) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -439,7 +439,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                getDurableSubscription(subscriptionName, initializeOnLatest) //
+                getDurableSubscription(subscriptionName) //
                 : getNonDurableSubscription(subscriptionName, startMessageId);
 
         int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
@@ -482,7 +482,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, boolean initializeOnLatest) {
+    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), new OpenCursorCallback() {
             @Override
@@ -491,25 +491,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
 
-                // set initializa cursor position
-                if(!subscriptions.containsKey(subscriptionName)){
-                    try {
-                        cursor.resetCursor(initializeOnLatest? PositionImpl.latest: PositionImpl.earliest);
-                    } catch (InterruptedException e) {
-                        // e.printStackTrace();
-                        log.warn("Interruped when getDurableSubscription {}for topic: {}", topic, subscriptionName);
-                        return;
-                    } catch (ManagedLedgerException e) {
-                        log.warn("got exception: {}", e);
-                    }
-                }
-
-                subscriptionFuture.complete(
-                    subscriptions.computeIfAbsent(
-                        subscriptionName,
-                        name -> new PersistentSubscription(PersistentTopic.this, subscriptionName, cursor)
-                    )
-                );
+                subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
+                        name -> new PersistentSubscription(PersistentTopic.this, subscriptionName, cursor)));
             }
 
             @Override
@@ -564,8 +547,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, boolean initializeOnLatest) {
-        return getDurableSubscription(subscriptionName, initializeOnLatest);
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName) {
+        return getDurableSubscription(subscriptionName);
     }
 
     /**

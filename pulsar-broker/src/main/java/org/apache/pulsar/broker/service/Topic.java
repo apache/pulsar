@@ -79,9 +79,9 @@ public interface Topic {
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean initializeOnLatest);
+            Map<String, String> metadata);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName, boolean initializeOnLatest);
+    CompletableFuture<Subscription> createSubscription(String subscriptionName);
 
     CompletableFuture<Void> unsubscribe(String subName);
 

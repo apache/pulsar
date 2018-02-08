@@ -23,9 +23,6 @@ pulsar-broker/src/test/resources/log4j.properties
 *.iml
 *.iws
 
-# Vscode
-.vscode/
-
 # Mac
 .DS_Store
 

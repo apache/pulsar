@@ -5638,10 +5638,6 @@ public final class PulsarApi {
         getMetadataList();
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index);
     int getMetadataCount();
-    
-    // optional bool initialize_on_latest = 11 [default = true];
-    boolean hasInitializeOnLatest();
-    boolean getInitializeOnLatest();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -5901,16 +5897,6 @@ public final class PulsarApi {
       return metadata_.get(index);
     }
     
-    // optional bool initialize_on_latest = 11 [default = true];
-    public static final int INITIALIZE_ON_LATEST_FIELD_NUMBER = 11;
-    private boolean initializeOnLatest_;
-    public boolean hasInitializeOnLatest() {
-      return ((bitField0_ & 0x00000200) == 0x00000200);
-    }
-    public boolean getInitializeOnLatest() {
-      return initializeOnLatest_;
-    }
-    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -5922,7 +5908,6 @@ public final class PulsarApi {
       durable_ = true;
       startMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
       metadata_ = java.util.Collections.emptyList();
-      initializeOnLatest_ = true;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -6003,9 +5988,6 @@ public final class PulsarApi {
       for (int i = 0; i < metadata_.size(); i++) {
         output.writeMessage(10, metadata_.get(i));
       }
-      if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        output.writeBool(11, initializeOnLatest_);
-      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -6053,10 +6035,6 @@ public final class PulsarApi {
       for (int i = 0; i < metadata_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(10, metadata_.get(i));
-      }
-      if (((bitField0_ & 0x00000200) == 0x00000200)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBoolSize(11, initializeOnLatest_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -6191,8 +6169,6 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000100);
         metadata_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000200);
-        initializeOnLatest_ = true;
-        bitField0_ = (bitField0_ & ~0x00000400);
         return this;
       }
       
@@ -6267,10 +6243,6 @@ public final class PulsarApi {
           bitField0_ = (bitField0_ & ~0x00000200);
         }
         result.metadata_ = metadata_;
-        if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
-          to_bitField0_ |= 0x00000200;
-        }
-        result.initializeOnLatest_ = initializeOnLatest_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -6313,9 +6285,6 @@ public final class PulsarApi {
             metadata_.addAll(other.metadata_);
           }
           
-        }
-        if (other.hasInitializeOnLatest()) {
-          setInitializeOnLatest(other.getInitializeOnLatest());
         }
         return this;
       }
@@ -6436,11 +6405,6 @@ public final class PulsarApi {
               org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addMetadata(subBuilder.buildPartial());
-              break;
-            }
-            case 88: {
-              bitField0_ |= 0x00000400;
-              initializeOnLatest_ = input.readBool();
               break;
             }
           }
@@ -6793,27 +6757,6 @@ public final class PulsarApi {
       public Builder removeMetadata(int index) {
         ensureMetadataIsMutable();
         metadata_.remove(index);
-        
-        return this;
-      }
-      
-      // optional bool initialize_on_latest = 11 [default = true];
-      private boolean initializeOnLatest_ = true;
-      public boolean hasInitializeOnLatest() {
-        return ((bitField0_ & 0x00000400) == 0x00000400);
-      }
-      public boolean getInitializeOnLatest() {
-        return initializeOnLatest_;
-      }
-      public Builder setInitializeOnLatest(boolean value) {
-        bitField0_ |= 0x00000400;
-        initializeOnLatest_ = value;
-        
-        return this;
-      }
-      public Builder clearInitializeOnLatest() {
-        bitField0_ = (bitField0_ & ~0x00000400);
-        initializeOnLatest_ = true;
         
         return this;
       }
