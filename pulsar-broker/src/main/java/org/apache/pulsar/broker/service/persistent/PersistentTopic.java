@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -95,6 +96,9 @@ import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicImpl;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
@@ -154,6 +158,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
+    private final CompactedTopic compactedTopic;
 
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
@@ -201,6 +206,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         this.dispatchRateLimiter = new DispatchRateLimiter(this);
 
+        this.compactedTopic = new CompactedTopicImpl();
+
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
@@ -212,7 +219,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 // to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, new PersistentSubscription(this, subscriptionName, cursor));
+                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
@@ -230,6 +237,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
+        }
+    }
+
+    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor) {
+        checkNotNull(compactedTopic);
+        if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
+        } else {
+            return new PersistentSubscription(this, subscriptionName, cursor);
         }
     }
 
@@ -498,7 +514,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 }
 
                 subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
-                        name -> new PersistentSubscription(PersistentTopic.this, subscriptionName, cursor)));
+                        name -> createPersistentSubscription(subscriptionName, cursor)));
             }
 
             @Override
