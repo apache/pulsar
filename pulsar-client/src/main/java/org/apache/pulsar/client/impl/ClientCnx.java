@@ -60,6 +60,7 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
 import io.netty.util.concurrent.Promise;
+import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 
 public class ClientCnx extends PulsarHandler {
 
@@ -83,6 +84,7 @@ public class ClientCnx extends PulsarHandler {
     private volatile int numberOfRejectRequests = 0;
     private final int maxNumberOfRejectedRequestPerConnection;
     private final int rejectedRequestResetTimeSec = 60;
+    private final long operationTimeoutMs;
 
     private String proxyToTargetBrokerAddress = null;
 
@@ -96,6 +98,7 @@ public class ClientCnx extends PulsarHandler {
         this.authentication = conf.getAuthentication();
         this.eventLoopGroup = eventLoopGroup;
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
+        this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
     }
 
@@ -268,6 +271,12 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
 
         if (requestFuture != null) {
+            if (requestFuture.isCompletedExceptionally()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("{} Request {} already timed-out", ctx.channel(), lookupResult.getRequestId());
+                }
+                return;
+            }
             // Complete future with exception if : Result.response=fail/null
             if (!lookupResult.hasResponse()
                     || CommandLookupTopicResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
@@ -297,6 +306,12 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<LookupDataResult> requestFuture = getAndRemovePendingLookupRequest(requestId);
 
         if (requestFuture != null) {
+            if (requestFuture.isCompletedExceptionally()) {
+                if (log.isDebugEnabled()) {
+                    log.debug("{} Request {} already timed-out", ctx.channel(), lookupResult.getRequestId());
+                }
+                return;
+            }
             // Complete future with exception if : Result.response=fail/null
             if (!lookupResult.hasResponse()
                     || CommandPartitionedTopicMetadataResponse.LookupType.Failed.equals(lookupResult.getResponse())) {
@@ -332,6 +347,12 @@ public class ClientCnx extends PulsarHandler {
     private boolean addPendingLookupRequests(long requestId, CompletableFuture<LookupDataResult> future) {
         if (pendingLookupRequestSemaphore.tryAcquire()) {
             pendingLookupRequests.put(requestId, future);
+            eventLoopGroup.schedule(() -> {
+                if (!future.isDone()) {
+                    future.completeExceptionally(new TimeoutException(
+                            requestId + " lookup request timedout after ms " + operationTimeoutMs));
+                }
+            }, operationTimeoutMs, TimeUnit.MILLISECONDS);
             return true;
         }
         return false;
