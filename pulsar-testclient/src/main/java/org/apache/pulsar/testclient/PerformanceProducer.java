@@ -275,7 +275,6 @@ public class PerformanceProducer {
         if (arguments.batchTime > 0) {
             producerConf.setBatchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS);
             producerConf.setBatchingEnabled(true);
-            producerConf.setMaxPendingMessages(arguments.msgRate);
         }
 
         // Block if queue is full else we will start seeing errors in sendAsync
