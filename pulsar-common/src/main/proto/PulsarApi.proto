@@ -183,6 +183,10 @@ message CommandSubscribe {
 
 	/// Add optional metadata key=value to this consumer
     repeated KeyValue metadata = 10;
+
+	// Signal wthether the subscription will initialize on latest
+	// or not -- earliest
+	optional bool initialize_on_latest = 11 [default = true];
 }
 
 message CommandPartitionedTopicMetadata {
