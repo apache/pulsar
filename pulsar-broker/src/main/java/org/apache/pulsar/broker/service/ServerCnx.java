@@ -228,6 +228,8 @@ public class ServerCnx extends PulsarHandler {
             if (originalPrincipal == null) {
                 return;
             }
+        } else {
+            originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal;
         }
         
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
@@ -247,11 +249,11 @@ public class ServerCnx extends PulsarHandler {
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
-
+            String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
                     lookupDestinationAsync(getBrokerService().pulsar(), topicName,
-                            lookup.getAuthoritative(), originalPrincipal != null ? originalPrincipal : authRole,
+                            lookup.getAuthoritative(), finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole,
                             lookup.getRequestId()).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
@@ -312,6 +314,8 @@ public class ServerCnx extends PulsarHandler {
             if (originalPrincipal == null) {
                 return;
             }
+        } else {
+            originalPrincipal = partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
         }
         
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
@@ -332,10 +336,11 @@ public class ServerCnx extends PulsarHandler {
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
+            String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                            originalPrincipal != null ? originalPrincipal : authRole, topicName)
+                            finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, topicName)
                                     .handle((metadata, ex) -> {
                                     if (ex == null) {
                                         int partitions = metadata.partitions;
