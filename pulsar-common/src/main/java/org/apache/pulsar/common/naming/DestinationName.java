@@ -181,6 +181,7 @@ public class DestinationName implements ServiceUnitId {
         return property;
     }
 
+    @Deprecated
     public String getCluster() {
         return cluster;
     }
