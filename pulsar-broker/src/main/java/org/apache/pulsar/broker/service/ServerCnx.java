@@ -216,15 +216,18 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
-
-        String originalPrincipal = validateOriginalPrincipal(
-                lookup.hasOriginalAuthData() ? lookup.getOriginalAuthData() : null,
-                lookup.hasOriginalAuthMethod() ? lookup.getOriginalAuthMethod() : null,
-                lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal, requestId,
-                lookup);
         
-        if (authenticateOriginalAuthData && lookup.hasOriginalAuthData() && originalPrincipal == null) {
-            return;
+        String originalPrincipal = null;
+        if (authenticateOriginalAuthData && lookup.hasOriginalAuthData()) {
+            originalPrincipal = validateOriginalPrincipal(
+                    lookup.hasOriginalAuthData() ? lookup.getOriginalAuthData() : null,
+                    lookup.hasOriginalAuthMethod() ? lookup.getOriginalAuthMethod() : null,
+                    lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal, requestId,
+                    lookup);
+
+            if (originalPrincipal == null) {
+                return;
+            }
         }
         
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
@@ -297,16 +300,18 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
-        
-        String originalPrincipal = validateOriginalPrincipal(
-                partitionMetadata.hasOriginalAuthData() ? partitionMetadata.getOriginalAuthData() : null,
-                partitionMetadata.hasOriginalAuthMethod() ? partitionMetadata.getOriginalAuthMethod() : null,
-                partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal()
-                        : this.originalPrincipal,
-                requestId, partitionMetadata);
-        
-        if (authenticateOriginalAuthData && partitionMetadata.hasOriginalAuthData() && originalPrincipal == null) {
-            return;
+        String originalPrincipal = null;
+        if (authenticateOriginalAuthData && partitionMetadata.hasOriginalAuthData()) {
+            originalPrincipal = validateOriginalPrincipal(
+                    partitionMetadata.hasOriginalAuthData() ? partitionMetadata.getOriginalAuthData() : null,
+                    partitionMetadata.hasOriginalAuthMethod() ? partitionMetadata.getOriginalAuthMethod() : null,
+                    partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal()
+                            : this.originalPrincipal,
+                    requestId, partitionMetadata);
+
+            if (originalPrincipal == null) {
+                return;
+            }
         }
         
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
