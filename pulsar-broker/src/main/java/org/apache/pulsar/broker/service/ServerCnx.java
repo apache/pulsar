@@ -106,8 +106,9 @@ public class ServerCnx extends PulsarHandler {
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
     private String originalPrincipal = null;
-    private Set<String> proxyRoles = Sets.newHashSet();
-
+    private Set<String> proxyRoles;
+    private boolean authenticateOriginalAuthData;
+    
     enum State {
         Start, Connected, Failed
     }
@@ -124,6 +125,7 @@ public class ServerCnx extends PulsarHandler {
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
         this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
     }
 
     @Override
@@ -214,11 +216,24 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
+        
+        String originalPrincipal = null;
+        if (authenticateOriginalAuthData && lookup.hasOriginalAuthData()) {
+            originalPrincipal = validateOriginalPrincipal(
+                    lookup.hasOriginalAuthData() ? lookup.getOriginalAuthData() : null,
+                    lookup.hasOriginalAuthMethod() ? lookup.getOriginalAuthMethod() : null,
+                    lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal, requestId,
+                    lookup);
 
+            if (originalPrincipal == null) {
+                return;
+            }
+        } else {
+            originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal;
+        }
+        
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-        if (lookupSemaphore.tryAcquire()) {
-            final String originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
-                    : this.originalPrincipal;
+        if (lookupSemaphore.tryAcquire()) {            
             if (invalidOriginalPrincipal(originalPrincipal)) {
                 final String msg = "Valid Proxy Client role should be provided for lookup ";
                 log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
@@ -234,11 +249,11 @@ public class ServerCnx extends PulsarHandler {
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
-
+            String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
                     lookupDestinationAsync(getBrokerService().pulsar(), topicName,
-                            lookup.getAuthoritative(), originalPrincipal != null ? originalPrincipal : authRole,
+                            lookup.getAuthoritative(), finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole,
                             lookup.getRequestId()).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
@@ -287,11 +302,24 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
+        String originalPrincipal = null;
+        if (authenticateOriginalAuthData && partitionMetadata.hasOriginalAuthData()) {
+            originalPrincipal = validateOriginalPrincipal(
+                    partitionMetadata.hasOriginalAuthData() ? partitionMetadata.getOriginalAuthData() : null,
+                    partitionMetadata.hasOriginalAuthMethod() ? partitionMetadata.getOriginalAuthMethod() : null,
+                    partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal()
+                            : this.originalPrincipal,
+                    requestId, partitionMetadata);
 
+            if (originalPrincipal == null) {
+                return;
+            }
+        } else {
+            originalPrincipal = partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
+        }
+        
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-            final String originalPrincipal = partitionMetadata.hasOriginalPrincipal()
-                    ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
             if (invalidOriginalPrincipal(originalPrincipal)) {
                 final String msg = "Valid Proxy Client role should be provided for getPartitionMetadataRequest ";
                 log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
@@ -308,10 +336,11 @@ public class ServerCnx extends PulsarHandler {
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
+            String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
                     getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                            originalPrincipal != null ? originalPrincipal : authRole, topicName)
+                            finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, topicName)
                                     .handle((metadata, ex) -> {
                                     if (ex == null) {
                                         int partitions = metadata.partitions;
@@ -410,6 +439,39 @@ public class ServerCnx extends PulsarHandler {
 
         return commandConsumerStatsResponseBuilder;
     }
+    
+    private String validateOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal, Long requestId, GeneratedMessageLite request) {
+        ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
+        SSLSession sslSession = null;
+        if (sslHandler != null) {
+            sslSession = ((SslHandler) sslHandler).engine().getSession();
+        }
+        try {
+            return getOriginalPrincipal(originalAuthData, originalAuthMethod, originalPrincipal, sslSession);
+        } catch (AuthenticationException e) {
+            String msg = "Unable to authenticate original authdata ";
+            log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
+            if (request instanceof CommandLookupTopic) {
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthenticationError, msg, requestId));
+            } else if (request instanceof CommandPartitionedTopicMetadata) {
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthenticationError, msg, requestId));
+            }
+            return null;
+        }
+    }
+    
+    private String getOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal,
+            SSLSession sslSession) throws AuthenticationException {
+        if (authenticateOriginalAuthData) {
+            if (originalAuthData != null) {
+                originalPrincipal = getBrokerService().getAuthenticationService().authenticate(
+                        new AuthenticationDataCommand(originalAuthData, remoteAddress, sslSession), originalAuthMethod);
+            } else {
+                originalPrincipal = null;
+            }
+        }
+        return originalPrincipal;
+    }
 
     @Override
     protected void handleConnect(CommandConnect connect) {
@@ -430,8 +492,11 @@ public class ServerCnx extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
-
-                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+                originalPrincipal = getOriginalPrincipal(
+                        connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
+                        connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
+                        connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
+                        sslSession);
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 

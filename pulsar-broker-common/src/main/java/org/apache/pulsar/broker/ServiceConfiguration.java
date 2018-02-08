@@ -197,6 +197,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // role as proxyRoles - it will demand to see the original client role or certificate.
     private Set<String> proxyRoles = Sets.newTreeSet();
 
+    // If this flag is set then the broker authenticates the original Auth data
+    // else it just accepts the originalPrincipal and authorizes it (if required). 
+    private boolean authenticateOriginalAuthData = false;
+
     // Allow wildcard matching in authorization
     // (wildcard matching only applicable if wildcard-char:
     // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
@@ -1376,5 +1380,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
         this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+    }
+    
+    public boolean authenticateOriginalAuthData() {
+        return authenticateOriginalAuthData;
+    }
+
+    public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
+        this.authenticateOriginalAuthData = authenticateOriginalAuthData;
     }
 }
