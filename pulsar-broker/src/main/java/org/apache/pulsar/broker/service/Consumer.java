@@ -202,7 +202,7 @@ public class Consumer {
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     readChecksum(metadataAndPayload);
                 }
 

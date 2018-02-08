@@ -50,13 +50,17 @@ import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.checksum.utils.Crc32cChecksum;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -72,6 +76,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * Starts 2 brokers that are in 2 different clusters
@@ -822,7 +828,32 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer1.close();
         consumer1.close();
         consumer2.close();
+    }
 
+    @Test(timeOut = 30000)
+    public void verifyChecksumAfterReplication() throws Exception {
+        final String topicName = "persistent://pulsar/global/ns/checksumAfterReplication";
+
+        PulsarClient c1 = PulsarClient.create(url1.toString());
+        Producer p1 = c1.createProducer(topicName);
+
+        PulsarClient c2 = PulsarClient.create(url2.toString());
+        RawReader reader2 = RawReader.create(c2, topicName, "sub").get();
+
+        p1.send("Hello".getBytes());
+
+        RawMessage msg = reader2.readNextAsync().get();
+
+        ByteBuf b = msg.getHeadersAndPayload();
+
+        assertTrue(Commands.hasChecksum(b));
+        int parsedChecksum = Commands.readChecksum(b).intValue();
+        int computedChecksum = Crc32cChecksum.computeChecksum(b);
+
+        assertEquals(parsedChecksum, computedChecksum);
+
+        p1.close();
+        reader2.closeAsync().get();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
