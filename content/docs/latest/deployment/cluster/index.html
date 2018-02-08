@@ -1903,6 +1903,30 @@ will point to the same <code class="highlighter-rouge">zookeeperServers</code>.<
 
 <p>Once you’ve succesfully started up all the brokers you intend to use, your Pulsar cluster should be ready to go!</p>
 
+<h2 id="connecting-to-the-running-cluster">Connecting to the running cluster</h2>
+
+<p>Once your Pulsar cluster is up and running, you should be able to connect with it using Pulsar clients. One such client is the <a href="../../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> tool, which is included with the Pulsar binary package. The <code class="highlighter-rouge">pulsar-client</code> tool can publish messages to and consume messages from Pulsar <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topics</span> and thus provides a simple way to make sure that your cluster is runnning properly.</p>
+
+<p>To use the <code class="highlighter-rouge">pulsar-client</code> tool, first modify the client configuration file in <a href="../../../reference/Configuration#client"><code class="highlighter-rouge">conf/client.conf</code></a> in your binary package. You’ll need to change the values for <code class="highlighter-rouge">webServiceUrl</code> and <code class="highlighter-rouge">brokerServiceUrl</code>, substituting <code class="highlighter-rouge">localhost</code> (which is the default), with the DNS name that you’ve assigned to your broker/bookie hosts. Here’s an example:</p>
+
+<div class="language-properties highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="py">webServiceUrl</span><span class="p">=</span><span class="s">http://us-west.example.com:8080/</span>
+<span class="py">brokerServiceurl</span><span class="p">=</span><span class="s">pulsar://us-west.example.com:6650/</span>
+</code></pre></div></div>
+
+<p>Once you’ve done that, you can publish a message to Pulsar topic:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce <span class="se">\</span>
+  persistent://sample/pulsar-cluster-1/ns1/test <span class="se">\</span>
+  <span class="nt">-n</span> 1 <span class="se">\</span>
+  <span class="nt">-m</span> <span class="s2">"Hello, Pulsar"</span>
+</code></pre></div></div>
+
+<blockquote>
+  <p>You may need to use a different cluster name in the topic if you specified a cluster name different from <code class="highlighter-rouge">pulsar-cluster-1</code>.</p>
+</blockquote>
+
+<p>This will publish a single message to the Pulsar topic.</p>
+
       </section>
     </article>
 

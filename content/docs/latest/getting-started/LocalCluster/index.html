@@ -1228,11 +1228,10 @@
 
 <ul>
   <li>
-    <p>by clicking one of these links, which will automatically trigger a download:</p>
+    <p>by clicking the link below, which will automatically trigger a download:</p>
 
     <ul>
-      <li><a href="http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz" download="">Pulsar 1.21.0-incubating source release</a></li>
-      <li><a href="http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz" download="">Pulsar 1.21.0-incubating binary release</a></li>
+      <li><a href="http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz" download="">Pulsar 1.21.0-incubating binary release</a></li>
     </ul>
   </li>
   <li>from the Pulsar <a href="/download">downloads page</a></li>
@@ -1240,29 +1239,20 @@
   <li>
     <p>using <a href="https://www.gnu.org/software/wget">wget</a>:</p>
 
-    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="nv">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-src.tar.gz
-
-<span class="c"># Binary release</span>
-<span class="nv">$ </span>wget http://www.apache.org/dist/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
+    <div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>wget http://www.apache.org/dyn/closer.cgi/incubator/pulsar/pulsar-1.21.0-incubating/apache-pulsar-1.21.0-incubating-bin.tar.gz
 </code></pre></div>    </div>
   </li>
 </ul>
 
 <p>Once the tarball is downloaded, untar it and <code class="highlighter-rouge">cd</code> into the resulting directory:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># Source release</span>
-<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-src.tar.gz
-<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
-
-<span class="c"># Binary release</span>
-<span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">tar </span>xvfz apache-pulsar-1.21.0-incubating-bin.tar.gz
 <span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-1.21.0-incubating
 </code></pre></div></div>
 
 <h2 id="what-your-package-contains">What your package contains</h2>
 
-<p>Both the source and binary packages contain the following directories:</p>
+<p>The Pulsar binary package initially contains the following directories:</p>
 
 <table>
   <thead>
@@ -1281,30 +1271,36 @@
       <td style="text-align: left">Configuration files for Pulsar, including for <a href="../../reference/Configuration#broker">broker configuration</a>, <a href="../../reference/Configuration#zookeeper">ZooKeeper configuration</a>, and more</td>
     </tr>
     <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">data</code></td>
-      <td style="text-align: left">The data storage directory used by <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> and <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span>.</td>
-    </tr>
-    <tr>
       <td style="text-align: left"><code class="highlighter-rouge">lib</code></td>
-      <td style="text-align: left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar.</td>
+      <td style="text-align: left">The <a href="https://en.wikipedia.org/wiki/JAR_(file_format)">JAR</a> files used by Pulsar</td>
     </tr>
     <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">logs</code></td>
-      <td style="text-align: left">Logs created by the installation.</td>
+      <td style="text-align: left"><code class="highlighter-rouge">licenses</code></td>
+      <td style="text-align: left">License files, in <code class="highlighter-rouge">.txt</code> form, for various components of the Pulsar <a href="../../project/Codebase">codebase</a></td>
     </tr>
   </tbody>
 </table>
 
-<p>The source package contains all of the assets, specific to version 1.21.0-incubating, from the <a href="https://github.com/apache/incubator-pulsar/tree/master">Pulsar repository</a>.</p>
+<p>These directories will be created once you begin running Pulsar:</p>
 
-<h2 id="compiling-from-source">Compiling from source</h2>
-
-<p>If you’ve downloaded a source release and would like to compile it, you’ll need to have <a href="http://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html">JDK 8</a> and <a href="https://maven.apache.org/">Maven</a> installed. To run the scripts in the <code class="highlighter-rouge">bin</code> directory, you’ll need to have the <a href="http://www.oracle.com/technetwork/java/javase/downloads/jre8-downloads-2133155.html">Java SE Runtime Environment</a> installed (JDK 8 already includes this).</p>
-
-<p>To compile, skipping the tests:</p>
-
-<div class="language-shell highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>mvn <span class="nb">install</span> <span class="nt">-DskipTests</span>
-</code></pre></div></div>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Directory</th>
+      <th style="text-align: left">Contains</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">data</code></td>
+      <td style="text-align: left">The data storage directory used by <span class="popover-term" tabindex="0" title="What is ZooKeeper?" data-placement="top" data-content="ZooKeeper is a service that Pulsar uses for coordination-related tasks.&lt;br /&gt;&lt;br /&gt;A Pulsar instance relies on both a local ZooKeeper for cluster-specific tasks and a global ZooKeeper for instance-wide tasks." data-toggle="popover" data-trigger="focus">ZooKeeper</span> and <span class="popover-term" tabindex="0" title="What is BookKeeper?" data-placement="top" data-content="Apache BookKeeper is a persistent log storage system that Pulsar uses to store message data." data-toggle="popover" data-trigger="focus">BookKeeper</span></td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><code class="highlighter-rouge">logs</code></td>
+      <td style="text-align: left">Logs created by the installation</td>
+    </tr>
+  </tbody>
+</table>
 
 <h2 id="starting-the-cluster">Starting the cluster</h2>
 

@@ -124,6 +124,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationFactory.html#AuthenticationFactory--">AuthenticationFactory()</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationFactory.html" title="class in org.apache.pulsar.client.api">AuthenticationFactory</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/AuthenticationUtil.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">AuthenticationUtil</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationUtil.html#AuthenticationUtil--">AuthenticationUtil()</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationUtil.html" title="class in org.apache.pulsar.client.api">AuthenticationUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.AuthorizationException.html#AuthorizationException-java.lang.String-">AuthorizationException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.AuthorizationException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.AuthorizationException</a></dt>
 <dd>&nbsp;</dd>
 </dl>
@@ -196,12 +200,20 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Authentication.html#configure-java.util.Map-">configure(Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></dt>
 <dd>
-<div class="block">Configure the authentication plugins with the supplied parameters</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">This method will be deleted on version 2.0, instead please use configure(String
+             encodedAuthParamString) which is in EncodedAuthenticationParameterSupport for now and will be
+             integrated into this interface.</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncodedAuthenticationParameterSupport.html#configure-java.lang.String-">configure(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncodedAuthenticationParameterSupport.html" title="interface in org.apache.pulsar.client.api">EncodedAuthenticationParameterSupport</a></dt>
 <dd>
 <div class="block">Plugins which use ":" and/or "," in a configuration parameter value need to implement this interface.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationUtil.html#configureFromJsonString-java.lang.String-">configureFromJsonString(String)</a></span> - Static method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationUtil.html" title="class in org.apache.pulsar.client.api">AuthenticationUtil</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationUtil.html#configureFromPulsar1AuthParamString-java.lang.String-">configureFromPulsar1AuthParamString(String)</a></span> - Static method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationUtil.html" title="class in org.apache.pulsar.client.api">AuthenticationUtil</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ConnectException.html#ConnectException-java.lang.String-">ConnectException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ConnectException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ConnectException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Consumer</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
