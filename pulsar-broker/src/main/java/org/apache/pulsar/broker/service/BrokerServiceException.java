@@ -41,6 +41,12 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ProducerBusyException extends BrokerServiceException {
+        public ProducerBusyException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class ServiceUnitNotReadyException extends BrokerServiceException {
         public ServiceUnitNotReadyException(String msg) {
             super(msg);

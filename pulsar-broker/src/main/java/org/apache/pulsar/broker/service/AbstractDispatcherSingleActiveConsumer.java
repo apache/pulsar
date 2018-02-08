@@ -19,29 +19,16 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
-import org.apache.bookkeeper.mledger.Entry;
-import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.NoMoreEntriesToReadException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsException;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -81,6 +68,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
 
     protected abstract void cancelPendingRead();
 
+    protected abstract boolean isConsumersExceededOnTopic();
+
+    protected abstract boolean isConsumersExceededOnSubscription();
+
     protected void pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
 
@@ -104,6 +95,16 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
         }
         if (subscriptionType == SubType.Exclusive && !consumers.isEmpty()) {
             throw new ConsumerBusyException("Exclusive consumer is already connected");
+        }
+
+        if (isConsumersExceededOnTopic()) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", this.topicName);
+            throw new ConsumerBusyException("Topic reached max consumers limit");
+        }
+
+        if (subscriptionType == SubType.Failover && isConsumersExceededOnSubscription()) {
+            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", this.topicName);
+            throw new ConsumerBusyException("Subscription reached max consumers limit");
         }
 
         consumers.add(consumer);

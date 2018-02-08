@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -315,6 +316,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 throw new TopicTerminatedException("Topic was already terminated");
             }
 
+            if (isProducersExceeded()) {
+                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+                throw new ProducerBusyException("Topic reached max producers limit");
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
@@ -336,6 +342,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private boolean isProducersExceeded() {
+        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        if (maxProducers > 0 && maxProducers <= producers.size()) {
+            return true;
+        }
+        return false;
     }
 
     private boolean hasLocalProducers() {
@@ -940,6 +954,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public ConcurrentOpenHashSet<Producer> getProducers() {
         return producers;
+    }
+
+    public int getNumberOfConsumers() {
+        int count = 0;
+        for (PersistentSubscription subscription : subscriptions.values()) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
     }
 
     @Override
