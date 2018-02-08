@@ -193,6 +193,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // do all admin operations and publish/consume from all topics
     private Set<String> superUserRoles = Sets.newTreeSet();
 
+    // Role names that are treated as "proxy roles". If the broker sees a request with
+    // role as proxyRoles - it will demand to see the original client role or certificate.
+    private Set<String> proxyRoles = Sets.newTreeSet();
+
+    // If this flag is set then the broker authenticates the original Auth data
+    // else it just accepts the originalPrincipal and authorizes it (if required). 
+    private boolean authenticateOriginalAuthData = false;
+
     // Allow wildcard matching in authorization
     // (wildcard matching only applicable if wildcard-char:
     // * presents at first or last position eg: *.pulsar.service, pulsar.service.*)
@@ -349,7 +357,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String loadManagerClassName = "org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl";
 
     // Option to override the auto-detected network interfaces max speed
-    private Integer loadBalancerOverrideBrokerNicSpeedGbps;
+    private Double loadBalancerOverrideBrokerNicSpeedGbps;
 
     /**** --- Replication --- ****/
     // Enable replication metrics
@@ -794,7 +802,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
-
+ 
+    public Set<String> getProxyRoles() {
+        return proxyRoles;
+    }
+    
+    public void setProxyRoles(Set<String> proxyRoles) {
+        this.proxyRoles = proxyRoles;
+    }
+    
     public boolean getAuthorizationAllowWildcardsMatching() {
         return authorizationAllowWildcardsMatching;
     }
@@ -1220,11 +1236,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         return this.loadBalancerNamespaceMaximumBundles;
     }
 
-    public Optional<Integer> getLoadBalancerOverrideBrokerNicSpeedGbps() {
+    public Optional<Double> getLoadBalancerOverrideBrokerNicSpeedGbps() {
         return Optional.ofNullable(loadBalancerOverrideBrokerNicSpeedGbps);
     }
 
-    public void setLoadBalancerOverrideBrokerNicSpeedGbps(int loadBalancerOverrideBrokerNicSpeedGbps) {
+    public void setLoadBalancerOverrideBrokerNicSpeedGbps(double loadBalancerOverrideBrokerNicSpeedGbps) {
         this.loadBalancerOverrideBrokerNicSpeedGbps = loadBalancerOverrideBrokerNicSpeedGbps;
     }
 
@@ -1364,5 +1380,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
         this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
+    }
+    
+    public boolean authenticateOriginalAuthData() {
+        return authenticateOriginalAuthData;
+    }
+
+    public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
+        this.authenticateOriginalAuthData = authenticateOriginalAuthData;
     }
 }

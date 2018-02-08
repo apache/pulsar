@@ -69,6 +69,7 @@ public class Consumer {
 
     private final long consumerId;
     private final int priorityLevel;
+    private final boolean readCompacted;
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
@@ -98,14 +99,17 @@ public class Consumer {
 
     private final Map<String, String> metadata;
 
-    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId, int priorityLevel, String consumerName,
-            int maxUnackedMessages, ServerCnx cnx, String appId, Map<String, String> metadata) throws BrokerServiceException {
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    int maxUnackedMessages, ServerCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
         this.consumerId = consumerId;
         this.priorityLevel = priorityLevel;
+        this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
         this.cnx = cnx;
@@ -143,6 +147,10 @@ public class Consumer {
 
     public String consumerName() {
         return consumerName;
+    }
+
+    public boolean readCompacted() {
+        return readCompacted;
     }
 
     /**
@@ -226,7 +234,7 @@ public class Consumer {
         }
     }
 
-    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, String subscription, long consumerId) {
+    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, Subscription subscription, long consumerId) {
         try {
             // save the reader index and restore after parsing
             metadataAndPayload.markReaderIndex();
@@ -253,7 +261,7 @@ public class Consumer {
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription.toString(), consumerId);
+            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription, consumerId);
             if (batchSize == -1) {
                 // this would suggest that the message might have been corrupted
                 iter.remove();

@@ -22,6 +22,7 @@ import static java.lang.String.format;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -131,7 +132,7 @@ public class BinaryProtoLookupService implements LookupService {
             }).exceptionally((sendException) -> {
                 // lookup failed
                 log.warn("[{}] failed to send lookup request : {}", destination.toString(), sendException.getMessage(),
-                        sendException);
+                        sendException instanceof ClosedChannelException ? null : sendException);
                 addressFuture.completeExceptionally(sendException);
                 return null;
             });

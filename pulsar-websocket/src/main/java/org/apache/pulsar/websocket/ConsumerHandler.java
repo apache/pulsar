@@ -274,6 +274,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             conf.setConsumerName(queryParams.get("consumerName"));
         }
 
+        if (queryParams.containsKey("priorityLevel")) {
+            conf.setPriorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
+        }
+
         return conf;
     }
 

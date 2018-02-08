@@ -171,9 +171,12 @@ public class AuthorizationManager {
                     finalResult.complete(produceAuthorized);
                     return;
                 }
-            } else if (log.isDebugEnabled()) {
-                log.debug("Destination [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
-                        destination.toString(), role, ex.getMessage());
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Destination [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                            destination.toString(), role, ex.getMessage());
+                }
             }
             canConsumeAsync(destination, role, null).whenComplete((consumeAuthorized, e) -> {
                 if (e == null) {
@@ -181,10 +184,15 @@ public class AuthorizationManager {
                         finalResult.complete(consumeAuthorized);
                         return;
                     }
-                } else if (log.isDebugEnabled()) {
-                    log.debug(
-                            "Destination [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
-                            destination.toString(), role, e.getMessage());
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "Destination [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                                destination.toString(), role, e.getMessage());
+
+                    }
+                    finalResult.completeExceptionally(e);
+                    return;
                 }
                 finalResult.complete(false);
             });

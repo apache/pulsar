@@ -27,6 +27,7 @@ import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,7 @@ import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -77,6 +79,9 @@ import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Sets;
+import com.google.protobuf.GeneratedMessageLite;
+
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
@@ -89,7 +94,7 @@ public class ServerCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<CompletableFuture<Consumer>> consumers;
     private State state;
     private volatile boolean isActive = true;
-    private String authRole = null;
+    String authRole = null;
 
     // Max number of pending requests per connections. If multiple producers are sharing the same connection the flow
     // control done by a single producer might not be enough to prevent write spikes on the broker.
@@ -101,7 +106,9 @@ public class ServerCnx extends PulsarHandler {
     private int nonPersistentPendingMessages = 0;
     private final int MaxNonPersistentPendingMessages;
     private String originalPrincipal = null;
-
+    private Set<String> proxyRoles;
+    private boolean authenticateOriginalAuthData;
+    
     enum State {
         Start, Connected, Failed
     }
@@ -117,6 +124,8 @@ public class ServerCnx extends PulsarHandler {
         this.replicatorPrefix = service.pulsar().getConfiguration().getReplicatorPrefix();
         this.MaxNonPersistentPendingMessages = service.pulsar().getConfiguration()
                 .getMaxConcurrentNonPersistentMessagePerConnection();
+        this.proxyRoles = service.pulsar().getConfiguration().getProxyRoles();
+        this.authenticateOriginalAuthData = service.pulsar().getConfiguration().authenticateOriginalAuthData();
     }
 
     @Override
@@ -180,6 +189,17 @@ public class ServerCnx extends PulsarHandler {
         ctx.close();
     }
 
+    /*
+     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce 
+     * - the originalPrincipal is given while connecting 
+     * - originalPrincipal is not blank
+     * - originalPrincipal is not a proxy principal
+     */
+    private boolean invalidOriginalPrincipal(String originalPrincipal) {
+        return (service.isAuthenticationEnabled() && service.isAuthorizationEnabled() && proxyRoles.contains(authRole)
+                && (StringUtils.isBlank(originalPrincipal) || proxyRoles.contains(originalPrincipal)));
+    }
+
     // ////
     // // Incoming commands handling
     // ////
@@ -187,27 +207,53 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
-        final String topicName = lookup.getTopic();
+
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received Lookup from {} for {}", topicName, remoteAddress, requestId);
+            log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
 
+        DestinationName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
+        if (topicName == null) {
+            return;
+        }
+        
+        String originalPrincipal = null;
+        if (authenticateOriginalAuthData && lookup.hasOriginalAuthData()) {
+            originalPrincipal = validateOriginalPrincipal(
+                    lookup.hasOriginalAuthData() ? lookup.getOriginalAuthData() : null,
+                    lookup.hasOriginalAuthMethod() ? lookup.getOriginalAuthMethod() : null,
+                    lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal, requestId,
+                    lookup);
+
+            if (originalPrincipal == null) {
+                return;
+            }
+        } else {
+            originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal;
+        }
+        
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-        if (lookupSemaphore.tryAcquire()) {
-            final String originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal()
-                    : this.originalPrincipal;
+        if (lookupSemaphore.tryAcquire()) {            
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String msg = "Valid Proxy Client role should be provided for lookup ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                        originalPrincipal, topicName);
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                lookupSemaphore.release();
+                return;
+            }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationManager()
-                        .canLookupAsync(DestinationName.get(topicName), authRole);
+                        .canLookupAsync(topicName, authRole);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
-            
+            String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
-                    lookupDestinationAsync(getBrokerService().pulsar(), DestinationName.get(topicName),
-                            lookup.getAuthoritative(), originalPrincipal != null ? originalPrincipal : authRole,
+                    lookupDestinationAsync(getBrokerService().pulsar(), topicName,
+                            lookup.getAuthoritative(), finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole,
                             lookup.getRequestId()).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
@@ -247,27 +293,55 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handlePartitionMetadataRequest(CommandPartitionedTopicMetadata partitionMetadata) {
         final long requestId = partitionMetadata.getRequestId();
-        final String topicName = partitionMetadata.getTopic();
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Received PartitionMetadataLookup from {} for {}", topicName, remoteAddress, requestId);
+            log.debug("[{}] Received PartitionMetadataLookup from {} for {}", partitionMetadata.getTopic(),
+                    remoteAddress, requestId);
         }
+
+        DestinationName topicName = validateTopicName(partitionMetadata.getTopic(), requestId, partitionMetadata);
+        if (topicName == null) {
+            return;
+        }
+        String originalPrincipal = null;
+        if (authenticateOriginalAuthData && partitionMetadata.hasOriginalAuthData()) {
+            originalPrincipal = validateOriginalPrincipal(
+                    partitionMetadata.hasOriginalAuthData() ? partitionMetadata.getOriginalAuthData() : null,
+                    partitionMetadata.hasOriginalAuthMethod() ? partitionMetadata.getOriginalAuthMethod() : null,
+                    partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal()
+                            : this.originalPrincipal,
+                    requestId, partitionMetadata);
+
+            if (originalPrincipal == null) {
+                return;
+            }
+        } else {
+            originalPrincipal = partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
+        }
+        
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
-
-            final String originalPrincipal = partitionMetadata.hasOriginalPrincipal()
-                    ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
+            if (invalidOriginalPrincipal(originalPrincipal)) {
+                final String msg = "Valid Proxy Client role should be provided for getPartitionMetadataRequest ";
+                log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                        originalPrincipal, topicName);
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError,
+                        msg, requestId));
+                lookupSemaphore.release();
+                return;
+            }
             CompletableFuture<Boolean> isProxyAuthorizedFuture;
             if (service.isAuthorizationEnabled() && originalPrincipal != null) {
                 isProxyAuthorizedFuture = service.getAuthorizationManager()
-                        .canLookupAsync(DestinationName.get(topicName), authRole);
+                        .canLookupAsync(topicName, authRole);
             } else {
                 isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
             }
+            String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                     if (isProxyAuthorized) {
-                        getPartitionedTopicMetadata(getBrokerService().pulsar(),
-                                originalPrincipal != null ? originalPrincipal : authRole,
-                                DestinationName.get(topicName)).handle((metadata, ex) -> {
+                    getPartitionedTopicMetadata(getBrokerService().pulsar(),
+                            finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, topicName)
+                                    .handle((metadata, ex) -> {
                                     if (ex == null) {
                                         int partitions = metadata.partitions;
                                         ctx.writeAndFlush(Commands.newPartitionMetadataResponse(partitions, requestId));
@@ -301,7 +375,7 @@ public class ServerCnx extends PulsarHandler {
             }).exceptionally(ex -> {
                 final String msg = "Exception occured while trying to authorize get Partition Metadata";
                 log.warn("[{}] {} with role {} on topic {}", remoteAddress, msg, authRole, topicName);
-                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthorizationError, msg, requestId));
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthorizationError, msg, requestId));
                 lookupSemaphore.release();
                 return null;
             });
@@ -365,6 +439,39 @@ public class ServerCnx extends PulsarHandler {
 
         return commandConsumerStatsResponseBuilder;
     }
+    
+    private String validateOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal, Long requestId, GeneratedMessageLite request) {
+        ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
+        SSLSession sslSession = null;
+        if (sslHandler != null) {
+            sslSession = ((SslHandler) sslHandler).engine().getSession();
+        }
+        try {
+            return getOriginalPrincipal(originalAuthData, originalAuthMethod, originalPrincipal, sslSession);
+        } catch (AuthenticationException e) {
+            String msg = "Unable to authenticate original authdata ";
+            log.warn("[{}] {}: {}", remoteAddress, msg, e.getMessage());
+            if (request instanceof CommandLookupTopic) {
+                ctx.writeAndFlush(newLookupErrorResponse(ServerError.AuthenticationError, msg, requestId));
+            } else if (request instanceof CommandPartitionedTopicMetadata) {
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.AuthenticationError, msg, requestId));
+            }
+            return null;
+        }
+    }
+    
+    private String getOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal,
+            SSLSession sslSession) throws AuthenticationException {
+        if (authenticateOriginalAuthData) {
+            if (originalAuthData != null) {
+                originalPrincipal = getBrokerService().getAuthenticationService().authenticate(
+                        new AuthenticationDataCommand(originalAuthData, remoteAddress, sslSession), originalAuthMethod);
+            } else {
+                originalPrincipal = null;
+            }
+        }
+        return originalPrincipal;
+    }
 
     @Override
     protected void handleConnect(CommandConnect connect) {
@@ -385,8 +492,11 @@ public class ServerCnx extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
-
-                originalPrincipal = connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null;
+                originalPrincipal = getOriginalPrincipal(
+                        connect.hasOriginalAuthData() ? connect.getOriginalAuthData() : null,
+                        connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
+                        connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
+                        sslSession);
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
 
@@ -414,14 +524,38 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleSubscribe(final CommandSubscribe subscribe) {
         checkArgument(state == State.Connected);
-        final String topicName = subscribe.getTopic();
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
+        DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
+        if (topicName == null) {
+            return;
+        }  
+
+        if (invalidOriginalPrincipal(originalPrincipal)) {
+            final String msg = "Valid Proxy Client role should be provided while subscribing ";
+            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                    originalPrincipal, topicName);
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+            return;
+        }
+
+        final String subscriptionName = subscribe.getSubscription();
+        final SubType subType = subscribe.getSubType();
+        final String consumerName = subscribe.getConsumerName();
+        final boolean isDurable = subscribe.getDurable();
+        final MessageIdImpl startMessageId = subscribe.hasStartMessageId() ? new BatchMessageIdImpl(
+                subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
+                subscribe.getStartMessageId().getPartition(), subscribe.getStartMessageId().getBatchIndex())
+                : null;
+
+        final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
+        final boolean readCompacted = subscribe.getReadCompacted();
+        final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationManager().canConsumeAsync(DestinationName.get(topicName),
-                    authRole, subscribe.getSubscription());
+            isProxyAuthorizedFuture = service.getAuthorizationManager().canConsumeAsync(topicName, authRole,
+                    subscribe.getSubscription());
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -429,24 +563,11 @@ public class ServerCnx extends PulsarHandler {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled()) {
-                    authorizationFuture = service.getAuthorizationManager().canConsumeAsync(
-                            DestinationName.get(subscribe.getTopic()),
-                            originalPrincipal != null ? originalPrincipal : authRole, subscribe.getSubscription());
+                    authorizationFuture = service.getAuthorizationManager().canConsumeAsync(topicName,
+                            originalPrincipal != null ? originalPrincipal : authRole, subscriptionName);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
-
-                final String subscriptionName = subscribe.getSubscription();
-                final SubType subType = subscribe.getSubType();
-                final String consumerName = subscribe.getConsumerName();
-                final boolean isDurable = subscribe.getDurable();
-                final MessageIdImpl startMessageId = subscribe.hasStartMessageId() ? new BatchMessageIdImpl(
-                        subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
-                        subscribe.getStartMessageId().getPartition(), subscribe.getStartMessageId().getBatchIndex())
-                        : null;
-
-                final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
-                final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
 
                 authorizationFuture.thenApply(isAuthorized -> {
                     if (isAuthorized) {
@@ -489,9 +610,10 @@ public class ServerCnx extends PulsarHandler {
                             }
                         }
 
-                        service.getTopic(topicName)
+                        service.getTopic(topicName.toString())
                                 .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
-                                        subType, priorityLevel, consumerName, isDurable, startMessageId, metadata))
+                                                                      subType, priorityLevel, consumerName, isDurable,
+                                                                      startMessageId, metadata, readCompacted))
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -566,14 +688,30 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleProducer(final CommandProducer cmdProducer) {
         checkArgument(state == State.Connected);
-        final String topicName = cmdProducer.getTopic();
         final long producerId = cmdProducer.getProducerId();
         final long requestId = cmdProducer.getRequestId();
+        // Use producer name provided by client if present
+        final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
+                : service.generateUniqueProducerName();
+        final boolean isEncrypted = cmdProducer.getEncrypted();
+        final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
+
+        DestinationName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
+        if (topicName == null) {
+            return;
+        }
+
+        if (invalidOriginalPrincipal(originalPrincipal)) {
+            final String msg = "Valid Proxy Client role should be provided while creating producer ";
+            log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
+                    originalPrincipal, topicName);
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
+            return;
+        }
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
-            isProxyAuthorizedFuture = service.getAuthorizationManager().canProduceAsync(DestinationName.get(topicName),
-                    authRole);
+            isProxyAuthorizedFuture = service.getAuthorizationManager().canProduceAsync(topicName, authRole);
         } else {
             isProxyAuthorizedFuture = CompletableFuture.completedFuture(true);
         }
@@ -581,17 +719,11 @@ public class ServerCnx extends PulsarHandler {
             if (isProxyAuthorized) {
                 CompletableFuture<Boolean> authorizationFuture;
                 if (service.isAuthorizationEnabled()) {
-                    authorizationFuture = service.getAuthorizationManager().canProduceAsync(
-                            DestinationName.get(cmdProducer.getTopic().toString()),
+                    authorizationFuture = service.getAuthorizationManager().canProduceAsync(topicName,
                             originalPrincipal != null ? originalPrincipal : authRole);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
-                // Use producer name provided by client if present
-                final String producerName = cmdProducer.hasProducerName() ? cmdProducer.getProducerName()
-                        : service.generateUniqueProducerName();
-                final boolean isEncrypted = cmdProducer.getEncrypted();
-                final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
 
                 authorizationFuture.thenApply(isAuthorized -> {
                     if (isAuthorized) {
@@ -629,7 +761,7 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getTopic(topicName).thenAccept((Topic topic) -> {
+                        service.getTopic(topicName.toString()).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
                             if (topic.isBacklogQuotaExceeded(producerName)) {
@@ -658,7 +790,7 @@ public class ServerCnx extends PulsarHandler {
                                 return;
                             }
 
-                            disableTcpNoDelayIfNeeded(topicName, producerName);
+                            disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
                             Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
                                     isEncrypted, metadata);
@@ -1081,6 +1213,29 @@ public class ServerCnx extends PulsarHandler {
                 log.warn("[{}] [{}] Failed to remove TCP no-delay property on client cnx {}", topic, producerName,
                         ctx.channel());
             }
+        }
+    }
+
+    private DestinationName validateTopicName(String topic, long requestId, GeneratedMessageLite requestCommand) {
+        try {
+            return DestinationName.get(topic);
+        } catch (Throwable t) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, t);
+            }
+
+            if (requestCommand instanceof CommandLookupTopic) {
+                ctx.writeAndFlush(Commands.newLookupErrorResponse(ServerError.InvalidTopicName,
+                        "Invalid topic name: " + t.getMessage(), requestId));
+            } else if (requestCommand instanceof CommandPartitionedTopicMetadata) {
+                ctx.writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.InvalidTopicName,
+                        "Invalid topic name: " + t.getMessage(), requestId));
+            } else {
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.InvalidTopicName,
+                        "Invalid topic name: " + t.getMessage()));
+            }
+
+            return null;
         }
     }
 

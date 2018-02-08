@@ -583,7 +583,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             final int concurrentLookupRequests = 20;
             ClientConfiguration clientConf = new ClientConfiguration();
             clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
-            clientConf.setOperationTimeout(1, TimeUnit.MILLISECONDS);
             clientConf.setStatsInterval(0, TimeUnit.SECONDS);
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
@@ -595,7 +594,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
             clientConf2.setIoThreads(concurrentLookupRequests);
             clientConf2.setConnectionsPerBroker(20);
-            clientConf2.setOperationTimeout(1, TimeUnit.MILLISECONDS);
             pulsarClient2 = (PulsarClientImpl) PulsarClient.create(lookupUrl, clientConf2);
 
             ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);

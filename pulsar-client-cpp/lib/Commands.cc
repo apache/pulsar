@@ -375,6 +375,12 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::CONSUMER_STATS_RESPONSE:
             return "CONSUMER_STATS_RESPONSE";
             break;
+        case BaseCommand::REACHED_END_OF_TOPIC:
+            return "REACHED_END_OF_TOPIC";
+            break;
+        case BaseCommand::SEEK:
+            return "SEEK";
+            break;
     };
 }
 

@@ -79,19 +79,23 @@ public class Commands {
     private static final int checksumSize = 4;
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, null /* target broker */, null /* originalPrincipal */);
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, null /* target broker */,
+                null /* originalPrincipal */, null /* Client Auth Data */, null /* Client Auth Method */);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, null);
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, null, null, null);
     }
 
-    public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker, String originalPrincipal) {
-        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker, originalPrincipal);
+    public static ByteBuf newConnect(String authMethodName, String authData, String libVersion, String targetBroker,
+            String originalPrincipal, String clientAuthData, String clientAuthMethod) {
+        return newConnect(authMethodName, authData, getCurrentProtocolVersion(), libVersion, targetBroker,
+                originalPrincipal, clientAuthData, clientAuthMethod);
     }
 
     public static ByteBuf newConnect(String authMethodName, String authData, int protocolVersion, String libVersion,
-            String targetBroker, String originalPrincipal) {
+            String targetBroker, String originalPrincipal, String originalAuthData,
+            String originalAuthMethod) {
         CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
         connectBuilder.setClientVersion(libVersion != null ? libVersion : "Pulsar Client");
         connectBuilder.setAuthMethodName(authMethodName);
@@ -116,6 +120,13 @@ public class Commands {
             connectBuilder.setOriginalPrincipal(originalPrincipal);
         }
 
+        if (originalAuthData != null) {
+            connectBuilder.setOriginalAuthData(originalAuthData);
+        }
+        
+        if (originalAuthMethod != null) {
+            connectBuilder.setOriginalAuthMethod(originalAuthMethod);
+        }
         connectBuilder.setProtocolVersion(protocolVersion);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
@@ -312,12 +323,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap());
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata) {
+            Map<String, String> metadata, boolean readCompacted) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -327,6 +338,7 @@ public class Commands {
         subscribeBuilder.setRequestId(requestId);
         subscribeBuilder.setPriorityLevel(priorityLevel);
         subscribeBuilder.setDurable(isDurable);
+        subscribeBuilder.setReadCompacted(readCompacted);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
@@ -449,7 +461,7 @@ public class Commands {
     }
 
     public static ByteBuf newPartitionMetadataRequest(String topic, long requestId) {
-        return Commands.newPartitionMetadataRequest(topic, requestId, null);
+        return Commands.newPartitionMetadataRequest(topic, requestId, null, null, null);
     }
 
     public static ByteBuf newPartitionMetadataResponse(int partitions, long requestId) {
@@ -468,7 +480,7 @@ public class Commands {
     }
 
     public static ByteBuf newLookup(String topic, boolean authoritative, long requestId) {
-        return Commands.newLookup(topic, authoritative, null, requestId);
+        return Commands.newLookup(topic, authoritative, null, null, null, requestId);
     }
 
     public static ByteBuf newLookupResponse(String brokerServiceUrl, String brokerServiceUrlTls, boolean authoritative,
@@ -874,12 +886,20 @@ public class Commands {
         None;
     }
 
-    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId, String clientAuthRole) {
+    public static ByteBuf newPartitionMetadataRequest(String topic, long requestId, String originalAuthRole,
+            String originalAuthData, String originalAuthMethod) {
         CommandPartitionedTopicMetadata.Builder partitionMetadataBuilder = CommandPartitionedTopicMetadata.newBuilder();
         partitionMetadataBuilder.setTopic(topic);
         partitionMetadataBuilder.setRequestId(requestId);
-        if (clientAuthRole != null) { 
-            partitionMetadataBuilder.setOriginalPrincipal(clientAuthRole);
+        if (originalAuthRole != null) {
+            partitionMetadataBuilder.setOriginalPrincipal(originalAuthRole);
+        }
+        if (originalAuthData != null) {
+            partitionMetadataBuilder.setOriginalAuthData(originalAuthData);
+        }
+
+        if (originalAuthMethod != null) {
+            partitionMetadataBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         CommandPartitionedTopicMetadata partitionMetadata = partitionMetadataBuilder.build();
         ByteBuf res = serializeWithSize(
@@ -889,13 +909,21 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newLookup(String topic, boolean authoritative, String clientAuthRole, long requestId) {
+    public static ByteBuf newLookup(String topic, boolean authoritative, String originalAuthRole,
+            String originalAuthData, String originalAuthMethod, long requestId) {
         CommandLookupTopic.Builder lookupTopicBuilder = CommandLookupTopic.newBuilder();
         lookupTopicBuilder.setTopic(topic);
         lookupTopicBuilder.setRequestId(requestId);
         lookupTopicBuilder.setAuthoritative(authoritative);
-        if (clientAuthRole != null) {
-            lookupTopicBuilder.setOriginalPrincipal(clientAuthRole);
+        if (originalAuthRole != null) {
+            lookupTopicBuilder.setOriginalPrincipal(originalAuthRole);
+        }
+        if (originalAuthData != null) {
+            lookupTopicBuilder.setOriginalAuthData(originalAuthData);
+        }
+
+        if (originalAuthMethod != null) {
+            lookupTopicBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
         CommandLookupTopic lookupBroker = lookupTopicBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.LOOKUP).setLookupTopic(lookupBroker));
