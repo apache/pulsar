@@ -65,12 +65,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         this.zooKeeper = localZkCache.getZooKeeper();
     }
 
-    public static BookkeeperSchemaStorage create(PulsarService pulsar) throws KeeperException, InterruptedException {
-        BookkeeperSchemaStorage service = new BookkeeperSchemaStorage(pulsar);
-        service.init();
-        return service;
-    }
-
     @VisibleForTesting
     public void init() throws KeeperException, InterruptedException {
         try {
@@ -173,7 +167,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                return putSchema(schemaId, new byte[] {});
+                return putSchema(schemaId, new byte[]{});
             }
         });
     }

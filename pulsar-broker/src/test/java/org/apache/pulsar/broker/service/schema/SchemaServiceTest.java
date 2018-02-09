@@ -60,7 +60,8 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     @Override
     protected void setup() throws Exception {
         super.internalSetup();
-        BookkeeperSchemaStorage storage = BookkeeperSchemaStorage.create(pulsar);
+        BookkeeperSchemaStorage storage = new BookkeeperSchemaStorage(pulsar);
+        storage.init();
         storage.start();
         schemaRegistryService = new SchemaRegistryServiceImpl(storage, MockClock);
     }

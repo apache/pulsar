@@ -57,7 +57,7 @@ import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
-import org.apache.pulsar.broker.service.MockSchemaRegistryService;
+import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -671,7 +671,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         doReturn("test").when(schemasResource).clientAppId();
 
-        SchemaRegistryService mockSchemaRegistryService = spy(new MockSchemaRegistryService());
+        SchemaRegistryService mockSchemaRegistryService = spy(new DefaultSchemaRegistryService());
         doReturn(CompletableFuture.completedFuture(1L))
             .when(mockSchemaRegistryService).putSchema(Matchers.anyString(), Matchers.anyObject());
         doReturn(mockSchemaRegistryService).when(pulsar).getSchemaRegistryService();
