@@ -110,7 +110,7 @@ flexible messaging model and an intuitive client API.</description>
 
     <bookkeeper.version>4.3.1.91-yahoo</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
-    <netty.version>4.1.19.Final</netty.version>
+    <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
     <athenz.version>1.7.17</athenz.version>
@@ -635,6 +635,7 @@ flexible messaging model and an intuitive client API.</description>
           <excludes>
             <exclude>LICENSE</exclude>
             <exclude>NOTICE</exclude>
+            <exclude>DISCLAIMER</exclude>
             <exclude>**/*.txt</exclude>
             <exclude>**/*.pem</exclude>
             <exclude>**/*.crt</exclude>
@@ -686,9 +687,22 @@ flexible messaging model and an intuitive client API.</description>
             <conf>SCRIPT_STYLE</conf>
             <ini>SCRIPT_STYLE</ini>
             <yaml>SCRIPT_STYLE</yaml>
+            <tf>SCRIPT_STYLE</tf>
+            <cfg>SCRIPT_STYLE</cfg>
+            <Makefile>SCRIPT_STYLE</Makefile>
+            <service>SCRIPT_STYLE</service>
             <cc>JAVADOC_STYLE</cc>
             <md>XML_STYLE</md>
+            <txt>SCRIPT_STYLE</txt>
             <scss>JAVADOC_STYLE</scss>
+            <Doxyfile>SCRIPT_STYLE</Doxyfile>
+            <pulsar>SCRIPT_STYLE</pulsar>
+            <pulsar-managed-ledger-admin>SCRIPT_STYLE</pulsar-managed-ledger-admin>
+            <pulsar-daemon>SCRIPT_STYLE</pulsar-daemon>
+            <pulsar-admin>SCRIPT_STYLE</pulsar-admin>
+            <pulsar-perf>SCRIPT_STYLE</pulsar-perf>
+            <pulsar-client>SCRIPT_STYLE</pulsar-client>
+            <bookkeeper>SCRIPT_STYLE</bookkeeper>
           </mapping>
         </configuration>
       </plugin>
@@ -726,6 +740,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>src/main/java/org/apache/pulsar/common/api/proto/PulsarApi.java</exclude>
             <exclude>bin/proto/MLDataFormats_pb2.py</exclude>
 
+            <!-- This is generated during maven build -->
+            <exclude>dependency-reduced-pom.xml</exclude>
+
             <!-- LZ4 code is under BSD 2-clause  -->
             <exclude>pulsar-client-cpp/lib/lz4/lz4.*</exclude>
 
@@ -744,7 +761,9 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
             <exclude>**/*.json</exclude>
+            <exclude>**/*.htpasswd</exclude>
             <exclude>src/test/resources/athenz.conf.test</exclude>
+            <exclude>deployment/terraform-ansible/templates/myid</exclude>
           </excludes>
         </configuration>
       </plugin>
@@ -791,6 +810,11 @@ flexible messaging model and an intuitive client API.</description>
           <artifactId>maven-archiver</artifactId>
           <version>2.5</version>
         </plugin>
+        <plugin>
+          <groupId>org.apache.maven.plugins</groupId>
+          <artifactId>maven-checkstyle-plugin</artifactId>
+          <version>3.0.0</version>
+      </plugin>
         <plugin>
           <groupId>org.eclipse.m2e</groupId>
           <artifactId>lifecycle-mapping</artifactId>
@@ -861,7 +885,6 @@ flexible messaging model and an intuitive client API.</description>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-checkstyle-plugin</artifactId>
-            <version>3.0.0</version>
             <configuration>
               <configLocation>pulsar/checkstyle.xml</configLocation>
               <suppressionsLocation>pulsar/suppressions.xml</suppressionsLocation>

@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -298,7 +299,7 @@ public class NonPersistentTopic implements Topic {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata) {
+            Map<String, String> metadata, boolean readCompacted) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -313,6 +314,11 @@ public class NonPersistentTopic implements Topic {
         if (subscriptionName.startsWith(replicatorPrefix)) {
             log.warn("[{}] Failed to create subscription for {}", topic, subscriptionName);
             future.completeExceptionally(new NamingException("Subscription with reserved subscription name attempted"));
+            return future;
+        }
+
+        if (readCompacted) {
+            future.completeExceptionally(new NotAllowedException("readCompacted only valid on persistent topics"));
             return future;
         }
 
@@ -337,7 +343,7 @@ public class NonPersistentTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0, cnx,
-                    cnx.getRole(), metadata);
+                                             cnx.getRole(), metadata, readCompacted);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();

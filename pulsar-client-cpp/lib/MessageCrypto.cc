@@ -193,7 +193,6 @@ bool MessageCrypto::encrypt(std::set<std::string>& encKeys, const CryptoKeyReade
     if (!encKeys.size()) {
         return false;
     }
-    SharedBuffer emptyBuffer;
 
     Lock lock(mutex_);
 

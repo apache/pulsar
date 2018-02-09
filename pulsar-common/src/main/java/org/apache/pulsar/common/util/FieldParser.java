@@ -219,7 +219,12 @@ public final class FieldParser {
      * @return The converted Double value.
      */
     public static Double stringToDouble(String val) {
-        return Double.valueOf(trim(val));
+        String v = trim(val);
+        if (StringUtil.isNullOrEmpty(v)) {
+            return null;
+        } else {
+            return Double.valueOf(v);
+        }
     }
 
     /**

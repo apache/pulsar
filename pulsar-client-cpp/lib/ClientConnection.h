@@ -166,7 +166,8 @@ class ClientConnection : public boost::enable_shared_from_this<ClientConnection>
     void handleRead(const boost::system::error_code& err, size_t bytesTransferred, uint32_t minReadSize);
 
     void processIncomingBuffer();
-    bool verifyChecksum(SharedBuffer& incomingBuffer_, proto::BaseCommand& incomingCmd_);
+    bool verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes,
+                        proto::BaseCommand& incomingCmd_);
 
     void handleIncomingCommand();
     void handleIncomingMessage(const proto::CommandMessage& msg, bool isChecksumValid,

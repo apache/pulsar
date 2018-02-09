@@ -73,7 +73,7 @@ public class ServiceConfigurationTest {
         String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=5\n";
         InputStream stream = new ByteArrayInputStream(confFile.getBytes());
         final ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
-        assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.of(5));
+        assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.of(5.0));
     }
 
     /**

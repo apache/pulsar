@@ -55,7 +55,7 @@ public class LinuxBrokerHostUsageImpl implements BrokerHostUsage {
     private OperatingSystemMXBean systemBean;
     private SystemResourceUsage usage;
 
-    private final Optional<Integer> overrideBrokerNicSpeedGbps;
+    private final Optional<Double> overrideBrokerNicSpeedGbps;
 
     private static final Logger LOG = LoggerFactory.getLogger(LinuxBrokerHostUsageImpl.class);
 

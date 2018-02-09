@@ -53,6 +53,8 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     private ProxyService service;
     String clientAuthRole = null;
+    String clientAuthData = null;
+    String clientAuthMethod = null;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
@@ -166,6 +168,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
+            cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
@@ -210,6 +213,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
             }
             String authData = connect.getAuthData().toStringUtf8();
+
+            if (service.getConfiguration().forwardAuthorizationCredentials()) {
+                clientAuthData = authData;
+                clientAuthMethod = authMethod;
+            }
             ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
             SSLSession sslSession = null;
             if (sslHandler != null) {
