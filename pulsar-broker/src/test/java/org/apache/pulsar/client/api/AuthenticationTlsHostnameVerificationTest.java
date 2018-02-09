@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
 
+import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,6 +28,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
+import org.apache.http.conn.util.PublicSuffixMatcher;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderBasic;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -125,7 +128,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
     @AfterMethod
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();
+        if (!methodName.equals("testDefaultHostVerifier")) {
+            super.internalCleanup();
+        }
     }
 
     @DataProvider(name = "hostnameVerification")
@@ -224,6 +229,26 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         consumer.acknowledgeCumulative(msg);
         consumer.close();
 
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * This test verifies {@link DefaultHostnameVerifier} behavior and gives fair idea about host matching result
+     * 
+     * @throws Exception
+     */
+    @Test
+    public void testDefaultHostVerifier() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        Method matchIdentityStrict = DefaultHostnameVerifier.class.getDeclaredMethod("matchIdentityStrict",
+                String.class, String.class, PublicSuffixMatcher.class);
+        matchIdentityStrict.setAccessible(true);
+        Assert.assertTrue((boolean) matchIdentityStrict.invoke(null, "pulsar", "pulsar", null));
+        Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar.com", "pulsar", null));
+        Assert.assertTrue((boolean) matchIdentityStrict.invoke(null, "pulsar-broker1.com", "pulsar*.com", null));
+        // unmatched remainder: "1-broker." should not contain "."
+        Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar-broker1.com", "pulsar*com", null));
+        Assert.assertFalse((boolean) matchIdentityStrict.invoke(null, "pulsar.com", "*", null));
         log.info("-- Exiting {} test --", methodName);
     }
 
