@@ -50,8 +50,12 @@ public class FunctionStats {
         private Map<String, Long> totalDeserializationExceptions = new HashMap<>();
         private long totalSerializationExceptions;
         private long totalLatencyMs;
+        private long lastInvocationTime;
 
-        public void incrementProcessed() { totalProcessed++; }
+        public void incrementProcessed(long processedAt) {
+            totalProcessed++;
+            lastInvocationTime = processedAt;
+        }
         public void incrementSuccessfullyProcessed(long latency) {
             totalSuccessfullyProcessed++;
             totalLatencyMs += latency;
@@ -111,9 +115,9 @@ public class FunctionStats {
         totalStats = new Stats();
     }
 
-    public void incrementProcessed() {
-        currentStats.incrementProcessed();
-        totalStats.incrementProcessed();
+    public void incrementProcessed(long processedAt) {
+        currentStats.incrementProcessed(processedAt);
+        totalStats.incrementProcessed(processedAt);
     }
 
     public void incrementSuccessfullyProcessed(long latency) {

@@ -78,6 +78,7 @@ class Stats(object):
     self.ndeserialization_exceptions = {}
     self.nserialization_exceptions = 0
     self.latency = 0
+    self.lastinvocationtime = 0
 
   def increment_deser_errors(self, topic):
     if topic not in self.ndeserialization_exceptions:
@@ -87,6 +88,10 @@ class Stats(object):
   def increment_successfully_processed(self, latency):
     self.nsuccessfullyprocessed += 1
     self.latency += latency
+
+  def increment_processed(self, processed_at):
+    self.nprocessed += 1
+    self.lastinvocationtime = processed_at
 
   def record_user_exception(self, ex):
     self.latestuserexceptions.append((traceback.format_exc(), int(time.time() * 1000)))
@@ -178,8 +183,6 @@ class PythonInstance(object):
       user_exception = False
       system_exception = False
       Log.debug("Got a message from topic %s" % msg.topic)
-      self.current_stats.nprocessed += 1
-      self.total_stats.nprocessed += 1
       input_object = None
       try:
         input_object = msg.serde.deserialize(msg.message.data())
@@ -191,6 +194,8 @@ class PythonInstance(object):
       output_object = None
       try:
         start_time = time.time()
+        self.current_stats.increment_processed(int(start_time) * 1000)
+        self.total_stats.increment_processed(int(start_time) * 1000)
         if self.function_class is not None:
           output_object = self.function_class.process(input_object, self.contextimpl)
         else:
@@ -299,6 +304,7 @@ class PythonInstance(object):
       status.deserializationExceptions[topic] = metric
     status.serializationExceptions = self.total_stats.nserialization_exceptions
     status.averageLatency = self.total_stats.compute_latency()
+    status.lastInvocationTime = self.total_stats.lastinvocationtime
     return status
 
   def join(self):
