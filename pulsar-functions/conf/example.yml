@@ -25,5 +25,5 @@ inputs: ["persistent://sample/standalone/ns1/test_src"]
 userConfig:
   "PublishTopic" : "persistent://sample/standalone/ns1/test_result"
 
-sinkTopic: "persistent://sample/standalone/ns1/test_result"
+output: "persistent://sample/standalone/ns1/test_result"
 autoAck: true

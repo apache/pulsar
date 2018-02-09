@@ -18,6 +18,6 @@
 #
 
 bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
-    --function-config conf/example.yml \
-    --function-classname org.apache.pulsar.functions.api.examples.LoggingFunction \
+    --functionConfig conf/example.yml \
+    --functionClassName org.apache.pulsar.functions.api.examples.LoggingFunction \
     --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar

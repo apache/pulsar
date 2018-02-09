@@ -20,4 +20,4 @@
 name: test-function
 className: org.apache.pulsar.functions.test.TestFunction
 inputs: ["test-source-topic"]
-sinkTopic: test-sink-topic
+output: test-sink-topic

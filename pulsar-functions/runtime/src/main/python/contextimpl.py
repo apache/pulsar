@@ -125,7 +125,7 @@ class ContextImpl(context.Context):
     self.accumulated_metrics[metric_name].update(metric_value)
 
   def get_sink_topic(self):
-    return self.instance_config.function_config.sinkTopic
+    return self.instance_config.function_config.output
 
   def get_output_serde_class_name(self):
     return self.instance_config.function_config.outputSerdeClassName

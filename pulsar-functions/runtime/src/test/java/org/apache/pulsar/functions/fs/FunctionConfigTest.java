@@ -40,7 +40,7 @@ public class FunctionConfigTest {
         FunctionConfig fc = FunctionConfigUtils.loadConfig(new File(yamlUrl.toURI().getPath())).build();
 
         assertEquals("test-function", fc.getName());
-        assertEquals("test-sink-topic", fc.getSinkTopic());
+        assertEquals("test-sink-topic", fc.getOutput());
         assertEquals(1, fc.getInputsCount());
         assertEquals(fc.getInputs(0), "test-source-topic");
     }

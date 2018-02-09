@@ -137,7 +137,7 @@ public class JavaInstanceMain {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
         if (sinkTopicName != null) {
-            functionConfigBuilder.setSinkTopic(sinkTopicName);
+            functionConfigBuilder.setOutput(sinkTopicName);
         }
         functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
         if (autoAck.equals("true")) {

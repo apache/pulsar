@@ -115,12 +115,12 @@ def main():
       Log.critical("CustomSerde SourceTopics and Serde classnames should match")
       sys.exit(1)
     for i in xrange(len(source_topics)):
-      function_config.custom_serde_inputs[source_topics[i]] = source_serde[i]
+      function_config.customSerdeInputs[source_topics[i]] = source_serde[i]
   if args.source_topics is not None:
     for topic in args.source_topics.split(","):
       function_config.inputs.append(topic)
   if args.sink_topic != None and len(args.sink_topic) != 0:
-    function_config.sinkTopic = args.sink_topic
+    function_config.output = args.sink_topic
   if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
     function_config.outputSerdeClassName = args.output_serde_classname
   function_config.processingGuarantees = Function_pb2.FunctionConfig.ProcessingGuarantees.Value(args.processing_guarantees)
