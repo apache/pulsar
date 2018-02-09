@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.schema;
+package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.base.MoreObjects;
 import java.util.Map;

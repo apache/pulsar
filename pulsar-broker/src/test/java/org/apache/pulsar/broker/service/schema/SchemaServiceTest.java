@@ -26,7 +26,6 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;

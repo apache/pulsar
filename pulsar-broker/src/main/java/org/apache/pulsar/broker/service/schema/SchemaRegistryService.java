@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.schema;
 import java.lang.reflect.Method;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

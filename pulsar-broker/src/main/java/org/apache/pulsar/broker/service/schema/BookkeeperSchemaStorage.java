@@ -40,8 +40,6 @@ import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
-import org.apache.pulsar.broker.schema.SchemaStorageFormat;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;

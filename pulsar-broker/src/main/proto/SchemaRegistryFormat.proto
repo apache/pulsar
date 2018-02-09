@@ -19,7 +19,7 @@
 syntax = "proto2";
 
 package pulsar.schema;
-option java_package = "org.apache.pulsar.broker.schema";
+option java_package = "org.apache.pulsar.broker.service.schema";
 option optimize_for = LITE_RUNTIME;
 
 message SchemaInfo {
