@@ -19,11 +19,9 @@
 package org.apache.pulsar.broker.service.schema;
 
 import java.lang.reflect.Method;
-import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.schema.SchemaRegistry;
-import org.apache.pulsar.common.schema.Schema;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,14 +42,6 @@ public interface SchemaRegistryService extends SchemaRegistry {
         }
         return new DefaultSchemaRegistryService();
     }
-
-    CompletableFuture<SchemaAndMetadata> getSchema(String schemaId);
-
-    CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, long version);
-
-    CompletableFuture<Long> putSchema(String schemaId, Schema schema);
-
-    CompletableFuture<Long> deleteSchema(String schemaId, String user);
 
     void close() throws Exception;
 }

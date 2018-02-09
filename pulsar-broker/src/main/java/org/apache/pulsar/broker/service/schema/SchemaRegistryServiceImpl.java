@@ -23,12 +23,14 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaVersion;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     private final SchemaStorage schemaStorage;
@@ -53,21 +55,17 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     @NotNull
-    public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, long version) {
-        return getSchema(schemaId, SchemaVersion.fromLong(version));
-    }
-
-    private CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
+    public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
         return schemaStorage.get(schemaId, version).thenCompose(stored ->
             Functions.bytesToSchemaInfo(stored.data)
-                .thenApply(info -> Functions.schemaInfoToSchema(info, stored.version.toLong()))
-                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version.toLong(), stored.metadata))
+                .thenApply(info -> Functions.schemaInfoToSchema(info, stored.version))
+                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version, stored.metadata))
         );
     }
 
     @Override
     @NotNull
-    public CompletableFuture<Long> putSchema(String schemaId, Schema schema) {
+    public CompletableFuture<SchemaVersion> putSchema(String schemaId, Schema schema) {
         SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
             .setType(Functions.convertFromDomainType(schema.type))
             .setSchema(ByteString.copyFrom(schema.data))
@@ -76,16 +74,20 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .setDeleted(false)
             .setTimestamp(clock.millis())
             .build();
-        return schemaStorage.put(schemaId, info.toByteArray())
-            .thenApply(SchemaVersion::toLong);
+        return schemaStorage.put(schemaId, info.toByteArray());
     }
 
     @Override
     @NotNull
-    public CompletableFuture<Long> deleteSchema(String schemaId, String user) {
+    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
-        return schemaStorage.put(schemaId, deletedEntry)
-            .thenApply(SchemaVersion::toLong);
+        return schemaStorage.put(schemaId, deletedEntry);
+    }
+
+    @Override
+    public SchemaVersion versionFromBytes(byte[] version) {
+        ByteBuffer buffer = ByteBuffer.wrap(version);
+        return new LongSchemaVersion(buffer.getLong());
     }
 
     @Override
@@ -135,7 +137,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             }
         }
 
-        static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info, long version) {
+        static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info, SchemaVersion version) {
             return Schema.newBuilder()
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))

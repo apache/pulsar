@@ -41,6 +41,7 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException;
@@ -83,7 +84,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
 
     @Override
     public CompletableFuture<SchemaVersion> put(String key, byte[] value) {
-        return putSchema(key, value).thenApply(SchemaVersion::fromLong);
+        return putSchema(key, value).thenApply(LongSchemaVersion::new);
     }
 
     @Override
@@ -91,13 +92,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         if (version == SchemaVersion.Latest) {
             return getSchema(key);
         } else {
-            return getSchema(key, version.toLong());
+            LongSchemaVersion longVersion = (LongSchemaVersion) version;
+            return getSchema(key, longVersion.getVersion());
         }
     }
 
     @Override
     public CompletableFuture<SchemaVersion> delete(String key) {
-        return deleteSchema(key).thenApply(SchemaVersion::fromLong);
+        return deleteSchema(key).thenApply(LongSchemaVersion::new);
     }
 
     @NotNull
@@ -113,7 +115,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .thenApply(entry ->
                     new StoredSchema(
                         entry.getSchemaData().toByteArray(),
-                        SchemaVersion.fromLong(schemaLocator.getVersion()),
+                        new LongSchemaVersion(schemaLocator.getVersion()),
                         emptyMap()
                     )
                 );
@@ -144,7 +146,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .thenApply(entry ->
                     new StoredSchema(
                         entry.getSchemaData().toByteArray(),
-                        SchemaVersion.fromLong(version),
+                        new LongSchemaVersion(version),
                         emptyMap()
                     )
                 );

@@ -2,6 +2,7 @@ package org.apache.pulsar.broker.service.schema;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.schema.SchemaVersion;
 
 public interface SchemaStorage {
 

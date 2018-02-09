@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaVersion;
 
 @Path("/schemas")
 public class SchemasResource extends AdminResource {
@@ -95,13 +96,14 @@ public class SchemasResource extends AdminResource {
         @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
-        @PathParam("version") long version,
+        @PathParam("version") String version,
         @Suspended final AsyncResponse response
     ) {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
-        pulsar().getSchemaRegistryService().getSchema(schemaId, version)
+        SchemaVersion v = pulsar().getSchemaRegistryService().versionFromBytes(version.getBytes());
+        pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
                 if (isNull(error)) {
                     response.resume(
@@ -212,9 +214,9 @@ public class SchemasResource extends AdminResource {
     }
 
     static class PostSchemaResponse {
-        public long version;
+        public SchemaVersion version;
 
-        PostSchemaResponse(long version) {
+        PostSchemaResponse(SchemaVersion version) {
             this.version = version;
         }
 
@@ -238,9 +240,9 @@ public class SchemasResource extends AdminResource {
     }
 
     static class DeleteSchemaResponse {
-        public long version;
+        public SchemaVersion version;
 
-        DeleteSchemaResponse(long version) {
+        DeleteSchemaResponse(SchemaVersion version) {
             this.version = version;
         }
     }

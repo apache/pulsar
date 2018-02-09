@@ -29,6 +29,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -41,9 +42,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     String schemaId2 = "id2";
     String userId = "user";
 
-    Schema schema1 = schema1(0);
+    Schema schema1 = schema1(version(0));
 
-    Schema schema2 = schema2(0);
+    Schema schema2 = schema2(version(0));
 
     Schema schema3 = Schema.newBuilder()
         .user(userId)
@@ -51,6 +52,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         .timestamp(MockClock.millis())
         .isDeleted(false)
         .schemaInfo("")
+        .version(version(0))
         .data("message { required int64 b = 1};".getBytes())
         .build();
 
@@ -75,80 +77,80 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void writeReadBackDeleteSchemaEntry() throws Exception {
-        putSchema(schemaId1, schema1, 0);
+        putSchema(schemaId1, schema1, version(0));
 
-        Schema latest = getLatestSchema(schemaId1, 0);
+        Schema latest = getLatestSchema(schemaId1, version(0));
         assertEquals(schema1, latest);
 
-        deleteScehma(schemaId1, 1);
+        deleteSchema(schemaId1, version(1));
 
-        Schema latest2 = getLatestSchema(schemaId1, 1);
+        Schema latest2 = getLatestSchema(schemaId1, version(1));
 
         assertTrue(latest2.isDeleted);
     }
 
     @Test
     public void getReturnsTheLastWrittenEntry() throws Exception {
-        putSchema(schemaId1, schema1, 0);
-        putSchema(schemaId1, schema2, 1);
+        putSchema(schemaId1, schema1, version(0));
+        putSchema(schemaId1, schema2, version(1));
 
-        Schema latest = getLatestSchema(schemaId1, 1);
-        assertEquals(schema2(1), latest);
+        Schema latest = getLatestSchema(schemaId1, version(1));
+        assertEquals(schema2(version(1)), latest);
 
     }
 
     @Test
     public void getByVersionReturnsTheCorrectEntry() throws Exception {
-        putSchema(schemaId1, schema1, 0);
-        putSchema(schemaId1, schema2, 1);
+        putSchema(schemaId1, schema1, version(0));
+        putSchema(schemaId1, schema2, version(1));
 
-        Schema version0 = getSchema(schemaId1, 0);
+        Schema version0 = getSchema(schemaId1, version(0));
         assertEquals(schema1, version0);
     }
 
     @Test
     public void getByVersionReturnsTheCorrectEntry2() throws Exception {
-        putSchema(schemaId1, schema1, 0);
-        putSchema(schemaId1, schema2, 1);
+        putSchema(schemaId1, schema1, version(0));
+        putSchema(schemaId1, schema2, version(1));
 
-        Schema version1 = getSchema(schemaId1, 1);
-        assertEquals(schema2(1), version1);
+        Schema version1 = getSchema(schemaId1, version(1));
+        assertEquals(schema2(version(1)), version1);
     }
 
     @Test
     public void addLotsOfEntriesThenDelete() throws Exception {
-        putSchema(schemaId1, schema1, 0);
-        putSchema(schemaId1, schema2, 1);
-        putSchema(schemaId1, schema2, 2);
-        putSchema(schemaId1, schema2, 3);
-        putSchema(schemaId1, schema2, 4);
-        putSchema(schemaId1, schema2, 5);
-        putSchema(schemaId1, schema1, 6);
+        putSchema(schemaId1, schema1, version(0));
+        putSchema(schemaId1, schema2, version(1));
+        putSchema(schemaId1, schema2, version(2));
+        putSchema(schemaId1, schema2, version(3));
+        putSchema(schemaId1, schema2, version(4));
+        putSchema(schemaId1, schema2, version(5));
+        putSchema(schemaId1, schema1, version(6));
 
-        Schema version0 = getSchema(schemaId1, 0);
-        assertEquals(schema1(0), version0);
+        Schema version0 = getSchema(schemaId1, version(0));
+        assertEquals(schema1(version(0)), version0);
 
-        Schema version1 = getSchema(schemaId1, 1);
-        assertEquals(schema2(1), version1);
+        Schema version1 = getSchema(schemaId1, version(1));
+        assertEquals(schema2(version(1)), version1);
 
-        Schema version2 = getSchema(schemaId1, 2);
-        assertEquals(schema2(2), version2);
+        Schema version2 = getSchema(schemaId1, version(2));
+        assertEquals(schema2(version(2)), version2);
 
-        Schema version3 = getSchema(schemaId1, 3);
-        assertEquals(schema2(3), version3);
+        Schema version3 = getSchema(schemaId1, version(3));
+        assertEquals(schema2(version(3)), version3);
 
-        Schema version4 = getSchema(schemaId1, 4);
-        assertEquals(schema2(4), version4);
+        Schema version4 = getSchema(schemaId1, version(4));
+        assertEquals(schema2(version(4)), version4);
 
-        Schema version5 = getSchema(schemaId1, 5);
-        assertEquals(schema2(5), version5);
+        Schema version5 = getSchema(schemaId1, version(5));
+        assertEquals(schema2(version(5)), version5);
 
-        Schema version6 = getSchema(schemaId1, 6);
-        assertEquals(schema1(6), version6);
+        Schema version6 = getSchema(schemaId1, version(6));
+        assertEquals(schema1(version(6)), version6);
 
-        deleteScehma(schemaId1, 7);
+        deleteSchema(schemaId1, version(7));
 
-        Schema version7 = getSchema(schemaId1, 7);
+        Schema version7 = getSchema(schemaId1, version(7));
         assertTrue(version7.isDeleted);
 
     }
@@ -157,43 +159,42 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     public void writeSchemasToDifferentIds() throws Exception {
         Schema schemaWithDifferentId = schema3;
 
-        putSchema(schemaId1, schema1, 0);
-        putSchema(schemaId2, schemaWithDifferentId, 0);
+        putSchema(schemaId1, schema1, version(0));
+        putSchema(schemaId2, schemaWithDifferentId, version(0));
 
-        Schema withFirstId = getLatestSchema(schemaId1, 0);
-        Schema withDifferentId = getLatestSchema(schemaId2, 0);
+        Schema withFirstId = getLatestSchema(schemaId1, version(0));
+        Schema withDifferentId = getLatestSchema(schemaId2, version(0));
 
         assertEquals(schema1, withFirstId);
         assertEquals(schema3, withDifferentId);
     }
 
-    private void putSchema(String schemaId, Schema schema, long expectedVersion) throws Exception {
-        CompletableFuture<Long> put = schemaRegistryService.putSchema(schemaId, schema);
-        long newVersion = put.get();
+    private void putSchema(String schemaId, Schema schema, SchemaVersion expectedVersion) throws Exception {
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchema(schemaId, schema);
+        SchemaVersion newVersion = put.get();
         assertEquals(expectedVersion, newVersion);
     }
 
-    private Schema getLatestSchema(String schemaId, long expectedVersion) throws Exception {
+    private Schema getLatestSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
         SchemaRegistry.SchemaAndMetadata schemaAndVersion = schemaRegistryService.getSchema(schemaId).get();
         assertEquals(expectedVersion, schemaAndVersion.version);
         assertEquals(schemaId, schemaAndVersion.id);
         return schemaAndVersion.schema;
     }
 
-    private Schema getSchema(String schemaId, long version) throws Exception {
+    private Schema getSchema(String schemaId, SchemaVersion version) throws Exception {
         SchemaRegistry.SchemaAndMetadata schemaAndVersion = schemaRegistryService.getSchema(schemaId, version).get();
         assertEquals(version, schemaAndVersion.version);
         assertEquals(schemaId, schemaAndVersion.id);
         return schemaAndVersion.schema;
     }
 
-    private long deleteScehma(String schemaId, long expectedVersion) throws Exception {
-        long version = schemaRegistryService.deleteSchema(schemaId, userId).get();
+    private void deleteSchema(String schemaId, SchemaVersion expectedVersion) throws Exception {
+        SchemaVersion version = schemaRegistryService.deleteSchema(schemaId, userId).get();
         assertEquals(expectedVersion, version);
-        return version;
     }
 
-    private Schema schema1(long version) {
+    private Schema schema1(SchemaVersion version) {
         return Schema.newBuilder()
             .user(userId)
             .type(SchemaType.PROTOBUF)
@@ -205,7 +206,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .build();
     }
 
-    private Schema schema2(long version) {
+    private Schema schema2(SchemaVersion version) {
         return Schema.newBuilder()
             .user(userId)
             .type(SchemaType.PROTOBUF)
@@ -215,5 +216,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .data("message { required int64 b = 1};".getBytes())
             .version(version)
             .build();
+    }
+
+    private SchemaVersion version(long version) {
+        return new LongSchemaVersion(version);
     }
 }

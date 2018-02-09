@@ -22,6 +22,7 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaVersion;
 
 public class DefaultSchemaRegistryService implements SchemaRegistryService {
     @Override
@@ -30,18 +31,23 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, long version) {
+    public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Long> putSchema(String schemaId, Schema schema) {
+    public CompletableFuture<SchemaVersion> putSchema(String schemaId, Schema schema) {
         return completedFuture(null);
     }
 
     @Override
-    public CompletableFuture<Long> deleteSchema(String schemaId, String user) {
-        return completedFuture(-1L);
+    public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
+        return completedFuture(null);
+    }
+
+    @Override
+    public SchemaVersion versionFromBytes(byte[] version) {
+        return null;
     }
 
     @Override

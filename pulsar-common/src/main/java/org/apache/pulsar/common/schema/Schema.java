@@ -32,7 +32,7 @@ public class Schema {
     public final long timestamp;
     public final String user;
     public final byte[] data;
-    public final long version;
+    public final SchemaVersion version;
 
     private Schema(Builder builder) {
         this.type = builder.type;
@@ -42,6 +42,32 @@ public class Schema {
         this.user = builder.user;
         this.data = builder.data;
         this.version = builder.version;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        Schema schema = (Schema) o;
+        return isDeleted == schema.isDeleted &&
+            timestamp == schema.timestamp &&
+            type == schema.type &&
+            Objects.equals(schemaInfo, schema.schemaInfo) &&
+            Objects.equals(user, schema.user) &&
+            Arrays.equals(data, schema.data) &&
+            Objects.equals(version, schema.version);
+    }
+
+    @Override
+    public int hashCode() {
+
+        int result = Objects.hash(type, isDeleted, schemaInfo, timestamp, user, version);
+        result = 31 * result + Arrays.hashCode(data);
+        return result;
     }
 
     @Override
@@ -57,32 +83,6 @@ public class Schema {
             .toString();
     }
 
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) {
-            return true;
-        }
-        if (o == null || getClass() != o.getClass()) {
-            return false;
-        }
-        Schema schema = (Schema) o;
-        return isDeleted == schema.isDeleted &&
-            timestamp == schema.timestamp &&
-            version == schema.version &&
-            type == schema.type &&
-            Objects.equals(schemaInfo, schema.schemaInfo) &&
-            Objects.equals(user, schema.user) &&
-            Arrays.equals(data, schema.data);
-    }
-
-    @Override
-    public int hashCode() {
-
-        int result = Objects.hash(type, isDeleted, schemaInfo, timestamp, user, version);
-        result = 31 * result + Arrays.hashCode(data);
-        return result;
-    }
-
     public static class Builder {
         private SchemaType type;
         private boolean isDeleted;
@@ -90,7 +90,7 @@ public class Schema {
         private long timestamp;
         private String user;
         private byte[] data;
-        private long version;
+        private SchemaVersion version;
 
         public Builder type(SchemaType type) {
             this.type = type;
@@ -122,7 +122,7 @@ public class Schema {
             return this;
         }
 
-        public Builder version(long version) {
+        public Builder version(SchemaVersion version) {
             this.version = version;
             return this;
         }
