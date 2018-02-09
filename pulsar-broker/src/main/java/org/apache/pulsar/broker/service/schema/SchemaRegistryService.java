@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistry;
 import org.apache.pulsar.common.schema.Schema;
 
@@ -33,4 +34,8 @@ public interface SchemaRegistryService extends SchemaRegistry {
     CompletableFuture<Long> deleteSchema(String schemaId, String user);
 
     void close() throws Exception;
+
+    static SchemaRegistryService create(PulsarService pulsar) {
+        return new SchemaRegistryServiceImpl(new BookkeeperSchemaStorage(pulsar));
+    }
 }

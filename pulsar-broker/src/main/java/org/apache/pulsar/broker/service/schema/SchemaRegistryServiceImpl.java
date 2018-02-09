@@ -19,34 +19,30 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
-import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.kvpair;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.time.Clock;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
-    private static final String UserKey = "user";
-    private static final String Timestamp = "timestamp";
-
     private final SchemaStorage schemaStorage;
+    private final Clock clock;
 
     @VisibleForTesting
-    public SchemaRegistryServiceImpl(SchemaStorage schemaStorage) {
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage, Clock clock) {
         this.schemaStorage = schemaStorage;
+        this.clock = clock;
     }
 
-    public static SchemaRegistryServiceImpl create(PulsarService pulsar) {
-        return new SchemaRegistryServiceImpl(new BookkeeperSchemaStorage(pulsar));
+    @VisibleForTesting
+    SchemaRegistryServiceImpl(SchemaStorage schemaStorage) {
+        this(schemaStorage, Clock.systemUTC());
     }
 
     @Override
@@ -65,7 +61,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         return schemaStorage.get(schemaId, version).thenCompose(stored ->
             Functions.bytesToSchemaInfo(stored.data)
                 .thenApply(info -> Functions.schemaInfoToSchema(info, stored.version.toLong()))
-                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version.toLong()))
+                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version.toLong(), stored.metadata))
         );
     }
 
@@ -76,8 +72,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .setType(Functions.convertFromDomainType(schema.type))
             .setSchema(ByteString.copyFrom(schema.data))
             .setSchemaId(schemaId)
-            .addMeta(kvpair(UserKey, schema.user))
+            .setUser(schema.user)
             .setDeleted(false)
+            .setTimestamp(clock.millis())
             .build();
         return schemaStorage.put(schemaId, info.toByteArray())
             .thenApply(SchemaVersion::toLong);
@@ -86,7 +83,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<Long> deleteSchema(String schemaId, String user) {
-        byte[] deletedEntry = Functions.deleted(schemaId, user).toByteArray();
+        byte[] deletedEntry = deleted(schemaId, user).toByteArray();
         return schemaStorage.put(schemaId, deletedEntry)
             .thenApply(SchemaVersion::toLong);
     }
@@ -96,12 +93,18 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         schemaStorage.close();
     }
 
-    interface Functions {
-        static SchemaRegistryFormat.SchemaInfo.KeyValuePair kvpair(String key, String value) {
-            return SchemaRegistryFormat.SchemaInfo.KeyValuePair.newBuilder()
-                .setKey(key).setValue(value).build();
-        }
+    private SchemaRegistryFormat.SchemaInfo deleted(String schemaId, String user) {
+        return SchemaRegistryFormat.SchemaInfo.newBuilder()
+            .setSchemaId(schemaId)
+            .setType(SchemaRegistryFormat.SchemaInfo.SchemaType.NONE)
+            .setSchema(ByteString.EMPTY)
+            .setUser(user)
+            .setDeleted(true)
+            .setTimestamp(clock.millis())
+            .build();
+    }
 
+    interface Functions {
         static SchemaType convertToDomainType(SchemaRegistryFormat.SchemaInfo.SchemaType type) {
             switch (type) {
                 case AVRO:
@@ -133,22 +136,13 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         }
 
         static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info, long version) {
-            Map<String, String> meta = toMap(info.getMetaList());
             return Schema.newBuilder()
-                .user(meta.get(UserKey))
+                .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
                 .data(info.getSchema().toByteArray())
                 .version(version)
                 .isDeleted(info.getDeleted())
                 .build();
-        }
-
-        static Map<String, String> toMap(List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> pairs) {
-            Map<String, String> map = new HashMap<>();
-            for (SchemaRegistryFormat.SchemaInfo.KeyValuePair pair : pairs) {
-                map.put(pair.getKey(), pair.getValue());
-            }
-            return map;
         }
 
         static CompletableFuture<SchemaRegistryFormat.SchemaInfo> bytesToSchemaInfo(byte[] bytes) {
@@ -160,16 +154,6 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 future.completeExceptionally(e);
             }
             return future;
-        }
-
-        static SchemaRegistryFormat.SchemaInfo deleted(String schemaId, String user) {
-            return SchemaRegistryFormat.SchemaInfo.newBuilder()
-                .setSchemaId(schemaId)
-                .setType(SchemaRegistryFormat.SchemaInfo.SchemaType.NONE)
-                .setSchema(ByteString.EMPTY)
-                .addMeta(kvpair(UserKey, user))
-                .setDeleted(true)
-                .build();
         }
     }
 

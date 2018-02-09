@@ -35,10 +35,13 @@ message SchemaInfo {
         required string value = 2;
     }
     required string schema_id = 1;
+    required string user = 2;
     required SchemaType type = 3;
     required bytes schema = 4;
+    required int64 timestamp = 5;
+    required bool deleted = 6;
+
     repeated KeyValuePair meta = 7;
-    required bool deleted = 8 [default = false];
 }
 
 // STORAGE

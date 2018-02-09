@@ -68,7 +68,7 @@ public class Schema {
         Schema schema = (Schema) o;
         return isDeleted == schema.isDeleted &&
             timestamp == schema.timestamp &&
-//            version == schema.version &&
+            version == schema.version &&
             type == schema.type &&
             Objects.equals(schemaInfo, schema.schemaInfo) &&
             Objects.equals(user, schema.user) &&

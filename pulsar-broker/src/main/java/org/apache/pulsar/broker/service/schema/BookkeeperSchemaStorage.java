@@ -27,9 +27,6 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.hash.HashFunction;
-import com.google.common.hash.Hashing;
-import com.google.protobuf.InvalidProtocolBufferException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -54,7 +51,6 @@ import org.apache.zookeeper.data.ACL;
 
 public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
-    private static final HashFunction HashFunction = Hashing.sha1();
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
 
     private final PulsarService pulsar;
@@ -425,17 +421,6 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             );
             entries.sort(comparingLong(SchemaRegistryFormat.IndexEntry::getVersion));
             return entries;
-        }
-
-        static CompletableFuture<SchemaRegistryFormat.SchemaEntry> bytesToSchemaEntry(byte[] bytes) {
-            CompletableFuture<SchemaRegistryFormat.SchemaEntry> future;
-            try {
-                future = completedFuture(SchemaRegistryFormat.SchemaEntry.parseFrom(bytes));
-            } catch (InvalidProtocolBufferException e) {
-                future = new CompletableFuture<>();
-                future.completeExceptionally(e);
-            }
-            return future;
         }
     }
 

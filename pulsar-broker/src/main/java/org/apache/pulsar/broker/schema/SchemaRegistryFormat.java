@@ -15,6 +15,10 @@ public final class SchemaRegistryFormat {
     boolean hasSchemaId();
     String getSchemaId();
     
+    // required string user = 2;
+    boolean hasUser();
+    String getUser();
+    
     // required .pulsar.schema.SchemaInfo.SchemaType type = 3;
     boolean hasType();
     org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType getType();
@@ -23,15 +27,19 @@ public final class SchemaRegistryFormat {
     boolean hasSchema();
     com.google.protobuf.ByteString getSchema();
     
+    // required int64 timestamp = 5;
+    boolean hasTimestamp();
+    long getTimestamp();
+    
+    // required bool deleted = 6;
+    boolean hasDeleted();
+    boolean getDeleted();
+    
     // repeated .pulsar.schema.SchemaInfo.KeyValuePair meta = 7;
     java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> 
         getMetaList();
     org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getMeta(int index);
     int getMetaCount();
-    
-    // required bool deleted = 8 [default = false];
-    boolean hasDeleted();
-    boolean getDeleted();
   }
   public static final class SchemaInfo extends
       com.google.protobuf.GeneratedMessageLite
@@ -564,11 +572,43 @@ public final class SchemaRegistryFormat {
       }
     }
     
+    // required string user = 2;
+    public static final int USER_FIELD_NUMBER = 2;
+    private java.lang.Object user_;
+    public boolean hasUser() {
+      return ((bitField0_ & 0x00000002) == 0x00000002);
+    }
+    public String getUser() {
+      java.lang.Object ref = user_;
+      if (ref instanceof String) {
+        return (String) ref;
+      } else {
+        com.google.protobuf.ByteString bs = 
+            (com.google.protobuf.ByteString) ref;
+        String s = bs.toStringUtf8();
+        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
+          user_ = s;
+        }
+        return s;
+      }
+    }
+    private com.google.protobuf.ByteString getUserBytes() {
+      java.lang.Object ref = user_;
+      if (ref instanceof String) {
+        com.google.protobuf.ByteString b = 
+            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
+        user_ = b;
+        return b;
+      } else {
+        return (com.google.protobuf.ByteString) ref;
+      }
+    }
+    
     // required .pulsar.schema.SchemaInfo.SchemaType type = 3;
     public static final int TYPE_FIELD_NUMBER = 3;
     private org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType type_;
     public boolean hasType() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
+      return ((bitField0_ & 0x00000004) == 0x00000004);
     }
     public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType getType() {
       return type_;
@@ -578,10 +618,30 @@ public final class SchemaRegistryFormat {
     public static final int SCHEMA_FIELD_NUMBER = 4;
     private com.google.protobuf.ByteString schema_;
     public boolean hasSchema() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
+      return ((bitField0_ & 0x00000008) == 0x00000008);
     }
     public com.google.protobuf.ByteString getSchema() {
       return schema_;
+    }
+    
+    // required int64 timestamp = 5;
+    public static final int TIMESTAMP_FIELD_NUMBER = 5;
+    private long timestamp_;
+    public boolean hasTimestamp() {
+      return ((bitField0_ & 0x00000010) == 0x00000010);
+    }
+    public long getTimestamp() {
+      return timestamp_;
+    }
+    
+    // required bool deleted = 6;
+    public static final int DELETED_FIELD_NUMBER = 6;
+    private boolean deleted_;
+    public boolean hasDeleted() {
+      return ((bitField0_ & 0x00000020) == 0x00000020);
+    }
+    public boolean getDeleted() {
+      return deleted_;
     }
     
     // repeated .pulsar.schema.SchemaInfo.KeyValuePair meta = 7;
@@ -605,22 +665,14 @@ public final class SchemaRegistryFormat {
       return meta_.get(index);
     }
     
-    // required bool deleted = 8 [default = false];
-    public static final int DELETED_FIELD_NUMBER = 8;
-    private boolean deleted_;
-    public boolean hasDeleted() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
-    }
-    public boolean getDeleted() {
-      return deleted_;
-    }
-    
     private void initFields() {
       schemaId_ = "";
+      user_ = "";
       type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
       schema_ = com.google.protobuf.ByteString.EMPTY;
-      meta_ = java.util.Collections.emptyList();
+      timestamp_ = 0L;
       deleted_ = false;
+      meta_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -631,11 +683,19 @@ public final class SchemaRegistryFormat {
         memoizedIsInitialized = 0;
         return false;
       }
+      if (!hasUser()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
       if (!hasType()) {
         memoizedIsInitialized = 0;
         return false;
       }
       if (!hasSchema()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasTimestamp()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -660,16 +720,22 @@ public final class SchemaRegistryFormat {
         output.writeBytes(1, getSchemaIdBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeEnum(3, type_.getNumber());
+        output.writeBytes(2, getUserBytes());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeEnum(3, type_.getNumber());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
         output.writeBytes(4, schema_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        output.writeInt64(5, timestamp_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        output.writeBool(6, deleted_);
       }
       for (int i = 0; i < meta_.size(); i++) {
         output.writeMessage(7, meta_.get(i));
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeBool(8, deleted_);
       }
     }
     
@@ -685,19 +751,27 @@ public final class SchemaRegistryFormat {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(3, type_.getNumber());
+          .computeBytesSize(2, getUserBytes());
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(3, type_.getNumber());
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(4, schema_);
+      }
+      if (((bitField0_ & 0x00000010) == 0x00000010)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeInt64Size(5, timestamp_);
+      }
+      if (((bitField0_ & 0x00000020) == 0x00000020)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(6, deleted_);
       }
       for (int i = 0; i < meta_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(7, meta_.get(i));
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBoolSize(8, deleted_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -803,14 +877,18 @@ public final class SchemaRegistryFormat {
         super.clear();
         schemaId_ = "";
         bitField0_ = (bitField0_ & ~0x00000001);
-        type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
+        user_ = "";
         bitField0_ = (bitField0_ & ~0x00000002);
-        schema_ = com.google.protobuf.ByteString.EMPTY;
+        type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
         bitField0_ = (bitField0_ & ~0x00000004);
-        meta_ = java.util.Collections.emptyList();
+        schema_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000008);
-        deleted_ = false;
+        timestamp_ = 0L;
         bitField0_ = (bitField0_ & ~0x00000010);
+        deleted_ = false;
+        bitField0_ = (bitField0_ & ~0x00000020);
+        meta_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
@@ -851,20 +929,28 @@ public final class SchemaRegistryFormat {
         if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
           to_bitField0_ |= 0x00000002;
         }
-        result.type_ = type_;
+        result.user_ = user_;
         if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
           to_bitField0_ |= 0x00000004;
         }
-        result.schema_ = schema_;
-        if (((bitField0_ & 0x00000008) == 0x00000008)) {
-          meta_ = java.util.Collections.unmodifiableList(meta_);
-          bitField0_ = (bitField0_ & ~0x00000008);
-        }
-        result.meta_ = meta_;
-        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+        result.type_ = type_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
           to_bitField0_ |= 0x00000008;
         }
+        result.schema_ = schema_;
+        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
+          to_bitField0_ |= 0x00000010;
+        }
+        result.timestamp_ = timestamp_;
+        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
+          to_bitField0_ |= 0x00000020;
+        }
         result.deleted_ = deleted_;
+        if (((bitField0_ & 0x00000040) == 0x00000040)) {
+          meta_ = java.util.Collections.unmodifiableList(meta_);
+          bitField0_ = (bitField0_ & ~0x00000040);
+        }
+        result.meta_ = meta_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -874,24 +960,30 @@ public final class SchemaRegistryFormat {
         if (other.hasSchemaId()) {
           setSchemaId(other.getSchemaId());
         }
+        if (other.hasUser()) {
+          setUser(other.getUser());
+        }
         if (other.hasType()) {
           setType(other.getType());
         }
         if (other.hasSchema()) {
           setSchema(other.getSchema());
         }
+        if (other.hasTimestamp()) {
+          setTimestamp(other.getTimestamp());
+        }
+        if (other.hasDeleted()) {
+          setDeleted(other.getDeleted());
+        }
         if (!other.meta_.isEmpty()) {
           if (meta_.isEmpty()) {
             meta_ = other.meta_;
-            bitField0_ = (bitField0_ & ~0x00000008);
+            bitField0_ = (bitField0_ & ~0x00000040);
           } else {
             ensureMetaIsMutable();
             meta_.addAll(other.meta_);
           }
           
-        }
-        if (other.hasDeleted()) {
-          setDeleted(other.getDeleted());
         }
         return this;
       }
@@ -901,11 +993,19 @@ public final class SchemaRegistryFormat {
           
           return false;
         }
+        if (!hasUser()) {
+          
+          return false;
+        }
         if (!hasType()) {
           
           return false;
         }
         if (!hasSchema()) {
+          
+          return false;
+        }
+        if (!hasTimestamp()) {
           
           return false;
         }
@@ -944,29 +1044,39 @@ public final class SchemaRegistryFormat {
               schemaId_ = input.readBytes();
               break;
             }
+            case 18: {
+              bitField0_ |= 0x00000002;
+              user_ = input.readBytes();
+              break;
+            }
             case 24: {
               int rawValue = input.readEnum();
               org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType value = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.valueOf(rawValue);
               if (value != null) {
-                bitField0_ |= 0x00000002;
+                bitField0_ |= 0x00000004;
                 type_ = value;
               }
               break;
             }
             case 34: {
-              bitField0_ |= 0x00000004;
+              bitField0_ |= 0x00000008;
               schema_ = input.readBytes();
+              break;
+            }
+            case 40: {
+              bitField0_ |= 0x00000010;
+              timestamp_ = input.readInt64();
+              break;
+            }
+            case 48: {
+              bitField0_ |= 0x00000020;
+              deleted_ = input.readBool();
               break;
             }
             case 58: {
               org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder subBuilder = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addMeta(subBuilder.buildPartial());
-              break;
-            }
-            case 64: {
-              bitField0_ |= 0x00000010;
-              deleted_ = input.readBool();
               break;
             }
           }
@@ -1011,10 +1121,46 @@ public final class SchemaRegistryFormat {
         
       }
       
+      // required string user = 2;
+      private java.lang.Object user_ = "";
+      public boolean hasUser() {
+        return ((bitField0_ & 0x00000002) == 0x00000002);
+      }
+      public String getUser() {
+        java.lang.Object ref = user_;
+        if (!(ref instanceof String)) {
+          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
+          user_ = s;
+          return s;
+        } else {
+          return (String) ref;
+        }
+      }
+      public Builder setUser(String value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
+        user_ = value;
+        
+        return this;
+      }
+      public Builder clearUser() {
+        bitField0_ = (bitField0_ & ~0x00000002);
+        user_ = getDefaultInstance().getUser();
+        
+        return this;
+      }
+      void setUser(com.google.protobuf.ByteString value) {
+        bitField0_ |= 0x00000002;
+        user_ = value;
+        
+      }
+      
       // required .pulsar.schema.SchemaInfo.SchemaType type = 3;
       private org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
       public boolean hasType() {
-        return ((bitField0_ & 0x00000002) == 0x00000002);
+        return ((bitField0_ & 0x00000004) == 0x00000004);
       }
       public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType getType() {
         return type_;
@@ -1023,13 +1169,13 @@ public final class SchemaRegistryFormat {
         if (value == null) {
           throw new NullPointerException();
         }
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000004;
         type_ = value;
         
         return this;
       }
       public Builder clearType() {
-        bitField0_ = (bitField0_ & ~0x00000002);
+        bitField0_ = (bitField0_ & ~0x00000004);
         type_ = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.SchemaType.NONE;
         
         return this;
@@ -1038,7 +1184,7 @@ public final class SchemaRegistryFormat {
       // required bytes schema = 4;
       private com.google.protobuf.ByteString schema_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasSchema() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
+        return ((bitField0_ & 0x00000008) == 0x00000008);
       }
       public com.google.protobuf.ByteString getSchema() {
         return schema_;
@@ -1047,14 +1193,56 @@ public final class SchemaRegistryFormat {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000004;
+  bitField0_ |= 0x00000008;
         schema_ = value;
         
         return this;
       }
       public Builder clearSchema() {
-        bitField0_ = (bitField0_ & ~0x00000004);
+        bitField0_ = (bitField0_ & ~0x00000008);
         schema_ = getDefaultInstance().getSchema();
+        
+        return this;
+      }
+      
+      // required int64 timestamp = 5;
+      private long timestamp_ ;
+      public boolean hasTimestamp() {
+        return ((bitField0_ & 0x00000010) == 0x00000010);
+      }
+      public long getTimestamp() {
+        return timestamp_;
+      }
+      public Builder setTimestamp(long value) {
+        bitField0_ |= 0x00000010;
+        timestamp_ = value;
+        
+        return this;
+      }
+      public Builder clearTimestamp() {
+        bitField0_ = (bitField0_ & ~0x00000010);
+        timestamp_ = 0L;
+        
+        return this;
+      }
+      
+      // required bool deleted = 6;
+      private boolean deleted_ ;
+      public boolean hasDeleted() {
+        return ((bitField0_ & 0x00000020) == 0x00000020);
+      }
+      public boolean getDeleted() {
+        return deleted_;
+      }
+      public Builder setDeleted(boolean value) {
+        bitField0_ |= 0x00000020;
+        deleted_ = value;
+        
+        return this;
+      }
+      public Builder clearDeleted() {
+        bitField0_ = (bitField0_ & ~0x00000020);
+        deleted_ = false;
         
         return this;
       }
@@ -1063,9 +1251,9 @@ public final class SchemaRegistryFormat {
       private java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> meta_ =
         java.util.Collections.emptyList();
       private void ensureMetaIsMutable() {
-        if (!((bitField0_ & 0x00000008) == 0x00000008)) {
+        if (!((bitField0_ & 0x00000040) == 0x00000040)) {
           meta_ = new java.util.ArrayList<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair>(meta_);
-          bitField0_ |= 0x00000008;
+          bitField0_ |= 0x00000040;
          }
       }
       
@@ -1137,34 +1325,13 @@ public final class SchemaRegistryFormat {
       }
       public Builder clearMeta() {
         meta_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000040);
         
         return this;
       }
       public Builder removeMeta(int index) {
         ensureMetaIsMutable();
         meta_.remove(index);
-        
-        return this;
-      }
-      
-      // required bool deleted = 8 [default = false];
-      private boolean deleted_ ;
-      public boolean hasDeleted() {
-        return ((bitField0_ & 0x00000010) == 0x00000010);
-      }
-      public boolean getDeleted() {
-        return deleted_;
-      }
-      public Builder setDeleted(boolean value) {
-        bitField0_ |= 0x00000010;
-        deleted_ = value;
-        
-        return this;
-      }
-      public Builder clearDeleted() {
-        bitField0_ = (bitField0_ & ~0x00000010);
-        deleted_ = false;
         
         return this;
       }

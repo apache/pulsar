@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.service;
+package org.apache.pulsar.broker.service.schema;
 
 import static org.testng.AssertJUnit.assertEquals;
 import static org.testng.AssertJUnit.assertTrue;
@@ -27,8 +27,6 @@ import java.time.ZoneId;
 import java.util.concurrent.CompletableFuture;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.schema.SchemaRegistry;
-import org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage;
-import org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.testng.annotations.AfterMethod;
@@ -43,23 +41,9 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     String schemaId2 = "id2";
     String userId = "user";
 
-    Schema schema1 = Schema.newBuilder()
-        .user(userId)
-        .type(SchemaType.PROTOBUF)
-        .timestamp(MockClock.millis())
-        .isDeleted(false)
-        .schemaInfo("")
-        .data("message { required int64 a = 1};".getBytes())
-        .build();
+    Schema schema1 = schema1(0);
 
-    Schema schema2 = Schema.newBuilder()
-        .user(userId)
-        .type(SchemaType.PROTOBUF)
-        .timestamp(MockClock.millis())
-        .isDeleted(false)
-        .schemaInfo("")
-        .data("message { required int64 b = 1};".getBytes())
-        .build();
+    Schema schema2 = schema2(0);
 
     Schema schema3 = Schema.newBuilder()
         .user(userId)
@@ -78,7 +62,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
         BookkeeperSchemaStorage storage = BookkeeperSchemaStorage.create(pulsar);
         storage.start();
-        schemaRegistryService = new SchemaRegistryServiceImpl(storage);
+        schemaRegistryService = new SchemaRegistryServiceImpl(storage, MockClock);
     }
 
     @AfterMethod
@@ -108,7 +92,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema2, 1);
 
         Schema latest = getLatestSchema(schemaId1, 1);
-        assertEquals(schema2, latest);
+        assertEquals(schema2(1), latest);
 
     }
 
@@ -127,7 +111,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema2, 1);
 
         Schema version1 = getSchema(schemaId1, 1);
-        assertEquals(schema2, version1);
+        assertEquals(schema2(1), version1);
     }
 
     @Test
@@ -141,25 +125,25 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         putSchema(schemaId1, schema1, 6);
 
         Schema version0 = getSchema(schemaId1, 0);
-        assertEquals(schema1, version0);
+        assertEquals(schema1(0), version0);
 
         Schema version1 = getSchema(schemaId1, 1);
-        assertEquals(schema2, version1);
+        assertEquals(schema2(1), version1);
 
         Schema version2 = getSchema(schemaId1, 2);
-        assertEquals(schema2, version2);
+        assertEquals(schema2(2), version2);
 
         Schema version3 = getSchema(schemaId1, 3);
-        assertEquals(schema2, version3);
+        assertEquals(schema2(3), version3);
 
         Schema version4 = getSchema(schemaId1, 4);
-        assertEquals(schema2, version4);
+        assertEquals(schema2(4), version4);
 
         Schema version5 = getSchema(schemaId1, 5);
-        assertEquals(schema2, version5);
+        assertEquals(schema2(5), version5);
 
         Schema version6 = getSchema(schemaId1, 6);
-        assertEquals(schema1, version6);
+        assertEquals(schema1(6), version6);
 
         deleteScehma(schemaId1, 7);
 
@@ -206,5 +190,29 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         long version = schemaRegistryService.deleteSchema(schemaId, userId).get();
         assertEquals(expectedVersion, version);
         return version;
+    }
+
+    private Schema schema1(long version) {
+        return Schema.newBuilder()
+            .user(userId)
+            .type(SchemaType.PROTOBUF)
+            .timestamp(MockClock.millis())
+            .isDeleted(false)
+            .schemaInfo("")
+            .data("message { required int64 a = 1};".getBytes())
+            .version(version)
+            .build();
+    }
+
+    private Schema schema2(long version) {
+        return Schema.newBuilder()
+            .user(userId)
+            .type(SchemaType.PROTOBUF)
+            .timestamp(MockClock.millis())
+            .isDeleted(false)
+            .schemaInfo("")
+            .data("message { required int64 b = 1};".getBytes())
+            .version(version)
+            .build();
     }
 }
