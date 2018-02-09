@@ -183,7 +183,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 }
 
                 // process the message
-                stats.incrementProcessed();
                 Object input;
                 try {
                     input = msg.getInputSerDe().deserialize(msg.getActualMessage().getData());
@@ -192,6 +191,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     continue;
                 }
                 long processAt = System.currentTimeMillis();
+                stats.incrementProcessed(processAt);
                 result = javaInstance.handleMessage(
                         msg.getActualMessage().getMessageId(),
                         msg.getTopicName(),
@@ -469,6 +469,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         functionStatusBuilder.putAllDeserializationExceptions(stats.getTotalStats().getTotalDeserializationExceptions());
         functionStatusBuilder.setSerializationExceptions(stats.getTotalStats().getTotalSerializationExceptions());
         functionStatusBuilder.setAverageLatency(stats.getTotalStats().computeLatency());
+        functionStatusBuilder.setLastInvocationTime(stats.getTotalStats().getLastInvocationTime());
         return functionStatusBuilder;
     }
 

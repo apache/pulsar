@@ -45,6 +45,9 @@ message FunctionStatus {
     int64 serializationExceptions = 9;
     // average latency
     double averageLatency = 10;
+    // When was the last time the function was invoked.
+    // expressed in ms since epoch
+    int64 lastInvocationTime = 14;
 }
 
 message MetricsData {
