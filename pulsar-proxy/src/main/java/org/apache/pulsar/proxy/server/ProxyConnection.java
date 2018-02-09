@@ -168,6 +168,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
+            cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
