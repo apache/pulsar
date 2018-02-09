@@ -32,6 +32,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -112,17 +113,15 @@ public class SchedulerManager implements AutoCloseable {
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager.getCurrentAssignments();
 
         //delete assignments of functions that don't exist anymore
-        List<Assignment> invalidAssignments = new LinkedList<>();
-        for (Map<String, Assignment> entryMap : workerIdToAssignments.values()) {
-            for (Map.Entry<String, Assignment> entry : entryMap.entrySet()) {
-                String fullyQualifiedName = entry.getKey();
-                Assignment assignment = entry.getValue();
-                if (!fullyQualifiedNames.contains(fullyQualifiedName)) {
-                    invalidAssignments.add(assignment);
-                }
+        Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
+        while(it.hasNext()) {
+            Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
+            Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
+            functionMap.entrySet().removeIf(entry -> !fullyQualifiedNames.contains(entry.getKey()));
+            if (functionMap.isEmpty()) {
+                it.remove();
             }
         }
-        this.functionRuntimeManager.removeAssignments(invalidAssignments);
 
         List<Assignment> currentAssignments = workerIdToAssignments
                 .entrySet().stream()
