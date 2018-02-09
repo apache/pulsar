@@ -22,8 +22,7 @@ import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
 
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.commons.lang3.tuple.Triple;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
@@ -166,26 +165,27 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         LedgerHandle lh = bk.openLedger(compactedLedgerData.getLeft(),
                                         Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                                         Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
-
-        Cache<LongPair,MessageIdData> cache = CacheBuilder.newBuilder().maximumSize(50).build();
+        long lastEntryId = lh.getLastAddConfirmed();
+        AsyncLoadingCache<Long,MessageIdData> cache = CompactedTopicImpl.createCache(lh, 50);
 
         MessageIdData firstPositionId = positions.get(0).getLeft();
         Pair<MessageIdData, Long> lastPosition = positions.get(positions.size() - 1);
 
         // check ids before and after ids in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(lh, new PositionImpl(0, 0), cache).get(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(0, 0), lastEntryId, cache).get(),
                             Long.valueOf(0));
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(lh, new PositionImpl(Long.MAX_VALUE, 0), cache).get(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(Long.MAX_VALUE, 0),
+                                                              lastEntryId, cache).get(),
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // entry 0 is never in compacted ledger due to how we generate dummy
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(
-                                    lh, new PositionImpl(firstPositionId.getLedgerId(), 0), cache).get(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(firstPositionId.getLedgerId(), 0),
+                                                              lastEntryId, cache).get(),
                             Long.valueOf(0));
         // check next id after last id in compacted ledger
-        Assert.assertEquals(CompactedTopicImpl.findStartPoint(
-                                    lh, new PositionImpl(lastPosition.getLeft().getLedgerId(),
-                                                         lastPosition.getLeft().getEntryId() + 1), cache).get(),
+        Assert.assertEquals(CompactedTopicImpl.findStartPoint(new PositionImpl(lastPosition.getLeft().getLedgerId(),
+                                                                               lastPosition.getLeft().getEntryId() + 1),
+                                                              lastEntryId, cache).get(),
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // shuffle to make cache work hard
@@ -196,10 +196,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         for (Pair<MessageIdData, Long> p : positions) {
             PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
             if (p.equals(lastPosition)) {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(lh, pos, cache).get(),
+                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
                                     Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
             } else {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(lh, pos, cache).get(),
+                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
                             Long.valueOf(p.getRight() + 1));
             }
         }
@@ -207,7 +207,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
         // Check ids we know are in the gaps of the compacted ledger
         for (Pair<MessageIdData, Long> gap : idsInGaps) {
             PositionImpl pos = new PositionImpl(gap.getLeft().getLedgerId(), gap.getLeft().getEntryId());
-            Assert.assertEquals(CompactedTopicImpl.findStartPoint(lh, pos, cache).get(),
+            Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
                                 Long.valueOf(gap.getRight()));
         }
     }

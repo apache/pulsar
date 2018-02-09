@@ -18,7 +18,8 @@
  */
 package org.apache.pulsar.compaction;
 
-import com.google.common.cache.Cache;
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.collect.ComparisonChain;
 
 import java.util.NoSuchElementException;
@@ -30,7 +31,6 @@ import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
@@ -45,21 +45,22 @@ public class CompactedTopicImpl implements CompactedTopic {
     @Override
     public void newCompactedLedger(Position p, long compactedLedgerId) {}
 
-    static CompletableFuture<Long> findStartPoint(LedgerHandle lh, PositionImpl p,
-                                                  Cache<LongPair,MessageIdData> cache) {
+    static CompletableFuture<Long> findStartPoint(PositionImpl p,
+                                                  long lastEntryId,
+                                                  AsyncLoadingCache<Long,MessageIdData> cache) {
         CompletableFuture<Long> promise = new CompletableFuture<>();
-        findStartPointLoop(lh, p, 0, lh.getLastAddConfirmed(), promise, cache);
+        findStartPointLoop(p, 0, lastEntryId, promise, cache);
         return promise;
     }
 
-    private static void findStartPointLoop(LedgerHandle lh, PositionImpl p, long start, long end,
+    private static void findStartPointLoop(PositionImpl p, long start, long end,
                                            CompletableFuture<Long> promise,
-                                           Cache<LongPair,MessageIdData> cache) {
+                                           AsyncLoadingCache<Long,MessageIdData> cache) {
         long midpoint = start + ((end - start) / 2);
 
-        CompletableFuture<MessageIdData> startEntry = readOneMessageId(lh, start, cache);
-        CompletableFuture<MessageIdData> middleEntry = readOneMessageId(lh, midpoint, cache);
-        CompletableFuture<MessageIdData> endEntry = readOneMessageId(lh, end, cache);
+        CompletableFuture<MessageIdData> startEntry = cache.get(start);
+        CompletableFuture<MessageIdData> middleEntry = cache.get(midpoint);
+        CompletableFuture<MessageIdData> endEntry = cache.get(end);
 
         CompletableFuture.allOf(startEntry, middleEntry, endEntry).whenComplete(
                 (v, exception) -> {
@@ -70,9 +71,9 @@ public class CompactedTopicImpl implements CompactedTopic {
                         if (comparePositionAndMessageId(p, startEntry.get()) < 0) {
                             promise.complete(start);
                         } else if (comparePositionAndMessageId(p, middleEntry.get()) < 0) {
-                            findStartPointLoop(lh, p, start, midpoint, promise, cache);
+                            findStartPointLoop(p, start, midpoint, promise, cache);
                         } else if (comparePositionAndMessageId(p, endEntry.get()) < 0) {
-                            findStartPointLoop(lh, p, midpoint + 1, end, promise, cache);
+                            findStartPointLoop(p, midpoint + 1, end, promise, cache);
                         } else {
                             promise.complete(NEWER_THAN_COMPACTED);
                         }
@@ -87,34 +88,31 @@ public class CompactedTopicImpl implements CompactedTopic {
                 });
     }
 
-    private static CompletableFuture<MessageIdData> readOneMessageId(LedgerHandle lh, long entryId,
-                                                                     Cache<LongPair,MessageIdData> cache) {
+    static AsyncLoadingCache<Long,MessageIdData> createCache(LedgerHandle lh,
+                                                             long maxSize) {
+        return Caffeine.newBuilder()
+            .maximumSize(maxSize)
+            .buildAsync((entryId, executor) -> readOneMessageId(lh, entryId));
+    }
+
+
+    private static CompletableFuture<MessageIdData> readOneMessageId(LedgerHandle lh, long entryId) {
         CompletableFuture<MessageIdData> promise = new CompletableFuture<>();
 
-        LongPair cacheKey = new LongPair(lh.getId(), entryId);
-        MessageIdData cached = cache.getIfPresent(cacheKey);
-
-        if (cached == null) {
-            lh.asyncReadEntries(entryId, entryId,
-                    (rc, _lh, seq, ctx) -> {
-                        if (rc != BKException.Code.OK) {
-                            promise.completeExceptionally(BKException.create(rc));
-                        } else {
-                            try (RawMessage m = RawMessageImpl.deserializeFrom(
-                                         seq.nextElement().getEntryBuffer())) {
-                                promise.complete(m.getMessageIdData());
-                            } catch (NoSuchElementException e) {
-                                log.error("No such entry {} in ledger {}", entryId, lh.getId());
-                                promise.completeExceptionally(e);
-                            }
-                        }
-                    }, null);
-            promise.thenAccept((v) -> {
-                    cache.put(cacheKey, v);
-                });
-        } else {
-            promise.complete(cached);
-        }
+        lh.asyncReadEntries(entryId, entryId,
+                            (rc, _lh, seq, ctx) -> {
+                                if (rc != BKException.Code.OK) {
+                                    promise.completeExceptionally(BKException.create(rc));
+                                } else {
+                                    try (RawMessage m = RawMessageImpl.deserializeFrom(
+                                                 seq.nextElement().getEntryBuffer())) {
+                                        promise.complete(m.getMessageIdData());
+                                    } catch (NoSuchElementException e) {
+                                        log.error("No such entry {} in ledger {}", entryId, lh.getId());
+                                        promise.completeExceptionally(e);
+                                    }
+                                }
+                            }, null);
         return promise;
     }
 
