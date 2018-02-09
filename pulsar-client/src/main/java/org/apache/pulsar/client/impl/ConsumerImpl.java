@@ -83,8 +83,8 @@ public class ConsumerImpl extends ConsumerBase {
             .newUpdater(ConsumerImpl.class, "availablePermits");
     private volatile int availablePermits = 0;
 
-    private MessageId lastDequeuedMessage = new MessageIdImpl();
-    private MessageId lastMessageIdInBroker = new MessageIdImpl();
+    private MessageId lastDequeuedMessage = MessageId.earliest;
+    private MessageId lastMessageIdInBroker = MessageId.earliest;
 
     private long subscribeTimeout;
     private final int partitionIndex;
@@ -1254,9 +1254,7 @@ public class ConsumerImpl extends ConsumerBase {
         return seekFuture;
     }
 
-
-    @Override
-    public Boolean hasMessageAvailable() throws PulsarClientException {
+    public boolean hasMessageAvailable() throws PulsarClientException {
         try {
             return hasMessageAvailableAsync().get();
         } catch (ExecutionException | InterruptedException e) {
@@ -1264,7 +1262,6 @@ public class ConsumerImpl extends ConsumerBase {
         }
     }
 
-    @Override
     public CompletableFuture<Boolean> hasMessageAvailableAsync() {
         final CompletableFuture<Boolean> booleanFuture = new CompletableFuture<>();
 
@@ -1293,6 +1290,13 @@ public class ConsumerImpl extends ConsumerBase {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
+        }
+
+        if (cnx().getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
+            return FutureUtil
+                .failedFuture(new PulsarClientException
+                    .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
+                        cnx().getRemoteEndpointProtocolVersion()));
         }
 
         if (!isConnected()) {

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.pulsar.client.impl.ConsumerStats;
 
 /**
@@ -277,18 +278,4 @@ public interface Consumer extends Closeable {
      * @return a future to track the completion of the seek operation
      */
     CompletableFuture<Void> seekAsync(MessageId messageId);
-
-    /**
-     * Check if there is message that has been published successfully to the broker in the topic.
-     *
-     * Note: this operation can only be done on non-partitioned persistent topics.
-     * For partitioned topics, one can rather perform the hasMessageAvailable on the individual partitions.
-     */
-    Boolean hasMessageAvailable() throws PulsarClientException;
-
-    /**
-     * Asynchronously Check if there is message that has been published successfully to the broker in the topic.
-     */
-    CompletableFuture<Boolean> hasMessageAvailableAsync();
-
 }

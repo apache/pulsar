@@ -133,7 +133,7 @@ public class ReaderImpl implements Reader {
     }
 
     @Override
-    public Boolean hasMessageAvailable() throws PulsarClientException {
+    public boolean hasMessageAvailable() throws PulsarClientException {
         return consumer.hasMessageAvailable();
     }
 
