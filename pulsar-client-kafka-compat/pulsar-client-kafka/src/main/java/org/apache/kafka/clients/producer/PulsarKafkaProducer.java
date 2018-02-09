@@ -48,7 +48,8 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
-import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarProducerKafkaConfig;
 
 public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
 
@@ -106,15 +107,14 @@ public class PulsarKafkaProducer<K, V> implements Producer<K, V> {
         }
 
         String serviceUrl = producerConfig.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
-        ClientConfiguration clientConf = PulsarKafkaConfig.getClientConfiguration(properties);
+        ClientConfiguration clientConf = PulsarClientKafkaConfig.getClientConfiguration(properties);
         try {
             client = PulsarClient.create(serviceUrl, clientConf);
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
 
-        pulsarProducerConf = new ProducerConfiguration();
-        pulsarProducerConf.setBatchingEnabled(true);
+        pulsarProducerConf = PulsarProducerKafkaConfig.getProducerConfiguration(properties);
 
         // To mimic the same batching mode as Kafka, we need to wait a very little amount of
         // time to batch if the client is trying to send messages fast enough
