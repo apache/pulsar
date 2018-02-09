@@ -96,7 +96,6 @@ public class ClientCnx extends PulsarHandler {
     private String remoteHostName = null;
     private boolean isTlsHostnameVerificationEnable;
     private DefaultHostnameVerifier hostnameVerifier;
-    protected ChannelHandlerContext ctx;
 
     enum State {
         None, SentConnectFrame, Ready, Failed
@@ -116,7 +115,6 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        this.ctx = ctx;
         super.channelActive(ctx);
 
         if (proxyToTargetBrokerAddress == null) {
