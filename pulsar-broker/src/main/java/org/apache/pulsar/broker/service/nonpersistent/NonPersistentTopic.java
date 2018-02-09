@@ -70,6 +70,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -917,12 +918,13 @@ public class NonPersistentTopic implements Topic {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
-    public CompletableFuture<SchemaRegistry.SchemaAndMetadata> getSchema() {
-        DestinationName destination = DestinationName.get(getName());
+    public CompletableFuture<Schema> getSchema() {
+        String base = DestinationName.get(getName()).getPartitionedTopicName();
+        DestinationName destination = DestinationName.get(base);
         String schema = destination.getProperty()
             + "_" + destination.getCluster()
             + "_" + destination.getNamespacePortion()
-            + "_" + destination.getPartitionedTopicName();
-        return brokerService.pulsar().getSchemaRegistryService().getSchema(schema);
+            + "_" + destination.getLocalName();
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(schema).thenApply(s -> s.schema);
     }
 }

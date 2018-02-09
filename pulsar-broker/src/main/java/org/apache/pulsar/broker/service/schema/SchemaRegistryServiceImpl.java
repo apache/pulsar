@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
@@ -60,10 +61,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
-        return schemaStorage.get(schemaId, version).thenCompose(stored ->
-            Functions.bytesToSchemaInfo(stored.data)
-                .thenApply(Functions::schemaInfoToSchema)
-                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
+        return schemaStorage.get(schemaId, version).thenCompose(stored -> {
+                if (isNull(stored)) {
+                    return completedFuture(null);
+                } else {
+                    return Functions.bytesToSchemaInfo(stored.data)
+                        .thenApply(Functions::schemaInfoToSchema)
+                        .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version));
+                }
+            }
         );
     }
 

@@ -22,5 +22,4 @@ public interface SchemaVersion {
     SchemaVersion Latest = new LatestVersion();
 
     byte[] bytes();
-
 }

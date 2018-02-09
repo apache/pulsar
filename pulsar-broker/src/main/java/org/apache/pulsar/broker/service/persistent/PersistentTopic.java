@@ -93,6 +93,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
@@ -1540,12 +1541,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<SchemaRegistry.SchemaAndMetadata> getSchema() {
-        DestinationName destination = DestinationName.get(getName());
+    public CompletableFuture<Schema> getSchema() {
+        String base = DestinationName.get(getName()).getPartitionedTopicName();
+        DestinationName destination = DestinationName.get(base);
         String schema = destination.getProperty()
             + "_" + destination.getCluster()
             + "_" + destination.getNamespacePortion()
-            + "_" + destination.getPartitionedTopicName();
-        return brokerService.pulsar().getSchemaRegistryService().getSchema(schema);
+            + "_" + destination.getLocalName();
+        return brokerService.pulsar().getSchemaRegistryService().getSchema(schema).thenApply(s -> s.schema);
     }
 }

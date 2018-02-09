@@ -110,8 +110,9 @@ public class SchemasResource extends AdminResource {
                     response.resume(
                         Response.ok()
                             .encoding(MediaType.APPLICATION_JSON)
-                            .entity(schema)
-                            .build()
+                            .entity(new GetSchemaResponse(
+                                schema.schema, schema.version)
+                            ).build()
                     );
                 } else {
                     response.resume(error);
@@ -200,6 +201,16 @@ public class SchemasResource extends AdminResource {
             checkNotNull(topic);
         } catch (Exception e) {
             throw new RestException(Response.Status.NOT_FOUND, "Topic not found");
+        }
+    }
+
+    static class GetSchemaResponse {
+        public final SchemaVersion version;
+        public final Schema schema;
+
+        public GetSchemaResponse(Schema schema, SchemaVersion version) {
+            this.schema = schema;
+            this.version = version;
         }
     }
 
