@@ -23,25 +23,10 @@ option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
 message Schema {
-	enum Format {
-		AVRO = 0;
-		JSON = 1;
-		PROTOBUF = 2;
-		THRIFT = 3;
-	}
-
-	enum State {
-		STAGED = 1;
-		ACTIVE = 2;
-	}
-
-	optional string name = 1;
-	optional int64 version = 2;
-	optional Format format = 3;
-	optional State state = 4;
-	optional string modified_user = 5;
-	optional string modified_time = 6;
-	optional bytes schema_data = 7;
+	required string name = 1;
+	required bytes version = 2;
+	required bytes schema_data = 7;
+    repeated KeyValue properties = 8;
 }
 
 message Tombstone {}

@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.isNull;
 import static org.apache.bookkeeper.mledger.impl.EntryCacheManager.create;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -54,6 +55,7 @@ import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -918,13 +920,15 @@ public class NonPersistentTopic implements Topic {
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
-    public CompletableFuture<Schema> getSchema() {
+    public CompletableFuture<SchemaAndMetadata> getSchema() {
         String base = DestinationName.get(getName()).getPartitionedTopicName();
         DestinationName destination = DestinationName.get(base);
         String schema = destination.getProperty()
             + "_" + destination.getCluster()
             + "_" + destination.getNamespacePortion()
             + "_" + destination.getLocalName();
-        return brokerService.pulsar().getSchemaRegistryService().getSchema(schema).thenApply(s -> s.schema);
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .getSchema(schema);
     }
 }

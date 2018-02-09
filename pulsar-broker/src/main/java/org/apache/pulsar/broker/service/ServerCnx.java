@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -689,9 +690,9 @@ public class ServerCnx extends PulsarHandler {
 
     private static class TopicAndSchema {
         final Topic topic;
-        final Schema schema;
+        final SchemaAndMetadata schema;
 
-        TopicAndSchema(Topic topic, Schema schema) {
+        TopicAndSchema(Topic topic, SchemaAndMetadata schema) {
             this.topic = topic;
             this.schema = schema;
         }
@@ -700,6 +701,14 @@ public class ServerCnx extends PulsarHandler {
     static CompletableFuture<TopicAndSchema> getSchema(Topic topic) {
         return topic.getSchema().thenApply(schema ->
             new TopicAndSchema(topic, schema)
+        );
+    }
+
+    static Commands.SchemaInfo toInfo(SchemaAndMetadata schemaAndMetadata) {
+        return new Commands.SchemaInfo(
+            schemaAndMetadata.id,
+            schemaAndMetadata.version,
+            schemaAndMetadata.schema
         );
     }
 
@@ -821,7 +830,7 @@ public class ServerCnx extends PulsarHandler {
                                     if (producerFuture.complete(producer)) {
                                         log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                         ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                                producer.getLastSequenceId(), tas.schema));
+                                                producer.getLastSequenceId(), toInfo(tas.schema)));
                                         return;
                                     } else {
                                         // The producer's future was completed before by

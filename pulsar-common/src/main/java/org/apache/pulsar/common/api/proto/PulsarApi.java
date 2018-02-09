@@ -259,33 +259,23 @@ public final class PulsarApi {
   public interface SchemaOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
-    // optional string name = 1;
+    // required string name = 1;
     boolean hasName();
     String getName();
     
-    // optional int64 version = 2;
+    // required bytes version = 2;
     boolean hasVersion();
-    long getVersion();
+    com.google.protobuf.ByteString getVersion();
     
-    // optional .pulsar.proto.Schema.Format format = 3;
-    boolean hasFormat();
-    org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format getFormat();
-    
-    // optional .pulsar.proto.Schema.State state = 4;
-    boolean hasState();
-    org.apache.pulsar.common.api.proto.PulsarApi.Schema.State getState();
-    
-    // optional string modified_user = 5;
-    boolean hasModifiedUser();
-    String getModifiedUser();
-    
-    // optional string modified_time = 6;
-    boolean hasModifiedTime();
-    String getModifiedTime();
-    
-    // optional bytes schema_data = 7;
+    // required bytes schema_data = 7;
     boolean hasSchemaData();
     com.google.protobuf.ByteString getSchemaData();
+    
+    // repeated .pulsar.proto.KeyValue properties = 8;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
+        getPropertiesList();
+    org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index);
+    int getPropertiesCount();
   }
   public static final class Schema extends
       com.google.protobuf.GeneratedMessageLite
@@ -323,96 +313,8 @@ public final class PulsarApi {
       return defaultInstance;
     }
     
-    public enum Format
-        implements com.google.protobuf.Internal.EnumLite {
-      AVRO(0, 0),
-      JSON(1, 1),
-      PROTOBUF(2, 2),
-      THRIFT(3, 3),
-      ;
-      
-      public static final int AVRO_VALUE = 0;
-      public static final int JSON_VALUE = 1;
-      public static final int PROTOBUF_VALUE = 2;
-      public static final int THRIFT_VALUE = 3;
-      
-      
-      public final int getNumber() { return value; }
-      
-      public static Format valueOf(int value) {
-        switch (value) {
-          case 0: return AVRO;
-          case 1: return JSON;
-          case 2: return PROTOBUF;
-          case 3: return THRIFT;
-          default: return null;
-        }
-      }
-      
-      public static com.google.protobuf.Internal.EnumLiteMap<Format>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static com.google.protobuf.Internal.EnumLiteMap<Format>
-          internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<Format>() {
-              public Format findValueByNumber(int number) {
-                return Format.valueOf(number);
-              }
-            };
-      
-      private final int value;
-      
-      private Format(int index, int value) {
-        this.value = value;
-      }
-      
-      // @@protoc_insertion_point(enum_scope:pulsar.proto.Schema.Format)
-    }
-    
-    public enum State
-        implements com.google.protobuf.Internal.EnumLite {
-      STAGED(0, 1),
-      ACTIVE(1, 2),
-      ;
-      
-      public static final int STAGED_VALUE = 1;
-      public static final int ACTIVE_VALUE = 2;
-      
-      
-      public final int getNumber() { return value; }
-      
-      public static State valueOf(int value) {
-        switch (value) {
-          case 1: return STAGED;
-          case 2: return ACTIVE;
-          default: return null;
-        }
-      }
-      
-      public static com.google.protobuf.Internal.EnumLiteMap<State>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static com.google.protobuf.Internal.EnumLiteMap<State>
-          internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<State>() {
-              public State findValueByNumber(int number) {
-                return State.valueOf(number);
-              }
-            };
-      
-      private final int value;
-      
-      private State(int index, int value) {
-        this.value = value;
-      }
-      
-      // @@protoc_insertion_point(enum_scope:pulsar.proto.Schema.State)
-    }
-    
     private int bitField0_;
-    // optional string name = 1;
+    // required string name = 1;
     public static final int NAME_FIELD_NUMBER = 1;
     private java.lang.Object name_;
     public boolean hasName() {
@@ -444,124 +346,76 @@ public final class PulsarApi {
       }
     }
     
-    // optional int64 version = 2;
+    // required bytes version = 2;
     public static final int VERSION_FIELD_NUMBER = 2;
-    private long version_;
+    private com.google.protobuf.ByteString version_;
     public boolean hasVersion() {
       return ((bitField0_ & 0x00000002) == 0x00000002);
     }
-    public long getVersion() {
+    public com.google.protobuf.ByteString getVersion() {
       return version_;
     }
     
-    // optional .pulsar.proto.Schema.Format format = 3;
-    public static final int FORMAT_FIELD_NUMBER = 3;
-    private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format format_;
-    public boolean hasFormat() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format getFormat() {
-      return format_;
-    }
-    
-    // optional .pulsar.proto.Schema.State state = 4;
-    public static final int STATE_FIELD_NUMBER = 4;
-    private org.apache.pulsar.common.api.proto.PulsarApi.Schema.State state_;
-    public boolean hasState() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.Schema.State getState() {
-      return state_;
-    }
-    
-    // optional string modified_user = 5;
-    public static final int MODIFIED_USER_FIELD_NUMBER = 5;
-    private java.lang.Object modifiedUser_;
-    public boolean hasModifiedUser() {
-      return ((bitField0_ & 0x00000010) == 0x00000010);
-    }
-    public String getModifiedUser() {
-      java.lang.Object ref = modifiedUser_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
-          modifiedUser_ = s;
-        }
-        return s;
-      }
-    }
-    private com.google.protobuf.ByteString getModifiedUserBytes() {
-      java.lang.Object ref = modifiedUser_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
-        modifiedUser_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    
-    // optional string modified_time = 6;
-    public static final int MODIFIED_TIME_FIELD_NUMBER = 6;
-    private java.lang.Object modifiedTime_;
-    public boolean hasModifiedTime() {
-      return ((bitField0_ & 0x00000020) == 0x00000020);
-    }
-    public String getModifiedTime() {
-      java.lang.Object ref = modifiedTime_;
-      if (ref instanceof String) {
-        return (String) ref;
-      } else {
-        com.google.protobuf.ByteString bs = 
-            (com.google.protobuf.ByteString) ref;
-        String s = bs.toStringUtf8();
-        if (com.google.protobuf.Internal.isValidUtf8(bs)) {
-          modifiedTime_ = s;
-        }
-        return s;
-      }
-    }
-    private com.google.protobuf.ByteString getModifiedTimeBytes() {
-      java.lang.Object ref = modifiedTime_;
-      if (ref instanceof String) {
-        com.google.protobuf.ByteString b = 
-            com.google.protobuf.ByteString.copyFromUtf8((String) ref);
-        modifiedTime_ = b;
-        return b;
-      } else {
-        return (com.google.protobuf.ByteString) ref;
-      }
-    }
-    
-    // optional bytes schema_data = 7;
+    // required bytes schema_data = 7;
     public static final int SCHEMA_DATA_FIELD_NUMBER = 7;
     private com.google.protobuf.ByteString schemaData_;
     public boolean hasSchemaData() {
-      return ((bitField0_ & 0x00000040) == 0x00000040);
+      return ((bitField0_ & 0x00000004) == 0x00000004);
     }
     public com.google.protobuf.ByteString getSchemaData() {
       return schemaData_;
     }
     
+    // repeated .pulsar.proto.KeyValue properties = 8;
+    public static final int PROPERTIES_FIELD_NUMBER = 8;
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
+      return properties_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder> 
+        getPropertiesOrBuilderList() {
+      return properties_;
+    }
+    public int getPropertiesCount() {
+      return properties_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index) {
+      return properties_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder getPropertiesOrBuilder(
+        int index) {
+      return properties_.get(index);
+    }
+    
     private void initFields() {
       name_ = "";
-      version_ = 0L;
-      format_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format.AVRO;
-      state_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.State.STAGED;
-      modifiedUser_ = "";
-      modifiedTime_ = "";
+      version_ = com.google.protobuf.ByteString.EMPTY;
       schemaData_ = com.google.protobuf.ByteString.EMPTY;
+      properties_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
+      if (!hasName()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasVersion()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasSchemaData()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      for (int i = 0; i < getPropertiesCount(); i++) {
+        if (!getProperties(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -578,22 +432,13 @@ public final class PulsarApi {
         output.writeBytes(1, getNameBytes());
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeInt64(2, version_);
+        output.writeBytes(2, version_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeEnum(3, format_.getNumber());
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        output.writeEnum(4, state_.getNumber());
-      }
-      if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        output.writeBytes(5, getModifiedUserBytes());
-      }
-      if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeBytes(6, getModifiedTimeBytes());
-      }
-      if (((bitField0_ & 0x00000040) == 0x00000040)) {
         output.writeBytes(7, schemaData_);
+      }
+      for (int i = 0; i < properties_.size(); i++) {
+        output.writeMessage(8, properties_.get(i));
       }
     }
     
@@ -609,27 +454,15 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(2, version_);
+          .computeBytesSize(2, version_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(3, format_.getNumber());
-      }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(4, state_.getNumber());
-      }
-      if (((bitField0_ & 0x00000010) == 0x00000010)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(5, getModifiedUserBytes());
-      }
-      if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(6, getModifiedTimeBytes());
-      }
-      if (((bitField0_ & 0x00000040) == 0x00000040)) {
-        size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(7, schemaData_);
+      }
+      for (int i = 0; i < properties_.size(); i++) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeMessageSize(8, properties_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -746,18 +579,12 @@ public final class PulsarApi {
         super.clear();
         name_ = "";
         bitField0_ = (bitField0_ & ~0x00000001);
-        version_ = 0L;
+        version_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000002);
-        format_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format.AVRO;
-        bitField0_ = (bitField0_ & ~0x00000004);
-        state_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.State.STAGED;
-        bitField0_ = (bitField0_ & ~0x00000008);
-        modifiedUser_ = "";
-        bitField0_ = (bitField0_ & ~0x00000010);
-        modifiedTime_ = "";
-        bitField0_ = (bitField0_ & ~0x00000020);
         schemaData_ = com.google.protobuf.ByteString.EMPTY;
-        bitField0_ = (bitField0_ & ~0x00000040);
+        bitField0_ = (bitField0_ & ~0x00000004);
+        properties_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
       
@@ -802,23 +629,12 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
           to_bitField0_ |= 0x00000004;
         }
-        result.format_ = format_;
-        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
-          to_bitField0_ |= 0x00000008;
-        }
-        result.state_ = state_;
-        if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
-          to_bitField0_ |= 0x00000010;
-        }
-        result.modifiedUser_ = modifiedUser_;
-        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
-          to_bitField0_ |= 0x00000020;
-        }
-        result.modifiedTime_ = modifiedTime_;
-        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
-          to_bitField0_ |= 0x00000040;
-        }
         result.schemaData_ = schemaData_;
+        if (((bitField0_ & 0x00000008) == 0x00000008)) {
+          properties_ = java.util.Collections.unmodifiableList(properties_);
+          bitField0_ = (bitField0_ & ~0x00000008);
+        }
+        result.properties_ = properties_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -831,25 +647,41 @@ public final class PulsarApi {
         if (other.hasVersion()) {
           setVersion(other.getVersion());
         }
-        if (other.hasFormat()) {
-          setFormat(other.getFormat());
-        }
-        if (other.hasState()) {
-          setState(other.getState());
-        }
-        if (other.hasModifiedUser()) {
-          setModifiedUser(other.getModifiedUser());
-        }
-        if (other.hasModifiedTime()) {
-          setModifiedTime(other.getModifiedTime());
-        }
         if (other.hasSchemaData()) {
           setSchemaData(other.getSchemaData());
+        }
+        if (!other.properties_.isEmpty()) {
+          if (properties_.isEmpty()) {
+            properties_ = other.properties_;
+            bitField0_ = (bitField0_ & ~0x00000008);
+          } else {
+            ensurePropertiesIsMutable();
+            properties_.addAll(other.properties_);
+          }
+          
         }
         return this;
       }
       
       public final boolean isInitialized() {
+        if (!hasName()) {
+          
+          return false;
+        }
+        if (!hasVersion()) {
+          
+          return false;
+        }
+        if (!hasSchemaData()) {
+          
+          return false;
+        }
+        for (int i = 0; i < getPropertiesCount(); i++) {
+          if (!getProperties(i).isInitialized()) {
+            
+            return false;
+          }
+        }
         return true;
       }
       
@@ -880,42 +712,20 @@ public final class PulsarApi {
               name_ = input.readBytes();
               break;
             }
-            case 16: {
+            case 18: {
               bitField0_ |= 0x00000002;
-              version_ = input.readInt64();
-              break;
-            }
-            case 24: {
-              int rawValue = input.readEnum();
-              org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format value = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format.valueOf(rawValue);
-              if (value != null) {
-                bitField0_ |= 0x00000004;
-                format_ = value;
-              }
-              break;
-            }
-            case 32: {
-              int rawValue = input.readEnum();
-              org.apache.pulsar.common.api.proto.PulsarApi.Schema.State value = org.apache.pulsar.common.api.proto.PulsarApi.Schema.State.valueOf(rawValue);
-              if (value != null) {
-                bitField0_ |= 0x00000008;
-                state_ = value;
-              }
-              break;
-            }
-            case 42: {
-              bitField0_ |= 0x00000010;
-              modifiedUser_ = input.readBytes();
-              break;
-            }
-            case 50: {
-              bitField0_ |= 0x00000020;
-              modifiedTime_ = input.readBytes();
+              version_ = input.readBytes();
               break;
             }
             case 58: {
-              bitField0_ |= 0x00000040;
+              bitField0_ |= 0x00000004;
               schemaData_ = input.readBytes();
+              break;
+            }
+            case 66: {
+              org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
+              input.readMessage(subBuilder, extensionRegistry);
+              addProperties(subBuilder.buildPartial());
               break;
             }
           }
@@ -924,7 +734,7 @@ public final class PulsarApi {
       
       private int bitField0_;
       
-      // optional string name = 1;
+      // required string name = 1;
       private java.lang.Object name_ = "";
       public boolean hasName() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
@@ -960,151 +770,34 @@ public final class PulsarApi {
         
       }
       
-      // optional int64 version = 2;
-      private long version_ ;
+      // required bytes version = 2;
+      private com.google.protobuf.ByteString version_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasVersion() {
         return ((bitField0_ & 0x00000002) == 0x00000002);
       }
-      public long getVersion() {
+      public com.google.protobuf.ByteString getVersion() {
         return version_;
       }
-      public Builder setVersion(long value) {
-        bitField0_ |= 0x00000002;
+      public Builder setVersion(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000002;
         version_ = value;
         
         return this;
       }
       public Builder clearVersion() {
         bitField0_ = (bitField0_ & ~0x00000002);
-        version_ = 0L;
+        version_ = getDefaultInstance().getVersion();
         
         return this;
       }
       
-      // optional .pulsar.proto.Schema.Format format = 3;
-      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format format_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format.AVRO;
-      public boolean hasFormat() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format getFormat() {
-        return format_;
-      }
-      public Builder setFormat(org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        bitField0_ |= 0x00000004;
-        format_ = value;
-        
-        return this;
-      }
-      public Builder clearFormat() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        format_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Format.AVRO;
-        
-        return this;
-      }
-      
-      // optional .pulsar.proto.Schema.State state = 4;
-      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.State state_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.State.STAGED;
-      public boolean hasState() {
-        return ((bitField0_ & 0x00000008) == 0x00000008);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.Schema.State getState() {
-        return state_;
-      }
-      public Builder setState(org.apache.pulsar.common.api.proto.PulsarApi.Schema.State value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        bitField0_ |= 0x00000008;
-        state_ = value;
-        
-        return this;
-      }
-      public Builder clearState() {
-        bitField0_ = (bitField0_ & ~0x00000008);
-        state_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.State.STAGED;
-        
-        return this;
-      }
-      
-      // optional string modified_user = 5;
-      private java.lang.Object modifiedUser_ = "";
-      public boolean hasModifiedUser() {
-        return ((bitField0_ & 0x00000010) == 0x00000010);
-      }
-      public String getModifiedUser() {
-        java.lang.Object ref = modifiedUser_;
-        if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
-          modifiedUser_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setModifiedUser(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000010;
-        modifiedUser_ = value;
-        
-        return this;
-      }
-      public Builder clearModifiedUser() {
-        bitField0_ = (bitField0_ & ~0x00000010);
-        modifiedUser_ = getDefaultInstance().getModifiedUser();
-        
-        return this;
-      }
-      void setModifiedUser(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000010;
-        modifiedUser_ = value;
-        
-      }
-      
-      // optional string modified_time = 6;
-      private java.lang.Object modifiedTime_ = "";
-      public boolean hasModifiedTime() {
-        return ((bitField0_ & 0x00000020) == 0x00000020);
-      }
-      public String getModifiedTime() {
-        java.lang.Object ref = modifiedTime_;
-        if (!(ref instanceof String)) {
-          String s = ((com.google.protobuf.ByteString) ref).toStringUtf8();
-          modifiedTime_ = s;
-          return s;
-        } else {
-          return (String) ref;
-        }
-      }
-      public Builder setModifiedTime(String value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000020;
-        modifiedTime_ = value;
-        
-        return this;
-      }
-      public Builder clearModifiedTime() {
-        bitField0_ = (bitField0_ & ~0x00000020);
-        modifiedTime_ = getDefaultInstance().getModifiedTime();
-        
-        return this;
-      }
-      void setModifiedTime(com.google.protobuf.ByteString value) {
-        bitField0_ |= 0x00000020;
-        modifiedTime_ = value;
-        
-      }
-      
-      // optional bytes schema_data = 7;
+      // required bytes schema_data = 7;
       private com.google.protobuf.ByteString schemaData_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasSchemaData() {
-        return ((bitField0_ & 0x00000040) == 0x00000040);
+        return ((bitField0_ & 0x00000004) == 0x00000004);
       }
       public com.google.protobuf.ByteString getSchemaData() {
         return schemaData_;
@@ -1113,14 +806,103 @@ public final class PulsarApi {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00000040;
+  bitField0_ |= 0x00000004;
         schemaData_ = value;
         
         return this;
       }
       public Builder clearSchemaData() {
-        bitField0_ = (bitField0_ & ~0x00000040);
+        bitField0_ = (bitField0_ & ~0x00000004);
         schemaData_ = getDefaultInstance().getSchemaData();
+        
+        return this;
+      }
+      
+      // repeated .pulsar.proto.KeyValue properties = 8;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_ =
+        java.util.Collections.emptyList();
+      private void ensurePropertiesIsMutable() {
+        if (!((bitField0_ & 0x00000008) == 0x00000008)) {
+          properties_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue>(properties_);
+          bitField0_ |= 0x00000008;
+         }
+      }
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
+        return java.util.Collections.unmodifiableList(properties_);
+      }
+      public int getPropertiesCount() {
+        return properties_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index) {
+        return properties_.get(index);
+      }
+      public Builder setProperties(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensurePropertiesIsMutable();
+        properties_.set(index, value);
+        
+        return this;
+      }
+      public Builder setProperties(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder builderForValue) {
+        ensurePropertiesIsMutable();
+        properties_.set(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addProperties(org.apache.pulsar.common.api.proto.PulsarApi.KeyValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensurePropertiesIsMutable();
+        properties_.add(value);
+        
+        return this;
+      }
+      public Builder addProperties(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensurePropertiesIsMutable();
+        properties_.add(index, value);
+        
+        return this;
+      }
+      public Builder addProperties(
+          org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder builderForValue) {
+        ensurePropertiesIsMutable();
+        properties_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addProperties(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder builderForValue) {
+        ensurePropertiesIsMutable();
+        properties_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllProperties(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> values) {
+        ensurePropertiesIsMutable();
+        super.addAll(values, properties_);
+        
+        return this;
+      }
+      public Builder clearProperties() {
+        properties_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000008);
+        
+        return this;
+      }
+      public Builder removeProperties(int index) {
+        ensurePropertiesIsMutable();
+        properties_.remove(index);
         
         return this;
       }
@@ -1472,6 +1254,12 @@ public final class PulsarApi {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
+      if (hasSchema()) {
+        if (!getSchema().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -1680,6 +1468,12 @@ public final class PulsarApi {
       }
       
       public final boolean isInitialized() {
+        if (hasSchema()) {
+          if (!getSchema().isInitialized()) {
+            
+            return false;
+          }
+        }
         return true;
       }
       
@@ -18335,6 +18129,12 @@ public final class PulsarApi {
         memoizedIsInitialized = 0;
         return false;
       }
+      if (hasSchema()) {
+        if (!getSchema().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -18546,6 +18346,12 @@ public final class PulsarApi {
         if (!hasRequestId()) {
           
           return false;
+        }
+        if (hasSchema()) {
+          if (!getSchema().isInitialized()) {
+            
+            return false;
+          }
         }
         return true;
       }
@@ -18805,6 +18611,12 @@ public final class PulsarApi {
         memoizedIsInitialized = 0;
         return false;
       }
+      if (hasSchema()) {
+        if (!getSchema().isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
       memoizedIsInitialized = 1;
       return true;
     }
@@ -19052,6 +18864,12 @@ public final class PulsarApi {
         if (!hasProducerName()) {
           
           return false;
+        }
+        if (hasSchema()) {
+          if (!getSchema().isInitialized()) {
+            
+            return false;
+          }
         }
         return true;
       }

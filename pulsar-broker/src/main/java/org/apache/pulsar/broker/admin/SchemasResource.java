@@ -25,6 +25,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 import com.google.common.annotations.VisibleForTesting;
 import io.swagger.annotations.ApiOperation;
 import java.time.Clock;
+import java.util.Map;
 import java.util.Objects;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -171,6 +172,7 @@ public class SchemasResource extends AdminResource {
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.type))
                 .user(clientAppId())
+                .properties(payload.properties)
                 .build()
         ).thenAccept(version ->
             response.resume(
@@ -208,7 +210,7 @@ public class SchemasResource extends AdminResource {
         public final SchemaVersion version;
         public final Schema schema;
 
-        public GetSchemaResponse(Schema schema, SchemaVersion version) {
+        GetSchemaResponse(Schema schema, SchemaVersion version) {
             this.schema = schema;
             this.version = version;
         }
@@ -217,11 +219,13 @@ public class SchemasResource extends AdminResource {
     static class PostSchemaPayload {
         public final String type;
         public final String schema;
+        public final Map<String, String> properties;
 
         @VisibleForTesting
-        PostSchemaPayload(String type, String schema) {
+        PostSchemaPayload(String type, String schema, Map<String, String> properties) {
             this.type = type;
             this.schema = schema;
+            this.properties = properties;
         }
     }
 

@@ -68,6 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -192,28 +193,22 @@ public class Commands {
         return res;
     }
 
-    private static PulsarApi.Schema.Format getSchemaFormat(SchemaType type) {
-        switch (type) {
-            case AVRO:
-                return PulsarApi.Schema.Format.AVRO;
-            case THRIFT:
-                return PulsarApi.Schema.Format.THRIFT;
-            case JSON:
-                return PulsarApi.Schema.Format.JSON;
-            case PROTOBUF:
-                return PulsarApi.Schema.Format.PROTOBUF;
-        }
-        return null;
-    }
-
-    public static ByteBuf newSuccess(long requestId, Schema schema) {
+    public static ByteBuf newSuccess(long requestId, SchemaInfo schemaInfo) {
         CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
         successBuilder.setRequestId(requestId);
         PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schema != null && !schema.isDeleted) {
+        if (schemaInfo != null && !schemaInfo.schema.isDeleted) {
+            Schema schema = schemaInfo.schema;
             schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setFormat(getSchemaFormat(schema.type));
+            schemaBuilder.setName(schemaInfo.name);
+            schemaBuilder.setVersion(copyFrom(schemaInfo.version.bytes()));
             schemaBuilder.setSchemaData(copyFrom(schema.data));
+            schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
+                .setKey("type").setValue(schema.type.toString()));
+            for (Map.Entry<String, String> entry : schema.props.entrySet()) {
+                schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
+                    .setKey(entry.getKey()).setValue(entry.getValue()));
+            }
             successBuilder.setSchema(schemaBuilder.build());
         }
         CommandSuccess success = successBuilder.build();
@@ -230,7 +225,7 @@ public class Commands {
         return newProducerSuccess(requestId, producerName, -1, null);
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, Schema schema) {
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, SchemaInfo schemaInfo) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
@@ -239,10 +234,18 @@ public class Commands {
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
         PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schema != null && !schema.isDeleted) {
+        if (schemaInfo != null && !schemaInfo.schema.isDeleted) {
+            Schema schema = schemaInfo.schema;
             schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setFormat(getSchemaFormat(schema.type));
+            schemaBuilder.setName(schemaInfo.name);
+            schemaBuilder.setVersion(copyFrom(schemaInfo.version.bytes()));
             schemaBuilder.setSchemaData(copyFrom(schema.data));
+            schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
+                .setKey("type").setValue(schema.type.toString()));
+            for (Map.Entry<String, String> entry : schema.props.entrySet()) {
+                schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
+                    .setKey(entry.getKey()).setValue(entry.getValue()));
+            }
             producerSuccessBuilder.setSchema(schemaBuilder.build());
         }
         producerSuccess.recycle();
@@ -976,5 +979,17 @@ public class Commands {
         lookupTopicBuilder.recycle();
         lookupBroker.recycle();
         return res;
+    }
+
+    public static class SchemaInfo {
+        public final String name;
+        public final SchemaVersion version;
+        public final Schema schema;
+
+        public SchemaInfo(String name, SchemaVersion version, Schema schema) {
+            this.name = name;
+            this.version = version;
+            this.schema = schema;
+        }
     }
 }
