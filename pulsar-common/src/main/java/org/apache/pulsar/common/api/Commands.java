@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.api;
 
+import static com.google.protobuf.ByteString.copyFrom;
 import static com.google.protobuf.ByteString.copyFromUtf8;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
@@ -201,7 +202,7 @@ public class Commands {
         if (schema != null && !schema.isDeleted) {
             schemaBuilder = PulsarApi.Schema.newBuilder();
             schemaBuilder.setFormat(getSchemaFormat(schema.type));
-            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
+            schemaBuilder.setSchemaData(copyFrom(schema.data));
             successBuilder.setSchema(schemaBuilder.build());
         }
         CommandSuccess success = successBuilder.build();
@@ -230,7 +231,7 @@ public class Commands {
         if (schema != null && !schema.isDeleted) {
             schemaBuilder = PulsarApi.Schema.newBuilder();
             schemaBuilder.setFormat(getSchemaFormat(schema.type));
-            schemaBuilder.setSchemaData(copyFromUtf8(schema.schemaInfo));
+            schemaBuilder.setSchemaData(copyFrom(schema.data));
             producerSuccessBuilder.setSchema(schemaBuilder.build());
         }
         producerSuccess.recycle();

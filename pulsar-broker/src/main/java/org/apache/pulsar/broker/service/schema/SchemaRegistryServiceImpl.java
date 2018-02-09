@@ -19,12 +19,17 @@
 package org.apache.pulsar.broker.service.schema;
 
 import static java.util.concurrent.CompletableFuture.completedFuture;
+import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.nio.ByteBuffer;
 import java.time.Clock;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
@@ -73,6 +78,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .setUser(schema.user)
             .setDeleted(false)
             .setTimestamp(clock.millis())
+            .addAllProps(toPairs(schema.props))
             .build();
         return schemaStorage.put(schemaId, info.toByteArray());
     }
@@ -137,6 +143,24 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             }
         }
 
+        static Map<String, String> toMap(List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> pairs) {
+            Map<String, String> map = new HashMap<>();
+            for (SchemaRegistryFormat.SchemaInfo.KeyValuePair pair : pairs) {
+                map.put(pair.getKey(), pair.getValue());
+            }
+            return map;
+        }
+
+        static List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> toPairs(Map<String, String> map) {
+            List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> pairs = new ArrayList<>(map.size());
+            for (Map.Entry<String, String> entry : map.entrySet()) {
+                SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builder =
+                    SchemaRegistryFormat.SchemaInfo.KeyValuePair.newBuilder();
+                pairs.add(builder.setKey(entry.getKey()).setValue(entry.getValue()).build());
+            }
+            return pairs;
+        }
+
         static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info, SchemaVersion version) {
             return Schema.newBuilder()
                 .user(info.getUser())
@@ -144,6 +168,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
                 .data(info.getSchema().toByteArray())
                 .version(version)
                 .isDeleted(info.getDeleted())
+                .properties(toMap(info.getPropsList()))
                 .build();
         }
 

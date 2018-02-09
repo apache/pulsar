@@ -51,7 +51,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         .type(SchemaType.PROTOBUF)
         .timestamp(MockClock.millis())
         .isDeleted(false)
-        .schemaInfo("")
         .version(version(0))
         .data("message { required int64 b = 1};".getBytes())
         .build();
@@ -200,7 +199,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .type(SchemaType.PROTOBUF)
             .timestamp(MockClock.millis())
             .isDeleted(false)
-            .schemaInfo("")
             .data("message { required int64 a = 1};".getBytes())
             .version(version)
             .build();
@@ -212,7 +210,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .type(SchemaType.PROTOBUF)
             .timestamp(MockClock.millis())
             .isDeleted(false)
-            .schemaInfo("")
             .data("message { required int64 b = 1};".getBytes())
             .version(version)
             .build();

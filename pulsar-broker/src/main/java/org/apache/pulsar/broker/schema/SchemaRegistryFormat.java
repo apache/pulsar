@@ -35,11 +35,11 @@ public final class SchemaRegistryFormat {
     boolean hasDeleted();
     boolean getDeleted();
     
-    // repeated .pulsar.schema.SchemaInfo.KeyValuePair meta = 7;
+    // repeated .pulsar.schema.SchemaInfo.KeyValuePair props = 7;
     java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> 
-        getMetaList();
-    org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getMeta(int index);
-    int getMetaCount();
+        getPropsList();
+    org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getProps(int index);
+    int getPropsCount();
   }
   public static final class SchemaInfo extends
       com.google.protobuf.GeneratedMessageLite
@@ -644,25 +644,25 @@ public final class SchemaRegistryFormat {
       return deleted_;
     }
     
-    // repeated .pulsar.schema.SchemaInfo.KeyValuePair meta = 7;
-    public static final int META_FIELD_NUMBER = 7;
-    private java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> meta_;
-    public java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> getMetaList() {
-      return meta_;
+    // repeated .pulsar.schema.SchemaInfo.KeyValuePair props = 7;
+    public static final int PROPS_FIELD_NUMBER = 7;
+    private java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> props_;
+    public java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> getPropsList() {
+      return props_;
     }
     public java.util.List<? extends org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePairOrBuilder> 
-        getMetaOrBuilderList() {
-      return meta_;
+        getPropsOrBuilderList() {
+      return props_;
     }
-    public int getMetaCount() {
-      return meta_.size();
+    public int getPropsCount() {
+      return props_.size();
     }
-    public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getMeta(int index) {
-      return meta_.get(index);
+    public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getProps(int index) {
+      return props_.get(index);
     }
-    public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePairOrBuilder getMetaOrBuilder(
+    public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePairOrBuilder getPropsOrBuilder(
         int index) {
-      return meta_.get(index);
+      return props_.get(index);
     }
     
     private void initFields() {
@@ -672,7 +672,7 @@ public final class SchemaRegistryFormat {
       schema_ = com.google.protobuf.ByteString.EMPTY;
       timestamp_ = 0L;
       deleted_ = false;
-      meta_ = java.util.Collections.emptyList();
+      props_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -703,8 +703,8 @@ public final class SchemaRegistryFormat {
         memoizedIsInitialized = 0;
         return false;
       }
-      for (int i = 0; i < getMetaCount(); i++) {
-        if (!getMeta(i).isInitialized()) {
+      for (int i = 0; i < getPropsCount(); i++) {
+        if (!getProps(i).isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -734,8 +734,8 @@ public final class SchemaRegistryFormat {
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         output.writeBool(6, deleted_);
       }
-      for (int i = 0; i < meta_.size(); i++) {
-        output.writeMessage(7, meta_.get(i));
+      for (int i = 0; i < props_.size(); i++) {
+        output.writeMessage(7, props_.get(i));
       }
     }
     
@@ -769,9 +769,9 @@ public final class SchemaRegistryFormat {
         size += com.google.protobuf.CodedOutputStream
           .computeBoolSize(6, deleted_);
       }
-      for (int i = 0; i < meta_.size(); i++) {
+      for (int i = 0; i < props_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(7, meta_.get(i));
+          .computeMessageSize(7, props_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -887,7 +887,7 @@ public final class SchemaRegistryFormat {
         bitField0_ = (bitField0_ & ~0x00000010);
         deleted_ = false;
         bitField0_ = (bitField0_ & ~0x00000020);
-        meta_ = java.util.Collections.emptyList();
+        props_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
@@ -947,10 +947,10 @@ public final class SchemaRegistryFormat {
         }
         result.deleted_ = deleted_;
         if (((bitField0_ & 0x00000040) == 0x00000040)) {
-          meta_ = java.util.Collections.unmodifiableList(meta_);
+          props_ = java.util.Collections.unmodifiableList(props_);
           bitField0_ = (bitField0_ & ~0x00000040);
         }
-        result.meta_ = meta_;
+        result.props_ = props_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -975,13 +975,13 @@ public final class SchemaRegistryFormat {
         if (other.hasDeleted()) {
           setDeleted(other.getDeleted());
         }
-        if (!other.meta_.isEmpty()) {
-          if (meta_.isEmpty()) {
-            meta_ = other.meta_;
+        if (!other.props_.isEmpty()) {
+          if (props_.isEmpty()) {
+            props_ = other.props_;
             bitField0_ = (bitField0_ & ~0x00000040);
           } else {
-            ensureMetaIsMutable();
-            meta_.addAll(other.meta_);
+            ensurePropsIsMutable();
+            props_.addAll(other.props_);
           }
           
         }
@@ -1013,8 +1013,8 @@ public final class SchemaRegistryFormat {
           
           return false;
         }
-        for (int i = 0; i < getMetaCount(); i++) {
-          if (!getMeta(i).isInitialized()) {
+        for (int i = 0; i < getPropsCount(); i++) {
+          if (!getProps(i).isInitialized()) {
             
             return false;
           }
@@ -1076,7 +1076,7 @@ public final class SchemaRegistryFormat {
             case 58: {
               org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder subBuilder = org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
-              addMeta(subBuilder.buildPartial());
+              addProps(subBuilder.buildPartial());
               break;
             }
           }
@@ -1247,91 +1247,91 @@ public final class SchemaRegistryFormat {
         return this;
       }
       
-      // repeated .pulsar.schema.SchemaInfo.KeyValuePair meta = 7;
-      private java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> meta_ =
+      // repeated .pulsar.schema.SchemaInfo.KeyValuePair props = 7;
+      private java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> props_ =
         java.util.Collections.emptyList();
-      private void ensureMetaIsMutable() {
+      private void ensurePropsIsMutable() {
         if (!((bitField0_ & 0x00000040) == 0x00000040)) {
-          meta_ = new java.util.ArrayList<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair>(meta_);
+          props_ = new java.util.ArrayList<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair>(props_);
           bitField0_ |= 0x00000040;
          }
       }
       
-      public java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> getMetaList() {
-        return java.util.Collections.unmodifiableList(meta_);
+      public java.util.List<org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> getPropsList() {
+        return java.util.Collections.unmodifiableList(props_);
       }
-      public int getMetaCount() {
-        return meta_.size();
+      public int getPropsCount() {
+        return props_.size();
       }
-      public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getMeta(int index) {
-        return meta_.get(index);
+      public org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair getProps(int index) {
+        return props_.get(index);
       }
-      public Builder setMeta(
+      public Builder setProps(
           int index, org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMetaIsMutable();
-        meta_.set(index, value);
+        ensurePropsIsMutable();
+        props_.set(index, value);
         
         return this;
       }
-      public Builder setMeta(
+      public Builder setProps(
           int index, org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builderForValue) {
-        ensureMetaIsMutable();
-        meta_.set(index, builderForValue.build());
+        ensurePropsIsMutable();
+        props_.set(index, builderForValue.build());
         
         return this;
       }
-      public Builder addMeta(org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair value) {
+      public Builder addProps(org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMetaIsMutable();
-        meta_.add(value);
+        ensurePropsIsMutable();
+        props_.add(value);
         
         return this;
       }
-      public Builder addMeta(
+      public Builder addProps(
           int index, org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        ensureMetaIsMutable();
-        meta_.add(index, value);
+        ensurePropsIsMutable();
+        props_.add(index, value);
         
         return this;
       }
-      public Builder addMeta(
+      public Builder addProps(
           org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builderForValue) {
-        ensureMetaIsMutable();
-        meta_.add(builderForValue.build());
+        ensurePropsIsMutable();
+        props_.add(builderForValue.build());
         
         return this;
       }
-      public Builder addMeta(
+      public Builder addProps(
           int index, org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builderForValue) {
-        ensureMetaIsMutable();
-        meta_.add(index, builderForValue.build());
+        ensurePropsIsMutable();
+        props_.add(index, builderForValue.build());
         
         return this;
       }
-      public Builder addAllMeta(
+      public Builder addAllProps(
           java.lang.Iterable<? extends org.apache.pulsar.broker.schema.SchemaRegistryFormat.SchemaInfo.KeyValuePair> values) {
-        ensureMetaIsMutable();
-        super.addAll(values, meta_);
+        ensurePropsIsMutable();
+        super.addAll(values, props_);
         
         return this;
       }
-      public Builder clearMeta() {
-        meta_ = java.util.Collections.emptyList();
+      public Builder clearProps() {
+        props_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000040);
         
         return this;
       }
-      public Builder removeMeta(int index) {
-        ensureMetaIsMutable();
-        meta_.remove(index);
+      public Builder removeProps(int index) {
+        ensurePropsIsMutable();
+        props_.remove(index);
         
         return this;
       }
