@@ -95,7 +95,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionCommand extends NamespaceCommand {
-        @Parameter(names = "--function-name", description = "Function Name\n")
+        @Parameter(names = "--name", description = "Function Name\n")
         protected String functionName;
     }
 
@@ -104,7 +104,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionConfigCommand extends FunctionCommand {
-        @Parameter(names = "--function-classname", description = "Function Class Name\n", required = true)
+        @Parameter(names = "--className", description = "Function Class Name\n", required = true)
         protected String className;
         @Parameter(
                 names = "--jar",
@@ -116,26 +116,19 @@ public class CmdFunctions extends CmdBase {
                 description = "Path to Python\n",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--source-topics", description = "Input Topic Name\n")
-        protected String sourceTopicNames;
-        @Parameter(names = "--custom-serde-source-topics", description = "Input Topic Name that have custom deserializers\n")
-        protected String customSourceTopics;
-        @Parameter(names = "--sink-topic", description = "Output Topic Name\n")
-        protected String sinkTopicName;
-
-        @Parameter(names = "--custom-serde-classnames", description = "Input SerDe for custom serde source topics\n")
-        protected String customSerdeClassNames;
-
-        @Parameter(names = "--output-serde-classname", description = "Output SerDe\n")
+        @Parameter(names = "--inputs", description = "Input Topic Name\n")
+        protected String inputs;
+        @Parameter(names = "--output", description = "Output Topic Name\n")
+        protected String output;
+        @Parameter(names = "--customSerdeInputs", description = "Map of input topic to serde classname\n")
+        protected String customSerdeInputString;
+        @Parameter(names = "--outputSerdeClassName", description = "Output SerDe\n")
         protected String outputSerdeClassName;
-
-        @Parameter(names = "--function-config", description = "Function Config\n")
+        @Parameter(names = "--functionConfigFile", description = "Function Config\n")
         protected String fnConfigFile;
-
-        @Parameter(names = "--processing-guarantees", description = "Processing Guarantees\n")
+        @Parameter(names = "--processingGuarantees", description = "Processing Guarantees\n")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-
-        @Parameter(names = "--user-config", description = "User Config\n")
+        @Parameter(names = "--userConfig", description = "User Config\n")
         protected String userConfigString;
 
         protected FunctionConfig functionConfig;
@@ -150,24 +143,19 @@ public class CmdFunctions extends CmdBase {
             } else {
                 functionConfigBuilder = FunctionConfig.newBuilder();
             }
-            if (null != sourceTopicNames) {
-                String[] topicNames = sourceTopicNames.split(",");
+            if (null != inputs) {
+                String[] topicNames = inputs.split(",");
                 for (int i = 0; i < topicNames.length; ++i) {
                     functionConfigBuilder.addInputs(topicNames[i]);
                 }
             }
-            if (null != customSourceTopics && null != customSerdeClassNames) {
-                String[] sourceTopicName = customSourceTopics.split(",");
-                String[] inputSerdeClassName = customSerdeClassNames.split(",");
-                if (sourceTopicName.length != inputSerdeClassName.length) {
-                    throw new IllegalArgumentException(String.format("CustomSerde Topics and InputSerde should match"));
-                }
-                for (int i = 0; i < sourceTopicName.length; ++i) {
-                    functionConfigBuilder.putCustomSerdeInputs(sourceTopicName[i], inputSerdeClassName[i]);
-                }
+            if (null != customSerdeInputString) {
+                Type type = new TypeToken<Map<String, String>>(){}.getType();
+                Map<String, String> customSerdeInputMap = new Gson().fromJson(customSerdeInputString, type);
+                functionConfigBuilder.putAllCustomSerdeInputs(customSerdeInputMap);
             }
-            if (null != sinkTopicName) {
-                functionConfigBuilder.setSinkTopic(sinkTopicName);
+            if (null != output) {
+                functionConfigBuilder.setOutput(output);
             }
             if (null != tenant) {
                 functionConfigBuilder.setTenant(tenant);
@@ -345,8 +333,8 @@ public class CmdFunctions extends CmdBase {
             if (builder.getNamespace() == null || builder.getNamespace().isEmpty()) {
                 inferMissingNamespace(builder);
             }
-            if (builder.getSinkTopic() == null || builder.getSinkTopic().isEmpty()) {
-                inferMissingSinkTopic(builder);
+            if (builder.getOutput() == null || builder.getOutput().isEmpty()) {
+                inferMissingOutput(builder);
             }
         }
 
@@ -377,10 +365,10 @@ public class CmdFunctions extends CmdBase {
             }
         }
 
-        private void inferMissingSinkTopic(FunctionConfig.Builder builder) {
+        private void inferMissingOutput(FunctionConfig.Builder builder) {
             try {
                 String inputTopic = getUniqueInput(builder);
-                builder.setSinkTopic(inputTopic + "-" + builder.getName() + "-output");
+                builder.setOutput(inputTopic + "-" + builder.getName() + "-output");
             } catch (IllegalArgumentException ex) {
                 // It might be that we really don't need an output topic
                 // So we cannot really throw an exception
@@ -403,7 +391,7 @@ public class CmdFunctions extends CmdBase {
     class LocalRunner extends FunctionConfigCommand {
 
         // TODO: this should become bookkeeper url and it should be fetched from pulsar client.
-        @Parameter(names = "--statestorage-service-url", description = "state storage service url\n")
+        @Parameter(names = "--stateStorageServiceUrl", description = "state storage service url\n")
         protected String stateStorageServiceUrl;
 
         @Override

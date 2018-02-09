@@ -283,17 +283,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     }
 
     private void startSinkProducer() throws Exception {
-        if (instanceConfig.getFunctionConfig().getSinkTopic() != null
-                && !instanceConfig.getFunctionConfig().getSinkTopic().isEmpty()
+        if (instanceConfig.getFunctionConfig().getOutput() != null
+                && !instanceConfig.getFunctionConfig().getOutput().isEmpty()
                 && this.outputSerDe != null) {
-            log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getSinkTopic());
+            log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getOutput());
             ProducerConfiguration conf = new ProducerConfiguration();
             conf.setBlockIfQueueFull(true);
             conf.setBatchingEnabled(true);
             conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
             conf.setMaxPendingMessages(1000000);
 
-            this.sinkProducer = client.createProducer(instanceConfig.getFunctionConfig().getSinkTopic(), conf);
+            this.sinkProducer = client.createProducer(instanceConfig.getFunctionConfig().getOutput(), conf);
         }
     }
 
@@ -375,7 +375,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                             })
                             .exceptionally(cause -> {
                                 log.error("Failed to send the process result {} of message {} to sink topic {}",
-                                        result, msg, instanceConfig.getFunctionConfig().getSinkTopic(), cause);
+                                        result, msg, instanceConfig.getFunctionConfig().getOutput(), cause);
                                 return null;
                             });
                 } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
@@ -410,7 +410,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
             try {
                 sinkProducer.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close producer to sink topic {}", instanceConfig.getFunctionConfig().getSinkTopic(), e);
+                log.warn("Failed to close producer to sink topic {}", instanceConfig.getFunctionConfig().getOutput(), e);
             }
             sinkProducer = null;
         }

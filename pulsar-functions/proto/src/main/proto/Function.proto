@@ -42,9 +42,9 @@ message FunctionConfig {
     string className = 4;
     repeated string inputs = 14;
     // map from input topic name to serde
-    map<string, string> custom_serde_inputs = 5;
+    map<string, string> customSerdeInputs = 5;
     string outputSerdeClassName = 6;
-    string sinkTopic = 7;
+    string output = 7;
     ProcessingGuarantees processingGuarantees = 9;
     map<string,string> userConfig = 10;
     SubscriptionType subscriptionType = 11;

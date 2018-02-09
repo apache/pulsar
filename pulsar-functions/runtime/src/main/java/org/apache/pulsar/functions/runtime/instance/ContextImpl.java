@@ -133,7 +133,7 @@ class ContextImpl implements Context {
 
     @Override
     public String getSinkTopic() {
-        return config.getFunctionConfig().getSinkTopic();
+        return config.getFunctionConfig().getOutput();
     }
 
     @Override

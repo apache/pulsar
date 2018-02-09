@@ -134,7 +134,7 @@ class PythonInstance(object):
     subscription_name = str(self.instance_config.function_config.tenant) + "/" + \
                         str(self.instance_config.function_config.namespace) + "/" + \
                         str(self.instance_config.function_config.name)
-    for topic, serde in self.instance_config.function_config.custom_serde_inputs.items():
+    for topic, serde in self.instance_config.function_config.customSerdeInputs.items():
       serde_kclass = util.import_class(os.path.dirname(self.user_code), serde)
       self.input_serdes[topic] = serde_kclass()
       Log.info("Setting up consumer for topic %s with subname %s" % (topic, subscription_name))
@@ -241,11 +241,11 @@ class PythonInstance(object):
       self.output_serde = serde_kclass()
 
   def setup_producer(self):
-    if self.instance_config.function_config.sinkTopic != None and \
-            len(self.instance_config.function_config.sinkTopic) > 0:
-      Log.info("Setting up producer for topic %s" % self.instance_config.function_config.sinkTopic)
+    if self.instance_config.function_config.output != None and \
+            len(self.instance_config.function_config.output) > 0:
+      Log.info("Setting up producer for topic %s" % self.instance_config.function_config.output)
       self.producer = self.pulsar_client.create_producer(
-        str(self.instance_config.function_config.sinkTopic),
+        str(self.instance_config.function_config.output),
         block_if_queue_full=True,
         batching_enabled=True,
         batching_max_publish_delay_ms=1,
