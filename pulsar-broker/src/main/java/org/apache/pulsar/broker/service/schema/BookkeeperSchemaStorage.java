@@ -41,6 +41,7 @@ import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.schema.SchemaRegistryFormat;
+import org.apache.pulsar.broker.schema.SchemaStorageFormat;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
 import org.apache.zookeeper.CreateMode;
@@ -110,7 +111,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return completedFuture(null);
             }
 
-            SchemaRegistryFormat.SchemaLocator schemaLocator = locator.get().locator;
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
             return readSchemaEntry(schemaLocator.getPosition())
                 .thenApply(entry ->
                     new StoredSchema(
@@ -137,7 +138,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return completedFuture(null);
             }
 
-            SchemaRegistryFormat.SchemaLocator schemaLocator = locator.get().locator;
+            SchemaStorageFormat.SchemaLocator schemaLocator = locator.get().locator;
             if (version > schemaLocator.getVersion()) {
                 return completedFuture(null);
             }
@@ -180,11 +181,11 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<SchemaRegistryFormat.PositionInfo> addNewSchemaEntryToStore(
-        List<SchemaRegistryFormat.IndexEntry> index,
+    private CompletableFuture<SchemaStorageFormat.PositionInfo> addNewSchemaEntryToStore(
+        List<SchemaStorageFormat.IndexEntry> index,
         byte[] data
     ) {
-        SchemaRegistryFormat.SchemaEntry schemaEntry = newSchemaEntry(index, data);
+        SchemaStorageFormat.SchemaEntry schemaEntry = newSchemaEntry(index, data);
         return createLedger().thenCompose(ledgerHandle ->
             addEntry(ledgerHandle, schemaEntry).thenApply(entryId ->
                 Functions.newPositionInfo(ledgerHandle.getId(), entryId)
@@ -195,13 +196,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private CompletableFuture<Long> updateSchemaLocator(
         LocatorEntry locatorEntry,
-        SchemaRegistryFormat.PositionInfo position,
+        SchemaStorageFormat.PositionInfo position,
         String schemaId,
         long nextVersion
     ) {
-        SchemaRegistryFormat.SchemaLocator locator = locatorEntry.locator;
+        SchemaStorageFormat.SchemaLocator locator = locatorEntry.locator;
         return updateSchemaLocator(getSchemaPath(schemaId),
-            SchemaRegistryFormat.SchemaLocator.newBuilder()
+            SchemaStorageFormat.SchemaLocator.newBuilder()
                 .setVersion(nextVersion)
                 .setPosition(position)
                 .addAllIndex(Functions.buildIndex(
@@ -213,8 +214,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<SchemaRegistryFormat.SchemaEntry> findSchemaEntry(
-        List<SchemaRegistryFormat.IndexEntry> index,
+    private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntry(
+        List<SchemaStorageFormat.IndexEntry> index,
         long version
     ) {
 
@@ -222,13 +223,13 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             return completedFuture(null);
         }
 
-        SchemaRegistryFormat.IndexEntry lowest = index.get(0);
+        SchemaStorageFormat.IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
             return readSchemaEntry(lowest.getPosition())
                 .thenCompose(entry -> findSchemaEntry(entry.getIndexList(), version));
         }
 
-        for (SchemaRegistryFormat.IndexEntry entry : index) {
+        for (SchemaStorageFormat.IndexEntry entry : index) {
             if (entry.getVersion() == version) {
                 return readSchemaEntry(entry.getPosition());
             } else if (entry.getVersion() > version) {
@@ -240,8 +241,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<SchemaRegistryFormat.SchemaEntry> readSchemaEntry(
-        SchemaRegistryFormat.PositionInfo position
+    private CompletableFuture<SchemaStorageFormat.SchemaEntry> readSchemaEntry(
+        SchemaStorageFormat.PositionInfo position
     ) {
         return openLedger(position.getLedgerId())
             .thenCompose((ledger) ->
@@ -253,7 +254,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Void> updateSchemaLocator(String id, SchemaRegistryFormat.SchemaLocator schema, int version) {
+    private CompletableFuture<Void> updateSchemaLocator(String id, SchemaStorageFormat.SchemaLocator schema, int version) {
         CompletableFuture<Void> future = new CompletableFuture<>();
         zooKeeper.setData(id, schema.toByteArray(), version, (rc, path, ctx, stat) -> {
             Code code = Code.get(rc);
@@ -279,9 +280,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             if (schemaLocatorStatEntry.isPresent()) {
                 return completedFuture(schemaLocatorStatEntry.get());
             } else {
-                SchemaRegistryFormat.SchemaLocator locator = SchemaRegistryFormat.SchemaLocator.newBuilder()
+                SchemaStorageFormat.SchemaLocator locator = SchemaStorageFormat.SchemaLocator.newBuilder()
                     .setVersion(-1L)
-                    .setPosition(SchemaRegistryFormat.PositionInfo.newBuilder()
+                    .setPosition(SchemaStorageFormat.PositionInfo.newBuilder()
                         .setEntryId(-1L)
                         .setLedgerId(-1L)
                     ).build();
@@ -303,7 +304,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Long> addEntry(LedgerHandle ledgerHandle, SchemaRegistryFormat.SchemaEntry entry) {
+    private CompletableFuture<Long> addEntry(LedgerHandle ledgerHandle, SchemaStorageFormat.SchemaEntry entry) {
         final CompletableFuture<Long> future = new CompletableFuture<>();
         ledgerHandle.asyncAddEntry(entry.toByteArray(),
             (rc, handle, entryId, ctx) -> {
@@ -375,63 +376,63 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             return future;
         }
 
-        static CompletableFuture<SchemaRegistryFormat.SchemaEntry> parseSchemaEntry(LedgerEntry ledgerEntry) {
-            CompletableFuture<SchemaRegistryFormat.SchemaEntry> result = new CompletableFuture<>();
+        static CompletableFuture<SchemaStorageFormat.SchemaEntry> parseSchemaEntry(LedgerEntry ledgerEntry) {
+            CompletableFuture<SchemaStorageFormat.SchemaEntry> result = new CompletableFuture<>();
             try {
-                result.complete(SchemaRegistryFormat.SchemaEntry.parseFrom(ledgerEntry.getEntry()));
+                result.complete(SchemaStorageFormat.SchemaEntry.parseFrom(ledgerEntry.getEntry()));
             } catch (IOException e) {
                 result.completeExceptionally(e);
             }
             return result;
         }
 
-        static SchemaRegistryFormat.SchemaEntry newSchemaEntry(
-            List<SchemaRegistryFormat.IndexEntry> index,
+        static SchemaStorageFormat.SchemaEntry newSchemaEntry(
+            List<SchemaStorageFormat.IndexEntry> index,
             byte[] data
         ) {
-            return SchemaRegistryFormat.SchemaEntry.newBuilder()
+            return SchemaStorageFormat.SchemaEntry.newBuilder()
                 .setSchemaData(copyFrom(data))
                 .addAllIndex(index)
                 .build();
         }
 
-        static SchemaRegistryFormat.PositionInfo newPositionInfo(long ledgerId, long entryId) {
-            return SchemaRegistryFormat.PositionInfo.newBuilder()
+        static SchemaStorageFormat.PositionInfo newPositionInfo(long ledgerId, long entryId) {
+            return SchemaStorageFormat.PositionInfo.newBuilder()
                 .setLedgerId(ledgerId)
                 .setEntryId(entryId)
                 .build();
         }
 
-        static Iterable<SchemaRegistryFormat.IndexEntry> buildIndex(
-            List<SchemaRegistryFormat.IndexEntry> index,
-            SchemaRegistryFormat.PositionInfo position,
+        static Iterable<SchemaStorageFormat.IndexEntry> buildIndex(
+            List<SchemaStorageFormat.IndexEntry> index,
+            SchemaStorageFormat.PositionInfo position,
             long version
         ) {
-            List<SchemaRegistryFormat.IndexEntry> entries = new ArrayList<>(index.size());
+            List<SchemaStorageFormat.IndexEntry> entries = new ArrayList<>(index.size());
             Collections.copy(index, entries);
             entries.add(
-                SchemaRegistryFormat.IndexEntry.newBuilder()
+                SchemaStorageFormat.IndexEntry.newBuilder()
                     .setPosition(position)
                     .setVersion(version)
                     .build()
             );
-            entries.sort(comparingLong(SchemaRegistryFormat.IndexEntry::getVersion));
+            entries.sort(comparingLong(SchemaStorageFormat.IndexEntry::getVersion));
             return entries;
         }
     }
 
-    static class SchemaLocatorDeserializer implements ZooKeeperCache.Deserializer<SchemaRegistryFormat.SchemaLocator> {
+    static class SchemaLocatorDeserializer implements ZooKeeperCache.Deserializer<SchemaStorageFormat.SchemaLocator> {
         @Override
-        public SchemaRegistryFormat.SchemaLocator deserialize(String key, byte[] content) throws Exception {
-            return SchemaRegistryFormat.SchemaLocator.parseFrom(content);
+        public SchemaStorageFormat.SchemaLocator deserialize(String key, byte[] content) throws Exception {
+            return SchemaStorageFormat.SchemaLocator.parseFrom(content);
         }
     }
 
     static class LocatorEntry {
-        final SchemaRegistryFormat.SchemaLocator locator;
+        final SchemaStorageFormat.SchemaLocator locator;
         final Integer version;
 
-        LocatorEntry(SchemaRegistryFormat.SchemaLocator locator, Integer version) {
+        LocatorEntry(SchemaStorageFormat.SchemaLocator locator, Integer version) {
             this.locator = locator;
             this.version = version;
         }
