@@ -19,12 +19,10 @@
 package org.apache.pulsar.broker.service.schema;
 
 import com.google.common.base.MoreObjects;
-import java.util.Map;
 import java.util.Objects;
-import org.apache.pulsar.common.schema.SchemaVersion;
-import org.apache.pulsar.common.schema.Schema;
-
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaVersion;
 
 public interface SchemaRegistry extends AutoCloseable {
 
@@ -42,13 +40,11 @@ public interface SchemaRegistry extends AutoCloseable {
         public final String id;
         public final Schema schema;
         public final SchemaVersion version;
-        public final Map<String, String> metadata;
 
-        public SchemaAndMetadata(String id, Schema schema, SchemaVersion version, Map<String, String> metadata) {
+        SchemaAndMetadata(String id, Schema schema, SchemaVersion version) {
             this.id = id;
             this.schema = schema;
             this.version = version;
-            this.metadata = metadata;
         }
 
         @Override
@@ -62,13 +58,12 @@ public interface SchemaRegistry extends AutoCloseable {
             SchemaAndMetadata that = (SchemaAndMetadata) o;
             return version == that.version &&
                 Objects.equals(id, that.id) &&
-                Objects.equals(schema, that.schema) &&
-                Objects.equals(metadata, that.metadata);
+                Objects.equals(schema, that.schema);
         }
 
         @Override
         public int hashCode() {
-            return Objects.hash(id, schema, version, metadata);
+            return Objects.hash(id, schema, version);
         }
 
         @Override
@@ -77,7 +72,6 @@ public interface SchemaRegistry extends AutoCloseable {
                 .add("id", id)
                 .add("schema", schema)
                 .add("version", version)
-                .add("metadata", metadata)
                 .toString();
         }
     }

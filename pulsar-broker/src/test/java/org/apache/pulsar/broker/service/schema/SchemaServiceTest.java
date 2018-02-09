@@ -35,26 +35,25 @@ import org.testng.annotations.Test;
 
 public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
-    static Clock MockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
+    private static Clock MockClock = Clock.fixed(Instant.EPOCH, ZoneId.systemDefault());
 
-    String schemaId1 = "id1";
-    String schemaId2 = "id2";
-    String userId = "user";
+    private String schemaId1 = "id1";
+    private String schemaId2 = "id2";
+    private String userId = "user";
 
-    Schema schema1 = schema1(version(0));
+    private Schema schema1 = schema1(version(0));
 
-    Schema schema2 = schema2(version(0));
+    private Schema schema2 = schema2(version(0));
 
-    Schema schema3 = Schema.newBuilder()
+    private Schema schema3 = Schema.newBuilder()
         .user(userId)
         .type(SchemaType.PROTOBUF)
         .timestamp(MockClock.millis())
         .isDeleted(false)
-        .version(version(0))
         .data("message { required int64 b = 1};".getBytes())
         .build();
 
-    SchemaRegistryServiceImpl schemaRegistryService;
+    private SchemaRegistryServiceImpl schemaRegistryService;
 
     @BeforeMethod
     @Override
@@ -199,7 +198,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .timestamp(MockClock.millis())
             .isDeleted(false)
             .data("message { required int64 a = 1};".getBytes())
-            .version(version)
             .build();
     }
 
@@ -210,7 +208,6 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
             .timestamp(MockClock.millis())
             .isDeleted(false)
             .data("message { required int64 b = 1};".getBytes())
-            .version(version)
             .build();
     }
 

@@ -62,8 +62,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     public CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version) {
         return schemaStorage.get(schemaId, version).thenCompose(stored ->
             Functions.bytesToSchemaInfo(stored.data)
-                .thenApply(info -> Functions.schemaInfoToSchema(info, stored.version))
-                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version, stored.metadata))
+                .thenApply(Functions::schemaInfoToSchema)
+                .thenApply(schema -> new SchemaAndMetadata(schemaId, schema, stored.version))
         );
     }
 
@@ -160,12 +160,11 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             return pairs;
         }
 
-        static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info, SchemaVersion version) {
+        static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info) {
             return Schema.newBuilder()
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
                 .data(info.getSchema().toByteArray())
-                .version(version)
                 .isDeleted(info.getDeleted())
                 .properties(toMap(info.getPropsList()))
                 .build();

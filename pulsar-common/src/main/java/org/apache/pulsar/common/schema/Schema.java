@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Objects;
 
 public class Schema {
-    public final SchemaVersion version;
     public final SchemaType type;
     public final boolean isDeleted;
     public final long timestamp;
@@ -42,7 +41,6 @@ public class Schema {
         this.timestamp = builder.timestamp;
         this.user = builder.user;
         this.data = builder.data;
-        this.version = builder.version;
         this.props = unmodifiableMap(builder.props);
     }
 
@@ -61,7 +59,6 @@ public class Schema {
         Schema schema = (Schema) o;
         return isDeleted == schema.isDeleted &&
             timestamp == schema.timestamp &&
-            Objects.equals(version, schema.version) &&
             type == schema.type &&
             Objects.equals(user, schema.user) &&
             Arrays.equals(data, schema.data) &&
@@ -71,7 +68,7 @@ public class Schema {
     @Override
     public int hashCode() {
 
-        int result = Objects.hash(version, type, isDeleted, timestamp, user, props);
+        int result = Objects.hash(type, isDeleted, timestamp, user, props);
         result = 31 * result + Arrays.hashCode(data);
         return result;
     }
@@ -79,7 +76,6 @@ public class Schema {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-            .add("version", version)
             .add("type", type)
             .add("isDeleted", isDeleted)
             .add("timestamp", timestamp)
@@ -90,7 +86,6 @@ public class Schema {
     }
 
     public static class Builder {
-        private SchemaVersion version;
         private SchemaType type;
         private boolean isDeleted;
         private long timestamp;
@@ -120,11 +115,6 @@ public class Schema {
 
         public Builder data(byte[] data) {
             this.data = data;
-            return this;
-        }
-
-        public Builder version(SchemaVersion version) {
-            this.version = version;
             return this;
         }
 

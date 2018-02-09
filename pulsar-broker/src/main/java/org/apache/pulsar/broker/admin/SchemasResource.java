@@ -28,6 +28,7 @@ import java.time.Clock;
 import java.util.Objects;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.Encoded;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
@@ -96,7 +97,7 @@ public class SchemasResource extends AdminResource {
         @PathParam("cluster") String cluster,
         @PathParam("namespace") String namespace,
         @PathParam("topic") String topic,
-        @PathParam("version") String version,
+        @PathParam("version") @Encoded String version,
         @Suspended final AsyncResponse response
     ) {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
