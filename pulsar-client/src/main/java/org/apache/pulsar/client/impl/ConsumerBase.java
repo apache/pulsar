@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.ConsumerGroupListener;
+import org.apache.pulsar.client.api.ActiveConsumerListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
@@ -55,7 +55,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected final String consumerName;
     protected final CompletableFuture<Consumer> subscribeFuture;
     protected final MessageListener listener;
-    protected final ConsumerGroupListener consumerGroupListener;
+    protected final ActiveConsumerListener activeConsumerListener;
     protected final ExecutorService listenerExecutor;
     final BlockingQueue<Message> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
@@ -70,7 +70,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
         this.consumerName = conf.getConsumerName() == null ? ConsumerName.generateRandomName() : conf.getConsumerName();
         this.subscribeFuture = subscribeFuture;
         this.listener = conf.getMessageListener();
-        this.consumerGroupListener = conf.getConsumerGroupListener();
+        this.activeConsumerListener = conf.getActiveConsumerListener();
         if (receiverQueueSize <= 1) {
             this.incomingMessages = Queues.newArrayBlockingQueue(1);
         } else {

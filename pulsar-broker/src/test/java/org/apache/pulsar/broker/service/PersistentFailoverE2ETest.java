@@ -37,7 +37,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.ConsumerGroupListener;
+import org.apache.pulsar.client.api.ActiveConsumerListener;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -72,7 +72,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
 
     private static final int CONSUMER_ADD_OR_REMOVE_WAIT_TIME = 2000;
 
-    private static class TestConsumerGroupStateListener implements ConsumerGroupListener {
+    private static class TestActiveConsumerStateListener implements ActiveConsumerListener {
 
         final LinkedBlockingQueue<Integer> activeQueue = new LinkedBlockingQueue<>();
         final LinkedBlockingQueue<Integer> inActiveQueue = new LinkedBlockingQueue<>();
@@ -94,22 +94,22 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
     }
 
-    private void verifyConsumerNotReceiveAnyStateChanges(TestConsumerGroupStateListener listener) throws Exception {
+    private void verifyConsumerNotReceiveAnyStateChanges(TestActiveConsumerStateListener listener) throws Exception {
         assertNull(listener.activeQueue.poll());
         assertNull(listener.inActiveQueue.poll());
     }
 
-    private void verifyConsumerActive(TestConsumerGroupStateListener listener, int partitionId) throws Exception {
+    private void verifyConsumerActive(TestActiveConsumerStateListener listener, int partitionId) throws Exception {
         assertEquals(partitionId, listener.activeQueue.take().intValue());
         assertNull(listener.inActiveQueue.poll());
     }
 
-    private void verifyConsumerInactive(TestConsumerGroupStateListener listener, int partitionId) throws Exception {
+    private void verifyConsumerInactive(TestActiveConsumerStateListener listener, int partitionId) throws Exception {
         assertEquals(partitionId, listener.inActiveQueue.take().intValue());
         assertNull(listener.activeQueue.poll());
     }
 
-    private static class ActiveInactiveListener implements ConsumerGroupListener {
+    private static class ActiveInactiveListenerActive implements ActiveConsumerListener {
 
         private final Set<Integer> activePtns = Sets.newHashSet();
         private final Set<Integer> inactivePtns = Sets.newHashSet();
@@ -133,17 +133,17 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 100;
 
-        TestConsumerGroupStateListener listener1 = new TestConsumerGroupStateListener();
+        TestActiveConsumerStateListener listener1 = new TestActiveConsumerStateListener();
         ConsumerConfiguration consumerConf1 = new ConsumerConfiguration();
         consumerConf1.setSubscriptionType(SubscriptionType.Failover);
         consumerConf1.setConsumerName("1");
-        consumerConf1.setConsumerGroupListener(listener1);
+        consumerConf1.setActiveConsumerListener(listener1);
 
-        TestConsumerGroupStateListener listener2 = new TestConsumerGroupStateListener();
+        TestActiveConsumerStateListener listener2 = new TestActiveConsumerStateListener();
         ConsumerConfiguration consumerConf2 = new ConsumerConfiguration();
         consumerConf2.setSubscriptionType(SubscriptionType.Failover);
         consumerConf2.setConsumerName("2");
-        consumerConf2.setConsumerGroupListener(listener2);
+        consumerConf2.setActiveConsumerListener(listener2);
 
         // 1. two consumers on the same subscription
         Consumer consumer1 = pulsarClient.subscribe(topicName, subName, consumerConf1);
@@ -264,11 +264,11 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         futures.clear();
 
         // 7. consumer subscription should not send messages to the new consumer if its name is not highest in the list
-        TestConsumerGroupStateListener listener3 = new TestConsumerGroupStateListener();
+        TestActiveConsumerStateListener listener3 = new TestActiveConsumerStateListener();
         ConsumerConfiguration consumerConf3 = new ConsumerConfiguration();
         consumerConf3.setSubscriptionType(SubscriptionType.Failover);
         consumerConf3.setConsumerName("3");
-        consumerConf3.setConsumerGroupListener(listener3);
+        consumerConf3.setActiveConsumerListener(listener3);
         for (int i = 0; i < 5; i++) {
             msg = consumer1.receive(1, TimeUnit.SECONDS);
             Assert.assertNotNull(msg);
@@ -336,17 +336,17 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-        ActiveInactiveListener listener1 = new ActiveInactiveListener();
+        ActiveInactiveListenerActive listener1 = new ActiveInactiveListenerActive();
         ConsumerConfiguration consumerConf1 = new ConsumerConfiguration();
         consumerConf1.setSubscriptionType(SubscriptionType.Failover);
         consumerConf1.setConsumerName("1");
-        consumerConf1.setConsumerGroupListener(listener1);
+        consumerConf1.setActiveConsumerListener(listener1);
 
-        ActiveInactiveListener listener2 = new ActiveInactiveListener();
+        ActiveInactiveListenerActive listener2 = new ActiveInactiveListenerActive();
         ConsumerConfiguration consumerConf2 = new ConsumerConfiguration();
         consumerConf2.setSubscriptionType(SubscriptionType.Failover);
         consumerConf2.setConsumerName("2");
-        consumerConf2.setConsumerGroupListener(listener2);
+        consumerConf2.setActiveConsumerListener(listener2);
 
         // 1. two consumers on the same subscription
         Consumer consumer1 = pulsarClient.subscribe(topicName, subName, consumerConf1);

@@ -32,7 +32,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-import com.google.common.collect.ImmutableMap;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -438,8 +437,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
-        if (null != conf.getConsumerGroupListener()) {
-            internalConsumerConfig.setConsumerGroupListener(conf.getConsumerGroupListener());
+        if (null != conf.getActiveConsumerListener()) {
+            internalConsumerConfig.setActiveConsumerListener(conf.getActiveConsumerListener());
         }
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
