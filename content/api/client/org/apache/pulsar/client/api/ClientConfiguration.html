@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10};
+var methods = {"i0":10,"i1":10,"i2":10,"i3":10,"i4":10,"i5":10,"i6":10,"i7":10,"i8":10,"i9":10,"i10":10,"i11":10,"i12":10,"i13":10,"i14":10,"i15":10,"i16":10,"i17":10,"i18":10,"i19":10,"i20":10,"i21":10,"i22":10,"i23":10,"i24":10,"i25":10,"i26":10,"i27":10};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],8:["t4","Concrete Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -202,57 +202,61 @@ implements Serializable</pre>
 </tr>
 <tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#isUseTcpNoDelay--">isUseTcpNoDelay</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#isTlsHostnameVerificationEnable--">isTlsHostnameVerificationEnable</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#isUseTls--">isUseTls</a></span>()</code>&nbsp;</td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#isUseTcpNoDelay--">isUseTcpNoDelay</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i12" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#isUseTls--">isUseTls</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-org.apache.pulsar.client.api.Authentication-">setAuthentication</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a>&nbsp;authentication)</code>
 <div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.util.Map-">setAuthentication</a></span>(String&nbsp;authPluginClassName,
                  Map&lt;String,String&gt;&nbsp;authParams)</code>
 <div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.lang.String-">setAuthentication</a></span>(String&nbsp;authPluginClassName,
                  String&nbsp;authParamsString)</code>
 <div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-">setConcurrentLookupRequest</a></span>(int&nbsp;concurrentLookupRequest)</code>
 <div class="block">Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-">setConnectionsPerBroker</a></span>(int&nbsp;connectionsPerBroker)</code>
 <div class="block">Sets the max number of connection that the client library will open to a single broker.</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setIoThreads-int-">setIoThreads</a></span>(int&nbsp;numIoThreads)</code>
 <div class="block">Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i></div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setListenerThreads-int-">setListenerThreads</a></span>(int&nbsp;numListenerThreads)</code>
 <div class="block">Set the number of threads to be used for message listeners <i>(default: 1 thread)</i></div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-">setMaxNumberOfRejectedRequestPerConnection</a></span>(int&nbsp;maxNumberOfRejectedRequestPerConnection)</code>
 <div class="block">Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
@@ -260,14 +264,14 @@ implements Serializable</pre>
  50)</i></div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setOperationTimeout-int-java.util.concurrent.TimeUnit-">setOperationTimeout</a></span>(int&nbsp;operationTimeout,
                    TimeUnit&nbsp;unit)</code>
 <div class="block">Set the operation timeout <i>(default: 30 seconds)</i></div>
 </td>
 </tr>
-<tr id="i21" class="rowColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setStatsInterval-long-java.util.concurrent.TimeUnit-">setStatsInterval</a></span>(long&nbsp;statsInterval,
                 TimeUnit&nbsp;unit)</code>
@@ -275,25 +279,31 @@ implements Serializable</pre>
  statsIntervalSeconds It should be set to at least 1 second</div>
 </td>
 </tr>
-<tr id="i22" class="altColor">
+<tr id="i23" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-">setTlsAllowInsecureConnection</a></span>(boolean&nbsp;tlsAllowInsecureConnection)</code>
 <div class="block">Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i></div>
 </td>
 </tr>
-<tr id="i23" class="rowColor">
+<tr id="i24" class="altColor">
+<td class="colFirst"><code>void</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setTlsHostnameVerificationEnable-boolean-">setTlsHostnameVerificationEnable</a></span>(boolean&nbsp;tlsHostnameVerificationEnable)</code>
+<div class="block">It allows to validate hostname verification when client connects to broker over tls.</div>
+</td>
+</tr>
+<tr id="i25" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-">setTlsTrustCertsFilePath</a></span>(String&nbsp;tlsTrustCertsFilePath)</code>
 <div class="block">Set the path to the trusted TLS certificate file</div>
 </td>
 </tr>
-<tr id="i24" class="altColor">
+<tr id="i26" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-">setUseTcpNoDelay</a></span>(boolean&nbsp;useTcpNoDelay)</code>
 <div class="block">Configure whether to use TCP no-delay flag on the connection, to disable Nagle algorithm.</div>
 </td>
 </tr>
-<tr id="i25" class="rowColor">
+<tr id="i27" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-">setUseTls</a></span>(boolean&nbsp;useTls)</code>
 <div class="block">Configure whether to use TLS encryption on the connection <i>(default: false)</i></div>
@@ -754,7 +764,7 @@ implements Serializable</pre>
 <a name="setMaxNumberOfRejectedRequestPerConnection-int-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>setMaxNumberOfRejectedRequestPerConnection</h4>
 <pre>public&nbsp;void&nbsp;setMaxNumberOfRejectedRequestPerConnection(int&nbsp;maxNumberOfRejectedRequestPerConnection)</pre>
@@ -764,6 +774,33 @@ implements Serializable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>maxNumberOfRejectedRequestPerConnection</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="isTlsHostnameVerificationEnable--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>isTlsHostnameVerificationEnable</h4>
+<pre>public&nbsp;boolean&nbsp;isTlsHostnameVerificationEnable()</pre>
+</li>
+</ul>
+<a name="setTlsHostnameVerificationEnable-boolean-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>setTlsHostnameVerificationEnable</h4>
+<pre>public&nbsp;void&nbsp;setTlsHostnameVerificationEnable(boolean&nbsp;tlsHostnameVerificationEnable)</pre>
+<div class="block">It allows to validate hostname verification when client connects to broker over tls. It validates incoming x509
+ certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1. Server
+ Identity hostname verification.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>tlsHostnameVerificationEnable</code> - </dd>
+<dt><span class="seeLabel">See Also:</span></dt>
+<dd><a href="https://tools.ietf.org/html/rfc2818">rfc2818</a></dd>
 </dl>
 </li>
 </ul>

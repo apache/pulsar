@@ -1905,7 +1905,7 @@ Pulsar topic.</p>
 
 <p>You can configure Pulsar authentication provider directly from the Kafka properties.</p>
 
-<p>Properties:</p>
+<h3 id="pulsar-client-properties">Pulsar client properties:</h3>
 
 <table>
   <thead>
@@ -1922,19 +1922,127 @@ Pulsar topic.</p>
       <td style="text-align: left">Configure to auth provider. Eg. <code class="highlighter-rouge">org.apache.pulsar.client.impl.auth.AuthenticationTls</code></td>
     </tr>
     <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">pulsar.use.tls</code></td>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-"><code class="highlighter-rouge">pulsar.use.tls</code></a></td>
       <td style="text-align: left"><code class="highlighter-rouge">false</code></td>
       <td style="text-align: left">Enable TLS transport encryption</td>
     </tr>
     <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">pulsar.tls.trust.certs.file.path</code></td>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-"><code class="highlighter-rouge">pulsar.tls.trust.certs.file.path</code></a></td>
       <td style="text-align: left"> </td>
       <td style="text-align: left">Path for the TLS trust certificate store</td>
     </tr>
     <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">pulsar.tls.allow.insecure.connection</code></td>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-"><code class="highlighter-rouge">pulsar.tls.allow.insecure.connection</code></a></td>
       <td style="text-align: left"><code class="highlighter-rouge">false</code></td>
       <td style="text-align: left">Accept self-signed certificates from brokers</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setOperationTimeout-int-java.util.concurrent.TimeUnit-"><code class="highlighter-rouge">pulsar.operation.timeout.ms</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">30000</code></td>
+      <td style="text-align: left">General operations timeout</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setStatsInterval-long-java.util.concurrent.TimeUnit-"><code class="highlighter-rouge">pulsar.stats.interval.seconds</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">60</code></td>
+      <td style="text-align: left">Pulsar client lib stats printing interval</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setIoThreads-int-"><code class="highlighter-rouge">pulsar.num.io.threads</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">1</code></td>
+      <td style="text-align: left">Number of Netty IO threads to use</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-"><code class="highlighter-rouge">pulsar.connections.per.broker</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">1</code></td>
+      <td style="text-align: left">Max number of connection to open to each broker</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-"><code class="highlighter-rouge">pulsar.use.tcp.nodelay</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">true</code></td>
+      <td style="text-align: left">TCP no-delay</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-"><code class="highlighter-rouge">pulsar.concurrent.lookup.requests</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">50000</code></td>
+      <td style="text-align: left">Max number of concurrent topic lookups</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-"><code class="highlighter-rouge">pulsar.max.number.rejected.request.per.connection</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">50</code></td>
+      <td style="text-align: left">Threshold of errors to forcefully close a connection</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pulsar-producer-properties">Pulsar producer properties</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Config property</th>
+      <th style="text-align: left">Default</th>
+      <th style="text-align: left">Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-"><code class="highlighter-rouge">pulsar.producer.name</code></a></td>
+      <td style="text-align: left"> </td>
+      <td style="text-align: left">Specify producer name</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-"><code class="highlighter-rouge">pulsar.producer.initial.sequence.id</code></a></td>
+      <td style="text-align: left"> </td>
+      <td style="text-align: left">Specify baseline for sequence id for this producer</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-"><code class="highlighter-rouge">pulsar.producer.max.pending.messages</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">1000</code></td>
+      <td style="text-align: left">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-"><code class="highlighter-rouge">pulsar.producer.max.pending.messages.across.partitions</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">50000</code></td>
+      <td style="text-align: left">Set the number of max pending messages across all the partitions</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-"><code class="highlighter-rouge">pulsar.producer.batching.enabled</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">true</code></td>
+      <td style="text-align: left">Control whether automatic batching of messages is enabled for the producer</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-"><code class="highlighter-rouge">pulsar.producer.batching.max.messages</code></a></td>
+      <td style="text-align: left"><code class="highlighter-rouge">1000</code></td>
+      <td style="text-align: left">The maximum number of messages permitted in a batch</td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pulsar-consumer-properties">Pulsar consumer Properties</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Config property</th>
+      <th style="text-align: left">Default</th>
+      <th style="text-align: left">Notes</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-"><code class="highlighter-rouge">pulsar.consumer.name</code></a></td>
+      <td style="text-align: left"> </td>
+      <td style="text-align: left">Set the consumer name</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-"><code class="highlighter-rouge">pulsar.consumer.receiver.queue.size</code></a></td>
+      <td style="text-align: left">1000</td>
+      <td style="text-align: left">Sets the size of the consumer receive queue</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><a href="http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-"><code class="highlighter-rouge">pulsar.consumer.total.receiver.queue.size.across.partitions</code></a></td>
+      <td style="text-align: left">50000</td>
+      <td style="text-align: left">Set the max total receiver queue size across partitons</td>
     </tr>
   </tbody>
 </table>
