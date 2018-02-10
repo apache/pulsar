@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
@@ -105,6 +106,8 @@ public class SecurityUtility {
         } else {
             if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
                 builder.trustManager(new FileInputStream(trustCertsFilePath));
+            } else {
+                builder.trustManager((File) null);
             }
         }
         builder.keyManager(privateKey, (X509Certificate[]) certificates);
