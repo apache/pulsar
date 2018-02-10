@@ -40,6 +40,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.util.ExecutorProvider;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -239,6 +240,13 @@ public class PulsarClientImpl implements PulsarClient {
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
+        }
+
+        if (conf.getActiveConsumerListener() != null
+            && conf.getSubscriptionType() != SubscriptionType.Failover) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                        "Active consumer listener is only supported for failover subscription"));
         }
 
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
