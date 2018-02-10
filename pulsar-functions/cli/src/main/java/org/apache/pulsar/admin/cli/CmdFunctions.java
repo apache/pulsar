@@ -128,6 +128,8 @@ public class CmdFunctions extends CmdBase {
         protected String fnConfigFile;
         @Parameter(names = "--processingGuarantees", description = "Processing Guarantees\n")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
+        @Parameter(names = "--subscriptionType", description = "The type of subscription\n")
+        protected FunctionConfig.SubscriptionType subscriptionType;
         @Parameter(names = "--userConfig", description = "User Config\n")
         protected String userConfigString;
 
@@ -174,6 +176,9 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != processingGuarantees) {
                 functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
+            }
+            if (null != subscriptionType) {
+                functionConfigBuilder.setSubscriptionType(subscriptionType);
             }
             if (null != userConfigString) {
                 Type type = new TypeToken<Map<String, String>>(){}.getType();
