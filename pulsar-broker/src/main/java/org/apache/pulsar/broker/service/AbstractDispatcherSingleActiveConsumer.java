@@ -83,8 +83,10 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
     protected abstract void cancelPendingRead();
 
     protected void notifyConsumerGroupChanged(Consumer activeConsumer) {
-        consumers.forEach(consumer ->
-            consumer.notifyConsumerGroupChange(activeConsumer.consumerId()));
+        if (null != activeConsumer && subscriptionType == SubType.Failover) {
+            consumers.forEach(consumer ->
+                consumer.notifyConsumerGroupChange(activeConsumer.consumerId()));
+        }
     }
 
     /**
@@ -104,11 +106,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
             return false;
         } else {
             // If the active consumer is changed, send notification.
-            notifyConsumerGroupChanged(activeConsumer);
+            scheduleReadOnActiveConsumer();
+            return true;
         }
-
-        scheduleReadOnActiveConsumer();
-        return true;
     }
 
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
