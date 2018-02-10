@@ -19,7 +19,11 @@
 package org.apache.pulsar.proxy.server;
 
 import java.io.File;
+import java.security.cert.X509Certificate;
 
+import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.impl.auth.AuthenticationDataTls;
 import org.apache.pulsar.common.api.PulsarDecoder;
 
 import io.netty.channel.ChannelInitializer;
@@ -58,7 +62,17 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
             SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
+            
+            String certFilePath = serviceConfig.getTlsCertificateFilePath();
+            String keyFilePath = serviceConfig.getTlsKeyFilePath();
+            if (StringUtils.isNotBlank(certFilePath) && StringUtils.isNotBlank(keyFilePath)) {
+                AuthenticationDataTls authTlsData = new AuthenticationDataTls(certFilePath, keyFilePath);
+                builder.keyManager(authTlsData.getTlsPrivateKey(),
+                        (X509Certificate[]) authTlsData.getTlsCertificates());
+            }
+            
         }
+        
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService));
     }

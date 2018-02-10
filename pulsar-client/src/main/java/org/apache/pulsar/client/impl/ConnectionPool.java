@@ -194,6 +194,8 @@ public class ConnectionPool implements Closeable {
                 cnx.setTargetBroker(logicalAddress);
             }
 
+            cnx.setRemoteHostName(physicalAddress.getHostName());
+            
             cnx.connectionFuture().thenRun(() -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Connection handshake completed", cnx.channel());
