@@ -19,8 +19,11 @@
 package org.apache.pulsar.broker.service;
 
 import java.io.File;
+import java.security.cert.X509Certificate;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.impl.auth.AuthenticationDataTls;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
 
@@ -68,6 +71,17 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
                     builder.trustManager(trustCertCollection);
                 }
             }
+            
+            ServiceConfiguration config = brokerService.pulsar().getConfiguration();
+            String certFilePath = config.getTlsCertificateFilePath();
+            String keyFilePath = config.getTlsKeyFilePath();
+            if (StringUtils.isNotBlank(certFilePath) && StringUtils.isNotBlank(keyFilePath)) {
+                AuthenticationDataTls authTlsData = new AuthenticationDataTls(certFilePath, keyFilePath);
+                builder.keyManager(authTlsData.getTlsPrivateKey(),
+                        (X509Certificate[]) authTlsData.getTlsCertificates());
+            }
+            
+            
             SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }

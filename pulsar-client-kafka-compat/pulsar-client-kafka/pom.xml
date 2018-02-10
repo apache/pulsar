@@ -125,6 +125,8 @@
                   <include>org.apache.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
+                  <include>commons-logging:commons-logging</include>
                 </includes>
               </artifactSet>
               <relocations>
@@ -194,6 +196,10 @@
                 <relocation>
                   <pattern>com.yahoo.sketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.http</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
               </relocations>
               <filters>
