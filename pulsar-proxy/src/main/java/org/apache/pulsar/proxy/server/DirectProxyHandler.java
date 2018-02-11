@@ -19,7 +19,6 @@
 
 package org.apache.pulsar.proxy.server;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.cert.X509Certificate;
@@ -29,6 +28,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,10 +41,8 @@ import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
-import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
+import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
@@ -68,7 +66,7 @@ public class DirectProxyHandler {
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         ProxyConfiguration config = service.getConfiguration();
         this.forwardAuthData = service.getConfiguration().forwardAuthorizationCredentials();
-        
+
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();
         // Tie the backend connection on the same thread to avoid context switches when passing data between the 2
@@ -79,27 +77,17 @@ public class DirectProxyHandler {
             @Override
             protected void initChannel(SocketChannel ch) throws Exception {
                 if (config.isTlsEnabledWithBroker()) {
-                    SslContextBuilder builder = SslContextBuilder.forClient();
-                    if (config.isTlsAllowInsecureConnection()) {
-                        builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-                    } else {
-                        if (config.getTlsTrustCertsFilePath().isEmpty()) {
-                            // Use system default
-                            builder.trustManager((File) null);
-                        } else {
-                            File trustCertCollection = new File(config.getTlsTrustCertsFilePath());
-                            builder.trustManager(trustCertCollection);
-                        }
-                    }
-
+                    SslContext sslCtx;
                     // Set client certificate if available
                     AuthenticationDataProvider authData = authentication.getAuthData();
                     if (authData.hasDataForTls()) {
-                        builder.keyManager(authData.getTlsPrivateKey(),
-                                (X509Certificate[]) authData.getTlsCertificates());
+                        sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
+                                config.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey());
+                    } else {
+                        sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
+                                config.getTlsTrustCertsFilePath());
                     }
-
-                    SslContext sslCtx = builder.build();
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
                 ch.pipeline().addLast("frameDecoder",
