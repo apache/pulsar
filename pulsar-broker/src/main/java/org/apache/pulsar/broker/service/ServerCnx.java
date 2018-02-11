@@ -551,6 +551,9 @@ public class ServerCnx extends PulsarHandler {
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
+        final boolean initializeOnLatest = subscribe.hasInitializeOnLatest()
+                    ? subscribe.getInitializeOnLatest()
+                    : true;
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -613,7 +616,7 @@ public class ServerCnx extends PulsarHandler {
                         service.getTopic(topicName.toString())
                                 .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                       subType, priorityLevel, consumerName, isDurable,
-                                                                      startMessageId, metadata, readCompacted))
+                                                                      startMessageId, metadata, readCompacted, initializeOnLatest))
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,

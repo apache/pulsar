@@ -545,7 +545,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException {
+    public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException{
+        return openCursor(cursorName, true);
+    }
+
+    @Override
+    public ManagedCursor openCursor(String cursorName, boolean initializeOnLatest) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
             ManagedCursor cursor = null;
@@ -566,7 +571,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 counter.countDown();
             }
 
-        }, null);
+        }, null, initializeOnLatest);
 
         if (!counter.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
             throw new ManagedLedgerException("Timeout during open-cursor operation");
@@ -581,9 +586,13 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback,
-            final Object ctx) {
+    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx){
+        this.asyncOpenCursor(cursorName, callback, ctx, true);
+    }
 
+    @Override
+    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, final Object ctx,
+        final boolean initializeOnLatest){
         try {
             checkManagedLedgerIsOpen();
             checkFenced();
@@ -623,8 +632,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
                 // Update the ack position (ignoring entries that were written while the cursor was being created)
-                cursor.initializeCursorPosition(getLastPositionAndCounter());
-
+                cursor.initializeCursorPosition(initializeOnLatest? getLastPositionAndCounter() : getFirstPositionAndCounter());
+                
                 synchronized (this) {
                     cursors.add(cursor);
                     uninitializedCursors.remove(cursorName).complete(cursor);
@@ -2022,6 +2031,23 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
             // Ensure no entry was written while reading the two values
         } while (pos.compareTo(lastConfirmedEntry) != 0);
+
+        return Pair.create(pos, count);
+    }
+
+        /**
+     * Get the first position written in the managed ledger, alongside with the associated counter
+     */
+    Pair<PositionImpl, Long> getFirstPositionAndCounter() {
+        PositionImpl pos;
+        long count;
+
+        do {
+            pos = getFirstPosition();
+            count = ENTRIES_ADDED_COUNTER_UPDATER.get(this);
+
+            // Ensure no entry was written while reading the two values
+        } while (pos.compareTo(getFirstPosition()) != 0);
 
         return Pair.create(pos, count);
     }

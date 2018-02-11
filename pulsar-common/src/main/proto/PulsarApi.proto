@@ -194,6 +194,9 @@ message CommandSubscribe {
     repeated KeyValue metadata = 10;
 
     optional bool read_compacted = 11;
+	// Signal wthether the subscription will initialize on latest
+	// or not -- earliest
+	optional bool initialize_on_latest = 12 [default = true];
 }
 
 message CommandPartitionedTopicMetadata {

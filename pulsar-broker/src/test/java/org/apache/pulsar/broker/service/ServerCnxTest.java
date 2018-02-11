@@ -1420,7 +1420,7 @@ public class ServerCnxTest {
                 ((OpenCursorCallback) invocationOnMock.getArguments()[1]).openCursorComplete(cursorMock, null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*success.*"), any(OpenCursorCallback.class), anyObject(), any(Boolean.class));
 
         doAnswer(new Answer<Object>() {
             @Override
@@ -1430,7 +1430,7 @@ public class ServerCnxTest {
                         .openCursorFailed(new ManagedLedgerException("Managed ledger failure"), null);
                 return null;
             }
-        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(OpenCursorCallback.class), anyObject());
+        }).when(ledgerMock).asyncOpenCursor(matches(".*fail.*"), any(OpenCursorCallback.class), anyObject(), any(Boolean.class));
 
         doAnswer(new Answer<Object>() {
             @Override

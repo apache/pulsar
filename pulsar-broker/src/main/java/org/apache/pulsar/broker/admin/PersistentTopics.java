@@ -1035,7 +1035,8 @@ public class PersistentTopics extends AdminResource {
     public void createSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subscriptionName") String subscriptionName,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId) throws PulsarServerException {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
+            @QueryParam("initializeOnLatest") @DefaultValue("true") boolean initializeOnLatest) throws PulsarServerException {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
@@ -1069,7 +1070,7 @@ public class PersistentTopics extends AdminResource {
                 }
 
                 PersistentSubscription subscription = (PersistentSubscription) topic
-                        .createSubscription(subscriptionName).get();
+                        .createSubscription(subscriptionName, initializeOnLatest).get();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), dn,
                         subscriptionName, messageId);
