@@ -82,6 +82,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath;
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
+    // Validates hostname when proxy creates tls connection with broker
+    private boolean tlsHostnameVerificationEnabled = false;
 
     private Properties properties = new Properties();
 
@@ -211,6 +213,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
         this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+    }
+
+    public boolean isTlsHostnameVerificationEnabled() {
+        return tlsHostnameVerificationEnabled;
+    }
+
+    public void setTlsHostnameVerificationEnabled(boolean tlsHostnameVerificationEnabled) {
+        this.tlsHostnameVerificationEnabled = tlsHostnameVerificationEnabled;
     }
 
     public String getBrokerClientAuthenticationPlugin() {
