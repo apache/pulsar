@@ -57,6 +57,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -2447,4 +2448,40 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testConsumerSubscriptionInitialize() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topic = "persistent://my-property/use/my-ns/my-topic-test-subscription-initialize";
+        
+        Producer producer = pulsarClient.createProducer(topic);
+
+        // first produce 5 messages
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // second create consumers
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        Consumer defaultConsumer = pulsarClient.subscribe(topic, "test-subscription-default");
+        conf.setSubscriptionInitialPosition(InitialPosition.Latest);
+        Consumer latestConsumer = pulsarClient.subscribe(topic, "test-subscription-latest", conf);
+        conf.setSubscriptionInitialPosition(InitialPosition.Earliest);
+        Consumer earlistConsumer = pulsarClient.subscribe(topic, "test-subscription-earliest", conf);
+
+        // third produce 5 messages
+        for (int i = 5; i < 10; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        assertEquals(defaultConsumer.receive().getData(), "my-message-5".getBytes());
+        assertEquals(latestConsumer.receive().getData(), "my-message-5".getBytes());
+        assertEquals(earlistConsumer.receive().getData(), "my-message-0".getBytes());
+
+        defaultConsumer.close();
+        latestConsumer.close();
+        earlistConsumer.close();
+        log.info("-- Exiting {} test --", methodName);
+    }
 }

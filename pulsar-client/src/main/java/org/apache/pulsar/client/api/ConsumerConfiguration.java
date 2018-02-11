@@ -26,6 +26,9 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
@@ -339,4 +342,21 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfigurationData getConfigurationData() {
         return conf;
     }
+    
+     /** 
+     * @param subscriptionInitialPosition the initial position at which to set
+     * set cursor  when subscribing to the topic first time
+     * Default is {@value InitialPosition.Latest}
+     */
+    public ConsumerConfiguration setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition) {
+        conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
+        return this;
+    }   
+
+    /** 
+     * @return the configured {@link subscriptionInitailPosition} for the consumer
+     */
+    public InitialPosition getSubscriptionInitialPosition(){
+        return conf.getSubscriptionInitialPosition();
+    }   
 }

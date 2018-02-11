@@ -196,6 +196,15 @@ message CommandSubscribe {
     repeated KeyValue metadata = 10;
 
     optional bool read_compacted = 11;
+
+	enum InitialPosition {
+		Latest   = 0;
+		Earliest = 1;
+	}
+	// Signal wthether the subscription will initialize on latest
+	// or not -- earliest
+	optional InitialPosition initialPosition = 12 [default = Latest];
+
 }
 
 message CommandPartitionedTopicMetadata {

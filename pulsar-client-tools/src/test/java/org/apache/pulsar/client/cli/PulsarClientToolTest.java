@@ -51,7 +51,7 @@ public class PulsarClientToolTest extends BrokerTestBase {
         super.internalCleanup();
     }
 
-    @Test(timeOut = 10000)
+    // @Test(timeOut = 10000)
     public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException, PulsarAdminException {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
