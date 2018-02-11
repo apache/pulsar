@@ -269,7 +269,7 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
     public void textTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
-        proxyConfig.setTlsHostnameVerificationEnable(hostnameVerificationEnabled);
+        proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
         startProxy();
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();

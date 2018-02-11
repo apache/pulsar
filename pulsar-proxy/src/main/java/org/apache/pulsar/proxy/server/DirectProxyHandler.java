@@ -212,7 +212,7 @@ public class DirectProxyHandler {
                 log.debug("[{}] [{}] Received Connected from broker", inboundChannel, outboundChannel);
             }
             
-            if (config.isTlsHostnameVerificationEnable() && remoteHostName != null
+            if (config.isTlsHostnameVerificationEnabled() && remoteHostName != null
                     && !verifyTlsHostName(remoteHostName, ctx)) {
                 // close the connection if host-verification failed with the broker
                 log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
