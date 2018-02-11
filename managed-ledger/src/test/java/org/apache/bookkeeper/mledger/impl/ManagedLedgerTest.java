@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.zookeeper.CreateMode;
@@ -2152,4 +2153,32 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         return ByteBufPair.coalesce(ByteBufPair.get(headers, payload));
     }
 
+    @Test
+    public void testOpenCursorOnLatestAndEarliest() throws Exception {
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger");
+
+        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
+        cacheField.setAccessible(true);
+        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
+
+        final int totalInsertedEntries = 20;
+        for (int i = 0; i < totalInsertedEntries; i++) {
+            String content = "entry"; // 5 bytes
+            ledger.addEntry(content.getBytes());
+        }
+
+        // Open Cursor also adds cursor into activeCursor-container
+        ManagedCursor cursor1 = ledger.openCursor("c1", InitialPosition.Latest);
+        ManagedCursor cursor2 = ledger.openCursor("c2", InitialPosition.Earliest);
+
+        // Since getReadPosition returns the next position, we decrease the entryId by 1
+        PositionImpl p1 = (PositionImpl) cursor1.getReadPosition();
+        PositionImpl p2 = (PositionImpl) cursor2.getReadPosition();
+        
+        Position latest = new PositionImpl(p1.getLedgerId(), p1.getEntryId() - 1);
+        Position earliest = new PositionImpl(p2.getLedgerId(), p2.getEntryId() - 1);
+        assertEquals(latest, ledger.getLastPosition());
+        assertEquals(earliest, ledger.getFirstPosition());
+        ledger.close();
+    }
 }

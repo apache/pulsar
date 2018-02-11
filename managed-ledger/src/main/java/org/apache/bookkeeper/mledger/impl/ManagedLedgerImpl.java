@@ -560,7 +560,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncOpenCursor(cursorName, new OpenCursorCallback() {
+        asyncOpenCursor(cursorName, initialPosition, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 result.cursor = cursor;
@@ -589,12 +589,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
     @Override
     public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx){
-        this.asyncOpenCursor(cursorName, callback, ctx, InitialPosition.Latest);
+        this.asyncOpenCursor(cursorName, InitialPosition.Latest, callback, ctx);
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, final Object ctx,
-        final InitialPosition initialPosition){
+    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition, final OpenCursorCallback callback, final Object ctx){
         try {
             checkManagedLedgerIsOpen();
             checkFenced();
@@ -634,7 +633,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
                 // Update the ack position (ignoring entries that were written while the cursor was being created)
-                cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest? getLastPositionAndCounter() : getFirstPositionAndCounter());
+                cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest ? getLastPositionAndCounter() : getFirstPositionAndCounter());
                 
                 synchronized (this) {
                     cursors.add(cursor);
@@ -2040,7 +2039,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Pair.create(pos, count);
     }
 
-     /**
+    /**
      * Get the first position written in the managed ledger, alongside with the associated counter
      */
     Pair<PositionImpl, Long> getFirstPositionAndCounter() {
@@ -2051,14 +2050,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         do {
             pos = getFirstPosition();
-
             lastPositionAndCounter = getLastPositionAndCounter();
             entries = getNumberOfEntries();
             count = lastPositionAndCounter.second - entries;
-            
             // Ensure no entry was written while reading the two values
-        } while (pos.compareTo(getFirstPosition()) != 0 
-            && lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
+        } while (pos.compareTo(getFirstPosition()) != 0 && lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
 
         return Pair.create(pos, count);
     }

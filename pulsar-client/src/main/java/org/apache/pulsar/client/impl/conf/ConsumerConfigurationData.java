@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -74,6 +75,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean readCompacted = false;
 
     private int patternAutoDiscoveryPeriod = 1;
+    private InitialPosition subscriptionInitialPosition = InitialPosition.Latest;
 
     @JsonIgnore
     public String getSingleTopic() {
