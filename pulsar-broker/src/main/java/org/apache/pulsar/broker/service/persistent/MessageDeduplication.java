@@ -259,7 +259,7 @@ public class MessageDeduplication {
                             future.completeExceptionally(exception);
                         }
 
-                    }, null);
+                    }, null, true);
                     return future;
                 } else {
                     // Nothing to do, we are in the correct state

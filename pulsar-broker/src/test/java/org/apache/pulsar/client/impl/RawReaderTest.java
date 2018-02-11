@@ -326,12 +326,12 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topic);
         ManagedLedger ledger = topicRef.getManagedLedger();
         for (int i = 0; i < 30; i++) {
-            if (ledger.openCursor(subscription).getProperties().get("foobar") == Long.valueOf(0xdeadbeefdecaL)) {
+            if (ledger.openCursor(subscription, true).getProperties().get("foobar") == Long.valueOf(0xdeadbeefdecaL)) {
                 break;
             }
             Thread.sleep(100);
         }
-        Assert.assertEquals(ledger.openCursor(subscription).getProperties().get("foobar"),
+        Assert.assertEquals(ledger.openCursor(subscription, true).getProperties().get("foobar"),
                 Long.valueOf(0xdeadbeefdecaL));
     }
 

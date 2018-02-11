@@ -139,6 +139,18 @@ public interface ManagedLedger {
     public ManagedCursor openCursor(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
+     * Open a ManagedCursor in this ManagedLedger.
+     * <p>
+     * If the cursors doesn't exist, a new one will be created and its position will be at the end of the ManagedLedger.
+     *
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @return the ManagedCursor
+     * @throws ManagedLedgerException
+     */
+    public ManagedCursor openCursor(String name, boolean initializeOnLatest) throws InterruptedException, ManagedLedgerException;
+
+    /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
      * exactly like a normal cursor, with the only difference in that after restart it will not remember which entries
      * were deleted. Also it does not prevent data from being deleted.
@@ -192,6 +204,22 @@ public interface ManagedLedger {
      *            opaque context
      */
     public void asyncOpenCursor(String name, OpenCursorCallback callback, Object ctx);
+
+    /**
+     * Open a ManagedCursor asynchronously.
+     *
+     * @see #openCursor(String)
+     * @param name
+     *            the name associated with the ManagedCursor
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     * @param initializeOnLatest
+     *            the cursor will be set at lastest position or not when first created
+     *            default is <b>true</b>
+     */
+    public void asyncOpenCursor(String name, OpenCursorCallback callback, Object ctx, boolean initializeOnLatest);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger
