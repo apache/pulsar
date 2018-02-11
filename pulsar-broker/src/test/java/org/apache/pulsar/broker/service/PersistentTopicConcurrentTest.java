@@ -48,6 +48,7 @@ import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.broker.service.PersistentTopicTest;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -85,7 +86,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         mlFactoryMock = mock(ManagedLedgerFactory.class);
         ManagedLedgerFactory factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
         ManagedLedger ledger = factory.open("my_test_ledger", new ManagedLedgerConfig().setMaxEntriesPerLedger(2));
-        final ManagedCursor cursor = ledger.openCursor("c1");
+        final ManagedCursor cursor = ledger.openCursor("c1", true);
         cursorMock = cursor;
         ledgerMock = ledger;
         mlFactoryMock = factory;
@@ -122,7 +123,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), true);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -180,7 +181,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), true);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -242,7 +243,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), true);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -300,7 +301,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), true);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);

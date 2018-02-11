@@ -46,6 +46,7 @@ public class ConsumerConfiguration implements Serializable {
 
     private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
 
+    private boolean initializeSubscriptionOnLatest = true;
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
@@ -339,4 +340,21 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfigurationData<byte[]> getConfigurationData() {
         return conf;
     }
+    
+     /** 
+     * @param initializeSubscriptionOnLatest the initializeSubscriptionOnLatest to set
+     * Set cursor position when subscribing to the topic first time
+     * <p>
+     * Default is {@value true} which means {@link MessageId.lastest}
+     */
+    public void setInitializeSubscriptionOnLatest(boolean initializeSubscriptionOnLatest) {
+        this.initializeSubscriptionOnLatest = initializeSubscriptionOnLatest;
+    }   
+
+    /** 
+     * @return the configured {@link initializedSubscriptionOnLatest} for the consumer
+     */
+    public boolean getInitializeSubscriptionOnLatest(){
+        return this.initializeSubscriptionOnLatest;
+    }   
 }
