@@ -23,6 +23,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.cert.X509Certificate;
 
+import javax.net.ssl.SSLSession;
+
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.common.api.Commands;
@@ -37,12 +40,14 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
 
@@ -92,7 +97,7 @@ public class DirectProxyHandler {
                 }
                 ch.pipeline().addLast("frameDecoder",
                         new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
-                ch.pipeline().addLast(new ProxyBackendHandler());
+                ch.pipeline().addLast("proxyOutboundHandler", new ProxyBackendHandler(config));
             }
         });
 
@@ -112,7 +117,10 @@ public class DirectProxyHandler {
             if (!future.isSuccess()) {
                 // Close the connection if the connection attempt has failed.
                 inboundChannel.close();
+                return;
             }
+            final ProxyBackendHandler cnx = (ProxyBackendHandler) outboundChannel.pipeline().get("proxyOutboundHandler");
+            cnx.setRemoteHostName(targetBroker.getHost());
         });
     }
 
@@ -123,9 +131,17 @@ public class DirectProxyHandler {
     public class ProxyBackendHandler extends PulsarDecoder implements FutureListener<Void> {
 
         private BackendState state = BackendState.Init;
+        private String remoteHostName;
+        protected ChannelHandlerContext ctx;
+        private ProxyConfiguration config;
+        
+        public ProxyBackendHandler(ProxyConfiguration config) {
+            this.config = config;
+        }
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
+            this.ctx = ctx;
             // Send the Connect command to broker
             String authData = "";
             if (authentication.getAuthData().hasDataFromCommand()) {
@@ -183,6 +199,15 @@ public class DirectProxyHandler {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] Received Connected from broker", inboundChannel, outboundChannel);
             }
+            
+            if (config.isTlsHostnameVerificationEnabled() && remoteHostName != null
+                    && !verifyTlsHostName(remoteHostName, ctx)) {
+                // close the connection if host-verification failed with the broker
+                log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
+                ctx.close();
+                return;
+            }
+            
             state = BackendState.HandshakeCompleted;
 
             inboundChannel.writeAndFlush(Commands.newConnected(connected.getProtocolVersion())).addListener(future -> {
@@ -207,6 +232,21 @@ public class DirectProxyHandler {
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
             log.warn("[{}] [{}] Caught exception: {}", inboundChannel, outboundChannel, cause.getMessage(), cause);
             ctx.close();
+        }
+        
+        public void setRemoteHostName(String remoteHostName) {
+            this.remoteHostName = remoteHostName;
+        }
+
+        private boolean verifyTlsHostName(String hostname, ChannelHandlerContext ctx) {
+            ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
+
+            SSLSession sslSession = null;
+            if (sslHandler != null) {
+                sslSession = ((SslHandler) sslHandler).engine().getSession();
+                return (new DefaultHostnameVerifier()).verify(hostname, sslSession);
+            }
+            return false;
         }
     }
 
