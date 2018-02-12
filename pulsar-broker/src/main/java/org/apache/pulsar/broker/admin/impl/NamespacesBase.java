@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Response;
@@ -290,32 +291,27 @@ public abstract class NamespacesBase extends AdminResource {
 
     protected void internalGrantPermissionOnNamespace(String role, Set<AuthAction> actions) {
         validateAdminAccessOnProperty(namespaceName.getProperty());
-        validatePoliciesReadOnlyAccess();
 
         try {
-            Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(path(POLICIES, namespaceName.toString()), null, nodeStat);
-            Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.auth_policies.namespace_auth.put(role, actions);
-
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, namespaceName.toString()), jsonMapper().writeValueAsBytes(policies),
-                    nodeStat.getVersion());
-
-            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-
-            log.info("[{}] Successfully granted access for role {}: {} - namespace {}", clientAppId(), role, actions,
-                    namespaceName);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(), namespaceName);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification", clientAppId(),
-                    namespaceName);
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
+            pulsar().getBrokerService().getAuthorizationService()
+                    .grantPermissionAsync(namespaceName, actions, role, null/*additional auth-data json*/)
+                    .get();
+        } catch (InterruptedException e) {
             log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                log.warn("[{}] Failed to set permissions for namespace {}: does not exist", clientAppId(),
+                        namespaceName);
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            } else if (e.getCause() instanceof IllegalStateException) {
+                log.warn("[{}] Failed to set permissions for namespace {}: concurrent modification",
+                        clientAppId(), namespaceName);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
+            } else {
+                log.error("[{}] Failed to get permissions for namespace {}", clientAppId(), namespaceName, e);
+                throw new RestException(e);
+            }
         }
     }
 

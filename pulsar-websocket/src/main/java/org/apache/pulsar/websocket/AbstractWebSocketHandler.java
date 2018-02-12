@@ -30,6 +30,8 @@ import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
@@ -63,6 +65,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     private boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
+        AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
@@ -84,7 +87,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
         if (service.isAuthorizationEnabled()) {
             try {
-                if (!isAuthorized(authRole)) {
+                if (!isAuthorized(authRole, authenticationData)) {
                     log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
                             request.getRemotePort(), authRole, topic);
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
@@ -167,7 +170,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         return dn.toString();
     }
 
-    protected abstract Boolean isAuthorized(String authRole) throws Exception;
+    protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception;
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

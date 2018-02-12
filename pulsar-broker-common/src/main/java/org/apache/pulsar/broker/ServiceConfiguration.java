@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
@@ -188,6 +189,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
@@ -781,6 +784,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setAuthenticationEnabled(boolean authenticationEnabled) {
         this.authenticationEnabled = authenticationEnabled;
+    }
+
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
     }
 
     public void setAuthenticationProviders(Set<String> providersClassNames) {
