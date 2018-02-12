@@ -164,6 +164,10 @@ public class ConfigurationCacheService {
 
     }
 
+    public ZooKeeperCache cache() {
+        return cache;
+    }
+    
     public ZooKeeperDataCache<PropertyAdmin> propertiesCache() {
         return this.propertiesCache;
     }

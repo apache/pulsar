@@ -129,8 +129,8 @@ public class ClientCnx extends PulsarHandler {
             authData = authentication.getAuthData().getCommandData();
         }
         // Send CONNECT command
-        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion(),
-                proxyToTargetBrokerAddress))
+        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData,
+                getPulsarClientVersion(), proxyToTargetBrokerAddress))
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         if (log.isDebugEnabled()) {
