@@ -46,6 +46,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -53,6 +54,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.backend.BackendData;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -81,6 +83,7 @@ import com.google.common.collect.Sets;
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private ConfigurationCacheService configurationCache;
 
+    private Backend backend;
     private Clusters clusters;
     private Properties properties;
     private Namespaces namespaces;
@@ -104,6 +107,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         configurationCache = pulsar.getConfigurationCache();
+
+        backend = spy(new Backend());
+        backend.setPulsar(pulsar);
 
         clusters = spy(new Clusters());
         clusters.setPulsar(pulsar);
@@ -183,6 +189,16 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @AfterMethod
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    void backend() throws Exception {
+        BackendData expectedBackend = new BackendData(
+            pulsar.getConfiguration().getZookeeperServers(),
+            pulsar.getConfiguration().getGlobalZookeeperServers(),
+            new ClientConfiguration().getZkLedgersRootPath());
+
+        assertEquals(backend.getBackendData(), expectedBackend);
     }
 
     @Test

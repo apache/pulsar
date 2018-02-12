@@ -20,12 +20,14 @@ package org.apache.pulsar.admin.cli;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import java.util.EnumSet;
 
+import org.apache.pulsar.client.admin.Backend;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
@@ -57,6 +59,18 @@ import com.google.common.collect.Sets;
 
 @Test
 public class PulsarAdminToolTest {
+
+    @Test
+    void backend() throws Exception {
+        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
+        Backend mockBackend = mock(Backend.class);
+        doReturn(mockBackend).when(admin).backend();
+
+        CmdBackend backend = new CmdBackend(admin);
+        backend.run(split("get"));
+        verify(mockBackend, times(1)).getBackendData();
+    }
+
     @Test
     void brokers() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
