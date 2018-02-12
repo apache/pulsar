@@ -139,6 +139,18 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>org.apache.httpcomponents</groupId>
+        <artifactId>httpclient</artifactId>
+        <version>4.5.5</version>
+        <exclusions>
+          <exclusion>
+            <groupId>*</groupId>
+            <artifactId>*</artifactId>
+          </exclusion>
+        </exclusions>
+      </dependency>
+      
+      <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
         <version>6.13.1</version>
@@ -760,6 +772,7 @@ flexible messaging model and an intuitive client API.</description>
             <exclude>**/*.crt</exclude>
             <exclude>**/*.key</exclude>
             <exclude>**/*.csr</exclude>
+            <exclude>**/*.pem</exclude>
             <exclude>**/*.json</exclude>
             <exclude>**/*.htpasswd</exclude>
             <exclude>src/test/resources/athenz.conf.test</exclude>

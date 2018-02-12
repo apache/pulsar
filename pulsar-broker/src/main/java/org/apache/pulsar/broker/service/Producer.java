@@ -168,11 +168,11 @@ public class Producer {
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
-
         if (hasChecksum(headersAndPayload)) {
-            int checksum = readChecksum(headersAndPayload).intValue();
             int readerIndex = headersAndPayload.readerIndex();
+
             try {
+                int checksum = readChecksum(headersAndPayload).intValue();
                 long computedChecksum = computeChecksum(headersAndPayload);
                 if (checksum == computedChecksum) {
                     return true;

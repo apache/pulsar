@@ -90,6 +90,11 @@ public class PrometheusMetricsTest extends BrokerTestBase {
         assertEquals(cm.get(1).tags.get("topic"), "persistent://my-property/use/my-ns/my-topic1");
         assertEquals(cm.get(1).tags.get("namespace"), "my-property/use/my-ns");
 
+        cm = (List<Metric>) metrics.get("topic_load_times_count");
+        assertEquals(cm.size(), 1);
+        assertEquals(cm.get(0).value, 2.0);
+        assertEquals(cm.get(0).tags.get("cluster"), "test");
+
         p1.close();
         p2.close();
     }

@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.Closeable;
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -35,6 +34,7 @@ import org.apache.pulsar.client.api.AuthenticationDataProvider;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,8 +52,6 @@ import io.netty.channel.EventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.netty.resolver.dns.DnsNameResolver;
 import io.netty.resolver.dns.DnsNameResolverBuilder;
 import io.netty.util.concurrent.Future;
@@ -85,27 +83,17 @@ public class ConnectionPool implements Closeable {
         bootstrap.handler(new ChannelInitializer<SocketChannel>() {
             public void initChannel(SocketChannel ch) throws Exception {
                 if (conf.isUseTls()) {
-                    SslContextBuilder builder = SslContextBuilder.forClient();
-                    if (conf.isTlsAllowInsecureConnection()) {
-                        builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-                    } else {
-                        if (conf.getTlsTrustCertsFilePath().isEmpty()) {
-                            // Use system default
-                            builder.trustManager((File) null);
-                        } else {
-                            File trustCertCollection = new File(conf.getTlsTrustCertsFilePath());
-                            builder.trustManager(trustCertCollection);
-                        }
-                    }
-
+                    SslContext sslCtx;
                     // Set client certificate if available
                     AuthenticationDataProvider authData = conf.getAuthentication().getAuthData();
                     if (authData.hasDataForTls()) {
-                        builder.keyManager(authData.getTlsPrivateKey(),
-                                (X509Certificate[]) authData.getTlsCertificates());
+                        sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
+                                authData.getTlsPrivateKey());
+                    } else {
+                        sslCtx = SecurityUtility.createNettySslContextForClient(conf.isTlsAllowInsecureConnection(),
+                                conf.getTlsTrustCertsFilePath());
                     }
-
-                    SslContext sslCtx = builder.build();
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }
 
@@ -193,6 +181,8 @@ public class ConnectionPool implements Closeable {
                 // this method.
                 cnx.setTargetBroker(logicalAddress);
             }
+
+            cnx.setRemoteHostName(physicalAddress.getHostName());
 
             cnx.connectionFuture().thenRun(() -> {
                 if (log.isDebugEnabled()) {

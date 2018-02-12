@@ -85,14 +85,13 @@ public class PrometheusMetricsGenerator {
             for (int i = 0; i < metricFamily.samples.size(); i++) {
                 Sample sample = metricFamily.samples.get(i);
                 stream.write(sample.name);
-                stream.write("{cluster=\"").write(cluster).write("\",");
+                stream.write("{cluster=\"").write(cluster).write('"');
                 for (int j = 0; j < sample.labelNames.size(); j++) {
+                    stream.write(", ");
                     stream.write(sample.labelNames.get(j));
                     stream.write("=\"");
                     stream.write(sample.labelValues.get(j));
-                    if (j != sample.labelNames.size() - 1) {
-                        stream.write("\",");
-                    }
+                    stream.write('"');
                 }
 
                 stream.write("} ");

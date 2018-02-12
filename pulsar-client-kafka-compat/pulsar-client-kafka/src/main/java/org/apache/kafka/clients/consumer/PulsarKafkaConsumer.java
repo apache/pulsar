@@ -56,7 +56,8 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
-import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarConsumerKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -79,6 +80,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
 
     private volatile boolean closed = false;
+
+    private final Properties properties;
 
     private static class QueueItem {
         final org.apache.pulsar.client.api.Consumer consumer;
@@ -141,9 +144,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         String serviceUrl = config.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
-        Properties properties = new Properties();
+        this.properties = new Properties();
         config.originals().forEach((k, v) -> properties.put(k, v));
-        ClientConfiguration clientConf = PulsarKafkaConfig.getClientConfiguration(properties);
+        ClientConfiguration clientConf = PulsarClientKafkaConfig.getClientConfiguration(properties);
         // Since this client instance is going to be used just for the consumers, we can enable Nagle to group
         // all the acknowledgments sent to broker within a short time frame
         clientConf.setUseTcpNoDelay(false);
@@ -201,7 +204,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 // acknowledgeCumulative()
                 int numberOfPartitions = ((PulsarClientImpl) client).getNumberOfPartitions(topic).get();
 
-                ConsumerConfiguration conf = new ConsumerConfiguration();
+                ConsumerConfiguration conf = PulsarConsumerKafkaConfig.getConsumerConfiguration(properties);
                 conf.setSubscriptionType(SubscriptionType.Failover);
                 conf.setMessageListener(this);
                 if (numberOfPartitions > 1) {

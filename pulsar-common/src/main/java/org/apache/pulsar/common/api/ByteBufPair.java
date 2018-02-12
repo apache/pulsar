@@ -121,8 +121,8 @@ public final class ByteBufPair extends AbstractReferenceCounted {
                 // ByteBuf are automatically released after a write. If the ByteBufPair ref count is increased and it
                 // gets written multiple times, the individual buffers refcount should be reflected as well.
                 try {
-                    ctx.write(b.getFirst().retain(), ctx.voidPromise());
-                    ctx.write(b.getSecond().retain(), promise);
+                    ctx.write(b.getFirst().retainedDuplicate(), ctx.voidPromise());
+                    ctx.write(b.getSecond().retainedDuplicate(), promise);
                 } finally {
                     ReferenceCountUtil.safeRelease(b);
                 }
