@@ -29,11 +29,14 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
+import javax.net.ssl.SSLSession;
+
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
@@ -51,16 +54,18 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.unix.Errors.NativeIoException;
+import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Promise;
-import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 
 public class ClientCnx extends PulsarHandler {
 
@@ -87,6 +92,10 @@ public class ClientCnx extends PulsarHandler {
     private final long operationTimeoutMs;
 
     private String proxyToTargetBrokerAddress = null;
+    // Remote hostName with which client is connected
+    private String remoteHostName = null;
+    private boolean isTlsHostnameVerificationEnable;
+    private DefaultHostnameVerifier hostnameVerifier;
 
     enum State {
         None, SentConnectFrame, Ready, Failed
@@ -100,6 +109,8 @@ public class ClientCnx extends PulsarHandler {
         this.maxNumberOfRejectedRequestPerConnection = conf.getMaxNumberOfRejectedRequestPerConnection();
         this.operationTimeoutMs = conf.getOperationTimeoutMs();
         this.state = State.None;
+        this.isTlsHostnameVerificationEnable = conf.isTlsHostnameVerificationEnable();
+        this.hostnameVerifier = new DefaultHostnameVerifier();
     }
 
     @Override
@@ -179,6 +190,14 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleConnected(CommandConnected connected) {
+        
+        if (isTlsHostnameVerificationEnable && remoteHostName != null && !verifyTlsHostName(remoteHostName, ctx)) {
+            // close the connection if host-verification failed with the broker
+            log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
+            ctx.close();
+            return;
+        }
+        
         checkArgument(state == State.SentConnectFrame);
 
         if (log.isDebugEnabled()) {
@@ -521,6 +540,35 @@ public class ClientCnx extends PulsarHandler {
         }
     }
 
+    /**
+     * verifies host name provided in x509 Certificate in tls session
+     * 
+     * it matches hostname with below scenarios
+     * 
+     * <pre>
+     *  1. Supports IPV4 and IPV6 host matching
+     *  2. Supports wild card matching for DNS-name
+     *  eg:
+     *     HostName                     CN           Result
+     * 1.  localhost                    localhost    PASS
+     * 2.  localhost                    local*       PASS
+     * 3.  pulsar1-broker.com           pulsar*.com  PASS
+     * </pre>
+     * 
+     * @param ctx
+     * @return true if hostname is verified else return false
+     */
+    private boolean verifyTlsHostName(String hostname, ChannelHandlerContext ctx) {
+        ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
+
+        SSLSession sslSession = null;
+        if (sslHandler != null) {
+            sslSession = ((SslHandler) sslHandler).engine().getSession();
+            return hostnameVerifier.verify(hostname, sslSession);
+        }
+        return false;
+    }
+
     void registerConsumer(final long consumerId, final ConsumerImpl consumer) {
         consumers.put(consumerId, consumer);
     }
@@ -542,6 +590,10 @@ public class ClientCnx extends PulsarHandler {
                 targetBrokerAddress.getPort());
     }
 
+     void setRemoteHostName(String remoteHostName) {
+        this.remoteHostName = remoteHostName;
+    }
+    
     private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:

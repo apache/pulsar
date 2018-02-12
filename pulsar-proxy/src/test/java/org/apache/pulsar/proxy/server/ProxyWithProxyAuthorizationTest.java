@@ -18,10 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -31,6 +29,7 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
@@ -42,7 +41,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -50,6 +48,7 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
@@ -75,6 +74,11 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
+    @DataProvider(name = "hostnameVerification")
+    public Object[][] codecProvider() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+    
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -130,7 +134,6 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
  
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
 
-        proxyService.start();
     }
 
     @AfterMethod
@@ -140,9 +143,13 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
         proxyService.close();
     }
 
+    void startProxy() throws Exception {
+        proxyService.start();
+    }
+    
     /**
      * <pre>
-     * It verifies e2e tls + Authentication + Authorization (client -> proxy -> broker>
+     * It verifies e2e tls + Authentication + Authorization (client -> proxy -> broker)
      * 
      * 1. client connects to proxy over tls and pass auth-data
      * 2. proxy authenticate client and retrieve client-role 
@@ -158,10 +165,12 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
     public void textProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
+        startProxy();
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
         // create a client which connects to proxy over tls and pass authData
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl);
+        ClientConfiguration clientConf = new ClientConfiguration();
+        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientConf);
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
         
@@ -205,6 +214,98 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test(dataProvider = "hostnameVerification")
+    public void textTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        startProxy();
+        createAdminClient();
+        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
+        // create a client which connects to proxy over tls and pass authData
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setTlsHostnameVerificationEnable(hostnameVerificationEnabled);
+        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientConf);
+
+        String namespaceName = "my-property/proxy-authorization/my-ns";
+
+        admin.properties().createProperty("my-property",
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+        admin.namespaces().createNamespace(namespaceName);
+
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        try {
+            Consumer consumer = proxyClient.subscribe("persistent://my-property/proxy-authorization/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+            if (hostnameVerificationEnabled) {
+                Assert.fail("Connection should be failed due to hostnameVerification enabled");
+            }
+        } catch (PulsarClientException e) {
+            if (!hostnameVerificationEnabled) {
+                Assert.fail("Consumer should be created because hostnameverification is disabled");
+            }
+        }
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * It verifies hostname verification at proxy when proxy tries to connect with broker. Proxy performs hostname
+     * verification when broker sends its certs over tls .
+     * <pre>
+     * 1. Broker sends certs back to proxy with CN="Broker" however, proxy tries to connect with hostname=localhost
+     * 2. so, client fails to create consumer if proxy is enabled with hostname verification
+     * </pre>
+     * 
+     * @param hostnameVerificationEnabled
+     * @throws Exception
+     */
+    @Test(dataProvider = "hostnameVerification")
+    public void textTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
+        startProxy();
+        createAdminClient();
+        final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
+        // create a client which connects to proxy over tls and pass authData
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setOperationTimeout(1, TimeUnit.SECONDS);
+        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientConf);
+
+        String namespaceName = "my-property/proxy-authorization/my-ns";
+
+        admin.properties().createProperty("my-property",
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+        admin.namespaces().createNamespace(namespaceName);
+
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Exclusive);
+        try {
+            Consumer consumer = proxyClient.subscribe("persistent://my-property/proxy-authorization/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+            if (hostnameVerificationEnabled) {
+                Assert.fail("Connection should be failed due to hostnameVerification enabled");
+            }
+        } catch (PulsarClientException e) {
+            if (!hostnameVerificationEnabled) {
+                Assert.fail("Consumer should be created because hostnameverification is disabled");
+            }
+        }
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
     protected final void createAdminClient() throws Exception {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_SUPERUSER_CLIENT_CERT_FILE_PATH);
@@ -221,13 +322,12 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
     }
     
-    private PulsarClient createPulsarClient(String proxyServiceUrl) throws PulsarClientException {
+    private PulsarClient createPulsarClient(String proxyServiceUrl, ClientConfiguration clientConf) throws PulsarClientException {
         Map<String, String> authParams = Maps.newHashMap();
         authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
         clientConf.setTlsTrustCertsFilePath(TLS_CLIENT_TRUST_CERT_FILE_PATH);
         clientConf.setTlsAllowInsecureConnection(true);
