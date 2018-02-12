@@ -18,11 +18,15 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import java.net.URL;
+import java.util.function.BiFunction;
+import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 
 import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
+import org.apache.pulsar.client.api.ClientConfiguration;
 
 /**
  * TODO: merge this into {@link PulsarAdminTool}.
@@ -50,15 +54,36 @@ public class FunctionsTool extends PulsarAdminTool {
         }
 
         FunctionsTool tool = new FunctionsTool(properties);
-        if (tool.run(Arrays.copyOfRange(args, 1, args.length), (url, config) -> {
-            try {
-                return new PulsarFunctionsAdmin(url, config);
-            } catch (Exception ex) {
-                System.err.println(ex.getClass() + ": " + ex.getMessage());
-                System.exit(1);
-                return null;
+
+        int cmdPos;
+        for (cmdPos = 1; cmdPos < args.length; cmdPos++) {
+            if (tool.commandMap.containsKey(args[cmdPos])) {
+                break;
             }
-        })) {
+        }
+        ++cmdPos;
+        boolean isLocalRun = false;
+        if (cmdPos < args.length) {
+            isLocalRun = "localrun" == args[cmdPos].toLowerCase();
+        }
+
+        BiFunction<URL, ClientConfiguration, ? extends PulsarAdmin> adminFactory;
+        if (isLocalRun) {
+            // bypass constructing admin client
+            adminFactory = (url, config) -> null;
+        } else {
+            adminFactory = (url, config) -> {
+                try {
+                    return new PulsarFunctionsAdmin(url, config);
+                } catch (Exception ex) {
+                    System.err.println(ex.getClass() + ": " + ex.getMessage());
+                    System.exit(1);
+                    return null;
+                }
+            };
+        }
+
+        if (tool.run(Arrays.copyOfRange(args, 1, args.length), adminFactory)) {
             System.exit(0);
         } else {
             System.exit(1);
