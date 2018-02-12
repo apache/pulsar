@@ -94,10 +94,10 @@ public class HttpClient implements Closeable {
                 // Set client key and certificate if available
                 AuthenticationDataProvider authData = authentication.getAuthData();
                 if (authData.hasDataForTls()) {
-                    sslCtx = SecurityUtility.createNettySslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
+                    sslCtx = SecurityUtility.createNettySslContextForClient(tlsAllowInsecureConnection, tlsTrustCertsFilePath,
                             authData.getTlsCertificates(), authData.getTlsPrivateKey());
                 } else {
-                    sslCtx = SecurityUtility.createNettySslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath);
+                    sslCtx = SecurityUtility.createNettySslContextForClient(tlsAllowInsecureConnection, tlsTrustCertsFilePath);
                 }
 
                 confBuilder.setSslContext(sslCtx);
