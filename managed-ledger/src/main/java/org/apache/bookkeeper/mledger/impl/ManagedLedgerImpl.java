@@ -2035,7 +2035,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return Pair.create(pos, count);
     }
 
-        /**
+     /**
      * Get the first position written in the managed ledger, alongside with the associated counter
      */
     Pair<PositionImpl, Long> getFirstPositionAndCounter() {

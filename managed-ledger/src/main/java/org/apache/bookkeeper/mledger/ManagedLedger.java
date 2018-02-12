@@ -145,6 +145,8 @@ public interface ManagedLedger {
      *
      * @param name
      *            the name associated with the ManagedCursor
+     * @param initializeOnLatest
+     *            the flag tell the method wthether it should intialize the cursor at latest position or not.
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
