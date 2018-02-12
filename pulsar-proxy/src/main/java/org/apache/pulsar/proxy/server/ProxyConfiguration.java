@@ -84,8 +84,8 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private boolean tlsAllowInsecureConnection = false;
     // Validates hostname when proxy creates tls connection with broker
     private boolean tlsHostnameVerificationEnabled = false;
-    // Specify the tls version and cipher the broker will use to negotiate during TLS Handshake.
-    private Set<String> tlsVersions = Sets.newTreeSet();
+    // Specify the tls protocols and cipher the broker will use to negotiate during TLS Handshake.
+    private Set<String> tlsProtocols = Sets.newTreeSet();
     private Set<String> tlsCiphers = Sets.newTreeSet();
     
     private Properties properties = new Properties();
@@ -282,20 +282,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.properties = properties;
     }
     
-    
-    public Set<String> getTlsVersions() {
-        return tlsVersions;
+    public Set<String> getTlsProtocols() {
+        return tlsProtocols;
     }
 
-    public void setTlsVersions(Set<String> tlsVersions) {
-        this.tlsVersions = tlsVersions;
+    public void setTlsProtocols(Set<String> tlsProtocols) {
+        this.tlsProtocols = tlsProtocols;
     }
 
     public Set<String> getTlsCiphers() {
         return tlsCiphers;
     }
 
-    public void setTlsCipher(Set<String> tlsCiphers) {
+    public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
 }
