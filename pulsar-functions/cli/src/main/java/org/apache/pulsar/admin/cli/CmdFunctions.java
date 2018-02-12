@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
+
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
@@ -27,10 +31,19 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
 import com.google.protobuf.util.JsonFormat;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
+import io.netty.buffer.Unpooled;
 import java.net.MalformedURLException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
+import org.apache.distributedlog.api.StorageClient;
+import org.apache.distributedlog.api.kv.Table;
+import org.apache.distributedlog.api.kv.result.KeyValue;
+import org.apache.distributedlog.clients.StorageClientBuilder;
+import org.apache.distributedlog.clients.config.StorageClientSettings;
+import org.apache.distributedlog.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -61,6 +74,7 @@ public class CmdFunctions extends CmdBase {
     private final GetFunction getter;
     private final GetFunctionStatus statuser;
     private final ListFunctions lister;
+    private final StateGetter stateGetter;
 
     /**
      * Base command
@@ -509,6 +523,64 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Query Function State")
+    class StateGetter extends FunctionCommand {
+
+        @Parameter(names = { "-k", "--key" }, description = "key")
+        private String key = null;
+
+        // TODO: this url should be fetched along with bookkeeper location from pulsar admin
+        @Parameter(names = { "-u", "--storage-service-url" }, description = "storage service url")
+        private String stateStorageServiceUrl = null;
+
+        @Parameter(names = { "-w", "--watch" }, description = "watch the value changes of a key")
+        private boolean watch = false;
+
+        @Override
+        void runCmd() throws Exception {
+            checkNotNull(stateStorageServiceUrl, "State storage service url is missing");
+
+            String tableNs = String.format(
+                "%s_%s",
+                tenant,
+                namespace);
+
+            String tableName = getFunctionName();
+
+            try (StorageClient client = StorageClientBuilder.newBuilder()
+                 .withSettings(StorageClientSettings.newBuilder()
+                     .addEndpoints(NetUtils.parseEndpoint(stateStorageServiceUrl))
+                     .clientName("functions-admin")
+                     .build())
+                 .withNamespace(tableNs)
+                 .build()) {
+                try (Table<ByteBuf, ByteBuf> table = result(client.openTable(tableName))) {
+                    long lastVersion = -1L;
+                    do {
+                        try (KeyValue<ByteBuf, ByteBuf> kv = result(table.getKv(Unpooled.wrappedBuffer(key.getBytes(UTF_8))))) {
+                            if (null == kv) {
+                                System.out.println("key '" + key + "' doesn't exist.");
+                            } else {
+                                if (kv.version() > lastVersion) {
+                                    if (kv.isNumber()) {
+                                        System.out.println("value = " + kv.numberValue());
+                                    } else {
+                                        System.out.println("value = " + new String(ByteBufUtil.getBytes(kv.value()), UTF_8));
+                                    }
+                                    lastVersion = kv.version();
+                                }
+                            }
+                        }
+                        if (watch) {
+                            Thread.sleep(1000);
+                        }
+                    } while (watch);
+                }
+            }
+
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
         this.fnAdmin = (PulsarFunctionsAdmin) admin;
@@ -519,6 +591,7 @@ public class CmdFunctions extends CmdBase {
         getter = new GetFunction();
         statuser = new GetFunctionStatus();
         lister = new ListFunctions();
+        stateGetter = new StateGetter();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -526,6 +599,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("get", getGetter());
         jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
+        jcommander.addCommand("querystate", getStateGetter());
     }
 
     @VisibleForTesting
@@ -559,5 +633,10 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     ListFunctions getLister() {
         return lister;
+    }
+
+    @VisibleForTesting
+    StateGetter getStateGetter() {
+        return stateGetter;
     }
 }

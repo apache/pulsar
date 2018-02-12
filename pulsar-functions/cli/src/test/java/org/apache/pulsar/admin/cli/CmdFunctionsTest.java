@@ -18,9 +18,11 @@
  */
 package org.apache.pulsar.admin.cli;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
+import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -28,10 +30,17 @@ import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
 
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.ByteBufUtil;
 import java.io.File;
 import java.net.URI;
+import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.common.concurrent.FutureUtils;
+import org.apache.distributedlog.api.StorageClient;
+import org.apache.distributedlog.api.kv.Table;
+import org.apache.distributedlog.clients.StorageClientBuilder;
+import org.apache.distributedlog.clients.config.StorageClientSettings;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -50,6 +59,7 @@ import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.testng.IObjectFactory;
@@ -60,7 +70,7 @@ import org.testng.annotations.Test;
 /**
  * Unit test of {@link CmdFunctions}.
  */
-@PrepareForTest({ CmdFunctions.class, Reflections.class })
+@PrepareForTest({ CmdFunctions.class, Reflections.class, StorageClientBuilder.class })
 @PowerMockIgnore("javax.management.*")
 public class CmdFunctionsTest {
 
@@ -343,5 +353,45 @@ public class CmdFunctionsTest {
         assertEquals(namespace, lister.getNamespace());
 
         verify(functions, times(1)).getFunctions(eq(tenant), eq(namespace));
+    }
+
+    @Test
+    public void testStateGetter() throws Exception {
+        String tenant = TEST_NAME + "_tenant";
+        String namespace = TEST_NAME + "_namespace";
+        String fnName = TEST_NAME + "_function";
+
+        mockStatic(StorageClientBuilder.class);
+
+        StorageClientBuilder builder = mock(StorageClientBuilder.class);
+        when(builder.withSettings(any(StorageClientSettings.class))).thenReturn(builder);
+        when(builder.withNamespace(eq(tenant + "_" + namespace))).thenReturn(builder);
+        StorageClient client = mock(StorageClient.class);
+        when(builder.build()).thenReturn(client);
+
+        PowerMockito.when(StorageClientBuilder.class, "newBuilder")
+            .thenReturn(builder);
+
+        Table<ByteBuf, ByteBuf> table = mock(Table.class);
+        when(client.openTable(eq(fnName))).thenReturn(FutureUtils.value(table));
+        AtomicReference<ByteBuf> keyHolder = new AtomicReference<>();
+        doAnswer(invocationOnMock -> {
+            ByteBuf buf = invocationOnMock.getArgumentAt(0, ByteBuf.class);
+            keyHolder.set(buf);
+            return FutureUtils.value(null);
+        }).when(table).getKv(any(ByteBuf.class));
+
+        cmd.run(new String[] {
+            "querystate",
+            "--tenant", tenant,
+            "--namespace", namespace,
+            "--name", fnName,
+            "--key", "test-key",
+            "--storage-service-url", "127.0.0.1:4181"
+        });
+
+        assertEquals(
+            "test-key",
+            new String(ByteBufUtil.getBytes(keyHolder.get()), UTF_8));
     }
 }
