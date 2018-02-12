@@ -59,7 +59,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
-
+    // Forward client authData to Broker for re authorization
+    // make sure authentication is enabled for this to take effect
+    private boolean forwardAuthorizationCredentials = false;
+            
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
@@ -79,9 +82,19 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath;
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
+    // Validates hostname when proxy creates tls connection with broker
+    private boolean tlsHostnameVerificationEnabled = false;
 
     private Properties properties = new Properties();
 
+    public boolean forwardAuthorizationCredentials() {
+        return forwardAuthorizationCredentials;
+    }
+    
+    public void setForwardAuthorizationCredentials(boolean forwardAuthorizationCredentials) {
+        this.forwardAuthorizationCredentials = forwardAuthorizationCredentials;
+    }
+    
     public String getBrokerServiceURLTLS() {
         return brokerServiceURLTLS;
     }
@@ -200,6 +213,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
         this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
+    }
+
+    public boolean isTlsHostnameVerificationEnabled() {
+        return tlsHostnameVerificationEnabled;
+    }
+
+    public void setTlsHostnameVerificationEnabled(boolean tlsHostnameVerificationEnabled) {
+        this.tlsHostnameVerificationEnabled = tlsHostnameVerificationEnabled;
     }
 
     public String getBrokerClientAuthenticationPlugin() {

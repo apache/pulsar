@@ -109,6 +109,9 @@ enum ServerError {
     ConsumerNotFound = 13; // Consumer not found
     TooManyRequests = 14; // Error with too many simultaneously request
     TopicTerminatedError = 15; // The topic has been terminated
+
+    ProducerBusy         = 16; // Producer with same name is already connected
+    InvalidTopicName = 17; // The topic name is not valid
 }
 
 enum AuthMethod {
@@ -131,6 +134,7 @@ enum ProtocolVersion {
 	v8 = 8;  // Added CommandConsumerStats - Client fetches broker side consumer stats
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
+	v11 = 11;// C++ consumers before this version are not correctly handling the checksum field
 }
 
 message CommandConnect {
@@ -146,8 +150,15 @@ message CommandConnect {
 
 	// Original principal that was verified by
 	// a Pulsar proxy. In this case the auth info above
-	// will the the auth of the proxy itself
+	// will be the auth of the proxy itself
 	optional string original_principal = 7;
+	
+	// Original auth role and auth Method that was passed 
+	// to the proxy. In this case the auth info above
+	// will be the auth of the proxy itself	
+	optional string original_auth_data = 8;
+	optional string original_auth_method = 9;
+	
 }
 
 message CommandConnected {
@@ -181,12 +192,21 @@ message CommandSubscribe {
 
 	/// Add optional metadata key=value to this consumer
     repeated KeyValue metadata = 10;
+
+    optional bool read_compacted = 11;
 }
 
 message CommandPartitionedTopicMetadata {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
+	// Original principal that was verified by
+	// a Pulsar proxy.
 	optional string original_principal = 3;
+	
+	// Original auth role and auth Method that was passed 
+	// to the proxy.	
+	optional string original_auth_data = 4;
+	optional string original_auth_method = 5;
 }
 
 message CommandPartitionedTopicMetadataResponse {
@@ -205,7 +225,15 @@ message CommandLookupTopic {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
+	
+	// Original principal that was verified by
+	// a Pulsar proxy.
 	optional string original_principal = 4;
+	
+	// Original auth role and auth Method that was passed 
+	// to the proxy. 	
+	optional string original_auth_data = 5;
+	optional string original_auth_method = 6;
 }
 
 message CommandLookupTopicResponse {

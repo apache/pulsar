@@ -39,7 +39,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
@@ -98,18 +100,33 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                         request.getRemotePort(), topic);
             }
         } catch (Exception e) {
-            log.warn("[{}:{}] Failed in creating producer on topic {}", request.getRemoteAddr(),
-                    request.getRemotePort(), topic, e);
-            boolean configError = e instanceof IllegalArgumentException;
-            int errorCode = configError ? HttpServletResponse.SC_BAD_REQUEST
-                    : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-            String errorMsg = configError ? "Invalid query-param " + e.getMessage() : "Failed to create producer";
+            log.warn("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
+                    request.getRemotePort(), topic, e.getMessage());
+
             try {
-                response.sendError(errorCode, errorMsg);
+                response.sendError(getErrorCode(e), getErrorMessage(e));
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
             }
+        }
+    }
+
+    private static int getErrorCode(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return HttpServletResponse.SC_BAD_REQUEST;
+        } else if (e instanceof ProducerBusyException) {
+            return HttpServletResponse.SC_CONFLICT;
+        } else {
+            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    private static String getErrorMessage(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return "Invalid query params: " + e.getMessage();
+        } else {
+            return "Failed to create producer: " + e.getMessage();
         }
     }
 
@@ -234,6 +251,18 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         conf.setBlockIfQueueFull(false);
+
+        if (queryParams.containsKey("producerName")) {
+            conf.setProducerName(queryParams.get("producerName"));
+        }
+
+        if (queryParams.containsKey("initialSequenceId")) {
+            conf.setInitialSequenceId(Long.parseLong("initialSequenceId"));
+        }
+
+        if (queryParams.containsKey("hashingScheme")) {
+            conf.setHashingScheme(HashingScheme.valueOf(queryParams.get("hashingScheme")));
+        }
 
         if (queryParams.containsKey("sendTimeoutMillis")) {
             conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);

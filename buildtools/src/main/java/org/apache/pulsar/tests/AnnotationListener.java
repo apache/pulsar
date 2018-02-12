@@ -16,23 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.discovery.service;
+package org.apache.pulsar.tests;
 
-import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 
-public class PulsarServerException extends IOException {
-    private static final long serialVersionUID = 1;
+import org.testng.IAnnotationTransformer;
+import org.testng.annotations.ITestAnnotation;
 
-    public PulsarServerException(String message) {
-        super(message);
-    }
+@SuppressWarnings("rawtypes")
+public class AnnotationListener implements IAnnotationTransformer {
 
-    public PulsarServerException(Throwable cause) {
-        super(cause);
-    }
-
-    public PulsarServerException(String message, Throwable cause) {
-        super(message, cause);
+    @Override
+    public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
+        annotation.setRetryAnalyzer(RetryAnalyzer.class);
     }
 
 }

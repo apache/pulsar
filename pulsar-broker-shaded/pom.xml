@@ -104,6 +104,8 @@
                   <include>org.aspectj:*</include>
                   <include>com.ea.agentloader:*</include>
                   <include>com.wordnik:swagger-annotations</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
+                  <include>commons-logging:commons-logging</include>
                 </includes>
               </artifactSet>
               <filters>
@@ -297,6 +299,10 @@
                 <relocation>
                   <pattern>com.wordnik</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.worknik</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.http</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

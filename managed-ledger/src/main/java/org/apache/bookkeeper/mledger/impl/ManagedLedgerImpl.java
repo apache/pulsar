@@ -65,6 +65,7 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
+import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerAlreadyClosedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerFencedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.ManagedLedgerTerminatedException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
@@ -1198,6 +1199,10 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         final State state = STATE_UPDATER.get(this);
         if (state == State.ClosingLedger || state == State.LedgerOpened) {
             STATE_UPDATER.set(this, State.ClosedLedger);
+        } else if (state == State.Closed) {
+            // The managed ledger was closed during the write operation
+            clearPendingAddEntries(new ManagedLedgerAlreadyClosedException("Managed ledger was already closed"));
+            return;
         } else {
             // In case we get multiple write errors for different outstanding write request, we should close the ledger
             // just once

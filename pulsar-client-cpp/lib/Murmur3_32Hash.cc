@@ -45,6 +45,10 @@
 #else
 #endif
 
+#define MACRO_CHUNK_SIZE 4
+#define MACRO_C1 0xcc9e2d51U
+#define MACRO_C2 0x1b873593U
+
 namespace pulsar {
 
 Murmur3_32Hash::Murmur3_32Hash() : seed(0) {}
@@ -55,9 +59,9 @@ int32_t Murmur3_32Hash::makeHash(const std::string &key) {
 
 uint32_t Murmur3_32Hash::makeHash(const void *key, const int64_t len) {
     const uint8_t *data = reinterpret_cast<const uint8_t *>(key);
-    const int nblocks = len / CHUNK_SIZE;
+    const int nblocks = len / MACRO_CHUNK_SIZE;
     uint32_t h1 = seed;
-    const uint32_t *blocks = reinterpret_cast<const uint32_t *>(data + nblocks * CHUNK_SIZE);
+    const uint32_t *blocks = reinterpret_cast<const uint32_t *>(data + nblocks * MACRO_CHUNK_SIZE);
 
     for (int i = -nblocks; i != 0; i++) {
         uint32_t k1 = BYTESPWAP(blocks[i]);
@@ -67,7 +71,7 @@ uint32_t Murmur3_32Hash::makeHash(const void *key, const int64_t len) {
     }
 
     uint32_t k1 = 0;
-    switch (len - nblocks * CHUNK_SIZE) {
+    switch (len - nblocks * MACRO_CHUNK_SIZE) {
         case 3:
             k1 ^= static_cast<uint32_t>(blocks[2]) << 16;
         case 2:
@@ -94,9 +98,9 @@ uint32_t Murmur3_32Hash::fmix(uint32_t h) {
 }
 
 uint32_t Murmur3_32Hash::mixK1(uint32_t k1) {
-    k1 *= C1;
+    k1 *= MACRO_C1;
     k1 = ROTATE_LEFT(k1, 15);
-    k1 *= C2;
+    k1 *= MACRO_C2;
     return k1;
 }
 
