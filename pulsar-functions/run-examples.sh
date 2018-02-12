@@ -18,8 +18,8 @@
 #
 
 bin/pulsar-functions --admin-url http://localhost:8080 functions localrun \
-    --functionConfig conf/example.yml \
+    --functionConfigFile conf/example.yml \
     --output persistent://sample/standalone/ns1/test_result \
     --outputSerdeClassName org.apache.pulsar.functions.api.utils.DefaultSerDe \
-    --functionClassName org.apache.pulsar.functions.api.examples.ExclamationFunction \
+    --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
     --jar `pwd`/java-examples/target/pulsar-functions-api-examples.jar
