@@ -192,9 +192,17 @@ public class SchemasResource extends AdminResource {
             domain(), property, cluster, namespace, decode(topic)
         );
 
-        validateDestinationExists(destinationName);
-        validateAdminAccessOnProperty(destinationName.getProperty());
-        validateDestinationOwnership(destinationName, false);
+        try {
+            validateDestinationExists(destinationName);
+            validateAdminAccessOnProperty(destinationName.getProperty());
+            validateDestinationOwnership(destinationName, false);
+        } catch (RestException e) {
+            if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
+                throw new RestException(Response.Status.NOT_FOUND, "Not Found");
+            } else {
+                throw e;
+            }
+        }
     }
 
     private void validateDestinationExists(DestinationName dn) {

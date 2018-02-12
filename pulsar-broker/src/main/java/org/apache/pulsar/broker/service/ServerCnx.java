@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.PersistentTopics.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
@@ -27,6 +28,7 @@ import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -705,6 +707,9 @@ public class ServerCnx extends PulsarHandler {
     }
 
     static Commands.SchemaInfo toInfo(SchemaAndMetadata schemaAndMetadata) {
+        if (isNull(schemaAndMetadata)) {
+            return null;
+        }
         return new Commands.SchemaInfo(
             schemaAndMetadata.id,
             schemaAndMetadata.version,
