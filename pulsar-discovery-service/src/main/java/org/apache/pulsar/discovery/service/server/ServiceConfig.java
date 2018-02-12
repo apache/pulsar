@@ -79,7 +79,10 @@ public class ServiceConfig implements PulsarConfiguration {
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-
+    // Specify the tls protocols and cipher the broker will use to negotiate during TLS Handshake.
+    private Set<String> tlsProtocols = Sets.newTreeSet();
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    
     private Properties properties = new Properties();
 
     public String getZookeeperServers() {
@@ -232,5 +235,21 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setProperties(Properties properties) {
         this.properties = properties;
+    }
+    
+    public Set<String> getTlsProtocols() {
+        return tlsProtocols;
+    }
+
+    public void setTlsProtocols(Set<String> tlsProtocols) {
+        this.tlsProtocols = tlsProtocols;
+    }
+
+    public Set<String> getTlsCiphers() {
+        return tlsCiphers;
+    }
+
+    public void setTlsCiphers(Set<String> tlsCiphers) {
+        this.tlsCiphers = tlsCiphers;
     }
 }
