@@ -62,30 +62,21 @@ public class CompactedTopicImpl implements CompactedTopic {
         CompletableFuture<MessageIdData> middleEntry = cache.get(midpoint);
         CompletableFuture<MessageIdData> endEntry = cache.get(end);
 
-        CompletableFuture.allOf(startEntry, middleEntry, endEntry).whenComplete(
-                (v, exception) -> {
-                    if (exception != null) {
+        CompletableFuture.allOf(startEntry, middleEntry, endEntry).thenRun(
+                () -> {
+                    if (comparePositionAndMessageId(p, startEntry.join()) < 0) {
+                        promise.complete(start);
+                    } else if (comparePositionAndMessageId(p, middleEntry.join()) < 0) {
+                        findStartPointLoop(p, start, midpoint, promise, cache);
+                    } else if (comparePositionAndMessageId(p, endEntry.join()) < 0) {
+                        findStartPointLoop(p, midpoint + 1, end, promise, cache);
+                    } else {
+                        promise.complete(NEWER_THAN_COMPACTED);
+                    }
+                }).exceptionally((exception) -> {
                         promise.completeExceptionally(exception);
-                    }
-                    try {
-                        if (comparePositionAndMessageId(p, startEntry.get()) < 0) {
-                            promise.complete(start);
-                        } else if (comparePositionAndMessageId(p, middleEntry.get()) < 0) {
-                            findStartPointLoop(p, start, midpoint, promise, cache);
-                        } else if (comparePositionAndMessageId(p, endEntry.get()) < 0) {
-                            findStartPointLoop(p, midpoint + 1, end, promise, cache);
-                        } else {
-                            promise.complete(NEWER_THAN_COMPACTED);
-                        }
-                    } catch (InterruptedException ie) {
-                        // should never happen as all should have been completed
-                        Thread.currentThread().interrupt();
-                        log.error("Interrupted waiting on futures which should have completed", ie);
-                    } catch (ExecutionException e) {
-                        // shouldn't happen, allOf should have given us the exception
-                        promise.completeExceptionally(e);
-                    }
-                });
+                        return null;
+                    });
     }
 
     static AsyncLoadingCache<Long,MessageIdData> createCache(LedgerHandle lh,
