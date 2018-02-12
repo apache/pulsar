@@ -499,9 +499,9 @@ public class ServerCnx extends PulsarHandler {
                         connect.hasOriginalAuthMethod() ? connect.getOriginalAuthMethod() : null,
                         connect.hasOriginalPrincipal() ? connect.getOriginalPrincipal() : null,
                         sslSession);
+                authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
                 authRole = getBrokerService().getAuthenticationService()
                         .authenticate(authenticationData, authMethod);
-                authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
 
                 log.info("[{}] Client successfully authenticated with {} role {} and originalPrincipal {}", remoteAddress, authMethod, authRole, originalPrincipal);
             } catch (AuthenticationException e) {
