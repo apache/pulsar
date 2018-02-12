@@ -179,7 +179,10 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-
+    // Specify the tls version and cipher the broker will use to negotiate during TLS Handshake.
+    private Set<String> tlsVersions = Sets.newTreeSet();
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    
     /***** --- Authentication --- ****/
     // Enable authentication
     private boolean authenticationEnabled = false;
@@ -1388,5 +1391,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
         this.authenticateOriginalAuthData = authenticateOriginalAuthData;
+    }
+    
+    public Set<String> getTlsVersions() {
+        return tlsVersions;
+    }
+
+    public void setTlsVersions(Set<String> tlsVersions) {
+        this.tlsVersions = tlsVersions;
+    }
+
+    public Set<String> getTlsCiphers() {
+        return tlsCiphers;
+    }
+
+    public void setTlsCipher(Set<String> tlsCiphers) {
+        this.tlsCiphers = tlsCiphers;
     }
 }

@@ -37,6 +37,8 @@ import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -95,12 +97,22 @@ public class SecurityUtility {
     }
 
     public static SslContext createNettySslContextForServer(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath)
+            String certFilePath, String keyFilePath, Set<String> ciphers, Set<String> protocols)
             throws GeneralSecurityException, SSLException, FileNotFoundException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
 
         SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
+        if (ciphers != null && ciphers.size() > 0) {
+            builder.ciphers(ciphers);
+        }
+
+        if (protocols != null && protocols.size() > 0) {
+            String[] protocolsArray = new String[protocols.size()];
+            protocolsArray = protocols.toArray(protocolsArray);
+            builder.protocols(protocolsArray);
+        }
+        
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
         } else {

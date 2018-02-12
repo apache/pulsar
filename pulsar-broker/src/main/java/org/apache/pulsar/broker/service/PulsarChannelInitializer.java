@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Arrays;
+import java.util.List;
+
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.testng.collections.Lists;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -50,7 +54,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         if (enableTLS) {
-            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath());
+            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
+                    serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
+                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
+                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsVersions());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
 

@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import java.util.List;
+
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.testng.collections.Lists;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
@@ -46,10 +49,11 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
+        
         if (enableTLS) {
             SslContext sslCtx = SecurityUtility.createNettySslContextForServer(true /* to allow InsecureConnection */,
                     serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
-                    serviceConfig.getTlsKeyFilePath());
+                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsVersions());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
 
