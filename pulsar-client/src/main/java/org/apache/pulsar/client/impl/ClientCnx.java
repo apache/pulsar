@@ -564,6 +564,10 @@ public class ClientCnx extends PulsarHandler {
         SSLSession sslSession = null;
         if (sslHandler != null) {
             sslSession = ((SslHandler) sslHandler).engine().getSession();
+            if (log.isDebugEnabled()) {
+                log.debug("Verifying HostName for {}, Cipher {}, Protocols {}", hostname, sslSession.getCipherSuite(),
+                        sslSession.getProtocol());
+            }
             return hostnameVerifier.verify(hostname, sslSession);
         }
         return false;
