@@ -27,7 +27,6 @@ import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_PO
 
 import java.net.URI;
 import java.net.URL;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -36,6 +35,7 @@ import java.util.Set;
 import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -62,7 +62,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamedEntity;
 import org.apache.pulsar.common.naming.NamespaceBundle;
@@ -79,6 +78,7 @@ import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.NoNodeException;
 import org.apache.zookeeper.data.Stat;
@@ -451,34 +451,30 @@ public class Namespaces extends AdminResource {
     public void grantPermissionOnNamespace(@PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("role") String role, Set<AuthAction> actions) {
         validateAdminAccessOnProperty(property);
-        validatePoliciesReadOnlyAccess();
 
+        NamespaceName namespaceName = NamespaceName.get(property, cluster, namespace);
         try {
-            Stat nodeStat = new Stat();
-            byte[] content = globalZk().getData(path(POLICIES, property, cluster, namespace), null, nodeStat);
-            Policies policies = jsonMapper().readValue(content, Policies.class);
-            policies.auth_policies.namespace_auth.put(role, actions);
-
-            // Write back the new policies into zookeeper
-            globalZk().setData(path(POLICIES, property, cluster, namespace), jsonMapper().writeValueAsBytes(policies),
-                    nodeStat.getVersion());
-
-            policiesCache().invalidate(path(POLICIES, property, cluster, namespace));
-
-            log.info("[{}] Successfully granted access for role {}: {} - namespace {}/{}/{}", clientAppId(), role,
-                    actions, property, cluster, namespace);
-        } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: does not exist", clientAppId(), property,
-                    cluster, namespace);
-            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
-        } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: concurrent modification", clientAppId(),
-                    property, cluster, namespace);
-            throw new RestException(Status.CONFLICT, "Concurrent modification");
-        } catch (Exception e) {
+            pulsar().getBrokerService().getAuthorizationService()
+                    .grantPermissionAsync(namespaceName, actions, role, null/*additional auth-data json*/)
+                    .get();
+        } catch (InterruptedException e) {
             log.error("[{}] Failed to get permissions for namespace {}/{}/{}", clientAppId(), property, cluster,
                     namespace, e);
             throw new RestException(e);
+        } catch (ExecutionException e) {
+            if (e.getCause() instanceof IllegalArgumentException) {
+                log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: does not exist", clientAppId(),
+                        property, cluster, namespace);
+                throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+            } else if (e.getCause() instanceof IllegalStateException) {
+                log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: concurrent modification",
+                        clientAppId(), property, cluster, namespace);
+                throw new RestException(Status.CONFLICT, "Concurrent modification");
+            } else {
+                log.error("[{}] Failed to get permissions for namespace {}/{}/{}", clientAppId(), property, cluster,
+                        namespace, e);
+                throw new RestException(e);
+            }
         }
     }
 

@@ -21,6 +21,7 @@ package org.apache.pulsar.discovery.service.server;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
@@ -67,6 +68,8 @@ public class ServiceConfig implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -208,6 +211,14 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setAuthorizationEnabled(boolean authorizationEnabled) {
         this.authorizationEnabled = authorizationEnabled;
+    }
+
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
     }
 
     public Set<String> getSuperUserRoles() {

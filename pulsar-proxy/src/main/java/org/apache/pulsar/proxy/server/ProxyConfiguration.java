@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
@@ -59,10 +60,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
     // Forward client authData to Broker for re authorization
     // make sure authentication is enabled for this to take effect
     private boolean forwardAuthorizationCredentials = false;
-            
+
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
@@ -261,6 +264,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setAuthorizationEnabled(boolean authorizationEnabled) {
         this.authorizationEnabled = authorizationEnabled;
+    }
+
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
     }
 
     public Set<String> getSuperUserRoles() {
