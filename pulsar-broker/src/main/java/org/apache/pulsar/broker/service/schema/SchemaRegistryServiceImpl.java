@@ -97,8 +97,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     public SchemaVersion versionFromBytes(byte[] version) {
-        ByteBuffer buffer = ByteBuffer.wrap(version);
-        return new LongSchemaVersion(buffer.getLong());
+        return schemaStorage.versionFromBytes(version);
     }
 
     @Override

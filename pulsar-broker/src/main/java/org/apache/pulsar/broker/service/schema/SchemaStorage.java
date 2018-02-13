@@ -33,6 +33,8 @@ public interface SchemaStorage {
 
     CompletableFuture<SchemaVersion> delete(String key);
 
+    SchemaVersion versionFromBytes(byte[] version);
+
     void close() throws Exception;
 
     class StoredSchema {
