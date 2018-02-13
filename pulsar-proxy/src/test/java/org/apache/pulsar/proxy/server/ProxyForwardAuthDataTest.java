@@ -47,7 +47,7 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyForwardAuthDataTest.class);
     private int webServicePort;
     private int servicePort;
-    
+
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
@@ -59,11 +59,11 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         conf.setBrokerClientAuthenticationParameters("authParam:broker");
         conf.setAuthenticateOriginalAuthData(true);
-        
+
         Set<String> superUserRoles = new HashSet<String>();
         superUserRoles.add("admin");
         conf.setSuperUserRoles(superUserRoles);
-        
+
         Set<String> providers = new HashSet<String>();
         providers.add(BasicAuthenticationProvider.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -78,9 +78,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
     @Override
     protected void cleanup() throws Exception {
-        super.internalCleanup();       
+        super.internalCleanup();
     }
-    
+
     @Test
     void testForwardAuthData() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -94,15 +94,13 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         String subscriptionName = "my-subscriber-name";
         String clientAuthParams = "authParam:client";
         String proxyAuthParams = "authParam:proxy";
-        
+
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespaceName);
-        
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
         admin.namespaces().grantPermissionOnNamespace(namespaceName, "client", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
 
-        
         // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
         proxyConfig.setAuthenticationEnabled(true);
@@ -110,7 +108,6 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyConfig.setServicePort(servicePort);
         proxyConfig.setWebServicePort(webServicePort);
         proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
-        
         proxyConfig.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(proxyAuthParams);
 
@@ -141,9 +138,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
         clientConf.setAuthentication(BasicAuthentication.class.getName(), adminAuthParams);
 
-        admin = spy(new PulsarAdmin(brokerUrl, clientConf));        
+        admin = spy(new PulsarAdmin(brokerUrl, clientConf));
     }
-    
+
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {
         org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
         clientConf.setAuthentication(BasicAuthentication.class.getName(), authParams);
