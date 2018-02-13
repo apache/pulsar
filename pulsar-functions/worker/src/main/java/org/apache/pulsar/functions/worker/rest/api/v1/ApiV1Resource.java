@@ -29,6 +29,7 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
@@ -223,7 +224,8 @@ public class ApiV1Resource extends BaseApiResource {
     @Path("/{tenant}/{namespace}/{functionName}")
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
-                                    final @PathParam("functionName") String functionName) throws InvalidProtocolBufferException {
+                                    final @PathParam("functionName") String functionName)
+            throws InvalidProtocolBufferException {
 
         // validate parameters
         try {
@@ -251,12 +253,57 @@ public class ApiV1Resource extends BaseApiResource {
     }
 
     @GET
+    @Path("/{tenant}/{namespace}/{functionName}/{instanceId}/status")
+    public Response getFunctionInstanceStatus(final @PathParam("tenant") String tenant,
+                                              final @PathParam("namespace") String namespace,
+                                              final @PathParam("functionName") String functionName,
+                                              final @PathParam("instanceId") String instanceId) throws IOException {
+
+        // validate parameters
+        try {
+            validateGetFunctionInstanceRequestParams(tenant, namespace, functionName, instanceId);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid getFunctionStatus request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
+        InstanceCommunication.FunctionStatus functionStatus = null;
+        try {
+            functionStatus = functionRuntimeManager.getFunctionInstanceStatus(
+                    tenant, namespace, functionName, Integer.parseInt(instanceId));
+        } catch (Exception e) {
+            log.error("Got Exception Getting Status", e);
+            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+            functionStatusBuilder.setRunning(false);
+            String functionConfigJson = JsonFormat.printer().print(functionStatusBuilder.build());
+            return Response.status(Response.Status.OK).entity(functionConfigJson).build();
+        }
+
+        String jsonResponse = JsonFormat.printer().print(functionStatus);
+        return Response.status(Response.Status.OK).entity(jsonResponse).build();
+    }
+
+    @GET
     @Path("/{tenant}/{namespace}/{functionName}/status")
     public Response getFunctionStatus(final @PathParam("tenant") String tenant,
                                       final @PathParam("namespace") String namespace,
-                                      final @PathParam("functionName") String functionName) throws InvalidProtocolBufferException {
+                                      final @PathParam("functionName") String functionName) throws IOException {
 
         // validate parameters
+        log.info("get all status: {} - {} - {}", tenant, namespace, functionName);
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
         } catch (IllegalArgumentException e) {
@@ -277,9 +324,9 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
-        FunctionStatus functionStatus = null;
+        InstanceCommunication.FunctionStatusList functionStatusList = null;
         try {
-            functionStatus = functionRuntimeManager.getFunctionStatus(tenant, namespace, functionName);
+            functionStatusList = functionRuntimeManager.getAllFunctionStatus(tenant, namespace, functionName);
         } catch (Exception e) {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
@@ -288,8 +335,8 @@ public class ApiV1Resource extends BaseApiResource {
             return Response.status(Response.Status.OK).entity(functionConfigJson).build();
         }
 
-        String functionConfigJson = JsonFormat.printer().print(functionStatus);
-        return Response.status(Response.Status.OK).entity(functionConfigJson).build();
+        String jsonResponse = JsonFormat.printer().print(functionStatusList);
+        return Response.status(Response.Status.OK).entity(jsonResponse).build();
     }
 
     @GET
@@ -370,6 +417,17 @@ public class ApiV1Resource extends BaseApiResource {
         }
         if (namespace == null) {
             throw new IllegalArgumentException("Namespace is not provided");
+        }
+    }
+
+    private void validateGetFunctionInstanceRequestParams(String tenant,
+                                                          String namespace,
+                                                          String functionName,
+                                                          String instanceId) throws IllegalArgumentException {
+        validateGetFunctionRequestParams(tenant, namespace, functionName);
+        if (instanceId == null) {
+            throw new IllegalArgumentException("Function Instance Id is not provided");
+
         }
     }
 

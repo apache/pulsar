@@ -25,7 +25,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -80,14 +80,15 @@ public class FunctionsImpl extends BaseResource implements Functions {
     }
 
     @Override
-    public FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException {
+    public FunctionStatusList getFunctionStatus(
+            String tenant, String namespace, String function) throws PulsarAdminException {
         try {
             Response response = request(functions.path(tenant).path(namespace).path(function).path("status")).get();
             if (!response.getStatusInfo().equals(Response.Status.OK)) {
                 throw new ClientErrorException(response);
             }
             String jsonResponse = response.readEntity(String.class);
-            FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
+            FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
             JsonFormat.parser().merge(jsonResponse, functionStatusBuilder);
             return functionStatusBuilder.build();
         } catch (Exception e) {

@@ -19,7 +19,7 @@
 package org.apache.pulsar.functions.worker.scheduler;
 
 import org.apache.pulsar.functions.proto.Function.Assignment;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
+import org.apache.pulsar.functions.proto.Function.Instance;
 
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -30,7 +30,7 @@ import java.util.stream.Collectors;
 public class RoundRobinScheduler implements IScheduler {
 
     @Override
-    public List<Assignment> schedule(List<FunctionMetaData> unassignedFunctions, List<Assignment>
+    public List<Assignment> schedule(List<Instance> unassignedFunctionInstances, List<Assignment>
             currentAssignments, List<String> workers) {
 
         Map<String, List<Assignment>> workerIdToAssignment = new HashMap<>();
@@ -43,10 +43,10 @@ public class RoundRobinScheduler implements IScheduler {
             workerIdToAssignment.get(existingAssignment.getWorkerId()).add(existingAssignment);
         }
 
-        for (FunctionMetaData unassignedFunction : unassignedFunctions) {
+        for (Instance unassignedFunctionInstance : unassignedFunctionInstances) {
             String workerId = findNextWorker(workerIdToAssignment);
-            Assignment newAssignment = Assignment.newBuilder()
-                    .setFunctionMetaData(unassignedFunction).setWorkerId(workerId).build();
+            Assignment newAssignment = Assignment.newBuilder().setInstance(unassignedFunctionInstance)
+                    .setWorkerId(workerId).build();
             workerIdToAssignment.get(workerId).add(newAssignment);
         }
 

@@ -50,6 +50,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
@@ -59,6 +60,7 @@ import org.apache.pulsar.functions.utils.Reflections;
 import java.io.File;
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.UUID;
 import java.util.function.Function;
 
 @Slf4j
@@ -423,12 +425,18 @@ public class CmdFunctions extends CmdBase {
                 admin.getServiceUrl().toString(),
                 stateStorageServiceUrl)) {
 
-                Spawner spawner = Spawner.createSpawner(
-                    functionConfig,
+                InstanceConfig instanceConfig = new InstanceConfig();
+                instanceConfig.setFunctionConfig(functionConfig);
+                // TODO: correctly implement function version and id
+                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+                instanceConfig.setFunctionId(UUID.randomUUID().toString());
+                instanceConfig.setInstanceId("0");
+                instanceConfig.setMaxBufferedTuples(1024);
+                Spawner spawner = new Spawner(
+                    instanceConfig,
                     userCodeFile,
                     containerFactory,
                     null,
-                    1024,
                     0);
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {

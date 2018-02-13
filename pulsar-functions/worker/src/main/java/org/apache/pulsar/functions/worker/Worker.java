@@ -139,7 +139,7 @@ public class Worker extends AbstractService {
                     this.workerConfig, this.schedulerManager, this.client);
 
             //create membership manager
-            this.membershipManager = new MembershipManager(this.workerConfig, this.schedulerManager, this.client);
+            this.membershipManager = new MembershipManager(this.workerConfig, this.client);
 
             // create function runtime manager
             this.functionRuntimeManager = new FunctionRuntimeManager(

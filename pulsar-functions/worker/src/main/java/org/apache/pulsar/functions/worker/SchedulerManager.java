@@ -24,6 +24,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Request;
@@ -109,15 +110,17 @@ public class SchedulerManager implements AutoCloseable {
         Set<String> fullyQualifiedNames = allFunctions.stream()
                 .map(functionMetaData -> FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()))
                 .collect(Collectors.toSet());
-
+        List<Function.Instance> allInstances = computeAllInstances(allFunctions);
         Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager.getCurrentAssignments();
-
         //delete assignments of functions that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
-        while(it.hasNext()) {
+        while (it.hasNext()) {
             Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
             Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
-            functionMap.entrySet().removeIf(entry -> !fullyQualifiedNames.contains(entry.getKey()));
+            functionMap.entrySet().removeIf(
+                    entry -> !fullyQualifiedNames.contains(
+                            FunctionConfigUtils.getFullyQualifiedName(
+                                    entry.getValue().getInstance().getFunctionMetaData().getFunctionConfig())));
             if (functionMap.isEmpty()) {
                 it.remove();
             }
@@ -127,12 +130,10 @@ public class SchedulerManager implements AutoCloseable {
                 .entrySet().stream()
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
 
-        List<FunctionMetaData> needsAssignment = this.getUnassignedFunctions(workerIdToAssignments, allFunctions);
+        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
 
         List<Assignment> assignments = this.scheduler.schedule(
                 needsAssignment, currentAssignments, currentMembership);
-
-        log.info("New Assignment computed: {}", assignments);
 
         long assignmentVersion = this.functionRuntimeManager.getCurrentAssignmentVersion() + 1;
         Request.AssignmentsUpdate assignmentsUpdate = Request.AssignmentsUpdate.newBuilder()
@@ -158,22 +159,42 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    private List<FunctionMetaData> getUnassignedFunctions(
-            Map<String, Map<String, Assignment>> currentAssignments, List<FunctionMetaData> allFunctions) {
+    public static List<Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions) {
+        List<Function.Instance> functionInstances = new LinkedList<>();
+        for (FunctionMetaData functionMetaData : allFunctions) {
+            functionInstances.addAll(computeInstances(functionMetaData));
+        }
+        return functionInstances;
+    }
 
-        List<FunctionMetaData> unassignedFunctions = new LinkedList<>();
+    public static List<Function.Instance> computeInstances(FunctionMetaData functionMetaData) {
+        List<Function.Instance> functionInstances = new LinkedList<>();
+        int instances = functionMetaData.getFunctionConfig().getParallelism();
+        for (int i = 0; i < instances; i++) {
+            functionInstances.add(Function.Instance.newBuilder()
+                    .setFunctionMetaData(functionMetaData)
+                    .setInstanceId(i)
+                    .build());
+        }
+        return functionInstances;
+    }
+
+    private List<Function.Instance> getUnassignedFunctionInstances(
+            Map<String, Map<String, Assignment>> currentAssignments, List<Function.Instance> functionInstances) {
+
+        List<Function.Instance> unassignedFunctionInstances = new LinkedList<>();
         Map<String, Assignment> assignmentMap = new HashMap<>();
         for (Map<String, Assignment> entry : currentAssignments.values()) {
             assignmentMap.putAll(entry);
         }
 
-        for (FunctionMetaData functionMetaData : allFunctions) {
-            String fullyQualifiedName = FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig());
-            if (!assignmentMap.containsKey(fullyQualifiedName)) {
-                unassignedFunctions.add(functionMetaData);
+        for (Function.Instance instance : functionInstances) {
+            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(instance);
+            if (!assignmentMap.containsKey(fullyQualifiedInstanceId)) {
+                unassignedFunctionInstances.add(instance);
             }
         }
-        return unassignedFunctions;
+        return unassignedFunctionInstances;
     }
 
     @Override
