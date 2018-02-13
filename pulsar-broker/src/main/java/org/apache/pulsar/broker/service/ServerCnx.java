@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.PersistentTopics.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
@@ -27,6 +28,7 @@ import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
 import java.net.SocketAddress;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
@@ -43,6 +45,8 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry;
+import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -75,6 +79,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -685,6 +690,33 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    private static class TopicAndSchema {
+        final Topic topic;
+        final SchemaAndMetadata schema;
+
+        TopicAndSchema(Topic topic, SchemaAndMetadata schema) {
+            this.topic = topic;
+            this.schema = schema;
+        }
+    }
+
+    static CompletableFuture<TopicAndSchema> getSchema(Topic topic) {
+        return topic.getSchema().thenApply(schema ->
+            new TopicAndSchema(topic, schema)
+        );
+    }
+
+    static Commands.SchemaInfo toInfo(SchemaAndMetadata schemaAndMetadata) {
+        if (isNull(schemaAndMetadata)) {
+            return null;
+        }
+        return new Commands.SchemaInfo(
+            schemaAndMetadata.id,
+            schemaAndMetadata.version,
+            schemaAndMetadata.schema
+        );
+    }
+
     @Override
     protected void handleProducer(final CommandProducer cmdProducer) {
         checkArgument(state == State.Connected);
@@ -761,9 +793,10 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getTopic(topicName.toString()).thenAccept((Topic topic) -> {
+                        service.getTopic(topicName.toString()).thenCompose(ServerCnx::getSchema).thenAccept(tas -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
+                            Topic topic = tas.topic;
                             if (topic.isBacklogQuotaExceeded(producerName)) {
                                 IllegalStateException illegalStateException = new IllegalStateException(
                                         "Cannot create producer on topic with backlog quota exceeded");
@@ -802,7 +835,7 @@ public class ServerCnx extends PulsarHandler {
                                     if (producerFuture.complete(producer)) {
                                         log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                         ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                                producer.getLastSequenceId()));
+                                                producer.getLastSequenceId(), toInfo(tas.schema)));
                                         return;
                                     } else {
                                         // The producer's future was completed before by
