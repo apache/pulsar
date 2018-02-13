@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.impl;
 
 import java.io.OutputStream;
 import java.util.Collection;
@@ -25,13 +25,12 @@ import java.util.Map;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
@@ -47,16 +46,12 @@ import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
-@Path("/broker-stats")
-@Api(value = "/broker-stats", description = "Stats for broker", tags = "broker-stats")
-@Produces(MediaType.APPLICATION_JSON)
-public class BrokerStats extends AdminResource {
-    private static final Logger log = LoggerFactory.getLogger(BrokerStats.class);
+public class BrokerStatsBase extends AdminResource {
+    private static final Logger log = LoggerFactory.getLogger(BrokerStatsBase.class);
 
     @GET
     @Path("/metrics")
