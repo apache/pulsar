@@ -129,8 +129,8 @@ public class ClientCnx extends PulsarHandler {
             authData = authentication.getAuthData().getCommandData();
         }
         // Send CONNECT command
-        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData, getPulsarClientVersion(),
-                proxyToTargetBrokerAddress))
+        ctx.writeAndFlush(Commands.newConnect(authentication.getAuthMethodName(), authData,
+                getPulsarClientVersion(), proxyToTargetBrokerAddress))
                 .addListener(future -> {
                     if (future.isSuccess()) {
                         if (log.isDebugEnabled()) {
@@ -564,6 +564,10 @@ public class ClientCnx extends PulsarHandler {
         SSLSession sslSession = null;
         if (sslHandler != null) {
             sslSession = ((SslHandler) sslHandler).engine().getSession();
+            if (log.isDebugEnabled()) {
+                log.debug("Verifying HostName for {}, Cipher {}, Protocols {}", hostname, sslSession.getCipherSuite(),
+                        sslSession.getProtocol());
+            }
             return hostnameVerifier.verify(hostname, sslSession);
         }
         return false;

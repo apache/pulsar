@@ -19,14 +19,13 @@
 package org.apache.bookkeeper.mledger.util;
 
 import java.util.concurrent.Semaphore;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * Mutex object that can be acquired from a thread and released from a different thread.
  *
- * This is meant to be acquired when calling an asynchronous method and released in its callback which is probably
+ * <p/>This is meant to be acquired when calling an asynchronous method and released in its callback which is probably
  * executed in a different thread.
  */
 public class CallbackMutex {

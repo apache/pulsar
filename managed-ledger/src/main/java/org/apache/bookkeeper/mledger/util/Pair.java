@@ -20,15 +20,23 @@ package org.apache.bookkeeper.mledger.util;
 
 import com.google.common.base.Objects;
 
-public class Pair<A, B> {
-    public final A first;
-    public final B second;
+/**
+ * A generic container for two values.
+ *
+ * @param <FirstT>
+ *     the first value type
+ * @param <SecondT>
+ *     the second value type
+ */
+public class Pair<FirstT, SecondT> {
+    public final FirstT first;
+    public final SecondT second;
 
-    public static <X, Y> Pair<X, Y> create(X x, Y y) {
-        return new Pair<X, Y>(x, y);
+    public static <FirstT, SecondT> Pair<FirstT, SecondT> create(FirstT x, SecondT y) {
+        return new Pair<>(x, y);
     }
 
-    public Pair(A first, B second) {
+    public Pair(FirstT first, SecondT second) {
         this.first = first;
         this.second = second;
     }

@@ -1493,7 +1493,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     /**
      * <pre>
-     * Verify: PersistentTopics.expireMessages()/expireMessagesForAllSubscriptions()
+     * Verify: PersistentTopicsBase.expireMessages()/expireMessagesForAllSubscriptions()
      * 1. Created multiple shared subscriptions and publisher on topic
      * 2. Publish messages on the topic
      * 3. expire message on sub-1 : backlog for sub-1 must be 0
@@ -1553,7 +1553,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     }
 
     /**
-     * Verify: PersistentTopics.expireMessages()/expireMessagesForAllSubscriptions() for PartitionTopic
+     * Verify: PersistentTopicsBase.expireMessages()/expireMessagesForAllSubscriptions() for PartitionTopic
      *
      * @throws Exception
      */

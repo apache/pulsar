@@ -20,8 +20,8 @@ package org.apache.bookkeeper.mledger;
 
 import com.google.common.annotations.Beta;
 
-@SuppressWarnings("serial")
 @Beta
+@SuppressWarnings({"serial", "checkstyle:javadoctype"})
 public class ManagedLedgerException extends Exception {
     public ManagedLedgerException(String msg) {
         super(msg);
