@@ -28,6 +28,7 @@ import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Fu
 
 import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -119,6 +120,12 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                     )
                 );
         });
+    }
+
+    @Override
+    public SchemaVersion versionFromBytes(byte[] version) {
+        ByteBuffer bb = ByteBuffer.wrap(version);
+        return new LongSchemaVersion(bb.get());
     }
 
     @Override
