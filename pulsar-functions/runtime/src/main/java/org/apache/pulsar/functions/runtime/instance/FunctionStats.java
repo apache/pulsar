@@ -46,7 +46,6 @@ public class FunctionStats {
         private long totalSystemExceptions;
         private List<InstanceCommunication.FunctionStatus.ExceptionInformation> latestSystemExceptions =
                 new LinkedList<>();
-        private long totalTimeoutExceptions;
         private Map<String, Long> totalDeserializationExceptions = new HashMap<>();
         private long totalSerializationExceptions;
         private long totalLatencyMs;
@@ -80,7 +79,6 @@ public class FunctionStats {
             }
             totalSystemExceptions++;
         }
-        public void incrementTimeoutExceptions() { totalTimeoutExceptions++; }
         public void incrementDeserializationExceptions(String topic) {
             if (!totalDeserializationExceptions.containsKey(topic)) {
                 totalDeserializationExceptions.put(topic, 0l);
@@ -93,7 +91,6 @@ public class FunctionStats {
             totalSuccessfullyProcessed = 0;
             totalUserExceptions = 0;
             totalSystemExceptions = 0;
-            totalTimeoutExceptions = 0;
             totalDeserializationExceptions.clear();
             totalSerializationExceptions = 0;
             totalLatencyMs = 0;
@@ -131,10 +128,6 @@ public class FunctionStats {
     public void incrementSystemExceptions(Exception ex) {
         currentStats.incrementSystemExceptions(ex);
         totalStats.incrementSystemExceptions(ex);
-    }
-    public void incrementTimeoutExceptions() {
-        currentStats.incrementTimeoutExceptions();
-        totalStats.incrementTimeoutExceptions();
     }
     public void incrementDeserializationExceptions(String topic) {
         currentStats.incrementDeserializationExceptions(topic);
