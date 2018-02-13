@@ -20,7 +20,6 @@ package org.apache.pulsar.discovery.service.server;
 
 import static org.apache.bookkeeper.test.PortManager.nextFreePort;
 import static org.testng.Assert.assertTrue;
-import static org.mockito.Mockito.when;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -29,10 +28,6 @@ import java.io.PrintWriter;
 
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.discovery.service.DiscoveryService;
-import org.apache.pulsar.discovery.service.PulsarServerException;
-import org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter;
-import org.apache.pulsar.discovery.service.server.ServerManager;
-import org.apache.pulsar.discovery.service.server.ServiceConfig;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
