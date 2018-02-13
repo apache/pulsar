@@ -351,9 +351,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
-        } else if (result.getTimeoutException() != null) {
-            log.info("Timedout when processing message {}", msg, result.getTimeoutException());
-            stats.incrementTimeoutExceptions();
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
             if (result.getResult() != null && sinkProducer != null) {
@@ -435,7 +432,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         addSystemMetrics("__total_processed__", stats.getCurrentStats().getTotalProcessed(), bldr);
         addSystemMetrics("__total_successfully_processed__", stats.getCurrentStats().getTotalSuccessfullyProcessed(), bldr);
         addSystemMetrics("__total_system_exceptions__", stats.getCurrentStats().getTotalSystemExceptions(), bldr);
-        addSystemMetrics("__total_timeout_exceptions__", stats.getCurrentStats().getTotalTimeoutExceptions(), bldr);
         addSystemMetrics("__total_user_exceptions__", stats.getCurrentStats().getTotalUserExceptions(), bldr);
         stats.getCurrentStats().getTotalDeserializationExceptions().forEach((topic, count) -> {
             addSystemMetrics("__total_deserialization_exceptions__" + topic, count, bldr);
@@ -464,7 +460,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         stats.getTotalStats().getLatestSystemExceptions().forEach(ex -> {
             functionStatusBuilder.addLatestSystemExceptions(ex);
         });
-        functionStatusBuilder.setNumTimeouts(stats.getTotalStats().getTotalTimeoutExceptions());
         functionStatusBuilder.putAllDeserializationExceptions(stats.getTotalStats().getTotalDeserializationExceptions());
         functionStatusBuilder.setSerializationExceptions(stats.getTotalStats().getTotalSerializationExceptions());
         functionStatusBuilder.setAverageLatency(stats.getTotalStats().computeLatency());

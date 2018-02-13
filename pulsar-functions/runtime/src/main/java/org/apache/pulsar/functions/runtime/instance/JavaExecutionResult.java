@@ -20,8 +20,6 @@ package org.apache.pulsar.functions.runtime.instance;
 
 import lombok.*;
 
-import java.util.concurrent.TimeoutException;
-
 /**
  * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
  * program if invoking via a process based invocation or using JavaInstance using a thread
@@ -35,13 +33,11 @@ import java.util.concurrent.TimeoutException;
 public class JavaExecutionResult {
     private Exception userException;
     private Exception systemException;
-    private TimeoutException timeoutException;
     private Object result;
 
     public void reset() {
         setUserException(null);
         setSystemException(null);
-        setTimeoutException(null);
         setResult(null);
     }
 }

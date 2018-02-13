@@ -72,7 +72,6 @@ class Stats(object):
     self.nsuccessfullyprocessed = 0
     self.nuserexceptions = 0
     self.latestuserexceptions = []
-    self.ntimeoutexceptions = 0
     self.nsystemexceptions = 0
     self.latestsystemexceptions = []
     self.ndeserialization_exceptions = {}
@@ -269,7 +268,6 @@ class PythonInstance(object):
     self.add_system_metrics("__total_processed__", self.current_stats.nprocessed, metrics)
     self.add_system_metrics("__total_successfully_processed__", self.current_stats.nsuccessfullyprocessed, metrics)
     self.add_system_metrics("__total_system_exceptions__", self.current_stats.nsystemexceptions, metrics)
-    self.add_system_metrics("__total_timeout_exceptions__", self.current_stats.ntimeoutexceptions, metrics)
     self.add_system_metrics("__total_user_exceptions__", self.current_stats.nuserexceptions, metrics)
     for (topic, metric) in self.current_stats.ndeserialization_exceptions.items():
       self.add_system_metrics("__total_deserialization_exceptions__" + topic, metric, metrics)
@@ -289,7 +287,6 @@ class PythonInstance(object):
     status.running = True
     status.numProcessed = self.total_stats.nprocessed
     status.numSuccessfullyProcessed = self.total_stats.nsuccessfullyprocessed
-    status.numTimeouts = self.total_stats.ntimeoutexceptions
     status.numUserExceptions = self.total_stats.nuserexceptions
     for ex, tm in self.total_stats.latestuserexceptions:
       to_add = status.latestUserExceptions.add()

@@ -31,23 +31,23 @@ message FunctionStatus {
     }
     bool running = 1;
     string failureException = 2;
-    int64 numRestarts = 11;
-    int64 numProcessed = 3;
-    int64 numSuccessfullyProcessed = 4;
-    int64 numTimeouts = 5;
+    int64 numRestarts = 3;
+    int64 numProcessed = 4;
+    int64 numSuccessfullyProcessed = 5;
     int64 numUserExceptions = 6;
-    repeated ExceptionInformation latestUserExceptions = 12;
-    int64 numSystemExceptions = 7;
-    repeated ExceptionInformation latestSystemExceptions = 13;
+    repeated ExceptionInformation latestUserExceptions = 7;
+    int64 numSystemExceptions = 8;
+    repeated ExceptionInformation latestSystemExceptions = 9;
     // map from topic name to number of deserialization exceptions
-    map<string, int64> deserializationExceptions = 8;
+    map<string, int64> deserializationExceptions = 10;
     // number of serialization exceptions on the output
-    int64 serializationExceptions = 9;
+    int64 serializationExceptions = 11;
     // average latency
-    double averageLatency = 10;
+    double averageLatency = 12;
+
     // When was the last time the function was invoked.
     // expressed in ms since epoch
-    int64 lastInvocationTime = 14;
+    int64 lastInvocationTime = 13;
 }
 
 message MetricsData {
