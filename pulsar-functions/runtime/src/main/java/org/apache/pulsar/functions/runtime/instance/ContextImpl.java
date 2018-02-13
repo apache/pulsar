@@ -54,7 +54,6 @@ class ContextImpl implements Context {
     // Per Message related
     private MessageId messageId;
     private String currentTopicName;
-    private long startTime;
 
     @Getter
     @Setter
@@ -113,7 +112,6 @@ class ContextImpl implements Context {
     public void setCurrentMessageContext(MessageId messageId, String topicName) {
         this.messageId = messageId;
         this.currentTopicName = topicName;
-        this.startTime = System.currentTimeMillis();
     }
 
     @Override
@@ -169,21 +167,6 @@ class ContextImpl implements Context {
     @Override
     public String getFunctionVersion() {
         return config.getFunctionVersion();
-    }
-
-    @Override
-    public long getMemoryLimit() {
-        return config.getLimitsConfig().getMaxMemoryMb() * 1024 * 1024;
-    }
-
-    @Override
-    public long getTimeBudgetInMs() {
-        return config.getLimitsConfig().getMaxTimeMs();
-    }
-
-    @Override
-    public long getRemainingTimeInMs() {
-        return getTimeBudgetInMs() - (System.currentTimeMillis() - startTime);
     }
 
     @Override

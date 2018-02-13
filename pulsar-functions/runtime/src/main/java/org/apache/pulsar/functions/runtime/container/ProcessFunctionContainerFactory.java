@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.runtime.container;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
 
 /**
  * Thread based function container factory implementation.
@@ -29,20 +28,17 @@ import org.apache.pulsar.functions.proto.Function;
 @Slf4j
 public class ProcessFunctionContainerFactory implements FunctionContainerFactory {
 
-    private int maxBufferedTuples;
     private String pulsarServiceUrl;
     private String javaInstanceJarFile;
     private String pythonInstanceFile;
     private String logDirectory;
 
     @VisibleForTesting
-    public ProcessFunctionContainerFactory(int maxBufferedTuples,
-                                           String pulsarServiceUrl,
+    public ProcessFunctionContainerFactory(String pulsarServiceUrl,
                                            String javaInstanceJarFile,
                                            String pythonInstanceFile,
                                            String logDirectory) {
 
-        this.maxBufferedTuples = maxBufferedTuples;
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
@@ -64,7 +60,6 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
         }
         return new ProcessFunctionContainer(
             instanceConfig,
-            maxBufferedTuples,
             instanceFile,
             logDirectory,
             codeFile,

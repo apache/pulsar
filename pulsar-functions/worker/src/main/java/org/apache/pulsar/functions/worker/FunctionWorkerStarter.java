@@ -24,7 +24,6 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 
 /**
  * A starter to start function worker.
@@ -95,10 +94,6 @@ public class FunctionWorkerStarter {
                 workerConfig.getProcessContainerFactory().setLogDirectory(
                     Paths.get("logs").toFile().getAbsolutePath());
             }
-        }
-
-        if (null == workerConfig.getLimitsConfig()) {
-            workerConfig.setLimitsConfig(new LimitsConfig(-1, -1, -1, 1024));
         }
 
         final Worker worker = new Worker(workerConfig);

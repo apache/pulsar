@@ -99,25 +99,6 @@ public interface Context {
     String getFunctionVersion();
 
     /**
-     * The memory limit that this function is limited to
-     * @return Memory limit in bytes
-     */
-    long getMemoryLimit();
-
-    /**
-     * The time budget in ms that the function is limited to.
-     * @return Time budget in msecs.
-     */
-    long getTimeBudgetInMs();
-
-    /**
-     * The time in ms remaining for this function execution to complete before it
-     * will be flagged as an error
-     * @return Time remaining in ms.
-     */
-    long getRemainingTimeInMs();
-
-    /**
      * The logger object that can be used to log in a function
      * @return the logger object
      */

@@ -18,5 +18,5 @@
 # under the License.
 #
 
-def process(self, input, context):
+def process(input):
   return input + '!'

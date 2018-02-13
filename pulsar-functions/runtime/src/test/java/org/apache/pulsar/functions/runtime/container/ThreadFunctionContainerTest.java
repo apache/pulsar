@@ -28,7 +28,6 @@ import java.net.URL;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.Test;
@@ -55,7 +54,6 @@ public class ThreadFunctionContainerTest {
 
         this.factory = new ThreadFunctionContainerFactory(
             "ThreadFunctionContainerFactory",
-            1024,
             client,
             "state-storage-service-url");
     }
@@ -83,10 +81,7 @@ public class ThreadFunctionContainerTest {
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
         config.setInstanceId(java.util.UUID.randomUUID().toString());
-        LimitsConfig limitsConfig = new LimitsConfig();
-        limitsConfig.setMaxTimeMs(2000);
-        limitsConfig.setMaxMemoryMb(2048);
-        config.setLimitsConfig(limitsConfig);
+        config.setMaxBufferedTuples(1024);
 
         return config;
     }

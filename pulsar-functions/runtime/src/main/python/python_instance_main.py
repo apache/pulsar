@@ -57,7 +57,6 @@ import python_instance
 
 to_run = True
 Log = log.Log
-LimitsConfig = namedtuple('LimitsConfig', 'max_time_ms max_memory_mb max_cpu max_buffered_tuples')
 
 def atexit_function(signo, _frame):
   global to_run
@@ -133,13 +132,10 @@ def main():
     for (key, value) in user_config.items():
       function_config.userConfig[str(key)] = str(value)
 
-  # TODO(sanjeev):- Implement limits
-  limits = LimitsConfig(-1, -1, -1, args.max_buffered_tuples)
-
   pulsar_client = pulsar.Client(args.pulsar_serviceurl)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_config,
-                                              limits, str(args.py), pulsar_client)
+                                              int(args.max_buffered_tuples), str(args.py), pulsar_client)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 
