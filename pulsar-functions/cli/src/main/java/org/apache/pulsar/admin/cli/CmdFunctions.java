@@ -82,9 +82,6 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class BaseCommand extends CliCommand {
-        @Parameter(names = "--tenant", description = "Tenant Name\n")
-        protected String tenant;
-
         @Override
         void run() throws Exception {
             processArguments();
@@ -101,7 +98,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--namespace", description = "Namespace Name\n")
+        @Parameter(names = "--tenant", description = "Tenant Name", required = true)
+        protected String tenant;
+
+        @Parameter(names = "--namespace", description = "Namespace Name", required = true)
         protected String namespace;
     }
 
@@ -110,7 +110,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionCommand extends NamespaceCommand {
-        @Parameter(names = "--name", description = "Function Name\n")
+        @Parameter(names = "--name", description = "Function Name", required = true)
         protected String functionName;
     }
 
@@ -118,34 +118,40 @@ public class CmdFunctions extends CmdBase {
      * Commands that require a function config
      */
     @Getter
-    abstract class FunctionConfigCommand extends FunctionCommand {
-        @Parameter(names = "--className", description = "Function Class Name\n", required = true)
+    abstract class FunctionConfigCommand extends BaseCommand {
+        @Parameter(names = "--tenant", description = "Tenant Name")
+        protected String tenant;
+        @Parameter(names = "--namespace", description = "Namespace Name")
+        protected String namespace;
+        @Parameter(names = "--name", description = "Function Name")
+        protected String functionName;
+        @Parameter(names = "--className", description = "Function Class Name", required = true)
         protected String className;
         @Parameter(
                 names = "--jar",
-                description = "Path to Jar\n",
+                description = "Path to Jar",
                 listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to Python\n",
+                description = "Path to Python",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--inputs", description = "Input Topic Name\n")
+        @Parameter(names = "--inputs", description = "Input Topic Name")
         protected String inputs;
-        @Parameter(names = "--output", description = "Output Topic Name\n")
+        @Parameter(names = "--output", description = "Output Topic Name")
         protected String output;
-        @Parameter(names = "--customSerdeInputs", description = "Map of input topic to serde classname\n")
+        @Parameter(names = "--customSerdeInputs", description = "Map of input topic to serde classname")
         protected String customSerdeInputString;
-        @Parameter(names = "--outputSerdeClassName", description = "Output SerDe\n")
+        @Parameter(names = "--outputSerdeClassName", description = "Output SerDe")
         protected String outputSerdeClassName;
-        @Parameter(names = "--functionConfigFile", description = "Function Config\n")
+        @Parameter(names = "--functionConfigFile", description = "Function Config")
         protected String fnConfigFile;
-        @Parameter(names = "--processingGuarantees", description = "Processing Guarantees\n")
+        @Parameter(names = "--processingGuarantees", description = "Processing Guarantees")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--subscriptionType", description = "The type of subscription\n")
+        @Parameter(names = "--subscriptionType", description = "The type of subscription")
         protected FunctionConfig.SubscriptionType subscriptionType;
-        @Parameter(names = "--userConfig", description = "User Config\n")
+        @Parameter(names = "--userConfig", description = "User Config")
         protected String userConfigString;
 
         protected FunctionConfig functionConfig;
@@ -411,7 +417,7 @@ public class CmdFunctions extends CmdBase {
     class LocalRunner extends FunctionConfigCommand {
 
         // TODO: this should become bookkeeper url and it should be fetched from pulsar client.
-        @Parameter(names = "--stateStorageServiceUrl", description = "state storage service url\n")
+        @Parameter(names = "--stateStorageServiceUrl", description = "state storage service url")
         protected String stateStorageServiceUrl;
 
         @Override
@@ -468,10 +474,6 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            if (tenant == null || namespace == null || functionName == null) {
-                throw new RuntimeException("Missing arguments");
-            }
-
             String json = JsonFormat.printer().print(fnAdmin.functions().getFunction(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
@@ -482,9 +484,6 @@ public class CmdFunctions extends CmdBase {
     class GetFunctionStatus extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            if (tenant == null || namespace == null || functionName == null) {
-                throw new RuntimeException("Missing arguments");
-            }
             String json = JsonFormat.printer().print(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
@@ -495,9 +494,6 @@ public class CmdFunctions extends CmdBase {
     class DeleteFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            if (tenant == null || namespace == null || functionName == null) {
-                throw new RuntimeException("Missing arguments");
-            }
             fnAdmin.functions().deleteFunction(tenant, namespace, functionName);
             print("Deleted successfully");
         }
@@ -516,9 +512,6 @@ public class CmdFunctions extends CmdBase {
     class ListFunctions extends NamespaceCommand {
         @Override
         void runCmd() throws Exception {
-            if (tenant == null || namespace == null) {
-                throw new RuntimeException("Missing arguments");
-            }
             print(fnAdmin.functions().getFunctions(tenant, namespace));
         }
     }
