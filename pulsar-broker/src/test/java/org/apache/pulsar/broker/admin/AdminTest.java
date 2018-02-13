@@ -32,8 +32,13 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -41,11 +46,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
-
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
@@ -74,13 +77,10 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 @Test
 public class AdminTest extends MockedPulsarServiceBaseTest {
+    private final String configClusterName = "use";
     private ConfigurationCacheService configurationCache;
-
     private Clusters clusters;
     private Properties properties;
     private Namespaces namespaces;
@@ -88,10 +88,13 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private Brokers brokers;
     private ResourceQuotas resourceQuotas;
     private BrokerStats brokerStats;
-
+    private SchemasResource schemasResource;
     private Field uriField;
     private UriInfo uriInfo;
-    private final String configClusterName = "use";
+    private Clock mockClock = Clock.fixed(
+        Instant.ofEpochSecond(365248800),
+        ZoneId.of("-05:00")
+    );
 
     public AdminTest() {
         super();
@@ -177,6 +180,14 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mockZookKeeper).when(brokerStats).localZk();
         doReturn(configurationCache.propertiesCache()).when(brokerStats).propertiesCache();
         doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
+
+        schemasResource = spy(new SchemasResource(mockClock));
+        schemasResource.setServletContext(new MockServletContext());
+        schemasResource.setPulsar(pulsar);
+        doReturn(mockZookKeeper).when(schemasResource).globalZk();
+        doReturn(mockZookKeeper).when(schemasResource).localZk();
+        doReturn(configurationCache.propertiesCache()).when(schemasResource).propertiesCache();
+        doReturn(configurationCache.policiesCache()).when(schemasResource).policiesCache();
     }
 
     @Override
@@ -635,5 +646,5 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(exception.getMessage(), message);
 
     }
-    
+
 }
