@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
 import org.testng.annotations.Test;
 

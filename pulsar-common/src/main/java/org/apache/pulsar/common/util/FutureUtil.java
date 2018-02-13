@@ -16,14 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.util;
+package org.apache.pulsar.common.util;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
-import org.apache.pulsar.client.api.PulsarClientException;
 
 public class FutureUtil {
 
@@ -63,11 +61,7 @@ public class FutureUtil {
 
     public static <T> CompletableFuture<T> failedFuture(Throwable t) {
         CompletableFuture<T> future = new CompletableFuture<>();
-        if (t instanceof PulsarClientException) {
-            future.completeExceptionally(t);
-        } else {
-            future.completeExceptionally(new PulsarClientException(t));
-        }
+        future.completeExceptionally(t);
         return future;
     }
 }

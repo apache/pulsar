@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.impl;
 
 import static org.apache.pulsar.broker.service.BrokerService.BROKER_SERVICE_CONFIGURATION_PATH;
 
@@ -28,14 +28,12 @@ import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
-import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
@@ -48,17 +46,13 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Maps;
 
-import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
 
 
-@Path("/brokers")
-@Api(value = "/brokers", description = "Brokers admin apis", tags = "brokers")
-@Produces(MediaType.APPLICATION_JSON)
-public class Brokers extends AdminResource {
-    private static final Logger LOG = LoggerFactory.getLogger(Brokers.class);
+public class BrokersBase extends AdminResource {
+    private static final Logger LOG = LoggerFactory.getLogger(BrokersBase.class);
     private int serviceConfigZkVersion = -1;
     
     @GET

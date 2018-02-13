@@ -18,15 +18,14 @@
  */
 package org.apache.pulsar.websocket;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static org.apache.pulsar.websocket.WebSocketError.FailedToCreateProducer;
 import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
 
 import java.io.IOException;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
@@ -34,6 +33,7 @@ import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -47,15 +47,12 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
-import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.UpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Enums;
-import static com.google.common.base.Preconditions.checkArgument;
 
 
 /**
@@ -224,8 +221,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected Boolean isAuthorized(String authRole) throws Exception {
-        return service.getAuthorizationManager().canProduce(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canProduce(DestinationName.get(topic), authRole, authenticationData);
     }
 
     private void sendAckResponse(ProducerAck response) {

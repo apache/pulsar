@@ -176,7 +176,11 @@ public abstract class MockedPulsarServiceBaseTest {
         PulsarService pulsar = spy(new PulsarService(conf));
 
         setupBrokerMocks(pulsar);
+        boolean isAuthorizationEnabled = conf.isAuthorizationEnabled();
+        // enable authrorization to initialize authorization service which is used by grant-permission
+        conf.setAuthorizationEnabled(true);
         pulsar.start();
+        conf.setAuthorizationEnabled(isAuthorizationEnabled);
         return pulsar;
     }
 
@@ -249,13 +253,13 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTime)
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
         for (int i = 0; i < retryCount; i++) {
             if (predicate.test(null) || i == (retryCount - 1)) {
                 break;
             }
-            Thread.sleep(intSleepTime + (intSleepTime * i));
+            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
         }
     }
 
