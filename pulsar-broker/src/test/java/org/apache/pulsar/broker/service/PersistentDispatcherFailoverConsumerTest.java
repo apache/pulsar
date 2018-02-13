@@ -68,7 +68,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleAct
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -95,7 +95,7 @@ public class PersistentDispatcherFailoverConsumerTest {
     private ManagedCursor cursorMock;
     private ConfigurationCacheService configCacheService;
     private ChannelHandlerContext channelCtx;
-    private LinkedBlockingQueue<CommandConsumerGroupChange> consumerChanges;
+    private LinkedBlockingQueue<CommandActiveConsumerChange> consumerChanges;
 
     final String successTopicName = "persistent://part-perf/global/perf.t1/ptopic";
     final String failTopicName = "persistent://part-perf/global/perf.t1/pfailTopic";
@@ -143,8 +143,8 @@ public class PersistentDispatcherFailoverConsumerTest {
                 cmdBuf.writerIndex(writerIndex);
                 cmdInputStream.recycle();
 
-                if (cmd.hasConsumerGroupChange()) {
-                    consumerChanges.put(cmd.getConsumerGroupChange());
+                if (cmd.hasActiveConsumerChange()) {
+                    consumerChanges.put(cmd.getActiveConsumerChange());
                 }
                 cmd.recycle();
             } finally {
@@ -243,11 +243,11 @@ public class PersistentDispatcherFailoverConsumerTest {
         }).when(ledgerMock).asyncDeleteCursor(matches(".*success.*"), any(DeleteCursorCallback.class), anyObject());
     }
 
-    private void verifyConsumerGroupChange(CommandConsumerGroupChange change,
-                                           long consumerId,
-                                           long activeConsumerId) {
+    private void verifyActiveConsumerChange(CommandActiveConsumerChange change,
+                                            long consumerId,
+                                            boolean isActive) {
         assertEquals(consumerId, change.getConsumerId());
-        assertEquals(activeConsumerId, change.getActiveConsumerId());
+        assertEquals(isActive, change.getIsActive());
         change.recycle();
     }
 
@@ -282,8 +282,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
         assertEquals(2, consumers.size());
 
-        CommandConsumerGroupChange change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 2, 1);
+        CommandActiveConsumerChange change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 2, false);
 
         verify(channelCtx, times(1)).write(any());
     }
@@ -309,8 +309,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         List<Consumer> consumers = pdfc.getConsumers();
         assertTrue(consumers.get(0).consumerName() == consumer1.consumerName());
         assertEquals(1, consumers.size());
-        CommandConsumerGroupChange change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 1, 1);
+        CommandActiveConsumerChange change = consumerChanges.take();
+        verifyActiveConsumerChange(change, 1, true);
         verify(consumer1, times(1)).notifyConsumerGroupChange(eq(1L));
 
         // 3. Add again, duplicate allowed
@@ -323,7 +323,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertTrue(pdfc.getActiveConsumer().consumerName() == consumer1.consumerName());
         // get the notified with who is the leader
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 1, 1);
+        verifyActiveConsumerChange(change, 1, true);
         verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
 
         // 5. Add another consumer which does not change active consumer
@@ -335,7 +335,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(3, consumers.size());
         // get notified with who is the leader
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 2, 1);
+        verifyActiveConsumerChange(change, 2, false);
         verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
         verify(consumer2, times(1)).notifyConsumerGroupChange(eq(1L));
 
@@ -349,13 +349,13 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // all consumers will receive notifications
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 0, 0);
+        verifyActiveConsumerChange(change, 0, true);
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 1, 0);
+        verifyActiveConsumerChange(change, 1, false);
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 1, 0);
+        verifyActiveConsumerChange(change, 1, false);
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 2, 0);
+        verifyActiveConsumerChange(change, 2, false);
         verify(consumer0, times(1)).notifyConsumerGroupChange(eq(0L));
         verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
         verify(consumer1, times(2)).notifyConsumerGroupChange(eq(0L));
@@ -381,9 +381,9 @@ public class PersistentDispatcherFailoverConsumerTest {
 
         // the remaining consumers will receive notifications
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 1, 1);
+        verifyActiveConsumerChange(change, 1, true);
         change = consumerChanges.take();
-        verifyConsumerGroupChange(change, 1, 1);
+        verifyActiveConsumerChange(change, 1, true);
 
         // 10. Attempt to remove already removed consumer
         String cause = "";

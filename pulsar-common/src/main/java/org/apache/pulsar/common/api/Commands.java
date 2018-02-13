@@ -37,7 +37,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
@@ -351,14 +351,14 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newConsumerGroupChange(long consumerId, long activeConsumerId) {
-        CommandConsumerGroupChange.Builder changeBuilder = CommandConsumerGroupChange.newBuilder()
+    public static ByteBuf newActiveConsumerChange(long consumerId, long activeConsumerId) {
+        CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
             .setConsumerId(consumerId)
-            .setActiveConsumerId(activeConsumerId);
+            .setIsActive(activeConsumerId == consumerId);
 
-        CommandConsumerGroupChange change = changeBuilder.build();
+        CommandActiveConsumerChange change = changeBuilder.build();
         ByteBuf res = serializeWithSize(
-            BaseCommand.newBuilder().setType(Type.CONSUMER_GROUP_CHANGE).setConsumerGroupChange(change));
+            BaseCommand.newBuilder().setType(Type.CONSUMER_GROUP_CHANGE).setActiveConsumerChange(change));
         changeBuilder.recycle();
         change.recycle();
         return res;
@@ -904,5 +904,9 @@ public class Commands {
     public static enum ChecksumType {
         Crc32c,
         None;
+    }
+
+    public static boolean peerSupportsActiveConsumerListener(int protocolVersion) {
+        return protocolVersion < ProtocolVersion.v11.getNumber();
     }
 }

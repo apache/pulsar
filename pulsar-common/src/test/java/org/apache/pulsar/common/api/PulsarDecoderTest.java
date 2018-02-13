@@ -27,7 +27,7 @@ import static org.mockito.Mockito.verify;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -47,14 +47,14 @@ public class PulsarDecoderTest {
     public void testChannelRead() throws Exception {
         long consumerId = 1234L;
         long activeConsumerId = 4567L;
-        ByteBuf changeBuf = Commands.newConsumerGroupChange(consumerId, activeConsumerId);
+        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, activeConsumerId);
         ByteBuf cmdBuf = changeBuf.slice(4, changeBuf.writerIndex() - 4);
 
-        doNothing().when(decoder).handleConsumerGroupChange(any(CommandConsumerGroupChange.class));
+        doNothing().when(decoder).handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
         decoder.channelRead(mock(ChannelHandlerContext.class), cmdBuf);
 
         verify(decoder, times(1))
-            .handleConsumerGroupChange(any(CommandConsumerGroupChange.class));
+            .handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
     }
 
 

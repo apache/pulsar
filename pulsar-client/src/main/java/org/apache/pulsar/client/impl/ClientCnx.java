@@ -37,10 +37,10 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -227,7 +227,7 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
-    protected void handleConsumerGroupChange(CommandConsumerGroupChange change) {
+    protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
         checkArgument(state == State.Ready);
 
         if (log.isDebugEnabled()) {
@@ -235,7 +235,7 @@ public class ClientCnx extends PulsarHandler {
         }
         ConsumerImpl consumer = consumers.get(change.getConsumerId());
         if (consumer != null) {
-            consumer.consumerGroupChanged(change.getActiveConsumerId());
+            consumer.activeConsumerChanged(change.getIsActive());
         }
     }
 

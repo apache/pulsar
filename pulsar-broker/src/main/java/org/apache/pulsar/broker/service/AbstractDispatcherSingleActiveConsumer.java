@@ -42,7 +42,6 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.client.impl.Backoff;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -126,7 +125,9 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
             // the active consumer is not changed
             Consumer currentActiveConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
             if (null == currentActiveConsumer) {
-                log.warn("Current active consumer disappears while adding consumer {}", consumer);
+                if (log.isDebugEnabled()) {
+                    log.debug("Current active consumer disappears while adding consumer {}", consumer);
+                }
             } else {
                 consumer.notifyConsumerGroupChange(currentActiveConsumer.consumerId());
             }

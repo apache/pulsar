@@ -22,11 +22,11 @@ import static com.google.common.base.Preconditions.checkArgument;
 
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerGroupChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
@@ -255,8 +255,8 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 break;
 
             case CONSUMER_GROUP_CHANGE:
-                handleConsumerGroupChange(cmd.getConsumerGroupChange());
-                cmd.getConsumerGroupChange().recycle();
+                handleActiveConsumerChange(cmd.getActiveConsumerChange());
+                cmd.getActiveConsumerChange().recycle();
                 break;
 
             }
@@ -343,7 +343,7 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
-    protected void handleConsumerGroupChange(CommandConsumerGroupChange change) {
+    protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
         throw new UnsupportedOperationException();
     }
 
