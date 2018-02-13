@@ -226,6 +226,11 @@
     </dependency>
 
     <dependency>
+      <groupId>com.carrotsearch</groupId>
+      <artifactId>hppc</artifactId>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>buildtools</artifactId>
       <version>${project.version}</version>

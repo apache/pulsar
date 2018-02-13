@@ -22,6 +22,8 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import java.io.InputStream;
 
+import org.apache.bookkeeper.client.impl.LedgerEntryImpl;
+
 public class MockLedgerEntry extends LedgerEntry {
 
     final long ledgerId;
@@ -29,7 +31,7 @@ public class MockLedgerEntry extends LedgerEntry {
     final byte[] data;
 
     public MockLedgerEntry(long ledgerId, long entryId, byte[] data) {
-        super(ledgerId, entryId);
+        super(LedgerEntryImpl.create(ledgerId, entryId));
         this.ledgerId = ledgerId;
         this.entryId = entryId;
         this.data = data;

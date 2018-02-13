@@ -18,22 +18,27 @@
  */
 package org.apache.bookkeeper.client;
 
-import com.google.common.collect.Lists;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 import java.security.GeneralSecurityException;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Enumeration;
 import java.util.Queue;
 import java.util.concurrent.RejectedExecutionException;
+
 import org.apache.bookkeeper.client.AsyncCallback.AddCallback;
 import org.apache.bookkeeper.client.AsyncCallback.CloseCallback;
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.client.api.WriteFlag;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 public class MockLedgerHandle extends LedgerHandle {
 
@@ -46,7 +51,8 @@ public class MockLedgerHandle extends LedgerHandle {
     boolean fenced = false;
 
     MockLedgerHandle(MockBookKeeper bk, long id, DigestType digest, byte[] passwd) throws GeneralSecurityException {
-        super(bk, id, new LedgerMetadata(3, 3, 2, DigestType.MAC, "".getBytes()), DigestType.MAC, "".getBytes());
+        super(bk, id, new LedgerMetadata(3, 3, 2, DigestType.MAC, "".getBytes()), DigestType.MAC, "".getBytes(),
+                EnumSet.noneOf(WriteFlag.class));
         this.bk = bk;
         this.id = id;
         this.digest = digest;
@@ -62,11 +68,11 @@ public class MockLedgerHandle extends LedgerHandle {
 
         fenced = true;
         try {
-            bk.executor.execute(() -> cb.closeComplete(0, this, ctx));    
+            bk.executor.execute(() -> cb.closeComplete(0, this, ctx));
         } catch (RejectedExecutionException e) {
             cb.closeComplete(0, this, ctx);
         }
-        
+
     }
 
     @Override
@@ -113,12 +119,6 @@ public class MockLedgerHandle extends LedgerHandle {
                 }, ctx);
             }
         });
-    }
-
-    @Override
-    public void asyncReadLastEntry(final ReadCallback cb, final Object ctx) {
-        long lastEntryId = getLastAddConfirmed();
-        asyncReadEntries(lastEntryId, lastEntryId, cb, ctx);
     }
 
     @Override

@@ -35,8 +35,8 @@ import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -105,7 +105,8 @@ public class PulsarService implements AutoCloseable {
             new DefaultThreadFactory("pulsar"));
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
+            .name("pulsar-ordered").build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -580,7 +581,7 @@ public class PulsarService implements AutoCloseable {
         return loadManagerExecutor;
     }
 
-    public OrderedSafeExecutor getOrderedExecutor() {
+    public OrderedScheduler getOrderedExecutor() {
         return orderedExecutor;
     }
 
@@ -590,7 +591,7 @@ public class PulsarService implements AutoCloseable {
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
         if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperBkClientFactoryImpl();
+            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
         }
         // Return default factory
         return zkClientFactory;

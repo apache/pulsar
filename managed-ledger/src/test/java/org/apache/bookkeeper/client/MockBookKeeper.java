@@ -21,6 +21,7 @@ package org.apache.bookkeeper.client;
 import io.netty.channel.oio.OioEventLoopGroup;
 import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -73,7 +74,7 @@ public class MockBookKeeper extends BookKeeper {
 
     @Override
     public void asyncCreateLedger(int ensSize, int writeQuorumSize, int ackQuorumSize, final DigestType digestType,
-            final byte[] passwd, final CreateCallback cb, final Object ctx) {
+            final byte[] passwd, final CreateCallback cb, final Object ctx, Map<String, byte[]> properties) {
         if (stopped.get()) {
             cb.createComplete(BKException.Code.WriteException, null, ctx);
             return;
@@ -129,7 +130,7 @@ public class MockBookKeeper extends BookKeeper {
     @Override
     public void asyncCreateLedger(int ensSize, int qSize, DigestType digestType, byte[] passwd, CreateCallback cb,
             Object ctx) {
-        asyncCreateLedger(ensSize, qSize, qSize, digestType, passwd, cb, ctx);
+        asyncCreateLedger(ensSize, qSize, qSize, digestType, passwd, cb, ctx, Collections.emptyMap());
     }
 
     @Override

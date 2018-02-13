@@ -35,7 +35,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server</artifactId>
+      <artifactId>bookkeeper-server-shaded</artifactId>
       <version>${bookkeeper.version}</version>
       <exclusions>
         <exclusion>

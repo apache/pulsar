@@ -23,14 +23,7 @@ import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-import com.google.common.collect.Range;
-import com.google.common.util.concurrent.RateLimiter;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -47,11 +40,13 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
+
 import org.apache.bookkeeper.client.AsyncCallback.CreateCallback;
 import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
@@ -82,13 +77,22 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.Pair;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.bookkeeper.util.UnboundArrayBlockingQueue;
+import org.apache.bookkeeper.util.collections.GrowableArrayBlockingQueue;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Range;
+import com.google.common.util.concurrent.RateLimiter;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final static long MegaByte = 1024 * 1024;
@@ -187,7 +191,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private volatile State state = null;
 
     private final ScheduledExecutorService scheduledExecutor;
-    private final OrderedSafeExecutor executor;
+    private final OrderedScheduler executor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
 
@@ -195,12 +199,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
      * created asynchronously and hence there is no ready ledger to write into.
      */
-    final Queue<OpAddEntry> pendingAddEntries = new UnboundArrayBlockingQueue<>();
+    final Queue<OpAddEntry> pendingAddEntries = new GrowableArrayBlockingQueue<>();
 
     // //////////////////////////////////////////////////////////////////////
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, ScheduledExecutorService scheduledExecutor, OrderedSafeExecutor orderedExecutor,
+            ManagedLedgerConfig config, ScheduledExecutorService scheduledExecutor, OrderedScheduler orderedExecutor,
             final String name) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
@@ -352,7 +356,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                         // Save it back to ensure all nodes exist
                         store.asyncUpdateLedgerIds(name, getManagedLedgerInfo(), ledgersStat, storeLedgersCb);
                     }));
-                }, null);
+                }, null, Collections.emptyMap());
     }
 
     private void initializeCursors(final ManagedLedgerInitializeLedgerCallback callback) {
@@ -512,7 +516,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
                 mbean.startDataLedgerCreateOp();
                 bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
-                        config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx);
+                        config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, ctx,
+                        Collections.emptyMap());
             }
         } else {
             checkArgument(state == State.LedgerOpened, "ledger=%s is not opened", state);
@@ -1238,7 +1243,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             this.lastLedgerCreationInitiationTimestamp = System.nanoTime();
             mbean.startDataLedgerCreateOp();
             bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(),
-                    config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, null);
+                    config.getAckQuorumSize(), config.getDigestType(), config.getPassword(), this, null,
+                    Collections.emptyMap());
         }
     }
 
@@ -2087,7 +2093,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return scheduledExecutor;
     }
 
-    OrderedSafeExecutor getExecutor() {
+    OrderedScheduler getExecutor() {
         return executor;
     }
 
