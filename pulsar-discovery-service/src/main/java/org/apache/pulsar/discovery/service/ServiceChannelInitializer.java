@@ -51,7 +51,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
         if (enableTLS) {
             SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
                     serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
-                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath());
+                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
+                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));

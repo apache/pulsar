@@ -253,13 +253,13 @@ public abstract class MockedPulsarServiceBaseTest {
         }
     };
 
-    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTime)
+    public static void retryStrategically(Predicate<Void> predicate, int retryCount, long intSleepTimeInMillis)
             throws Exception {
         for (int i = 0; i < retryCount; i++) {
             if (predicate.test(null) || i == (retryCount - 1)) {
                 break;
             }
-            Thread.sleep(intSleepTime + (intSleepTime * i));
+            Thread.sleep(intSleepTimeInMillis + (intSleepTimeInMillis * i));
         }
     }
 
