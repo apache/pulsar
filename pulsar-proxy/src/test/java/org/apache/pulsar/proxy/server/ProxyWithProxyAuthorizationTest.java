@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
@@ -364,7 +365,7 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
      * This test verifies whether the Client and Proxy honor the protocols and ciphers specified.
      * Details description of test cases can be found in protocolsCiphersProviderCodecProvider
      */
-    @Test(dataProvider = "protocolsCiphersProvider")
+    @Test(dataProvider = "protocolsCiphersProvider", timeOut=5000)
     public void tlsCiphersAndProtocols(Set<String> tlsCiphers, Set<String> tlsProtocols, boolean expectFailure) throws Exception {
         log.info("-- Starting {} test --", methodName);
         String namespaceName = "my-property/proxy-authorization/my-ns";
@@ -409,13 +410,19 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
         proxyConfig.setTlsCiphers(tlsCiphers);
         ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig));
         proxyService.start();
-        Thread.sleep(1000);
+        org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically((test) -> {
+            try {
+                return admin.namespaces().getPermissions(namespaceName).containsKey("Proxy")
+                        && admin.namespaces().getPermissions(namespaceName).containsKey("Client");
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 3, 1000);
         try {
 
             final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
             ClientConfiguration clientConf = new ClientConfiguration();
             PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientConf);
-            clientConf.setTlsHostnameVerificationEnable(true);
             Consumer consumer = proxyClient.subscribe("persistent://my-property/proxy-authorization/my-ns/my-topic1",
                     "my-subscriber-name", new ConsumerConfiguration());
 
