@@ -41,7 +41,7 @@ import javax.ws.rs.core.UriInfo;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.authorization.AuthorizationManager;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.lookup.DestinationLookup;
 import org.apache.pulsar.broker.lookup.NamespaceData;
@@ -70,7 +70,7 @@ public class HttpDestinationLookupv2Test {
 
     private PulsarService pulsar;
     private NamespaceService ns;
-    private AuthorizationManager auth;
+    private AuthorizationService auth;
     private ServiceConfiguration config;
     private ConfigurationCacheService mockConfigCache;
     private ZooKeeperChildrenCache clustersListCache;
@@ -83,7 +83,7 @@ public class HttpDestinationLookupv2Test {
     public void setUp() throws Exception {
         pulsar = mock(PulsarService.class);
         ns = mock(NamespaceService.class);
-        auth = mock(AuthorizationManager.class);
+        auth = mock(AuthorizationService.class);
         mockConfigCache = mock(ConfigurationCacheService.class);
         clustersListCache = mock(ZooKeeperChildrenCache.class);
         clustersCache = mock(ZooKeeperDataCache.class);
@@ -112,7 +112,7 @@ public class HttpDestinationLookupv2Test {
         doReturn(ns).when(pulsar).getNamespaceService();
         BrokerService brokerService = mock(BrokerService.class);
         doReturn(brokerService).when(pulsar).getBrokerService();
-        doReturn(auth).when(brokerService).getAuthorizationManager();
+        doReturn(auth).when(brokerService).getAuthorizationService();
         doReturn(new Semaphore(1000)).when(brokerService).getLookupRequestSemaphore();
     }
 

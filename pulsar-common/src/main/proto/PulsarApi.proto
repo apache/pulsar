@@ -25,8 +25,8 @@ option optimize_for = LITE_RUNTIME;
 message Schema {
 	required string name = 1;
 	required bytes version = 2;
-	required bytes schema_data = 7;
-    repeated KeyValue properties = 8;
+	required bytes schema_data = 3;
+    repeated KeyValue properties = 4;
 }
 
 message Tombstone {}

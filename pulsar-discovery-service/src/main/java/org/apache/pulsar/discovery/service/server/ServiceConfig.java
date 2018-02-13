@@ -21,6 +21,7 @@ package org.apache.pulsar.discovery.service.server;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
@@ -67,6 +68,8 @@ public class ServiceConfig implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
 
     /***** --- TLS --- ****/
     // Enable TLS
@@ -79,7 +82,13 @@ public class ServiceConfig implements PulsarConfiguration {
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-
+    // Specify the tls protocols the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLSv1.2, TLSv1.1, TLSv1]
+    private Set<String> tlsProtocols = Sets.newTreeSet();
+    // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    
     private Properties properties = new Properties();
 
     public String getZookeeperServers() {
@@ -210,6 +219,14 @@ public class ServiceConfig implements PulsarConfiguration {
         this.authorizationEnabled = authorizationEnabled;
     }
 
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
+    }
+
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
@@ -232,5 +249,21 @@ public class ServiceConfig implements PulsarConfiguration {
 
     public void setProperties(Properties properties) {
         this.properties = properties;
+    }
+    
+    public Set<String> getTlsProtocols() {
+        return tlsProtocols;
+    }
+
+    public void setTlsProtocols(Set<String> tlsProtocols) {
+        this.tlsProtocols = tlsProtocols;
+    }
+
+    public Set<String> getTlsCiphers() {
+        return tlsCiphers;
+    }
+
+    public void setTlsCiphers(Set<String> tlsCiphers) {
+        this.tlsCiphers = tlsCiphers;
     }
 }

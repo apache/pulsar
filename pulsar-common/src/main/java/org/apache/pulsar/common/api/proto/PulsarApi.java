@@ -267,11 +267,11 @@ public final class PulsarApi {
     boolean hasVersion();
     com.google.protobuf.ByteString getVersion();
     
-    // required bytes schema_data = 7;
+    // required bytes schema_data = 3;
     boolean hasSchemaData();
     com.google.protobuf.ByteString getSchemaData();
     
-    // repeated .pulsar.proto.KeyValue properties = 8;
+    // repeated .pulsar.proto.KeyValue properties = 4;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
         getPropertiesList();
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index);
@@ -356,8 +356,8 @@ public final class PulsarApi {
       return version_;
     }
     
-    // required bytes schema_data = 7;
-    public static final int SCHEMA_DATA_FIELD_NUMBER = 7;
+    // required bytes schema_data = 3;
+    public static final int SCHEMA_DATA_FIELD_NUMBER = 3;
     private com.google.protobuf.ByteString schemaData_;
     public boolean hasSchemaData() {
       return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -366,8 +366,8 @@ public final class PulsarApi {
       return schemaData_;
     }
     
-    // repeated .pulsar.proto.KeyValue properties = 8;
-    public static final int PROPERTIES_FIELD_NUMBER = 8;
+    // repeated .pulsar.proto.KeyValue properties = 4;
+    public static final int PROPERTIES_FIELD_NUMBER = 4;
     private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_;
     public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
       return properties_;
@@ -435,10 +435,10 @@ public final class PulsarApi {
         output.writeBytes(2, version_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeBytes(7, schemaData_);
+        output.writeBytes(3, schemaData_);
       }
       for (int i = 0; i < properties_.size(); i++) {
-        output.writeMessage(8, properties_.get(i));
+        output.writeMessage(4, properties_.get(i));
       }
     }
     
@@ -458,11 +458,11 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(7, schemaData_);
+          .computeBytesSize(3, schemaData_);
       }
       for (int i = 0; i < properties_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(8, properties_.get(i));
+          .computeMessageSize(4, properties_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -717,12 +717,12 @@ public final class PulsarApi {
               version_ = input.readBytes();
               break;
             }
-            case 58: {
+            case 26: {
               bitField0_ |= 0x00000004;
               schemaData_ = input.readBytes();
               break;
             }
-            case 66: {
+            case 34: {
               org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addProperties(subBuilder.buildPartial());
@@ -794,7 +794,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required bytes schema_data = 7;
+      // required bytes schema_data = 3;
       private com.google.protobuf.ByteString schemaData_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasSchemaData() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -818,7 +818,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .pulsar.proto.KeyValue properties = 8;
+      // repeated .pulsar.proto.KeyValue properties = 4;
       private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_ =
         java.util.Collections.emptyList();
       private void ensurePropertiesIsMutable() {

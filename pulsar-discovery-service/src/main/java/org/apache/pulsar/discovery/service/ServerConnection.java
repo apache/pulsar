@@ -28,6 +28,7 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -50,6 +51,7 @@ public class ServerConnection extends PulsarHandler {
 
     private DiscoveryService service;
     private String authRole = null;
+    private AuthenticationDataSource authenticationData = null;
     private State state;
     public static final String TLS_HANDLER = "tls";
 
@@ -87,8 +89,9 @@ public class ServerConnection extends PulsarHandler {
                 if (sslHandler != null) {
                     sslSession = ((SslHandler) sslHandler).engine().getSession();
                 }
+                this.authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
                 authRole = service.getAuthenticationService()
-                        .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
+                        .authenticate(this.authenticationData, authMethod);
                 LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod, authRole);
             } catch (AuthenticationException e) {
                 String msg = "Unable to authenticate";
@@ -144,7 +147,9 @@ public class ServerConnection extends PulsarHandler {
         final long requestId = partitionMetadata.getRequestId();
         DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
 
-        service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, authRole).thenAccept(metadata -> {
+        service.getDiscoveryProvider()
+                .getPartitionedTopicMetadata(service, dn, authRole, authenticationData)
+                .thenAccept(metadata -> {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, dn, metadata.partitions);
             }

@@ -28,6 +28,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
@@ -75,8 +76,63 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
     @DataProvider(name = "hostnameVerification")
-    public Object[][] codecProvider() {
+    public Object[][] hostnameVerificationCodecProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+    
+    @DataProvider(name = "protocolsCiphersProvider")
+    public Object[][] protocolsCiphersProviderCodecProvider() {
+        // Test using defaults
+        Set<String> ciphers_1 = Sets.newTreeSet();
+        Set<String> protocols_1 = Sets.newTreeSet();
+        
+        // Test explicitly specifying protocols defaults
+        Set<String> ciphers_2 = Sets.newTreeSet();
+        Set<String> protocols_2 = Sets.newTreeSet();
+        protocols_2.add("TLSv1.2");
+        protocols_2.add("TLSv1.1");
+        protocols_2.add("TLSv1");
+
+        // Test for invalid ciphers
+        Set<String> ciphers_3 = Sets.newTreeSet();
+        Set<String> protocols_3 = Sets.newTreeSet();
+        ciphers_3.add("INVALID_PROTOCOL");
+
+        // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
+        Set<String> ciphers_4 = Sets.newTreeSet();
+        Set<String> protocols_4 = Sets.newTreeSet();
+        ciphers_4.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols_4.add("TLSv1.1");
+
+        // Incorrect Config since TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 was introduced in TLSv1.2
+        Set<String> ciphers_5 = Sets.newTreeSet();
+        Set<String> protocols_5 = Sets.newTreeSet();
+        ciphers_5.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols_5.add("TLSv1");
+
+        // Correct Config
+        Set<String> ciphers_6 = Sets.newTreeSet();
+        Set<String> protocols_6 = Sets.newTreeSet();
+        ciphers_6.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        protocols_6.add("TLSv1.2");
+
+        // In correct config - JDK 8 doesn't support TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384
+        Set<String> ciphers_7 = Sets.newTreeSet();
+        Set<String> protocols_7 = Sets.newTreeSet();
+        protocols_7.add("TLSv1.2");
+        ciphers_7.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+
+        // Correct config - Atlease one of the Cipher Suite is supported 
+        Set<String> ciphers_8 = Sets.newTreeSet();
+        Set<String> protocols_8 = Sets.newTreeSet();
+        protocols_8.add("TLSv1.2");
+        ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256");
+        ciphers_8.add("TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384");
+        
+        return new Object[][] { { ciphers_1, protocols_1, Boolean.FALSE }, { ciphers_2, protocols_2, Boolean.FALSE },
+                { ciphers_3, protocols_3, Boolean.TRUE }, { ciphers_4, protocols_4, Boolean.TRUE },
+                { ciphers_5, protocols_5, Boolean.TRUE }, { ciphers_6, protocols_6, Boolean.FALSE }, 
+                { ciphers_7, protocols_7, Boolean.TRUE }, { ciphers_8, protocols_8, Boolean.FALSE }};
     }
     
     @BeforeMethod
@@ -162,15 +218,14 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test
-    public void textProxyAuthorization() throws Exception {
+    public void testProxyAuthorization() throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         startProxy();
         createAdminClient();
         final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
         // create a client which connects to proxy over tls and pass authData
-        ClientConfiguration clientConf = new ClientConfiguration();
-        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientConf);
+        PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, new ClientConfiguration());
 
         String namespaceName = "my-property/proxy-authorization/my-ns";
         
@@ -215,7 +270,7 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
     }
 
     @Test(dataProvider = "hostnameVerification")
-    public void textTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
+    public void testTlsHostVerificationProxyToClient(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         startProxy();
@@ -266,7 +321,7 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
      * @throws Exception
      */
     @Test(dataProvider = "hostnameVerification")
-    public void textTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
+    public void testTlsHostVerificationProxyToBroker(boolean hostnameVerificationEnabled) throws Exception {
         log.info("-- Starting {} test --", methodName);
 
         proxyConfig.setTlsHostnameVerificationEnabled(hostnameVerificationEnabled);
@@ -303,6 +358,85 @@ public class ProxyWithProxyAuthorizationTest extends ProducerConsumerBase {
             }
         }
 
+        log.info("-- Exiting {} test --", methodName);
+    }
+    
+    /* 
+     * This test verifies whether the Client and Proxy honor the protocols and ciphers specified.
+     * Details description of test cases can be found in protocolsCiphersProviderCodecProvider
+     */
+    @Test(dataProvider = "protocolsCiphersProvider", timeOut=5000)
+    public void tlsCiphersAndProtocols(Set<String> tlsCiphers, Set<String> tlsProtocols, boolean expectFailure) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String namespaceName = "my-property/proxy-authorization/my-ns";
+        createAdminClient();
+
+        admin.properties().createProperty("my-property",
+                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("proxy-authorization")));
+        admin.namespaces().createNamespace(namespaceName);
+
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Proxy",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "Client",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        
+        ProxyConfiguration proxyConfig = new ProxyConfiguration();
+        proxyConfig.setAuthenticationEnabled(true);
+        proxyConfig.setAuthorizationEnabled(false);
+        proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
+        proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
+
+        proxyConfig.setServicePort(PortManager.nextFreePort());
+        proxyConfig.setServicePortTls(PortManager.nextFreePort());
+        proxyConfig.setWebServicePort(PortManager.nextFreePort());
+        proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
+        proxyConfig.setTlsEnabledInProxy(true);
+        proxyConfig.setTlsEnabledWithBroker(true);
+
+        // enable tls and auth&auth at proxy
+        proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
+        proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
+        proxyConfig.setTlsTrustCertsFilePath(TLS_PROXY_TRUST_CERT_FILE_PATH);
+
+        proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
+        proxyConfig.setBrokerClientAuthenticationParameters(
+                "tlsCertFile:" + TLS_PROXY_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_PROXY_KEY_FILE_PATH);
+
+        Set<String> providers = new HashSet<>();
+        providers.add(AuthenticationProviderTls.class.getName());
+        conf.setAuthenticationProviders(providers);
+        proxyConfig.setAuthenticationProviders(providers);
+        proxyConfig.setTlsProtocols(tlsProtocols);
+        proxyConfig.setTlsCiphers(tlsCiphers);
+        ProxyService proxyService = Mockito.spy(new ProxyService(proxyConfig));
+        proxyService.start();
+        org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically((test) -> {
+            try {
+                return admin.namespaces().getPermissions(namespaceName).containsKey("Proxy")
+                        && admin.namespaces().getPermissions(namespaceName).containsKey("Client");
+            } catch (PulsarAdminException e) {
+                return false;
+            }
+        }, 3, 1000);
+        try {
+
+            final String proxyServiceUrl = "pulsar://localhost:" + proxyConfig.getServicePortTls();
+            ClientConfiguration clientConf = new ClientConfiguration();
+            PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientConf);
+            Consumer consumer = proxyClient.subscribe("persistent://my-property/proxy-authorization/my-ns/my-topic1",
+                    "my-subscriber-name", new ConsumerConfiguration());
+
+            if (expectFailure) {
+                Assert.fail("Failure expected for this test case");
+            }
+            consumer.close();
+            proxyClient.close();
+        } catch (Exception ex) {
+            if (!expectFailure) {
+                Assert.fail("This test case should not fail");
+            }
+        }
+        admin.close();
         log.info("-- Exiting {} test --", methodName);
     }
     
