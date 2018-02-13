@@ -184,7 +184,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> tlsProtocols = Sets.newTreeSet();
     // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
-
     private Set<String> tlsCiphers = Sets.newTreeSet();
     
     /***** --- Authentication --- ****/
