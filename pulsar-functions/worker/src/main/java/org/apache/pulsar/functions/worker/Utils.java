@@ -29,6 +29,7 @@ import org.apache.distributedlog.impl.metadata.BKDLConfig;
 import org.apache.distributedlog.metadata.DLMetadata;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 import org.apache.zookeeper.KeeperException.Code;
@@ -191,5 +192,18 @@ public final class Utils {
             throw new RuntimeException(e);
         }
         return admin;
+    }
+
+    public static String getFullyQualifiedInstanceId(Function.Instance instance) {
+        return getFullyQualifiedInstanceId(
+                instance.getFunctionMetaData().getFunctionConfig().getTenant(),
+                instance.getFunctionMetaData().getFunctionConfig().getNamespace(),
+                instance.getFunctionMetaData().getFunctionConfig().getName(),
+                instance.getInstanceId());
+    }
+
+    public static String getFullyQualifiedInstanceId(String tenant, String namespace,
+                                                     String functionName, int instanceId) {
+        return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
     }
 }

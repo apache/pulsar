@@ -22,14 +22,17 @@ import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.UUID;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
@@ -100,8 +103,10 @@ public class FunctionActioner implements AutoCloseable {
     }
 
     private void startFunction(FunctionRuntimeInfo functionRuntimeInfo) throws Exception {
-        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionMetaData();
-        log.info("Starting function {} ...", functionMetaData.getFunctionConfig().getName());
+        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        log.info("Starting function {} - {} ...",
+                functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
                 StringUtils.join(
@@ -123,17 +128,26 @@ public class FunctionActioner implements AutoCloseable {
                 dlogNamespace,
                 new FileOutputStream(pkgFile),
                 functionMetaData.getPackageLocation().getPackagePath());
-        Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(),
-                pkgFile.getAbsolutePath(), functionContainerFactory,
-                metricsSink, 1024, metricsCollectionInterval);
+
+        InstanceConfig instanceConfig = new InstanceConfig();
+        instanceConfig.setFunctionConfig(functionMetaData.getFunctionConfig());
+        // TODO: set correct function id and version when features implemented
+        instanceConfig.setFunctionId(UUID.randomUUID().toString());
+        instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+        instanceConfig.setInstanceId(String.valueOf(functionRuntimeInfo.getFunctionInstance().getInstanceId()));
+        instanceConfig.setMaxBufferedTuples(1024);
+        Spawner spawner = new Spawner(instanceConfig, pkgFile.getAbsolutePath(), functionContainerFactory,
+                metricsSink, metricsCollectionInterval);
 
         functionRuntimeInfo.setSpawner(spawner);
         spawner.start();
     }
 
     private boolean stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
-        FunctionMetaData functionMetaData = functionRuntimeInfo.getFunctionMetaData();
-        log.info("Stopping function {}...", functionMetaData.getFunctionConfig().getName());
+        Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
+        FunctionMetaData functionMetaData = instance.getFunctionMetaData();
+        log.info("Stopping function {} - {}...",
+                functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
         if (functionRuntimeInfo.getSpawner() != null) {
             functionRuntimeInfo.getSpawner().close();
             functionRuntimeInfo.setSpawner(null);

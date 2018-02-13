@@ -111,6 +111,7 @@ public class JavaInstanceMain {
         instanceConfig.setFunctionId(functionId);
         instanceConfig.setFunctionVersion(functionVersion);
         instanceConfig.setInstanceId(instanceId);
+        instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         functionConfigBuilder.setTenant(tenant);
         functionConfigBuilder.setNamespace(namespace);
@@ -157,12 +158,11 @@ public class JavaInstanceMain {
                 pulsarServiceUrl,
                 stateStorageServiceUrl);
 
-        Spawner spawner = Spawner.createSpawner(
-                functionConfig,
+        Spawner spawner = new Spawner(
+                instanceConfig,
                 jarFile,
                 containerFactory,
                 null,
-                maxBufferedTuples,
                 0);
 
         server = ServerBuilder.forPort(port)

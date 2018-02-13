@@ -50,6 +50,10 @@ message FunctionStatus {
     int64 lastInvocationTime = 13;
 }
 
+message FunctionStatusList {
+    repeated FunctionStatus functionStatusList = 1;
+}
+
 message MetricsData {
     message DataDigest {
         double count = 1;

@@ -95,10 +95,14 @@ public class FunctionRuntimeManagerTest {
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
-                .setFunctionMetaData(function1).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-2")
-                .setFunctionMetaData(function2).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                .build();
 
         List<Function.Assignment> assignments = new LinkedList<>();
         assignments.add(assignment1);
@@ -115,9 +119,9 @@ public class FunctionRuntimeManagerTest {
         verify(functionRuntimeManager, times(0)).deleteAssignment(any(Function.Assignment.class));
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
-                .get("worker-1").get("test-tenant/test-namespace/func-1"), assignment1);
+                .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.get("worker-2")
-                .get("test-tenant/test-namespace/func-2"), assignment2);
+                .get("test-tenant/test-namespace/func-2:0"), assignment2);
         verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager).insertStartAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
@@ -125,7 +129,7 @@ public class FunctionRuntimeManagerTest {
                 if (o instanceof FunctionRuntimeInfo) {
                     FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
 
-                    if (!functionRuntimeInfo.getFunctionMetaData().equals(function1)) {
+                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
                         return false;
                     }
                     return true;
@@ -139,12 +143,15 @@ public class FunctionRuntimeManagerTest {
         Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
                 new FunctionAction()
                         .setAction(FunctionAction.Action.START)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo()
-                                .setFunctionMetaData(function1))));
+                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
+                                Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                        .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 1);
-        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1"),
-                new FunctionRuntimeInfo().setFunctionMetaData(function1));
+        Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.get("test-tenant/test-namespace/func-1:0"),
+                new FunctionRuntimeInfo().setFunctionInstance(
+                        Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                .build()));
     }
 
     @Test
@@ -175,11 +182,14 @@ public class FunctionRuntimeManagerTest {
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
-                .setFunctionMetaData(function1).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-2")
-                .setFunctionMetaData(function2).build();
-
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                .build();
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
@@ -195,7 +205,9 @@ public class FunctionRuntimeManagerTest {
                 .build();
 
         functionRuntimeManager.functionRuntimeInfoMap.put(
-                "test-tenant/test-namespace/func-1", new FunctionRuntimeInfo().setFunctionMetaData(function1));
+                "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
+                        Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                .build()));
 
         functionRuntimeManager.processAssignmentUpdate(MessageId.earliest, assignmentsUpdate);
 
@@ -204,7 +216,7 @@ public class FunctionRuntimeManagerTest {
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
-                .get("worker-2").get("test-tenant/test-namespace/func-2"), assignment2);
+                .get("worker-2").get("test-tenant/test-namespace/func-2:0"), assignment2);
 
         verify(functionRuntimeManager, times(0)).insertStartAction(any(FunctionRuntimeInfo.class));
         verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
@@ -214,7 +226,7 @@ public class FunctionRuntimeManagerTest {
                 if (o instanceof FunctionRuntimeInfo) {
                     FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
 
-                    if (!functionRuntimeInfo.getFunctionMetaData().equals(function1)) {
+                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function1)) {
                         return false;
                     }
                     return true;
@@ -227,8 +239,9 @@ public class FunctionRuntimeManagerTest {
         Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
                 new FunctionAction()
                         .setAction(FunctionAction.Action.STOP)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo()
-                                .setFunctionMetaData(function1))));
+                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
+                                Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                        .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 0);
     }
@@ -260,21 +273,25 @@ public class FunctionRuntimeManagerTest {
 
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
-                .setFunctionMetaData(function1).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-2")
-                .setFunctionMetaData(function2).build();
-
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                .build();
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
         functionRuntimeManager.setAssignment(assignment2);
         reset(functionRuntimeManager);
 
-
         Function.Assignment assignment3 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
-                .setFunctionMetaData(function2).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                .build();
         List<Function.Assignment> assignments = new LinkedList<>();
         assignments.add(assignment1);
         assignments.add(assignment3);
@@ -285,18 +302,24 @@ public class FunctionRuntimeManagerTest {
                 .build();
 
         functionRuntimeManager.functionRuntimeInfoMap.put(
-                "test-tenant/test-namespace/func-1", new FunctionRuntimeInfo().setFunctionMetaData(function1));
+                "test-tenant/test-namespace/func-1:0", new FunctionRuntimeInfo().setFunctionInstance(
+                        Function.Instance.newBuilder().setFunctionMetaData(function1).setInstanceId(0)
+                                .build()));
+        functionRuntimeManager.functionRuntimeInfoMap.put(
+                "test-tenant/test-namespace/func-2:0", new FunctionRuntimeInfo().setFunctionInstance(
+                        Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
+                                .build()));
 
         functionRuntimeManager.processAssignmentUpdate(MessageId.earliest, assignmentsUpdate);
 
-        verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
-        verify(functionRuntimeManager).insertStartAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+        verify(functionRuntimeManager, times(1)).insertStopAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager).insertStopAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
             @Override
             public boolean matches(Object o) {
                 if (o instanceof FunctionRuntimeInfo) {
                     FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
 
-                    if (!functionRuntimeInfo.getFunctionMetaData().equals(function2)) {
+                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
                         return false;
                     }
                     return true;
@@ -305,20 +328,37 @@ public class FunctionRuntimeManagerTest {
             }
         }));
 
-        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 1);
+        verify(functionRuntimeManager, times(1)).insertStartAction(any(FunctionRuntimeInfo.class));
+        verify(functionRuntimeManager).insertStartAction(argThat(new ArgumentMatcher<FunctionRuntimeInfo>() {
+            @Override
+            public boolean matches(Object o) {
+                if (o instanceof FunctionRuntimeInfo) {
+                    FunctionRuntimeInfo functionRuntimeInfo = (FunctionRuntimeInfo) o;
+
+                    if (!functionRuntimeInfo.getFunctionInstance().getFunctionMetaData().equals(function2)) {
+                        return false;
+                    }
+                    return true;
+                }
+                return false;
+            }
+        }));
+
+        Assert.assertEquals(functionRuntimeManager.actionQueue.size(), 2);
         Assert.assertTrue(functionRuntimeManager.actionQueue.contains(
                 new FunctionAction()
                         .setAction(FunctionAction.Action.START)
-                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo()
-                                .setFunctionMetaData(function2))));
+                        .setFunctionRuntimeInfo(new FunctionRuntimeInfo().setFunctionInstance(
+                                Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0)
+                                        .build()))));
 
         Assert.assertEquals(functionRuntimeManager.functionRuntimeInfoMap.size(), 2);
 
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments.size(), 2);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
-                .get("worker-1").get("test-tenant/test-namespace/func-1"), assignment1);
+                .get("worker-1").get("test-tenant/test-namespace/func-1:0"), assignment1);
         Assert.assertEquals(functionRuntimeManager.workerIdToAssignments
-                .get("worker-1").get("test-tenant/test-namespace/func-2"), assignment3);
+                .get("worker-1").get("test-tenant/test-namespace/func-2:0"), assignment3);
     }
 
 }

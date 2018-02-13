@@ -22,7 +22,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedExceptio
 import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
 
 import java.util.List;
 
@@ -138,6 +138,6 @@ public interface Functions {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    FunctionStatus getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
+    FunctionStatusList getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
 
 }

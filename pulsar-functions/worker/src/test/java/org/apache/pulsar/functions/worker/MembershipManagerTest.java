@@ -55,7 +55,7 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class)
         ));        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, schedulerManager, mock(PulsarClient.class)));
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mock(PulsarClient.class)));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
@@ -78,15 +78,22 @@ public class MembershipManagerTest {
         Mockito.doReturn(metaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-1")
-                .setFunctionMetaData(function1).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1)
+                        .setInstanceId(0)
+                        .build())
+                .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-2")
-                .setFunctionMetaData(function2).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2)
+                        .setInstanceId(0)
+                        .build())
+                .build();
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
         functionRuntimeManager.setAssignment(assignment2);
-
 
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
@@ -111,7 +118,7 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class)
         ));        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, schedulerManager, mock(PulsarClient.class)));
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mock(PulsarClient.class)));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
@@ -132,11 +139,14 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(metaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setFunctionMetaData(function1).build();
+                .setWorkerId("worker-1").setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
         Function.Assignment assignment2 = Function.Assignment.newBuilder()
                 .setWorkerId("worker-2")
-                .setFunctionMetaData(function2).build();
+                .setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function2).setInstanceId(0).build())
+                .build();
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
@@ -147,10 +157,11 @@ public class MembershipManagerTest {
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
         Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
-        Assert.assertTrue(membershipManager.unsignedFunctionDurations.get("test-tenant/test-namespace/func-2") != null);
+        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
+        Assert.assertTrue(membershipManager.unsignedFunctionDurations.get(instance) != null);
 
-        membershipManager.unsignedFunctionDurations.put("test-tenant/test-namespace/func-2",
-                membershipManager.unsignedFunctionDurations.get("test-tenant/test-namespace/func-2") - 30001);
+        membershipManager.unsignedFunctionDurations.put(instance,
+                membershipManager.unsignedFunctionDurations.get(instance) - 30001);
 
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 
@@ -189,7 +200,7 @@ public class MembershipManagerTest {
                 mock(Namespace.class),
                 mock(MembershipManager.class)
         ));        FunctionMetaDataManager functionMetaDataManager = mock(FunctionMetaDataManager.class);
-        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, schedulerManager, mock(PulsarClient.class)));
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mock(PulsarClient.class)));
 
         List<MembershipManager.WorkerInfo> workerInfoList = new LinkedList<>();
         workerInfoList.add(MembershipManager.WorkerInfo.of("worker-1", "host-1", 8000));
@@ -198,11 +209,11 @@ public class MembershipManagerTest {
         Mockito.doReturn(workerInfoList).when(membershipManager).getCurrentMembership();
 
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+                Function.FunctionConfig.newBuilder().setParallelism(1)
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-1")).build();
 
         Function.FunctionMetaData function2 = Function.FunctionMetaData.newBuilder().setFunctionConfig(
-                Function.FunctionConfig.newBuilder()
+                Function.FunctionConfig.newBuilder().setParallelism(1)
                         .setTenant("test-tenant").setNamespace("test-namespace").setName("func-2")).build();
 
         List<Function.FunctionMetaData> metaDataList = new LinkedList<>();
@@ -211,8 +222,9 @@ public class MembershipManagerTest {
 
         Mockito.doReturn(metaDataList).when(functionMetaDataManager).getAllFunctionMetaData();
         Function.Assignment assignment1 = Function.Assignment.newBuilder()
-                .setWorkerId("worker-1")
-                .setFunctionMetaData(function1).build();
+                .setWorkerId("worker-1").setInstance(Function.Instance.newBuilder()
+                        .setFunctionMetaData(function1).setInstanceId(0).build())
+                .build();
 
         // add existing assignments
         functionRuntimeManager.setAssignment(assignment1);
@@ -222,10 +234,11 @@ public class MembershipManagerTest {
         verify(schedulerManager, times(0)).schedule();
         verify(functionRuntimeManager, times(0)).removeAssignments(any());
         Assert.assertEquals(membershipManager.unsignedFunctionDurations.size(), 1);
-        Assert.assertTrue(membershipManager.unsignedFunctionDurations.get("test-tenant/test-namespace/func-2") != null);
+        Function.Instance instance = Function.Instance.newBuilder().setFunctionMetaData(function2).setInstanceId(0).build();
+        Assert.assertTrue(membershipManager.unsignedFunctionDurations.get(instance) != null);
 
-        membershipManager.unsignedFunctionDurations.put("test-tenant/test-namespace/func-2",
-                membershipManager.unsignedFunctionDurations.get("test-tenant/test-namespace/func-2") - 30001);
+        membershipManager.unsignedFunctionDurations.put(instance,
+                membershipManager.unsignedFunctionDurations.get(instance) - 30001);
 
         membershipManager.checkFailures(functionMetaDataManager, functionRuntimeManager, schedulerManager);
 

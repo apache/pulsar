@@ -29,6 +29,7 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
@@ -40,27 +41,6 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 @Slf4j
 public class Spawner implements AutoCloseable {
 
-    public static Spawner createSpawner(FunctionConfig fnConfig,
-                                        String codeFile,
-                                        FunctionContainerFactory containerFactory,
-                                        MetricsSink metricsSink,
-                                        int maxBufferedTuples,
-                                        int metricsCollectionInterval) {
-        AssignmentInfo assignmentInfo = new AssignmentInfo(
-            fnConfig,
-            UUID.randomUUID().toString(),
-            UUID.randomUUID().toString(),
-            UUID.randomUUID().toString()
-        );
-        return new Spawner(
-            assignmentInfo,
-            codeFile,
-            containerFactory,
-            metricsSink,
-            maxBufferedTuples,
-            metricsCollectionInterval);
-    }
-
     private final InstanceConfig instanceConfig;
     private final FunctionContainerFactory functionContainerFactory;
     private final String codeFile;
@@ -71,13 +51,12 @@ public class Spawner implements AutoCloseable {
     private Timer metricsCollectionTimer;
     private int numRestarts;
 
-    private Spawner(AssignmentInfo assignmentInfo,
+    public Spawner(InstanceConfig instanceConfig,
                     String codeFile,
                     FunctionContainerFactory containerFactory,
                     MetricsSink metricsSink,
-                    int maxBufferedTuples,
                     int metricsCollectionInterval) {
-        this.instanceConfig = createInstanceConfig(assignmentInfo, maxBufferedTuples);
+        this.instanceConfig = instanceConfig;
         this.functionContainerFactory = containerFactory;
         this.codeFile = codeFile;
         this.metricsSink = metricsSink;
@@ -86,17 +65,24 @@ public class Spawner implements AutoCloseable {
     }
 
     public void start() throws Exception {
-        log.info("Spawner starting function {}", this.instanceConfig.getFunctionConfig().getName());
-        functionContainer = functionContainerFactory.createContainer(instanceConfig, codeFile);
+        log.info("Spawner starting function {} - {}", this.instanceConfig.getFunctionConfig().getName(),
+                this.instanceConfig.getInstanceId());
+        functionContainer = functionContainerFactory.createContainer(this.instanceConfig, codeFile);
         functionContainer.start();
         if (metricsSink != null) {
-            log.info("Scheduling Metrics Collection every " + metricsCollectionInterval + " secs for " + FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+            log.info("Scheduling Metrics Collection every {} secs for {} - {}",
+                    metricsCollectionInterval,
+                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
+                    instanceConfig.getInstanceId());
             metricsCollectionTimer = new Timer();
             metricsCollectionTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
                     if (functionContainer.isAlive()) {
-                        log.info("Collecting metrics for function" + FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+
+                        log.info("Collecting metrics for function {} - {}",
+                                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
+                                instanceConfig.getInstanceId());
                         functionContainer.getAndResetMetrics().thenAccept(t -> {
                             if (t != null) {
                                 log.debug("Collected metrics {}", t);
@@ -141,15 +127,5 @@ public class Spawner implements AutoCloseable {
             metricsCollectionTimer.cancel();
             metricsCollectionTimer = null;
         }
-    }
-
-    private InstanceConfig createInstanceConfig(AssignmentInfo assignmentInfo, int maxBufferedTuples) {
-        InstanceConfig instanceConfig = new InstanceConfig();
-        instanceConfig.setFunctionConfig(assignmentInfo.getFunctionConfig());
-        instanceConfig.setFunctionId(assignmentInfo.getFunctionId());
-        instanceConfig.setFunctionVersion(assignmentInfo.getFunctionVersion());
-        instanceConfig.setInstanceId(assignmentInfo.getInstanceId());
-        instanceConfig.setMaxBufferedTuples(maxBufferedTuples);
-        return instanceConfig;
     }
 }

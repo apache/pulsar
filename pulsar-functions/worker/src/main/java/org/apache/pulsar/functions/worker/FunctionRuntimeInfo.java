@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import lombok.*;
 import lombok.experimental.Accessors;
+import org.apache.pulsar.functions.proto.Function.Instance;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
@@ -29,8 +30,8 @@ import org.apache.pulsar.functions.runtime.spawner.Spawner;
 @Accessors(chain = true)
 public class FunctionRuntimeInfo {
 
-    // function meta data
-    private FunctionMetaData functionMetaData;
+    private Instance functionInstance;
+
     // The associated runtime with it if any
     private Spawner spawner;
     // Any exceptions on startup

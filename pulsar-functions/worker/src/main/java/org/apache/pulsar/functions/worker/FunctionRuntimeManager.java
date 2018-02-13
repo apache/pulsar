@@ -21,13 +21,13 @@ package org.apache.pulsar.functions.worker;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
+import com.sun.corba.se.impl.javax.rmi.CORBA.Util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderConfiguration;
-import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
@@ -43,11 +43,13 @@ import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.core.MediaType;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.stream.Collectors;
 
 /**
  * This class managers all aspects of functions assignments and running of function assignments for this worker
@@ -56,12 +58,12 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class FunctionRuntimeManager implements AutoCloseable{
 
     // all assignments
-    // WorkerId -> Function Fully Qualified Name -> List<Assignments>
+    // WorkerId -> Function Fully Qualified InstanceId -> List<Assignments>
     @VisibleForTesting
     Map<String, Map<String, Assignment>> workerIdToAssignments = new ConcurrentHashMap<>();
 
     // All the runtime info related to functions executed by this worker
-    // Fully qualified name - > FunctionRuntimeInfo
+    // Fully Qualified InstanceId - > FunctionRuntimeInfo
     @VisibleForTesting
     Map<String, FunctionRuntimeInfo> functionRuntimeInfoMap = new ConcurrentHashMap<>();
 
@@ -142,7 +144,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
     /**
      * Get current assignments
      * @return a map of current assignments in the follwing format
-     * {workerId : {FullyQualifiedFunctionName : Assignment}}
+     * {workerId : {FullyQualifiedInstanceId : Assignment}}
      */
     public synchronized Map<String, Map<String, Assignment>> getCurrentAssignments() {
         Map<String, Map<String, Assignment>> copy = new HashMap<>();
@@ -161,8 +163,46 @@ public class FunctionRuntimeManager implements AutoCloseable{
      * @param functionName the function name
      * @return the assignment of the function
      */
-    public synchronized Assignment findFunctionAssignment(String tenant, String namespace, String functionName) {
-        return this.findAssignment(tenant, namespace, functionName);
+    public synchronized Assignment findFunctionAssignment(String tenant, String namespace,
+                                                          String functionName, int instanceId) {
+        return this.findAssignment(tenant, namespace, functionName, instanceId);
+    }
+
+    /**
+     * Find all instance assignments of function
+     * @param tenant
+     * @param namespace
+     * @param functionName
+     * @return
+     */
+    public synchronized Collection<Assignment> findFunctionAssignments(String tenant,
+                                                                       String namespace, String functionName) {
+        return findFunctionAssignments(tenant, namespace, functionName, this.workerIdToAssignments);
+    }
+
+    public static Collection<Assignment> findFunctionAssignments(String tenant,
+                                                                 String namespace, String functionName,
+                                                                 Map<String, Map<String, Assignment>> workerIdToAssignments) {
+
+        Collection<Assignment> assignments = new LinkedList<>();
+
+        for (Map<String, Assignment> entryMap : workerIdToAssignments.values()) {
+            assignments.addAll(entryMap.values().stream()
+                    .filter(
+                            assignment ->
+                                    (tenant.equals(assignment.getInstance()
+                                            .getFunctionMetaData().getFunctionConfig()
+                                            .getTenant())
+                                            && namespace.equals((assignment.getInstance()
+                                            .getFunctionMetaData().getFunctionConfig()
+                                            .getNamespace()))
+                                            && functionName.equals(assignment.getInstance()
+                                            .getFunctionMetaData().getFunctionConfig()
+                                            .getName())))
+                    .collect(Collectors.toList()));
+        }
+
+        return assignments;
     }
 
     /**
@@ -184,16 +224,18 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     /**
-     * Get status of a function.  If this worker is not running the function, route to worker that is to get the status
+     * Get status of a function instance.  If this worker is not running the function instance,
      * @param tenant the tenant the function belongs to
      * @param namespace the namespace the function belongs to
      * @param functionName the function name
+     * @param instanceId the function instance id
      * @return the function status
      */
-    public InstanceCommunication.FunctionStatus getFunctionStatus(String tenant, String namespace, String functionName) {
+    public InstanceCommunication.FunctionStatus getFunctionInstanceStatus(String tenant, String namespace,
+                                                                          String functionName, int instanceId) {
         String workerId = this.workerConfig.getWorkerId();
 
-        Function.Assignment assignment = this.findAssignment(tenant, namespace, functionName);
+        Assignment assignment = this.findAssignment(tenant, namespace, functionName, instanceId);
         if (assignment == null) {
             InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
                     = InstanceCommunication.FunctionStatus.newBuilder();
@@ -206,7 +248,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         // If I am running worker
         if (assignment.getWorkerId().equals(workerId)) {
             FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
-                    FunctionConfigUtils.getFullyQualifiedName(tenant, namespace, functionName));
+                    Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
             Spawner spawner = functionRuntimeInfo.getSpawner();
             if (spawner != null) {
                 try {
@@ -244,8 +286,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
             Client client = ClientBuilder.newClient();
 
             // TODO: implement authentication/authorization
-            String jsonResponse = client.target(String.format("http://%s:%d/admin/functions/%s/%s/%s/status",
-                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName))
+            String jsonResponse = client.target(String.format("http://%s:%d/admin/functions/%s/%s/%s/%d/status",
+                    workerInfo.getWorkerHostname(), workerInfo.getPort(), tenant, namespace, functionName, instanceId))
                     .request(MediaType.TEXT_PLAIN)
                     .get(String.class);
 
@@ -263,6 +305,36 @@ public class FunctionRuntimeManager implements AutoCloseable{
     }
 
     /**
+     * Get statuses of all function instances.
+     * @param tenant the tenant the function belongs to
+     * @param namespace the namespace the function belongs to
+     * @param functionName the function name
+     * @return a list of function statuses
+     */
+    public InstanceCommunication.FunctionStatusList getAllFunctionStatus(
+            String tenant, String namespace, String functionName) {
+
+        Collection<Assignment> assignments = this.findFunctionAssignments(tenant, namespace, functionName);
+
+        InstanceCommunication.FunctionStatusList.Builder functionStatusListBuilder = InstanceCommunication.FunctionStatusList.newBuilder();
+        if (assignments.isEmpty()) {
+            return functionStatusListBuilder.build();
+        }
+
+        for (Assignment assignment : assignments) {
+
+            InstanceCommunication.FunctionStatus functionStatus = this.getFunctionInstanceStatus(
+                    assignment.getInstance().getFunctionMetaData().getFunctionConfig().getTenant(),
+                    assignment.getInstance().getFunctionMetaData().getFunctionConfig().getNamespace(),
+                    assignment.getInstance().getFunctionMetaData().getFunctionConfig().getName(),
+                    assignment.getInstance().getInstanceId());
+
+            functionStatusListBuilder.addFunctionStatusList(functionStatus);
+        }
+        return functionStatusListBuilder.build();
+    }
+
+    /**
      * Process an assignment update from the assignment topic
      * @param messageId the message id of the update assignment
      * @param assignmentsUpdate the assignment update
@@ -273,7 +345,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             Map<String, Assignment> assignmentMap = new HashMap<>();
             for (Assignment assignment : assignmentsUpdate.getAssignmentsList()) {
                 assignmentMap.put(
-                        FunctionConfigUtils.getFullyQualifiedName(assignment.getFunctionMetaData().getFunctionConfig()),
+                        Utils.getFullyQualifiedInstanceId(assignment.getInstance()),
                         assignment);
             }
             Map<String, Assignment> existingAssignmentMap = new HashMap<>();
@@ -289,7 +361,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
             // functions to add
             for (Map.Entry<String, Assignment> assignmentEntry : assignmentsToAdd.entrySet()) {
-                String fullyQualifiedName = assignmentEntry.getKey();
+                String fullyQualifiedInstanceId = assignmentEntry.getKey();
                 Assignment assignment = assignmentEntry.getValue();
 
                 //add new function
@@ -297,42 +369,42 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
                 //Assigned to me
                 if (assignment.getWorkerId().equals(workerConfig.getWorkerId())) {
-                    if (!this.functionRuntimeInfoMap.containsKey(fullyQualifiedName)) {
-                        this.setFunctionRuntimeInfo(fullyQualifiedName, new FunctionRuntimeInfo()
-                                .setFunctionMetaData(assignment.getFunctionMetaData()));
+                    if (!this.functionRuntimeInfoMap.containsKey(fullyQualifiedInstanceId)) {
+                        this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, new FunctionRuntimeInfo()
+                                .setFunctionInstance(assignment.getInstance()));
 
                     } else {
                         //Somehow this function is already started
                         log.warn("Function {} already running. Going to restart function.",
-                                this.functionRuntimeInfoMap.get(fullyQualifiedName));
-                        this.insertStopAction(this.functionRuntimeInfoMap.get(fullyQualifiedName));
+                                this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId));
+                        this.insertStopAction(this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId));
                     }
-                    FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedName);
+                    FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
                     this.insertStartAction(functionRuntimeInfo);
                 }
             }
 
             // functions to delete
             for (Map.Entry<String, Assignment> assignmentEntry : assignmentsToDelete.entrySet()) {
-                String fullyQualifiedName = assignmentEntry.getKey();
+                String fullyQualifiedInstanceId = assignmentEntry.getKey();
                 Assignment assignment = assignmentEntry.getValue();
 
-                FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedName);
+                FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
                 if (functionRuntimeInfo != null) {
                     this.insertStopAction(functionRuntimeInfo);
-                    this.deleteFunctionRuntimeInfo(fullyQualifiedName);
+                    this.deleteFunctionRuntimeInfo(fullyQualifiedInstanceId);
                 }
                 this.deleteAssignment(assignment);
             }
 
             // functions to update
             for (Map.Entry<String, Assignment> assignmentEntry : existingAssignments.entrySet()) {
-                String fullyQualifiedName = assignmentEntry.getKey();
+                String fullyQualifiedInstanceId = assignmentEntry.getKey();
                 Assignment assignment = assignmentEntry.getValue();
                 Assignment existingAssignment = this.findAssignment(assignment);
                 // potential updates need to happen
                 if (!existingAssignment.equals(assignment)) {
-                    FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedName);
+                    FunctionRuntimeInfo functionRuntimeInfo = this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
                     //stop function
                     if (functionRuntimeInfo != null) {
                         this.insertStopAction(functionRuntimeInfo);
@@ -341,9 +413,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
                     if (assignment.getWorkerId().equals(this.workerConfig.getWorkerId())) {
                         //start again
                         FunctionRuntimeInfo newFunctionRuntimeInfo = new FunctionRuntimeInfo();
-                        newFunctionRuntimeInfo.setFunctionMetaData(assignment.getFunctionMetaData());
+                        newFunctionRuntimeInfo.setFunctionInstance(assignment.getInstance());
                         this.insertStartAction(newFunctionRuntimeInfo);
-                        this.setFunctionRuntimeInfo(fullyQualifiedName, newFunctionRuntimeInfo);
+                        this.setFunctionRuntimeInfo(fullyQualifiedInstanceId, newFunctionRuntimeInfo);
                         this.setAssignment(assignment);
                     }
                 }
@@ -386,12 +458,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    private Assignment findAssignment(String tenant, String namespace, String functionName) {
-        String fullyQualifiedName
-                = FunctionConfigUtils.getFullyQualifiedName(tenant, namespace, functionName);
+    private Assignment findAssignment(String tenant, String namespace, String functionName, int instanceId) {
+        String fullyQualifiedInstanceId
+                = Utils.getFullyQualifiedInstanceId(tenant, namespace, functionName, instanceId);
         for (Map.Entry<String, Map<String, Assignment>> entry : this.workerIdToAssignments.entrySet()) {
             Map<String, Assignment> assignmentMap = entry.getValue();
-            Assignment existingAssignment = assignmentMap.get(fullyQualifiedName);
+            Assignment existingAssignment = assignmentMap.get(fullyQualifiedInstanceId);
             if (existingAssignment != null) {
                 return existingAssignment;
             }
@@ -401,9 +473,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private Assignment findAssignment(Assignment assignment) {
         return findAssignment(
-                assignment.getFunctionMetaData().getFunctionConfig().getTenant(),
-                assignment.getFunctionMetaData().getFunctionConfig().getNamespace(),
-                assignment.getFunctionMetaData().getFunctionConfig().getName()
+                assignment.getInstance().getFunctionMetaData().getFunctionConfig().getTenant(),
+                assignment.getInstance().getFunctionMetaData().getFunctionConfig().getNamespace(),
+                assignment.getInstance().getFunctionMetaData().getFunctionConfig().getName(),
+                assignment.getInstance().getInstanceId()
         );
     }
 
@@ -413,7 +486,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
             this.workerIdToAssignments.put(assignment.getWorkerId(), new HashMap<>());
         }
         this.workerIdToAssignments.get(assignment.getWorkerId()).put(
-                FunctionConfigUtils.getFullyQualifiedName(assignment.getFunctionMetaData().getFunctionConfig()),
+                Utils.getFullyQualifiedInstanceId(assignment.getInstance()),
                 assignment);
     }
 
@@ -421,10 +494,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
     void deleteAssignment(Assignment assignment) {
         Map<String, Assignment> assignmentMap = this.workerIdToAssignments.get(assignment.getWorkerId());
         if (assignmentMap != null) {
-            String fullyQualifiedName = FunctionConfigUtils.getFullyQualifiedName(
-                    assignment.getFunctionMetaData().getFunctionConfig());
-            if (assignmentMap.containsKey(fullyQualifiedName)) {
-                assignmentMap.remove(fullyQualifiedName);
+            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(assignment.getInstance());
+            if (assignmentMap.containsKey(fullyQualifiedInstanceId)) {
+                assignmentMap.remove(fullyQualifiedInstanceId);
             }
             if (assignmentMap.isEmpty()) {
                 this.workerIdToAssignments.remove(assignment.getWorkerId());
@@ -432,12 +504,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
-    private void deleteFunctionRuntimeInfo(String fullyQualifiedName) {
-        this.functionRuntimeInfoMap.remove(fullyQualifiedName);
+    private void deleteFunctionRuntimeInfo(String fullyQualifiedInstanceId) {
+        this.functionRuntimeInfoMap.remove(fullyQualifiedInstanceId);
     }
 
-    private void setFunctionRuntimeInfo(String fullyQualifiedName, FunctionRuntimeInfo functionRuntimeInfo) {
-        this.functionRuntimeInfoMap.put(fullyQualifiedName, functionRuntimeInfo);
+    private void setFunctionRuntimeInfo(String fullyQualifiedInstanceId, FunctionRuntimeInfo functionRuntimeInfo) {
+        this.functionRuntimeInfoMap.put(fullyQualifiedInstanceId, functionRuntimeInfo);
     }
 
     @Override
@@ -481,7 +553,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
         return result;
     }
 
-    private FunctionRuntimeInfo getFunctionRuntimeInfo(String fullyQualifiedName) {
-        return this.functionRuntimeInfoMap.get(fullyQualifiedName);
+    private FunctionRuntimeInfo getFunctionRuntimeInfo(String fullyQualifiedInstanceId) {
+        return this.functionRuntimeInfoMap.get(fullyQualifiedInstanceId);
     }
 }

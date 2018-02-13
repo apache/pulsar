@@ -18,13 +18,13 @@
  */
 package org.apache.pulsar.functions.worker.scheduler;
 
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Assignment;
+import org.apache.pulsar.functions.proto.Function.Instance;
 
 import java.util.List;
 
 public interface IScheduler {
 
-    List<Assignment> schedule(List<FunctionMetaData> unassignedFunctions,
+    List<Assignment> schedule(List<Instance> unassignedFunctionInstances,
                               List<Assignment> currentAssignments, List<String> workers);
 }
