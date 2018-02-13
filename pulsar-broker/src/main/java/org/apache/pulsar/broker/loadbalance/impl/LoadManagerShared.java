@@ -253,7 +253,7 @@ public class LoadManagerShared {
      * @param assignedBundleName
      *            Name of bundle to be assigned.
      * @param candidates
-     *            Brokers available for placement.
+     *            BrokersBase available for placement.
      * @param brokerToNamespaceToBundleRange
      *            Map from brokers to namespaces to bundle ranges.
      */
@@ -302,14 +302,14 @@ public class LoadManagerShared {
      * eg.
      * <pre>
      * Before:
-     * Domain-count  Brokers-count
+     * Domain-count  BrokersBase-count
      * ____________  ____________
      * d1-3          b1-2,b2-1
      * d2-3          b3-2,b4-1
      * d3-4          b5-2,b6-2
      *
      * After filtering: "candidates" brokers
-     * Domain-count  Brokers-count
+     * Domain-count  BrokersBase-count
      * ____________  ____________
      * d1-3          b2-1
      * d2-3          b4-1
