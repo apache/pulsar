@@ -1256,6 +1256,11 @@ public class ConsumerImpl extends ConsumerBase {
 
     public boolean hasMessageAvailable() throws PulsarClientException {
         try {
+            if (lastMessageIdInBroker.compareTo(lastDequeuedMessage) > 0 &&
+                ((MessageIdImpl)lastMessageIdInBroker).getEntryId() != -1) {
+                return true;
+            }
+
             return hasMessageAvailableAsync().get();
         } catch (ExecutionException | InterruptedException e) {
             throw new PulsarClientException(e);
@@ -1292,15 +1297,36 @@ public class ConsumerImpl extends ConsumerBase {
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
         }
 
-        if (cnx().getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
+        if (!isConnected()) {
+            long opTimeoutMs = client.getConfiguration().getOperationTimeoutMs();
+            Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
+                opTimeoutMs * 2, TimeUnit.MILLISECONDS,
+                0 , TimeUnit.MILLISECONDS);
+
+            long delayMs = backoff.firstBackoffTimeInMillis;;
+            while (delayMs < opTimeoutMs && !isConnected()); {
+                log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
+                    topic, getHandlerName(), delayMs);
+                try {
+                    Thread.sleep(delayMs);
+                } catch (InterruptedException e) {
+                    return FutureUtil
+                        .failedFuture(new PulsarClientException
+                            .ConnectException("InterruptedException, could not connect"));
+                }
+                delayMs = backoff.next();
+            }
+
+            if (!isConnected()) {
+                return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
+            }
+        }
+
+        if (cnx().getRemoteEndpointProtocolVersion() < ProtocolVersion.v12.getNumber()) {
             return FutureUtil
                 .failedFuture(new PulsarClientException
                     .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
-                        cnx().getRemoteEndpointProtocolVersion()));
-        }
-
-        if (!isConnected()) {
-            return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
+                    cnx().getRemoteEndpointProtocolVersion()));
         }
 
         final CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();

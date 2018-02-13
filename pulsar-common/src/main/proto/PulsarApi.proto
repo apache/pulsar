@@ -135,7 +135,7 @@ enum ProtocolVersion {
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
 	v11 = 11;// C++ consumers before this version are not correctly handling the checksum field
-			 //Added get topic's last messageId from broker
+	v12 = 12;//Added get topic's last messageId from broker
 }
 
 message CommandConnect {
