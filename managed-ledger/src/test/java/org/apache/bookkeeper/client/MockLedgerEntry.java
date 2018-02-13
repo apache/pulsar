@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.client;
 
-import java.io.InputStream;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
+import java.io.InputStream;
 
 public class MockLedgerEntry extends LedgerEntry {
 
