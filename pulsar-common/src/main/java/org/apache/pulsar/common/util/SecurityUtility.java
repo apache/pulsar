@@ -108,8 +108,7 @@ public class SecurityUtility {
         }
 
         if (protocols != null && protocols.size() > 0) {
-            String[] protocolsArray = new String[protocols.size()];
-            builder.protocols(protocols.toArray(protocolsArray));
+            builder.protocols((String[]) protocols.toArray());
         }
         
         if (allowInsecureConnection) {
