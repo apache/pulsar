@@ -18,36 +18,59 @@
  */
 package org.apache.pulsar.broker.authorization;
 
+import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
+
+import java.io.IOException;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.atomic.AtomicBoolean;
-
-import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
+import org.apache.pulsar.common.policies.data.Policies;
+import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
+import org.apache.pulsar.zookeeper.ZooKeeperCache;
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.ZooKeeper.States;
+import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
+ * Default authorization provider that stores authorization policies under local-zookeeper.
+ *
  */
-public class AuthorizationManager {
-    private static final Logger log = LoggerFactory.getLogger(AuthorizationManager.class);
+public class PulsarAuthorizationProvider implements AuthorizationProvider {
+    private static final Logger log = LoggerFactory.getLogger(PulsarAuthorizationProvider.class);
 
-    public final ServiceConfiguration conf;
-    public final ConfigurationCacheService configCache;
+    public ServiceConfiguration conf;
+    public ConfigurationCacheService configCache;
     private static final String POLICY_ROOT = "/admin/policies/";
+    private static final String POLICIES_READONLY_FLAG_PATH = "/admin/flags/policies-readonly";
 
-    public AuthorizationManager(ServiceConfiguration conf, ConfigurationCacheService configCache) {
+    public PulsarAuthorizationProvider() {
+    }
+
+    public PulsarAuthorizationProvider(ServiceConfiguration conf, ConfigurationCacheService configCache)
+            throws IOException {
+        initialize(conf, configCache);
+    }
+
+    @Override
+    public void initialize(ServiceConfiguration conf, ConfigurationCacheService configCache) throws IOException {
+        checkNotNull(conf, "ServiceConfiguration can't be null");
+        checkNotNull(configCache, "ConfigurationCacheService can't be null");
         this.conf = conf;
         this.configCache = configCache;
+
     }
 
     /**
@@ -58,21 +81,10 @@ public class AuthorizationManager {
      * @param role
      *            the app id used to send messages to the destination.
      */
-    public CompletableFuture<Boolean> canProduceAsync(DestinationName destination, String role) {
+    @Override
+    public CompletableFuture<Boolean> canProduceAsync(DestinationName destination, String role,
+            AuthenticationDataSource authenticationData) {
         return checkAuthorization(destination, role, AuthAction.produce);
-    }
-
-    public boolean canProduce(DestinationName destination, String role) throws Exception {
-        try {
-            return canProduceAsync(destination, role).get(cacheTimeOutInSec, SECONDS);
-        } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
-            throw e;
-        } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
-                    destination, e.getMessage());
-            throw e;
-        }
     }
 
     /**
@@ -86,7 +98,9 @@ public class AuthorizationManager {
      * @param subscription
      *            the subscription name defined by the client
      */
-    public CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role, String subscription) {
+    @Override
+    public CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role,
+            AuthenticationDataSource authenticationData, String subscription) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
             configCache.policiesCache().getAsync(POLICY_ROOT + destination.getNamespace()).thenAccept(policies -> {
@@ -115,30 +129,19 @@ public class AuthorizationManager {
                     permissionFuture.complete(isAuthorized);
                 });
             }).exceptionally(ex -> {
-                log.warn("Client with Role - {} failed to get permissions for destination - {}. {}", role, destination, ex.getMessage());
+                log.warn("Client with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                        ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination, e.getMessage());
+            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                    e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
     }
 
-    public boolean canConsume(DestinationName destination, String role, String subscription) throws Exception {
-        try {
-            return canConsumeAsync(destination, role, subscription).get(cacheTimeOutInSec, SECONDS);
-        } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
-            throw e;
-        } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
-                    destination, e.getMessage());
-            throw e;
-        }
-    }
-
     /**
      * Check whether the specified role can perform a lookup for the specified destination.
      *
@@ -149,23 +152,11 @@ public class AuthorizationManager {
      * @return
      * @throws Exception
      */
-    public boolean canLookup(DestinationName destination, String role) throws Exception {
-        return canProduce(destination, role) || canConsume(destination, role, null);
-    }
-
-    /**
-     * Check whether the specified role can perform a lookup for the specified destination.
-     *
-     * For that the caller needs to have producer or consumer permission.
-     *
-     * @param destination
-     * @param role
-     * @return
-     * @throws Exception
-     */
-    public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role) {
+    @Override
+    public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role,
+            AuthenticationDataSource authenticationData) {
         CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        canProduceAsync(destination, role).whenComplete((produceAuthorized, ex) -> {
+        canProduceAsync(destination, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
             if (ex == null) {
                 if (produceAuthorized) {
                     finalResult.complete(produceAuthorized);
@@ -178,7 +169,7 @@ public class AuthorizationManager {
                             destination.toString(), role, ex.getMessage());
                 }
             }
-            canConsumeAsync(destination, role, null).whenComplete((consumeAuthorized, e) -> {
+            canConsumeAsync(destination, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
                 if (e == null) {
                     if (consumeAuthorized) {
                         finalResult.complete(consumeAuthorized);
@@ -198,6 +189,61 @@ public class AuthorizationManager {
             });
         });
         return finalResult;
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(DestinationName destination, Set<AuthAction> actions,
+            String role, String authDataJson) {
+        return grantPermissionAsync(destination.getNamespaceObject(), actions, role, authDataJson);
+    }
+
+    @Override
+    public CompletableFuture<Void> grantPermissionAsync(NamespaceName namespaceName, Set<AuthAction> actions,
+            String role, String authDataJson) {
+        CompletableFuture<Void> result = new CompletableFuture<>();
+
+        try {
+            validatePoliciesReadOnlyAccess();
+        } catch (Exception e) {
+            result.completeExceptionally(e);
+        }
+
+        ZooKeeper globalZk = configCache.getZooKeeper();
+        final String property = namespaceName.getProperty();
+        final String cluster = namespaceName.getCluster();
+        final String namespace = namespaceName.getLocalName();
+        final String policiesPath = String.format("/%s/%s/%s/%s/%s", "admin", POLICIES, property, cluster, namespace);
+
+        try {
+            Stat nodeStat = new Stat();
+            byte[] content = globalZk.getData(policiesPath, null, nodeStat);
+            Policies policies = getThreadLocal().readValue(content, Policies.class);
+            policies.auth_policies.namespace_auth.put(role, actions);
+
+            // Write back the new policies into zookeeper
+            globalZk.setData(policiesPath, getThreadLocal().writeValueAsBytes(policies), nodeStat.getVersion());
+
+            configCache.policiesCache().invalidate(policiesPath);
+
+            log.info("[{}] Successfully granted access for role {}: {} - namespace {}/{}/{}", role, role, actions,
+                    property, cluster, namespace);
+            result.complete(null);
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: does not exist", role, property, cluster,
+                    namespace);
+            result.completeExceptionally(new IllegalArgumentException("Namespace does not exist" + namespace));
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to set permissions for namespace {}/{}/{}: concurrent modification", role, property,
+                    cluster, namespace);
+            result.completeExceptionally(new IllegalStateException(
+                    "Concurrent modification on zk path: " + policiesPath + ", " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("[{}] Failed to get permissions for namespace {}/{}/{}", role, property, cluster, namespace, e);
+            result.completeExceptionally(
+                    new IllegalStateException("Failed to get permissions for namespace " + namespace));
+        }
+
+        return result;
     }
 
     private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role, AuthAction action) {
@@ -273,7 +319,8 @@ public class AuthorizationManager {
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination, e.getMessage());
+            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                    e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
         return permissionFuture;
@@ -310,6 +357,41 @@ public class AuthorizationManager {
     public boolean isSuperUser(String role) {
         Set<String> superUserRoles = conf.getSuperUserRoles();
         return role != null && superUserRoles.contains(role) ? true : false;
+    }
+
+    @Override
+    public void close() throws IOException {
+        // No-op
+    }
+
+    private void validatePoliciesReadOnlyAccess() {
+        boolean arePoliciesReadOnly = true;
+        ZooKeeperCache globalZkCache = configCache.cache();
+
+        try {
+            arePoliciesReadOnly = globalZkCache.exists(POLICIES_READONLY_FLAG_PATH);
+        } catch (Exception e) {
+            log.warn("Unable to fetch contents of [{}] from global zookeeper", POLICIES_READONLY_FLAG_PATH, e);
+            throw new IllegalStateException("Unable to fetch content from global zk");
+        }
+
+        if (arePoliciesReadOnly) {
+            if (log.isDebugEnabled()) {
+                log.debug("Policies are read-only. Broker cannot do read-write operations");
+            }
+            throw new IllegalStateException("policies are in readonly mode");
+        } else {
+            // Make sure the broker is connected to the global zookeeper before writing. If not, throw an exception.
+            if (globalZkCache.getZooKeeper().getState() != States.CONNECTED) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Broker is not connected to the global zookeeper");
+                }
+                throw new IllegalStateException("not connected woith global zookeeper");
+            } else {
+                // Do nothing, just log the message.
+                log.debug("Broker is allowed to make read-write operations");
+            }
+        }
     }
 
 }

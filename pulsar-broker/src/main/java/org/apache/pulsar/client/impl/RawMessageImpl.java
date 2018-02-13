@@ -38,7 +38,7 @@ public class RawMessageImpl implements RawMessage {
     private final MessageIdData id;
     private final ByteBuf headersAndPayload;
 
-    RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
+    public RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
         this.id = id;
         this.headersAndPayload = headersAndPayload.retainedSlice();
     }

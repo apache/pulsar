@@ -21,22 +21,19 @@ package org.apache.bookkeeper.mledger.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Collections.reverseOrder;
 
-import java.util.Collections;
+import com.google.common.collect.Lists;
 import java.util.List;
-
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Lists;
-
 /**
  * Default eviction policy.
  *
- * This policy consider only the bigger caches for doing eviction.
+ * <p/>This policy consider only the bigger caches for doing eviction.
  *
- * The PercentOfSizeToConsiderForEviction parameter should always be bigger than the cacheEvictionWatermak, otherwise
- * the eviction cycle will free less memory than what was required.
+ * <p/>The PercentOfSizeToConsiderForEviction parameter should always be bigger than the cacheEvictionWatermak,
+ * otherwisethe eviction cycle will free less memory than what was required.
  */
 public class EntryCacheDefaultEvictionPolicy implements EntryCacheEvictionPolicy {
 

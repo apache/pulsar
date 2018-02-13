@@ -726,16 +726,18 @@ public class NamespaceService {
         return getBundle(destinationName);
     }
 
-    public List<String> getListOfDestinations(String property, String cluster, String namespace) throws Exception {
+    public List<String> getListOfDestinations(NamespaceName namespaceName) throws Exception {
         List<String> destinations = Lists.newArrayList();
 
         // For every topic there will be a managed ledger created.
         try {
-            String path = String.format("/managed-ledgers/%s/%s/%s/persistent", property, cluster, namespace);
-            LOG.debug("Getting children from managed-ledgers now: {}", path);
+            String path = String.format("/managed-ledgers/%s/persistent", namespaceName);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Getting children from managed-ledgers now: {}", path);
+            }
+
             for (String destination : pulsar.getLocalZkCacheService().managedLedgerListCache().get(path)) {
-                destinations.add(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace,
-                        Codec.decode(destination)));
+                destinations.add(String.format("persistent://%s/%s", namespaceName, Codec.decode(destination)));
             }
         } catch (KeeperException.NoNodeException e) {
             // NoNode means there are no persistent topics for this namespace

@@ -145,6 +145,7 @@ public class ClientConfiguration implements Serializable {
         this.authentication = AuthenticationFactory.create(authPluginClassName, authParams);
     }
 
+    
     /**
      * @return the operation timeout in ms
      */

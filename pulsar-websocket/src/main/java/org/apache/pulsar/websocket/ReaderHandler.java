@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.LongAdder;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Reader;
@@ -246,8 +247,9 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected Boolean isAuthorized(String authRole) throws Exception {
-        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole, this.subscription);
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canConsume(DestinationName.get(topic), authRole, authenticationData,
+                this.subscription);
     }
 
     private MessageId getMessageId() throws IOException {

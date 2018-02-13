@@ -42,11 +42,11 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.loadbalance.BrokerHostUsage;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.policies.data.loadbalancer.SystemResourceUsage;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.slf4j.Logger;
@@ -253,7 +253,7 @@ public class LoadManagerShared {
      * @param assignedBundleName
      *            Name of bundle to be assigned.
      * @param candidates
-     *            Brokers available for placement.
+     *            BrokersBase available for placement.
      * @param brokerToNamespaceToBundleRange
      *            Map from brokers to namespaces to bundle ranges.
      */
@@ -302,14 +302,14 @@ public class LoadManagerShared {
      * eg.
      * <pre>
      * Before:
-     * Domain-count  Brokers-count
+     * Domain-count  BrokersBase-count
      * ____________  ____________
      * d1-3          b1-2,b2-1
      * d2-3          b3-2,b4-1
      * d3-4          b5-2,b6-2
      *
      * After filtering: "candidates" brokers
-     * Domain-count  Brokers-count
+     * Domain-count  BrokersBase-count
      * ____________  ____________
      * d1-3          b2-1
      * d2-3          b4-1
