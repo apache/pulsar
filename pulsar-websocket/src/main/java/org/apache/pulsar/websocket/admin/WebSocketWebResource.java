@@ -19,7 +19,6 @@
 package org.apache.pulsar.websocket.admin;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
-
 import javax.naming.AuthenticationException;
 import javax.servlet.ServletContext;
 import javax.servlet.http.HttpServletRequest;
@@ -28,6 +27,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
@@ -50,7 +50,8 @@ public class WebSocketWebResource {
     private WebSocketService socketService;
     
     private String clientId;
-
+    private AuthenticationDataHttps authData;
+    
     protected WebSocketService service() {
         if (socketService == null) {
             socketService = (WebSocketService) servletContext.getAttribute(ATTRIBUTE_PROXY_SERVICE_NAME);
@@ -79,8 +80,14 @@ public class WebSocketWebResource {
         }
         return clientId;
     }
-    
-    
+
+    public AuthenticationDataHttps authData() {
+        if (authData == null) {
+            authData = new AuthenticationDataHttps(httpRequest);
+        }
+        return authData;
+    }
+
     /**
      * Checks whether the user has Pulsar Super-User access to the system.
      *
@@ -128,8 +135,7 @@ public class WebSocketWebResource {
      */
     protected boolean isAuthorized(DestinationName topic) throws Exception {
         if (service().isAuthorizationEnabled()) {
-            String authRole = clientAppId();
-            return service().getAuthorizationManager().canLookup(topic, authRole);
+            return service().getAuthorizationService().canLookup(topic, clientAppId(), authData());
         }
         return true;
     }

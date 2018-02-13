@@ -19,7 +19,6 @@
 package org.apache.bookkeeper.client;
 
 import java.io.IOException;
-
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
