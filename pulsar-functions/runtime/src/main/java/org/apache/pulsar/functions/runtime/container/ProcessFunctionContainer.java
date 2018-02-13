@@ -56,7 +56,6 @@ class ProcessFunctionContainer implements FunctionContainer {
     private InstanceControlGrpc.InstanceControlFutureStub stub;
 
     ProcessFunctionContainer(InstanceConfig instanceConfig,
-                             int maxBufferedTuples,
                              String instanceFile,
                              String logDirectory,
                              String codeFile,
@@ -153,7 +152,7 @@ class ProcessFunctionContainer implements FunctionContainer {
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
         args.add("--max_buffered_tuples");
-        args.add(String.valueOf(maxBufferedTuples));
+        args.add(String.valueOf(instanceConfig.getMaxBufferedTuples()));
         Map<String, String> userConfig = instanceConfig.getFunctionConfig().getUserConfigMap();
         if (userConfig != null && !userConfig.isEmpty()) {
             args.add("--user_config");

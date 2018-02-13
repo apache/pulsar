@@ -47,7 +47,6 @@ class ThreadFunctionContainer implements FunctionContainer {
     private Exception startupException;
 
     ThreadFunctionContainer(InstanceConfig instanceConfig,
-                            int maxBufferedTuples,
                             FunctionCacheManager fnCache,
                             ThreadGroup threadGroup,
                             String jarFile,
@@ -59,7 +58,6 @@ class ThreadFunctionContainer implements FunctionContainer {
         }
         this.javaInstanceRunnable = new JavaInstanceRunnable(
             instanceConfig,
-            maxBufferedTuples,
             fnCache,
             jarFile,
             pulsarClient,

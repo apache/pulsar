@@ -29,7 +29,6 @@ import io.grpc.Server;
 import io.grpc.ServerBuilder;
 import io.grpc.stub.StreamObserver;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
@@ -153,21 +152,17 @@ public class JavaInstanceMain {
         FunctionConfig functionConfig = functionConfigBuilder.build();
         instanceConfig.setFunctionConfig(functionConfig);
 
-        LimitsConfig limitsConfig = new LimitsConfig();
-        limitsConfig.setMaxBufferedTuples(maxBufferedTuples);
-
         ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
                 "LocalRunnerThreadGroup",
-                maxBufferedTuples,
                 pulsarServiceUrl,
                 stateStorageServiceUrl);
 
         Spawner spawner = Spawner.createSpawner(
                 functionConfig,
-                limitsConfig,
                 jarFile,
                 containerFactory,
                 null,
+                maxBufferedTuples,
                 0);
 
         server = ServerBuilder.forPort(port)

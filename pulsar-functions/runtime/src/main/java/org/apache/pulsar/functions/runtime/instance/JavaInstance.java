@@ -18,13 +18,6 @@
  */
 package org.apache.pulsar.functions.runtime.instance;
 
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -53,7 +46,6 @@ public class JavaInstance implements AutoCloseable {
     private final ContextImpl context;
     private PulsarFunction pulsarFunction;
     private Function javaUtilFunction;
-    private ExecutorService executorService;
 
     public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
@@ -70,39 +62,16 @@ public class JavaInstance implements AutoCloseable {
         } else {
             this.javaUtilFunction = (Function) userClassObject;
         }
-
-        if (config.getLimitsConfig() != null && config.getLimitsConfig().getMaxTimeMs() > 0) {
-            log.info("Spinning up a executor service since time budget is infinite");
-            executorService = Executors.newFixedThreadPool(1);
-        }
     }
 
     public JavaExecutionResult handleMessage(MessageId messageId, String topicName, Object input) {
         context.setCurrentMessageContext(messageId, topicName);
-        JavaExecutionResult executionResult = new JavaExecutionResult();
-        if (executorService == null) {
-            return processMessage(executionResult, input);
-        }
-        Future<?> future = executorService.submit(() -> processMessage(executionResult, input));
-        try {
-            future.get(context.getTimeBudgetInMs(), TimeUnit.MILLISECONDS);
-        } catch (InterruptedException e) {
-            log.error("handleMessage was interrupted");
-            executionResult.setSystemException(e);
-        } catch (ExecutionException e) {
-            log.error("handleMessage threw exception: " + e.getCause());
-            executionResult.setSystemException(e);
-        } catch (TimeoutException e) {
-            future.cancel(true);              //     <-- interrupt the job
-            log.error("handleMessage timed out");
-            executionResult.setTimeoutException(e);
-        }
-
-        return executionResult;
+        return processMessage(input);
     }
 
-    private JavaExecutionResult processMessage(JavaExecutionResult executionResult, Object input) {
+    private JavaExecutionResult processMessage(Object input) {
 
+        JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
             if (pulsarFunction != null) {
@@ -119,9 +88,6 @@ public class JavaInstance implements AutoCloseable {
 
     @Override
     public void close() {
-        if (null != executorService) {
-            executorService.shutdown();
-        }
     }
 
     public InstanceCommunication.MetricsData getAndResetMetrics() {

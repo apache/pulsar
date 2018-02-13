@@ -25,7 +25,6 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.testng.annotations.Test;
@@ -51,7 +50,6 @@ public class JavaInstanceRunnableTest {
 
     private static InstanceConfig createInstanceConfig(boolean addCustom, String outputSerde) {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        LimitsConfig limitsConfig = new LimitsConfig();
         if (!addCustom) {
             functionConfigBuilder.addInputs("TEST");
         } else {
@@ -62,14 +60,14 @@ public class JavaInstanceRunnableTest {
         }
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionConfig(functionConfigBuilder.build());
-        instanceConfig.setLimitsConfig(limitsConfig);
+        instanceConfig.setMaxBufferedTuples(1024);
         return instanceConfig;
     }
 
     private JavaInstanceRunnable createRunnable(boolean addCustom, String outputSerde) throws Exception {
         InstanceConfig config = createInstanceConfig(addCustom, outputSerde);
         JavaInstanceRunnable javaInstanceRunnable = new JavaInstanceRunnable(
-                config, 1024, null, null, null, null);
+                config, null, null, null, null);
         return javaInstanceRunnable;
     }
 
@@ -189,6 +187,7 @@ public class JavaInstanceRunnableTest {
             Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
         } catch (Exception ex) {
+            ex.printStackTrace();
             assertEquals(ex, null);
             assertTrue(false);
         }

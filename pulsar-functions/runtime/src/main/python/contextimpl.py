@@ -101,15 +101,6 @@ class ContextImpl(context.Context):
   def get_function_version(self):
     return self.instance_config.function_version
 
-  def get_memory_limit(self):
-    return self.instance_config.limits.max_memory_mb
-
-  def get_time_budget_ms(self):
-    return self.instance_config.limits.max_time_ms
-
-  def get_remaining_time_ms(self):
-    return self.get_time_budget_ms() - ((time.time() - self.current_start_time) * 1000)
-
   def get_logger(self):
     return self.log
 

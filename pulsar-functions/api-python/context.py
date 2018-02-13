@@ -75,21 +75,6 @@ class Context(object):
     pass
 
   @abstractmethod
-  def get_memory_limit(self):
-    """Returns the memory limit in bytes of function that we are executing"""
-    pass
-
-  @abstractmethod
-  def get_time_budget_ms(self):
-    """Returns the time limit in milliseconds of function that we are executing"""
-    pass
-
-  @abstractmethod
-  def get_remaining_time_ms(self):
-    """Returns the remaining time in milliseconds of function that we are executing"""
-    pass
-
-  @abstractmethod
   def get_logger(self):
     """Returns the logger object that can be used to do logging"""
     pass

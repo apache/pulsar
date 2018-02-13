@@ -20,7 +20,6 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +29,6 @@ import org.testng.annotations.Test;
 import java.util.List;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 /**
  * Unit test of {@link ThreadFunctionContainer}.
@@ -58,7 +56,7 @@ public class ProcessFunctionContainerTest {
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.logDirectory = "Users/user/logs";
         this.factory = new ProcessFunctionContainerFactory(
-            1024, pulsarServiceUrl, javaInstanceJarFile, pythonInstanceFile, logDirectory);
+            pulsarServiceUrl, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
     @AfterMethod
@@ -87,10 +85,7 @@ public class ProcessFunctionContainerTest {
         config.setFunctionId(java.util.UUID.randomUUID().toString());
         config.setFunctionVersion("1.0");
         config.setInstanceId(java.util.UUID.randomUUID().toString());
-        LimitsConfig limitsConfig = new LimitsConfig();
-        limitsConfig.setMaxTimeMs(2000);
-        limitsConfig.setMaxMemoryMb(2048);
-        config.setLimitsConfig(limitsConfig);
+        config.setMaxBufferedTuples(1024);
 
         return config;
     }

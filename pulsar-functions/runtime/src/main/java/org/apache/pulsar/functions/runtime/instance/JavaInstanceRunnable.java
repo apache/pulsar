@@ -99,7 +99,6 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private final FunctionStats stats;
 
     public JavaInstanceRunnable(InstanceConfig instanceConfig,
-                                int maxBufferedTuples,
                                 FunctionCacheManager fnCache,
                                 String jarFile,
                                 PulsarClient pulsarClient,
@@ -109,7 +108,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 ? FunctionConfig.ProcessingGuarantees.ATMOST_ONCE
                 : instanceConfig.getFunctionConfig().getProcessingGuarantees();
         this.fnCache = fnCache;
-        this.queue = new LinkedBlockingQueue<>(maxBufferedTuples);
+        this.queue = new LinkedBlockingQueue<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;

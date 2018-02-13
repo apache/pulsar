@@ -23,7 +23,6 @@ import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 
 /**
@@ -40,5 +39,5 @@ public class InstanceConfig {
     private String functionId;
     private String functionVersion;
     private FunctionConfig functionConfig;
-    private LimitsConfig limitsConfig;
+    private int maxBufferedTuples;
 }

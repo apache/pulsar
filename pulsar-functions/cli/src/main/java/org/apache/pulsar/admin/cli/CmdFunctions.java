@@ -52,7 +52,6 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -418,25 +417,18 @@ public class CmdFunctions extends CmdBase {
             if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
-            LimitsConfig limitsConfig = new LimitsConfig(
-                -1,   // No timelimit
-                1024,       // 1GB
-                2,          // 2 cpus
-                1024   // 1024 outstanding tuples
-            );
 
             try (ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
                 "LocalRunnerThreadGroup",
-                limitsConfig.getMaxBufferedTuples(),
                 admin.getServiceUrl().toString(),
                 stateStorageServiceUrl)) {
 
                 Spawner spawner = Spawner.createSpawner(
                     functionConfig,
-                    limitsConfig,
                     userCodeFile,
                     containerFactory,
                     null,
+                    1024,
                     0);
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {

@@ -123,9 +123,9 @@ public class FunctionActioner implements AutoCloseable {
                 dlogNamespace,
                 new FileOutputStream(pkgFile),
                 functionMetaData.getPackageLocation().getPackagePath());
-        Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(), workerConfig.getLimitsConfig(),
+        Spawner spawner = Spawner.createSpawner(functionMetaData.getFunctionConfig(),
                 pkgFile.getAbsolutePath(), functionContainerFactory,
-                metricsSink, metricsCollectionInterval);
+                metricsSink, 1024, metricsCollectionInterval);
 
         functionRuntimeInfo.setSpawner(spawner);
         spawner.start();

@@ -20,7 +20,6 @@ package org.apache.pulsar.functions.worker;
 
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.fs.MetricsConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.mockito.ArgumentMatcher;
@@ -46,7 +45,6 @@ public class MembershipManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setLimitsConfig(new LimitsConfig().setMaxBufferedTuples(10));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
@@ -102,7 +100,6 @@ public class MembershipManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setLimitsConfig(new LimitsConfig().setMaxBufferedTuples(10));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
@@ -181,7 +178,6 @@ public class MembershipManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setLimitsConfig(new LimitsConfig().setMaxBufferedTuples(10));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));

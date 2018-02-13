@@ -56,7 +56,7 @@ import InstanceCommunication_pb2
 
 Log = log.Log
 # Equivalent of the InstanceConfig in Java
-InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_config limits')
+InstanceConfig = namedtuple('InstanceConfig', 'instance_id function_id function_version function_config max_buffered_tuples')
 # This is the message that the consumers put on the queue for the function thread to process
 InternalMessage = namedtuple('InternalMessage', 'message topic serde consumer')
 InternalQuitMessage = namedtuple('InternalQuitMessage', 'quit')
@@ -112,10 +112,10 @@ class Stats(object):
       return self.latency / self.nsuccessfullyprocessed
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_config, limits, user_code, pulsar_client):
-    self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_config, limits)
+  def __init__(self, instance_id, function_id, function_version, function_config, max_buffered_tuples, user_code, pulsar_client):
+    self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_config, max_buffered_tuples)
     self.user_code = user_code
-    self.queue = Queue.Queue(limits.max_buffered_tuples)
+    self.queue = Queue.Queue(max_buffered_tuples)
     self.pulsar_client = pulsar_client
     self.input_serdes = {}
     self.consumers = {}

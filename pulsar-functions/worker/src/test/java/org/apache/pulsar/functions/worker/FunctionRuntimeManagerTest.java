@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.fs.MetricsConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -74,7 +73,6 @@ public class FunctionRuntimeManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setLimitsConfig(new LimitsConfig().setMaxBufferedTuples(10));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
@@ -155,7 +153,6 @@ public class FunctionRuntimeManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setLimitsConfig(new LimitsConfig().setMaxBufferedTuples(10));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
@@ -241,7 +238,6 @@ public class FunctionRuntimeManagerTest {
         WorkerConfig workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setLimitsConfig(new LimitsConfig().setMaxBufferedTuples(10));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));

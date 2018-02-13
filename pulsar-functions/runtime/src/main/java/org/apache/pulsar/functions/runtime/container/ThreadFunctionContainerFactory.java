@@ -37,29 +37,24 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     private final FunctionCacheManager fnCache;
     private final PulsarClient pulsarClient;
     private final String storageServiceUrl;
-    private int maxBufferedTuples;
     private volatile boolean closed;
 
     public ThreadFunctionContainerFactory(String threadGroupName,
-                                          int maxBufferedTuples,
                                           String pulsarServiceUrl,
                                           String storageServiceUrl)
             throws Exception {
         this(
             threadGroupName,
-            maxBufferedTuples,
             pulsarServiceUrl != null ? PulsarClient.create(pulsarServiceUrl, new ClientConfiguration()) : null,
             storageServiceUrl);
     }
 
     @VisibleForTesting
     ThreadFunctionContainerFactory(String threadGroupName,
-                                   int maxBufferedTuples,
                                    PulsarClient pulsarClient,
                                    String storageServiceUrl) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
-        this.maxBufferedTuples = maxBufferedTuples;
         this.pulsarClient = pulsarClient;
         this.storageServiceUrl = storageServiceUrl;
     }
@@ -68,7 +63,6 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     public ThreadFunctionContainer createContainer(InstanceConfig instanceConfig, String jarFile) {
         return new ThreadFunctionContainer(
             instanceConfig,
-            maxBufferedTuples,
             fnCache,
             threadGroup,
             jarFile,

@@ -52,7 +52,6 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.fs.LimitsConfig;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
@@ -93,11 +92,6 @@ public class ApiV1ResourceTest {
     private static final String inputSerdeClassName = DefaultSerDe.class.getName();
     private static final String outputSerdeClassName = DefaultSerDe.class.getName();
     private static final String className = TestFunction.class.getName();
-    private static final LimitsConfig limitsConfig = new LimitsConfig()
-        .setMaxTimeMs(1234)
-        .setMaxCpuCores(2345)
-        .setMaxMemoryMb(3456)
-        .setMaxBufferedTuples(5678);
 
     private FunctionMetaDataManager mockedManager;
     private Namespace mockedNamespace;
@@ -119,7 +113,6 @@ public class ApiV1ResourceTest {
         WorkerConfig workerConfig = new WorkerConfig()
             .setWorkerId("test")
             .setWorkerPort(8080)
-            .setLimitsConfig(limitsConfig)
             .setDownloadDirectory("/tmp/pulsar/functions")
             .setFunctionMetadataTopicName("pulsar/functions")
             .setNumFunctionPackageReplicas(3)
