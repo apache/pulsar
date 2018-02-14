@@ -169,6 +169,21 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable to run bookie autorecovery along with broker
     private boolean enableRunBookieAutoRecoveryTogether = false;
 
+    // Max number of producers allowed to connect to topic. Once this limit reaches, Broker will reject new producers
+    // until the number of connected producers decrease.
+    // Using a value of 0, is disabling maxProducersPerTopic-limit check.
+    private int maxProducersPerTopic = 0;
+
+    // Max number of consumers allowed to connect to topic. Once this limit reaches, Broker will reject new consumers
+    // until the number of connected consumers decrease.
+    // Using a value of 0, is disabling maxConsumersPerTopic-limit check.
+    private int maxConsumersPerTopic = 0;
+
+    // Max number of consumers allowed to connect to subscription. Once this limit reaches, Broker will reject new consumers
+    // until the number of connected consumers decrease.
+    // Using a value of 0, is disabling maxConsumersPerSubscription-limit check.
+    private int maxConsumersPerSubscription = 0;
+
     /***** --- TLS --- ****/
     // Enable TLS
     private boolean tlsEnabled = false;
@@ -407,7 +422,6 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
-
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -742,6 +756,30 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setEnableRunBookieAutoRecoveryTogether(boolean enableRunBookieAutoRecoveryTogether) {
         this.enableRunBookieAutoRecoveryTogether = enableRunBookieAutoRecoveryTogether;
+    }
+
+    public int getMaxProducersPerTopic() {
+        return maxProducersPerTopic;
+    }
+
+    public void setMaxProducersPerTopic(int maxProducersPerTopic) {
+        this.maxProducersPerTopic = maxProducersPerTopic;
+    }
+
+    public int getMaxConsumersPerTopic() {
+        return maxConsumersPerTopic;
+    }
+
+    public void setMaxConsumersPerTopic(int maxConsumersPerTopic) {
+        this.maxConsumersPerTopic = maxConsumersPerTopic;
+    }
+
+    public int getMaxConsumersPerSubscription() {
+        return maxConsumersPerSubscription;
+    }
+
+    public void setMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
+        this.maxConsumersPerSubscription = maxConsumersPerSubscription;
     }
 
     public boolean isTlsEnabled() {
