@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -136,24 +136,36 @@ extends Closeable</pre>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#hasMessageAvailable--">hasMessageAvailable</a></span>()</code>
+<div class="block">Check if there is any message available to read from the current position.</div>
+</td>
+</tr>
+<tr id="i3" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;Boolean&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#hasMessageAvailableAsync--">hasMessageAvailableAsync</a></span>()</code>
+<div class="block">Asynchronously Check if there is message that has been published successfully to the broker in the topic.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
+<td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#hasReachedEndOfTopic--">hasReachedEndOfTopic</a></span>()</code>
 <div class="block">Return true if the topic was terminated and this reader has reached the end of the topic</div>
 </td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext--">readNext</a></span>()</code>
 <div class="block">Read the next message in the topic</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext-int-java.util.concurrent.TimeUnit-">readNext</a></span>(int&nbsp;timeout,
         TimeUnit&nbsp;unit)</code>
 <div class="block">Read the next message in the topic.</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i7" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNextAsync--">readNextAsync</a></span>()</code>&nbsp;</td>
 </tr>
@@ -253,11 +265,36 @@ extends Closeable</pre>
 <a name="hasReachedEndOfTopic--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>hasReachedEndOfTopic</h4>
 <pre>boolean&nbsp;hasReachedEndOfTopic()</pre>
 <div class="block">Return true if the topic was terminated and this reader has reached the end of the topic</div>
+</li>
+</ul>
+<a name="hasMessageAvailable--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>hasMessageAvailable</h4>
+<pre>boolean&nbsp;hasMessageAvailable()
+                     throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<div class="block">Check if there is any message available to read from the current position.</div>
+<dl>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="hasMessageAvailableAsync--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>hasMessageAvailableAsync</h4>
+<pre>CompletableFuture&lt;Boolean&gt;&nbsp;hasMessageAvailableAsync()</pre>
+<div class="block">Asynchronously Check if there is message that has been published successfully to the broker in the topic.</div>
 </li>
 </ul>
 </li>

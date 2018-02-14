@@ -1770,6 +1770,18 @@
           </li>
           
           <li>
+            <a href="#pulsar.proto.CommandGetLastMessageId">
+              CommandGetLastMessageId
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar.proto.CommandGetLastMessageIdResponse">
+              CommandGetLastMessageIdResponse
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar.proto.CommandLookupTopic">
               CommandLookupTopic
             </a>
@@ -2290,6 +2302,26 @@
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">getLastMessageId</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetLastMessageId">CommandGetLastMessageId</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">getLastMessageIdResponse</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetLastMessageIdResponse">CommandGetLastMessageIdResponse</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -2579,7 +2611,7 @@ will be the auth of the proxy itself</td>
               <td></td>
               <td>Original auth role and auth Method that was passed
 to the proxy. In this case the auth info above
-will be the auth of the proxy itself	</td>
+will be the auth of the proxy itself</td>
             </tr>
             
             <tr>
@@ -2987,6 +3019,104 @@ of any number previously specified</td>
     
     <div class="card-block">
       <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandGetLastMessageId">
+          CommandGetLastMessageId
+        </h5>
+        <p class="message-name">pulsar.proto.CommandGetLastMessageId</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">consumer_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">request_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandGetLastMessageIdResponse">
+          CommandGetLastMessageIdResponse
+        </h5>
+        <p class="message-name">pulsar.proto.CommandGetLastMessageIdResponse</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">last_message_id</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.MessageIdData">MessageIdData</a></td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">request_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
         <h5 class="message-name" id="pulsar.proto.CommandLookupTopic">
           CommandLookupTopic
         </h5>
@@ -3057,7 +3187,7 @@ a Pulsar proxy.</td>
               <td>optional</td>
               <td></td>
               <td>Original auth role and auth Method that was passed
-to the proxy. 	</td>
+to the proxy.</td>
             </tr>
             
             <tr>
@@ -3298,7 +3428,7 @@ a Pulsar proxy.</td>
               <td>optional</td>
               <td></td>
               <td>Original auth role and auth Method that was passed
-to the proxy.	</td>
+to the proxy.</td>
             </tr>
             
             <tr>
@@ -4856,6 +4986,20 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
               <td>
 </td>
             </tr>
+            
+            <tr>
+              <td>GET_LAST_MESSAGE_ID</td>
+              <td>29</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>GET_LAST_MESSAGE_ID_RESPONSE</td>
+              <td>30</td>
+              <td>
+</td>
+            </tr>
              <!-- for value in values -->
           </tbody>
         </table>
@@ -5228,6 +5372,13 @@ incrementally added to the protocol</p>
               <td>v11</td>
               <td>11</td>
               <td><p>C++ consumers before this version are not correctly handling the checksum field</p>
+</td>
+            </tr>
+            
+            <tr>
+              <td>v12</td>
+              <td>12</td>
+              <td><p>Added get topic’s last messageId from broker</p>
 </td>
             </tr>
              <!-- for value in values -->
