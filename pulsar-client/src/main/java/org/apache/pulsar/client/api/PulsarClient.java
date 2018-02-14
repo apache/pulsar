@@ -36,6 +36,8 @@ public interface PulsarClient extends Closeable {
      * Get a new builder instance that can used to configure and build a {@link PulsarClient} instance.
      *
      * @return the {@link ClientBuilder}
+     *
+     * @since 2.0.0
      */
     public static ClientBuilder builder() {
         return new ClientBuilderImpl();
@@ -84,6 +86,8 @@ public interface PulsarClient extends Closeable {
      *
      *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
      */
     ProducerBuilder newProducer();
 
@@ -91,6 +95,8 @@ public interface PulsarClient extends Closeable {
      * Create a producer with default for publishing on a specific topic
      *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
      */
     ConsumerBuilder newConsumer();
 
@@ -101,6 +107,8 @@ public interface PulsarClient extends Closeable {
      * subscription. Reader can only work on non-partitioned topics.
      *
      * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
+     *
+     * @since 2.0.0
      */
     ReaderBuilder newReader();
 

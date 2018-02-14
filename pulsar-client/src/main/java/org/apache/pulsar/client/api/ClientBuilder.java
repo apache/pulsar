@@ -26,6 +26,8 @@ import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticat
 
 /**
  * Builder interface that is used to construct a {@link PulsarClient} instance.
+ *
+ * @since 2.0.0
  */
 public interface ClientBuilder extends Serializable, Cloneable {
 

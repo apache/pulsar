@@ -27,6 +27,8 @@ import java.util.concurrent.TimeUnit;
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
  *
  * @see PulsarClient#newConsumer()
+ *
+ * @since 2.0.0
  */
 public interface ConsumerBuilder extends Serializable, Cloneable {
 
@@ -49,16 +51,29 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
     ConsumerBuilder clone();
 
     /**
-     * Finalize the consumer creation by subscribing to the topic.
+     * Finalize the {@link Consumer} creation by subscribing to the topic.
      *
      * <p>
-     * Subscribing to the c
+     * If the subscription does not exist, a new subscription will be created and all messages published after the
+     * creation will be retained until acknowledged, even if the consumer is not connected.
      *
-     * @return
+     * @return the {@link Consumer} instance
      * @throws PulsarClientException
+     *             if the the subscribe operation fails
      */
     Consumer subscribe() throws PulsarClientException;
 
+    /**
+     * Finalize the {@link Consumer} creation by subscribing to the topic in asynchronous mode.
+     *
+     * <p>
+     * If the subscription does not exist, a new subscription will be created and all messages published after the
+     * creation will be retained until acknowledged, even if the consumer is not connected.
+     *
+     * @return a future that will yield a {@link Consumer} instance
+     * @throws PulsarClientException
+     *             if the the subscribe operation fails
+     */
     CompletableFuture<Consumer> subscribeAsync();
 
     /**

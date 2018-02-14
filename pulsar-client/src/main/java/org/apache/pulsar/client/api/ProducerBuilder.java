@@ -88,12 +88,12 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * If not assigned, the system will generate a globally unique name which can be access with
      * {@link Producer#getProducerName()}.
      * <p>
-     * When specifying a name, it is app to the user to ensure that, for a given topic, the producer name is unique
-     * across all Pulsar's clusters.
+     * When specifying a name, it is up to the user to ensure that, for a given topic, the producer name is unique
+     * across all Pulsar's clusters. Brokers will enforce that only a single producer a given name can be publishing on
+     * a topic.
      *
      * @param producerName
      *            the custom name to use for the producer
-     * @since 1.20.0
      */
     ProducerBuilder producerName(String producerName);
 
@@ -184,9 +184,6 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * When enabled default batch delay is set to 10 ms and default batch size is 1000 messages
      *
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
-     * @since 1.0.36 <br>
-     *        Make sure all the consumer applications have been updated to use this client version, before starting to
-     *        batch messages.
      */
     ProducerBuilder batchingEnabled(boolean batchMessagesEnabled);
 
@@ -224,9 +221,6 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @see ProducerConfiguration#batchingMaxMessages threshold is reached; all messages will be published as a single
      *      batch message. The consumer will be delivered individual messages in the batch in the same order they were
      *      enqueued
-     * @since 1.0.36 <br>
-     *        Make sure all the consumer applications have been updated to use this client version, before starting to
-     *        batch messages.
      * @param batchDelay
      *            the batch delay
      * @param timeUnit

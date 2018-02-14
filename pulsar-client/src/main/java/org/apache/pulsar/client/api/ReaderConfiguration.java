@@ -90,8 +90,8 @@ public class ReaderConfiguration implements Serializable {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      *
-     * @param The
-     *            consumer action
+     * @param action
+     *            The action to take when the decoding fails
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
         cryptoFailureAction = action;

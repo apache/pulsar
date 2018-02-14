@@ -25,6 +25,8 @@ import java.util.concurrent.CompletableFuture;
  * {@link ReaderBuilder} is used to configure and create instances of {@link Reader}.
  *
  * @see PulsarClient#newReader()
+ *
+ * @since 2.0.0
  */
 public interface ReaderBuilder extends Serializable, Cloneable {
 
@@ -110,8 +112,8 @@ public interface ReaderBuilder extends Serializable, Cloneable {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      *
-     * @param The
-     *            consumer action
+     * @param action
+     *            The action to take when the decoding fails
      */
     ReaderBuilder cryptoFailureAction(ConsumerCryptoFailureAction action);
 
