@@ -16,23 +16,23 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.backend;
+package org.apache.pulsar.common.conf;
 
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 
-public class BackendData {
+public class InternalConfigurationData {
 
     private String zookeeperServers;
     private String globalZooKeeperServers;
     private String ledgersRootPath;
 
-    public BackendData() {
+    public InternalConfigurationData() {
     }
 
-    public BackendData(String zookeeperServers,
-                       String globalZooKeeperServers,
-                       String ledgersRootPath) {
+    public InternalConfigurationData(String zookeeperServers,
+                                     String globalZooKeeperServers,
+                                     String ledgersRootPath) {
         this.zookeeperServers = zookeeperServers;
         this.globalZooKeeperServers = globalZooKeeperServers;
         this.ledgersRootPath = ledgersRootPath;
@@ -52,10 +52,10 @@ public class BackendData {
 
     @Override
     public boolean equals(Object obj) {
-        if (!(obj instanceof BackendData)) {
+        if (!(obj instanceof InternalConfigurationData)) {
             return false;
         }
-        BackendData other = (BackendData) obj;
+        InternalConfigurationData other = (InternalConfigurationData) obj;
         return Objects.equals(zookeeperServers, other.zookeeperServers)
             && Objects.equals(globalZooKeeperServers, other.globalZooKeeperServers)
             && Objects.equals(ledgersRootPath, other.ledgersRootPath);

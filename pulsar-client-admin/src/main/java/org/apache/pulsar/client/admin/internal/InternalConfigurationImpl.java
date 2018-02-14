@@ -19,24 +19,24 @@
 package org.apache.pulsar.client.admin.internal;
 
 import javax.ws.rs.client.WebTarget;
-import org.apache.pulsar.client.admin.Backend;
+import org.apache.pulsar.client.admin.InternalConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.backend.BackendData;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 
-public class BackendImpl extends BaseResource implements Backend {
+public class InternalConfigurationImpl extends BaseResource implements InternalConfiguration {
 
-    private final WebTarget backend;
+    private final WebTarget internalConfiguration;
 
-    public BackendImpl(WebTarget web, Authentication auth) {
+    public InternalConfigurationImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.backend = web.path("/backend");
+        this.internalConfiguration = web.path("/internal-configuration");
     }
 
     @Override
-    public BackendData getBackendData() throws PulsarAdminException {
+    public InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException {
         try {
-            return request(backend).get(BackendData.class);
+            return request(internalConfiguration).get(InternalConfigurationData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

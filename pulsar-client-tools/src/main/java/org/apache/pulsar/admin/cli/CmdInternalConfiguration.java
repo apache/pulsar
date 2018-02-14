@@ -21,21 +21,21 @@ package org.apache.pulsar.admin.cli;
 import com.beust.jcommander.Parameters;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 
-@Parameters(commandDescription = "Operations about backend")
-public class CmdBackend extends CmdBase {
+@Parameters(commandDescription = "Operations about internal configuration")
+public class CmdInternalConfiguration extends CmdBase {
 
-    @Parameters(commandDescription = "Get backend information")
+    @Parameters(commandDescription = "Get internal configuration information")
     private class Get extends CliCommand {
 
         @Override
         void run() throws Exception {
-            print(admin.backend().getBackendData());
+            print(admin.internalConfiguration().getInternalConfigurationData());
         }
 
     }
 
-    public CmdBackend(PulsarAdmin admin) {
-        super("backend", admin);
+    public CmdInternalConfiguration(PulsarAdmin admin) {
+        super("internal-configuration", admin);
         jcommander.addCommand("get", new Get());
     }
 }

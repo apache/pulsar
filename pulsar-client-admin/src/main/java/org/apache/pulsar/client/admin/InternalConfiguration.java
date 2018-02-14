@@ -18,18 +18,18 @@
  */
 package org.apache.pulsar.client.admin;
 
-import org.apache.pulsar.common.backend.BackendData;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 
 /**
- * Admin interface for backend management.
+ * Admin interface for internal configuration management.
  */
-public interface Backend {
+public interface InternalConfiguration {
 
     /**
-     * Get the backend data.
+     * Get the internal configuration data.
      *
-     * @return backend data.
+     * @return internal configuration data.
      */
-    BackendData getBackendData() throws PulsarAdminException;
+    InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException;
 
 }

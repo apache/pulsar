@@ -72,7 +72,7 @@ public class PulsarAdminTool {
         commandMap = new HashMap<>();
         commandMap.put("clusters", CmdClusters.class);
         commandMap.put("ns-isolation-policy", CmdNamespaceIsolationPolicy.class);
-        commandMap.put("backend", CmdBackend.class);
+        commandMap.put("internal-configuration", CmdInternalConfiguration.class);
         commandMap.put("brokers", CmdBrokers.class);
         commandMap.put("broker-stats", CmdBrokerStats.class);
         commandMap.put("properties", CmdProperties.class);

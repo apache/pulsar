@@ -54,7 +54,7 @@ import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.backend.BackendData;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -83,7 +83,7 @@ import com.google.common.collect.Sets;
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private ConfigurationCacheService configurationCache;
 
-    private Backend backend;
+    private InternalConfiguration internalConfiguration;
     private Clusters clusters;
     private Properties properties;
     private Namespaces namespaces;
@@ -108,8 +108,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         configurationCache = pulsar.getConfigurationCache();
 
-        backend = spy(new Backend());
-        backend.setPulsar(pulsar);
+        internalConfiguration = spy(new InternalConfiguration());
+        internalConfiguration.setPulsar(pulsar);
 
         clusters = spy(new Clusters());
         clusters.setPulsar(pulsar);
@@ -192,13 +192,13 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    void backend() throws Exception {
-        BackendData expectedBackend = new BackendData(
+    void internalConfiguration() throws Exception {
+        InternalConfigurationData expectedData = new InternalConfigurationData(
             pulsar.getConfiguration().getZookeeperServers(),
             pulsar.getConfiguration().getGlobalZookeeperServers(),
             new ClientConfiguration().getZkLedgersRootPath());
 
-        assertEquals(backend.getBackendData(), expectedBackend);
+        assertEquals(internalConfiguration.getInternalConfigurationData(), expectedData);
     }
 
     @Test

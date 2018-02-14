@@ -27,7 +27,7 @@ import static org.testng.Assert.assertEquals;
 
 import java.util.EnumSet;
 
-import org.apache.pulsar.client.admin.Backend;
+import org.apache.pulsar.client.admin.InternalConfiguration;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
@@ -39,7 +39,6 @@ import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
@@ -61,14 +60,14 @@ import com.google.common.collect.Sets;
 public class PulsarAdminToolTest {
 
     @Test
-    void backend() throws Exception {
+    void internalConfiguration() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        Backend mockBackend = mock(Backend.class);
-        doReturn(mockBackend).when(admin).backend();
+        InternalConfiguration mockInternalConfiguration = mock(InternalConfiguration.class);
+        doReturn(mockInternalConfiguration).when(admin).internalConfiguration();
 
-        CmdBackend backend = new CmdBackend(admin);
-        backend.run(split("get"));
-        verify(mockBackend, times(1)).getBackendData();
+        CmdInternalConfiguration internalConfiguration = new CmdInternalConfiguration(admin);
+        internalConfiguration.run(split("get"));
+        verify(mockInternalConfiguration, times(1)).getInternalConfigurationData();
     }
 
     @Test

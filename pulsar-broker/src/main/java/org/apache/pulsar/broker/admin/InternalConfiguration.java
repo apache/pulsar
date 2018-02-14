@@ -27,21 +27,21 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.pulsar.common.backend.BackendData;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 
-@Path("/backend")
-@Api(value = "/backend", description = "Backend amin apis", tags = "backend")
+@Path("/internal-configuration")
+@Api(value = "/internal-configuration", description = "InternalConfiguration admin apis", tags = "internal-configuration")
 @Produces(MediaType.APPLICATION_JSON)
-public class Backend extends AdminResource {
+public class InternalConfiguration extends AdminResource {
 
     @GET
-    @ApiOperation(value = "Get the backend info", response = BackendData.class)
+    @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
     @ApiResponses(value = {
         @ApiResponse(code = 403, message = "Don't have admin permission")
     })
-    public BackendData getBackendData() {
+    public InternalConfigurationData getInternalConfigurationData() {
         ClientConfiguration conf = new ClientConfiguration();
-        return new BackendData(
+        return new InternalConfigurationData(
             pulsar().getConfiguration().getZookeeperServers(),
             pulsar().getConfiguration().getGlobalZookeeperServers(),
             conf.getZkLedgersRootPath());
