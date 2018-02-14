@@ -303,7 +303,6 @@ public class ApiV1Resource extends BaseApiResource {
                                       final @PathParam("functionName") String functionName) throws IOException {
 
         // validate parameters
-        log.info("get all status: {} - {} - {}", tenant, namespace, functionName);
         try {
             validateGetFunctionRequestParams(tenant, namespace, functionName);
         } catch (IllegalArgumentException e) {
@@ -506,6 +505,9 @@ public class ApiV1Resource extends BaseApiResource {
             if (!missingFields.isEmpty()) {
                 String errorMessage = StringUtils.join(missingFields, ",");
                 throw new IllegalArgumentException(errorMessage + " is not provided");
+            }
+            if (functionConfig.getParallelism() <= 0) {
+                throw new IllegalArgumentException("Parallelism needs to be set to a positive number");
             }
             return functionConfig;
         } catch (IllegalArgumentException ex) {

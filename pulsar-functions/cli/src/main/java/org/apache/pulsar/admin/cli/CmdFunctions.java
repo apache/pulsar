@@ -153,6 +153,8 @@ public class CmdFunctions extends CmdBase {
         protected FunctionConfig.SubscriptionType subscriptionType;
         @Parameter(names = "--userConfig", description = "User Config")
         protected String userConfigString;
+        @Parameter(names = "--parallelism", description = "Function Parallelism")
+        protected String parallelism;
 
         protected FunctionConfig functionConfig;
         protected String userCodeFile;
@@ -220,6 +222,18 @@ public class CmdFunctions extends CmdBase {
 
             if (functionConfigBuilder.getInputsCount() == 0 && functionConfigBuilder.getCustomSerdeInputsCount() == 0) {
                 throw new RuntimeException("No input topics specified");
+            }
+
+            if (parallelism == null) {
+                if (functionConfigBuilder.getParallelism() == 0) {
+                    functionConfigBuilder.setParallelism(1);
+                }
+            } else {
+                int num = Integer.parseInt(parallelism);
+                if (num <= 0) {
+                    throw new IllegalArgumentException("Parallelism must be positive");
+                }
+                functionConfigBuilder.setParallelism(num);
             }
 
             functionConfigBuilder.setAutoAck(true);
@@ -503,6 +517,9 @@ public class CmdFunctions extends CmdBase {
     class UpdateFunction extends FunctionConfigCommand {
         @Override
         void runCmd() throws Exception {
+            if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
+                throw new RuntimeException("Missing arguments");
+            }
             fnAdmin.functions().updateFunction(functionConfig, userCodeFile);
             print("Updated successfully");
         }
