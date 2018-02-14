@@ -92,6 +92,7 @@ public class ApiV1ResourceTest {
     private static final String inputSerdeClassName = DefaultSerDe.class.getName();
     private static final String outputSerdeClassName = DefaultSerDe.class.getName();
     private static final String className = TestFunction.class.getName();
+    private static final int parallelism = 1;
 
     private FunctionMetaDataManager mockedManager;
     private Namespace mockedNamespace;
@@ -138,6 +139,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Tenant");
     }
 
@@ -154,6 +156,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Namespace");
     }
 
@@ -170,6 +173,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Function Name");
     }
 
@@ -186,6 +190,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Function Package");
     }
 
@@ -202,6 +207,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Function Package");
     }
 
@@ -218,6 +224,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Input");
     }
 
@@ -234,6 +241,7 @@ public class ApiV1ResourceTest {
             null,
             outputSerdeClassName,
             className,
+            parallelism,
             "Input");
     }
 
@@ -250,7 +258,25 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             null,
+            parallelism,
             "ClassName");
+    }
+
+    @Test
+    public void testRegisterFunctionMissingParallelism() throws InvalidProtocolBufferException {
+        testRegisterFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                sinkTopic,
+                sourceTopic,
+                inputSerdeClassName,
+                outputSerdeClassName,
+                className,
+                null,
+                "parallelism");
     }
 
     private void testRegisterFunctionMissingArguments(
@@ -264,6 +290,7 @@ public class ApiV1ResourceTest {
         String inputSerdeClassName,
         String outputSerdeClassName,
         String className,
+        Integer parallelism,
         String missingFieldName
     ) throws InvalidProtocolBufferException {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
@@ -288,6 +315,9 @@ public class ApiV1ResourceTest {
         if (className != null) {
             functionConfigBuilder.setClassName(className);
         }
+        if (parallelism != null) {
+            functionConfigBuilder.setParallelism(parallelism);
+        }
 
         FunctionConfig functionConfig = functionConfigBuilder.build();
         Response response = resource.registerFunction(
@@ -299,7 +329,11 @@ public class ApiV1ResourceTest {
                 JsonFormat.printer().print(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        Assert.assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
+        if (missingFieldName.equals("parallelism")) {
+            Assert.assertEquals(new ErrorData("Parallelism needs to be set to a positive number").reason, ((ErrorData) response.getEntity()).reason);
+        } else {
+            Assert.assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
+        }
     }
 
     private Response registerDefaultFunction() throws InvalidProtocolBufferException {
@@ -307,7 +341,8 @@ public class ApiV1ResourceTest {
                 .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setOutput(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
-                .setClassName(className).build();
+                .setClassName(className)
+                .setParallelism(parallelism).build();
         return resource.registerFunction(
             tenant,
             namespace,
@@ -423,6 +458,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Tenant");
     }
 
@@ -439,6 +475,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Namespace");
     }
 
@@ -455,6 +492,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Function Name");
     }
 
@@ -471,6 +509,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Function Package");
     }
 
@@ -487,6 +526,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Function Package");
     }
 
@@ -503,6 +543,7 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             className,
+            parallelism,
             "Input");
     }
 
@@ -519,6 +560,7 @@ public class ApiV1ResourceTest {
             null,
             outputSerdeClassName,
             className,
+            parallelism,
             "Input");
     }
 
@@ -535,8 +577,26 @@ public class ApiV1ResourceTest {
             inputSerdeClassName,
             outputSerdeClassName,
             null,
+            parallelism,
             "ClassName");
     }
+    @Test
+    public void testUpdateFunctionMissingParallelism() throws InvalidProtocolBufferException {
+        testUpdateFunctionMissingArguments(
+                tenant,
+                namespace,
+                function,
+                mockedInputStream,
+                mockedFormData,
+                sinkTopic,
+                sourceTopic,
+                inputSerdeClassName,
+                outputSerdeClassName,
+                className,
+                null,
+                "parallelism");
+    }
+
 
     private void testUpdateFunctionMissingArguments(
         String tenant,
@@ -549,6 +609,7 @@ public class ApiV1ResourceTest {
         String inputSerdeClassName,
         String outputSerdeClassName,
         String className,
+        Integer parallelism,
         String missingFieldName
     ) throws InvalidProtocolBufferException {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
@@ -573,6 +634,9 @@ public class ApiV1ResourceTest {
         if (className != null) {
             functionConfigBuilder.setClassName(className);
         }
+        if (parallelism != null) {
+            functionConfigBuilder.setParallelism(parallelism);
+        }
 
         FunctionConfig functionConfig = functionConfigBuilder.build();
         Response response = resource.updateFunction(
@@ -584,7 +648,11 @@ public class ApiV1ResourceTest {
             JsonFormat.printer().print(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
+        if (missingFieldName.equals("parallelism")) {
+            Assert.assertEquals(new ErrorData("Parallelism needs to be set to a positive number").reason, ((ErrorData) response.getEntity()).reason);
+        } else {
+            Assert.assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
+        }
     }
 
     private Response updateDefaultFunction() throws InvalidProtocolBufferException {
@@ -592,7 +660,8 @@ public class ApiV1ResourceTest {
                 .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setOutput(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
-                .setClassName(className).build();
+                .setClassName(className)
+                .setParallelism(parallelism).build();
         return resource.updateFunction(
             tenant,
             namespace,
@@ -862,13 +931,14 @@ public class ApiV1ResourceTest {
 
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setClassName(className)
-            .putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
-            .setOutputSerdeClassName(outputSerdeClassName)
-            .setName(function)
-            .setNamespace(namespace)
-            .setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE)
-            .setOutput(sinkTopic)
-            .setTenant(tenant).build();
+                .putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
+                .setOutputSerdeClassName(outputSerdeClassName)
+                .setName(function)
+                .setNamespace(namespace)
+                .setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE)
+                .setOutput(sinkTopic)
+                .setTenant(tenant)
+                .setParallelism(parallelism).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()
             .setCreateTime(System.currentTimeMillis())
             .setFunctionConfig(functionConfig)

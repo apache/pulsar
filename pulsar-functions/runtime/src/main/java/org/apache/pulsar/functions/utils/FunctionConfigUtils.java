@@ -68,8 +68,9 @@ public class FunctionConfigUtils {
 
     public static boolean areAllRequiredFieldsPresent(FunctionConfig functionConfig) {
         if (functionConfig.getTenant() == null || functionConfig.getNamespace() == null
-            || functionConfig.getName() == null || functionConfig.getClassName() == null
-            || (functionConfig.getInputsCount() <= 0 && functionConfig.getCustomSerdeInputsCount() <= 0)) {
+                || functionConfig.getName() == null || functionConfig.getClassName() == null
+                || (functionConfig.getInputsCount() <= 0 && functionConfig.getCustomSerdeInputsCount() <= 0)
+                || functionConfig.getParallelism() <= 0) {
             return false;
         } else {
             return true;

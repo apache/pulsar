@@ -27,4 +27,4 @@ userConfig:
 
 output: "persistent://sample/standalone/ns1/test_result"
 autoAck: true
-parallelism: 2
+parallelism: 1
