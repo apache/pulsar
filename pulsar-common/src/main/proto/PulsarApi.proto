@@ -86,9 +86,9 @@ message MessageMetadata {
 	repeated EncryptionKeys encryption_keys = 13;
 	// Algorithm used to encrypt data key
 	optional string encryption_algo = 14;
-	optional bytes schema_version = 15;
 	// Additional parameters required by encryption
-	optional bytes encryption_param = 16;
+	optional bytes encryption_param = 15;
+	optional bytes schema_version = 16;
 }
 
 
