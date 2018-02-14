@@ -953,7 +953,7 @@ public class Commands {
         return res;
     }
 
-    public static boolean peerSupportsGetLastMessageId() {
-        return getCurrentProtocolVersion() >= ProtocolVersion.v12.getNumber();
+    public static boolean peerSupportsGetLastMessageId(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 }

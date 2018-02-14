@@ -28,7 +28,6 @@ import static org.apache.pulsar.common.api.Commands.readChecksum;
 import com.google.common.collect.Iterables;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
-import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import java.io.IOException;
@@ -46,7 +45,6 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
@@ -117,9 +115,7 @@ public class ConsumerImpl extends ConsumerBase {
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
-
-    private final ScheduledExecutorService getLastIdExecutor;
-
+    
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -150,9 +146,6 @@ public class ConsumerImpl extends ConsumerBase {
         this.priorityLevel = conf.getPriorityLevel();
         this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
         this.readCompacted = conf.getReadCompacted();
-
-        this.getLastIdExecutor = Executors
-            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumer-getlastid-executor"));
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);
@@ -691,7 +684,6 @@ public class ConsumerImpl extends ConsumerBase {
         if (getState() == State.Closing || getState() == State.Closed) {
             batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
-            getLastIdExecutor.shutdown();
             return CompletableFuture.completedFuture(null);
         }
 
@@ -700,7 +692,6 @@ public class ConsumerImpl extends ConsumerBase {
             setState(State.Closed);
             batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
-            getLastIdExecutor.shutdown();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
         }
@@ -724,7 +715,6 @@ public class ConsumerImpl extends ConsumerBase {
                 setState(State.Closed);
                 batchMessageAckTracker.clear();
                 unAckedMessageTracker.close();
-                getLastIdExecutor.shutdown();
                 closeFuture.complete(null);
                 client.cleanupConsumer(this);
                 // fail all pending-receive futures to notify application
@@ -1323,7 +1313,7 @@ public class ConsumerImpl extends ConsumerBase {
                                                final AtomicLong remainingTime,
                                                CompletableFuture<MessageId> future) {
         if (isConnected()) {
-            if (!Commands.peerSupportsGetLastMessageId()) {
+            if (!Commands.peerSupportsGetLastMessageId(cnx().getRemoteEndpointProtocolVersion())) {
                 future.completeExceptionally(new PulsarClientException
                     .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
                     cnx().getRemoteEndpointProtocolVersion()));
@@ -1353,7 +1343,7 @@ public class ConsumerImpl extends ConsumerBase {
                 return;
             }
 
-            getLastIdExecutor.schedule(() -> {
+            ((ScheduledExecutorService) listenerExecutor).schedule(() -> {
                 log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
                     topic, getHandlerName(), nextDelay);
                 remainingTime.addAndGet(-nextDelay);
