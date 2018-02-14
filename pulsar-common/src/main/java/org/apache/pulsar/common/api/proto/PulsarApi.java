@@ -267,11 +267,11 @@ public final class PulsarApi {
     boolean hasVersion();
     com.google.protobuf.ByteString getVersion();
     
-    // required bytes schema_data = 7;
+    // required bytes schema_data = 3;
     boolean hasSchemaData();
     com.google.protobuf.ByteString getSchemaData();
     
-    // repeated .pulsar.proto.KeyValue properties = 8;
+    // repeated .pulsar.proto.KeyValue properties = 4;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
         getPropertiesList();
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index);
@@ -356,8 +356,8 @@ public final class PulsarApi {
       return version_;
     }
     
-    // required bytes schema_data = 7;
-    public static final int SCHEMA_DATA_FIELD_NUMBER = 7;
+    // required bytes schema_data = 3;
+    public static final int SCHEMA_DATA_FIELD_NUMBER = 3;
     private com.google.protobuf.ByteString schemaData_;
     public boolean hasSchemaData() {
       return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -366,8 +366,8 @@ public final class PulsarApi {
       return schemaData_;
     }
     
-    // repeated .pulsar.proto.KeyValue properties = 8;
-    public static final int PROPERTIES_FIELD_NUMBER = 8;
+    // repeated .pulsar.proto.KeyValue properties = 4;
+    public static final int PROPERTIES_FIELD_NUMBER = 4;
     private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_;
     public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
       return properties_;
@@ -435,10 +435,10 @@ public final class PulsarApi {
         output.writeBytes(2, version_);
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeBytes(7, schemaData_);
+        output.writeBytes(3, schemaData_);
       }
       for (int i = 0; i < properties_.size(); i++) {
-        output.writeMessage(8, properties_.get(i));
+        output.writeMessage(4, properties_.get(i));
       }
     }
     
@@ -458,11 +458,11 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(7, schemaData_);
+          .computeBytesSize(3, schemaData_);
       }
       for (int i = 0; i < properties_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(8, properties_.get(i));
+          .computeMessageSize(4, properties_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -717,12 +717,12 @@ public final class PulsarApi {
               version_ = input.readBytes();
               break;
             }
-            case 58: {
+            case 26: {
               bitField0_ |= 0x00000004;
               schemaData_ = input.readBytes();
               break;
             }
-            case 66: {
+            case 34: {
               org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addProperties(subBuilder.buildPartial());
@@ -794,7 +794,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // required bytes schema_data = 7;
+      // required bytes schema_data = 3;
       private com.google.protobuf.ByteString schemaData_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasSchemaData() {
         return ((bitField0_ & 0x00000004) == 0x00000004);
@@ -818,7 +818,7 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .pulsar.proto.KeyValue properties = 8;
+      // repeated .pulsar.proto.KeyValue properties = 4;
       private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_ =
         java.util.Collections.emptyList();
       private void ensurePropertiesIsMutable() {
@@ -916,710 +916,6 @@ public final class PulsarApi {
     }
     
     // @@protoc_insertion_point(class_scope:pulsar.proto.Schema)
-  }
-  
-  public interface TombstoneOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
-  }
-  public static final class Tombstone extends
-      com.google.protobuf.GeneratedMessageLite
-      implements TombstoneOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
-    // Use Tombstone.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<Tombstone> handle;
-    private Tombstone(io.netty.util.Recycler.Handle<Tombstone> handle) {
-      this.handle = handle;
-    }
-    
-     private static final io.netty.util.Recycler<Tombstone> RECYCLER = new io.netty.util.Recycler<Tombstone>() {
-            protected Tombstone newObject(Handle<Tombstone> handle) {
-              return new Tombstone(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private Tombstone(boolean noInit) {
-        this.handle = null;
-    }
-    
-    private static final Tombstone defaultInstance;
-    public static Tombstone getDefaultInstance() {
-      return defaultInstance;
-    }
-    
-    public Tombstone getDefaultInstanceForType() {
-      return defaultInstance;
-    }
-    
-    private void initFields() {
-    }
-    private byte memoizedIsInitialized = -1;
-    public final boolean isInitialized() {
-      byte isInitialized = memoizedIsInitialized;
-      if (isInitialized != -1) return isInitialized == 1;
-      
-      memoizedIsInitialized = 1;
-      return true;
-    }
-    
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
-                        throws java.io.IOException {
-      getSerializedSize();
-    }
-    
-    private int memoizedSerializedSize = -1;
-    public int getSerializedSize() {
-      int size = memoizedSerializedSize;
-      if (size != -1) return size;
-    
-      size = 0;
-      memoizedSerializedSize = size;
-      return size;
-    }
-    
-    private static final long serialVersionUID = 0L;
-    @java.lang.Override
-    protected java.lang.Object writeReplace()
-        throws java.io.ObjectStreamException {
-      return super.writeReplace();
-    }
-    
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(
-        byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseDelimitedFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseDelimitedFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.Tombstone parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    
-    public static Builder newBuilder() { return Builder.create(); }
-    public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.Tombstone prototype) {
-      return newBuilder().mergeFrom(prototype);
-    }
-    public Builder toBuilder() { return newBuilder(this); }
-    
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarApi.Tombstone, Builder>
-        implements org.apache.pulsar.common.api.proto.PulsarApi.TombstoneOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
-        maybeForceBuilderInitialization();
-      }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
-      
-      private void maybeForceBuilderInitialization() {
-      }
-      private static Builder create() {
-        return RECYCLER.get();
-      }
-      
-      public Builder clear() {
-        super.clear();
-        return this;
-      }
-      
-      public Builder clone() {
-        return create().mergeFrom(buildPartial());
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.Tombstone getDefaultInstanceForType() {
-        return org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance();
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.Tombstone build() {
-        org.apache.pulsar.common.api.proto.PulsarApi.Tombstone result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(result);
-        }
-        return result;
-      }
-      
-      private org.apache.pulsar.common.api.proto.PulsarApi.Tombstone buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        org.apache.pulsar.common.api.proto.PulsarApi.Tombstone result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(
-            result).asInvalidProtocolBufferException();
-        }
-        return result;
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.Tombstone buildPartial() {
-        org.apache.pulsar.common.api.proto.PulsarApi.Tombstone result = org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.RECYCLER.get();
-        return result;
-      }
-      
-      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.Tombstone other) {
-        if (other == org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance()) return this;
-        return this;
-      }
-      
-      public final boolean isInitialized() {
-        return true;
-      }
-      
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
-      public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        while (true) {
-          int tag = input.readTag();
-          switch (tag) {
-            case 0:
-              
-              return this;
-            default: {
-              if (!input.skipField(tag)) {
-                
-                return this;
-              }
-              break;
-            }
-          }
-        }
-      }
-      
-      
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.Tombstone)
-    }
-    
-    static {
-      defaultInstance = new Tombstone(true);
-      defaultInstance.initFields();
-    }
-    
-    // @@protoc_insertion_point(class_scope:pulsar.proto.Tombstone)
-  }
-  
-  public interface SchemaEntryOrBuilder
-      extends com.google.protobuf.MessageLiteOrBuilder {
-    
-    // optional .pulsar.proto.Schema schema = 3;
-    boolean hasSchema();
-    org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema();
-    
-    // optional .pulsar.proto.Tombstone tombstone = 4;
-    boolean hasTombstone();
-    org.apache.pulsar.common.api.proto.PulsarApi.Tombstone getTombstone();
-  }
-  public static final class SchemaEntry extends
-      com.google.protobuf.GeneratedMessageLite
-      implements SchemaEntryOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream.ByteBufGeneratedMessage  {
-    // Use SchemaEntry.newBuilder() to construct.
-    private final io.netty.util.Recycler.Handle<SchemaEntry> handle;
-    private SchemaEntry(io.netty.util.Recycler.Handle<SchemaEntry> handle) {
-      this.handle = handle;
-    }
-    
-     private static final io.netty.util.Recycler<SchemaEntry> RECYCLER = new io.netty.util.Recycler<SchemaEntry>() {
-            protected SchemaEntry newObject(Handle<SchemaEntry> handle) {
-              return new SchemaEntry(handle);
-            }
-          };
-        
-        public void recycle() {
-            this.initFields();
-            this.memoizedIsInitialized = -1;
-            this.bitField0_ = 0;
-            this.memoizedSerializedSize = -1;
-            handle.recycle(this);
-        }
-         
-    private SchemaEntry(boolean noInit) {
-        this.handle = null;
-    }
-    
-    private static final SchemaEntry defaultInstance;
-    public static SchemaEntry getDefaultInstance() {
-      return defaultInstance;
-    }
-    
-    public SchemaEntry getDefaultInstanceForType() {
-      return defaultInstance;
-    }
-    
-    private int bitField0_;
-    // optional .pulsar.proto.Schema schema = 3;
-    public static final int SCHEMA_FIELD_NUMBER = 3;
-    private org.apache.pulsar.common.api.proto.PulsarApi.Schema schema_;
-    public boolean hasSchema() {
-      return ((bitField0_ & 0x00000001) == 0x00000001);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema() {
-      return schema_;
-    }
-    
-    // optional .pulsar.proto.Tombstone tombstone = 4;
-    public static final int TOMBSTONE_FIELD_NUMBER = 4;
-    private org.apache.pulsar.common.api.proto.PulsarApi.Tombstone tombstone_;
-    public boolean hasTombstone() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.Tombstone getTombstone() {
-      return tombstone_;
-    }
-    
-    private void initFields() {
-      schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
-      tombstone_ = org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance();
-    }
-    private byte memoizedIsInitialized = -1;
-    public final boolean isInitialized() {
-      byte isInitialized = memoizedIsInitialized;
-      if (isInitialized != -1) return isInitialized == 1;
-      
-      if (hasSchema()) {
-        if (!getSchema().isInitialized()) {
-          memoizedIsInitialized = 0;
-          return false;
-        }
-      }
-      memoizedIsInitialized = 1;
-      return true;
-    }
-    
-    public void writeTo(com.google.protobuf.CodedOutputStream output)
-                        throws java.io.IOException {
-        throw new RuntimeException("Cannot use CodedOutputStream");
-    }
-    
-    public void writeTo(org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream output)
-                        throws java.io.IOException {
-      getSerializedSize();
-      if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeMessage(3, schema_);
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeMessage(4, tombstone_);
-      }
-    }
-    
-    private int memoizedSerializedSize = -1;
-    public int getSerializedSize() {
-      int size = memoizedSerializedSize;
-      if (size != -1) return size;
-    
-      size = 0;
-      if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(3, schema_);
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(4, tombstone_);
-      }
-      memoizedSerializedSize = size;
-      return size;
-    }
-    
-    private static final long serialVersionUID = 0L;
-    @java.lang.Override
-    protected java.lang.Object writeReplace()
-        throws java.io.ObjectStreamException {
-      return super.writeReplace();
-    }
-    
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(
-        com.google.protobuf.ByteString data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(
-        com.google.protobuf.ByteString data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-         throw new RuntimeException("Disabled");
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(byte[] data)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(
-        byte[] data,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws com.google.protobuf.InvalidProtocolBufferException {
-      return newBuilder().mergeFrom(data, extensionRegistry)
-               .buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseDelimitedFrom(java.io.InputStream input)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseDelimitedFrom(
-        java.io.InputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      Builder builder = newBuilder();
-      if (builder.mergeDelimitedFrom(input, extensionRegistry)) {
-        return builder.buildParsed();
-      } else {
-        return null;
-      }
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(
-        com.google.protobuf.CodedInputStream input)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input).buildParsed();
-    }
-    public static org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry parseFrom(
-        com.google.protobuf.CodedInputStream input,
-        com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-        throws java.io.IOException {
-      return newBuilder().mergeFrom(input, extensionRegistry)
-               .buildParsed();
-    }
-    
-    public static Builder newBuilder() { return Builder.create(); }
-    public Builder newBuilderForType() { return newBuilder(); }
-    public static Builder newBuilder(org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry prototype) {
-      return newBuilder().mergeFrom(prototype);
-    }
-    public Builder toBuilder() { return newBuilder(this); }
-    
-    public static final class Builder extends
-        com.google.protobuf.GeneratedMessageLite.Builder<
-          org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry, Builder>
-        implements org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntryOrBuilder, org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream.ByteBufMessageBuilder  {
-      // Construct using org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry.newBuilder()
-      private final io.netty.util.Recycler.Handle<Builder> handle;
-      private Builder(io.netty.util.Recycler.Handle<Builder> handle) {
-        this.handle = handle;
-        maybeForceBuilderInitialization();
-      }
-      private final static io.netty.util.Recycler<Builder> RECYCLER = new io.netty.util.Recycler<Builder>() {
-         protected Builder newObject(io.netty.util.Recycler.Handle<Builder> handle) {
-               return new Builder(handle);
-             }
-            };
-      
-       public void recycle() {
-                clear();
-                handle.recycle(this);
-            }
-      
-      private void maybeForceBuilderInitialization() {
-      }
-      private static Builder create() {
-        return RECYCLER.get();
-      }
-      
-      public Builder clear() {
-        super.clear();
-        schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
-        bitField0_ = (bitField0_ & ~0x00000001);
-        tombstone_ = org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance();
-        bitField0_ = (bitField0_ & ~0x00000002);
-        return this;
-      }
-      
-      public Builder clone() {
-        return create().mergeFrom(buildPartial());
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry getDefaultInstanceForType() {
-        return org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry.getDefaultInstance();
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry build() {
-        org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(result);
-        }
-        return result;
-      }
-      
-      private org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry buildParsed()
-          throws com.google.protobuf.InvalidProtocolBufferException {
-        org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry result = buildPartial();
-        if (!result.isInitialized()) {
-          throw newUninitializedMessageException(
-            result).asInvalidProtocolBufferException();
-        }
-        return result;
-      }
-      
-      public org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry buildPartial() {
-        org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry result = org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry.RECYCLER.get();
-        int from_bitField0_ = bitField0_;
-        int to_bitField0_ = 0;
-        if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
-          to_bitField0_ |= 0x00000001;
-        }
-        result.schema_ = schema_;
-        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
-          to_bitField0_ |= 0x00000002;
-        }
-        result.tombstone_ = tombstone_;
-        result.bitField0_ = to_bitField0_;
-        return result;
-      }
-      
-      public Builder mergeFrom(org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry other) {
-        if (other == org.apache.pulsar.common.api.proto.PulsarApi.SchemaEntry.getDefaultInstance()) return this;
-        if (other.hasSchema()) {
-          mergeSchema(other.getSchema());
-        }
-        if (other.hasTombstone()) {
-          mergeTombstone(other.getTombstone());
-        }
-        return this;
-      }
-      
-      public final boolean isInitialized() {
-        if (hasSchema()) {
-          if (!getSchema().isInitialized()) {
-            
-            return false;
-          }
-        }
-        return true;
-      }
-      
-      public Builder mergeFrom(com.google.protobuf.CodedInputStream input,
-                              com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-                              throws java.io.IOException {
-         throw new java.io.IOException("Merge from CodedInputStream is disabled");
-                              }
-      public Builder mergeFrom(
-          org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream input,
-          com.google.protobuf.ExtensionRegistryLite extensionRegistry)
-          throws java.io.IOException {
-        while (true) {
-          int tag = input.readTag();
-          switch (tag) {
-            case 0:
-              
-              return this;
-            default: {
-              if (!input.skipField(tag)) {
-                
-                return this;
-              }
-              break;
-            }
-            case 26: {
-              org.apache.pulsar.common.api.proto.PulsarApi.Schema.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.Schema.newBuilder();
-              if (hasSchema()) {
-                subBuilder.mergeFrom(getSchema());
-              }
-              input.readMessage(subBuilder, extensionRegistry);
-              setSchema(subBuilder.buildPartial());
-              subBuilder.recycle();
-              break;
-            }
-            case 34: {
-              org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.newBuilder();
-              if (hasTombstone()) {
-                subBuilder.mergeFrom(getTombstone());
-              }
-              input.readMessage(subBuilder, extensionRegistry);
-              setTombstone(subBuilder.buildPartial());
-              subBuilder.recycle();
-              break;
-            }
-          }
-        }
-      }
-      
-      private int bitField0_;
-      
-      // optional .pulsar.proto.Schema schema = 3;
-      private org.apache.pulsar.common.api.proto.PulsarApi.Schema schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
-      public boolean hasSchema() {
-        return ((bitField0_ & 0x00000001) == 0x00000001);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema() {
-        return schema_;
-      }
-      public Builder setSchema(org.apache.pulsar.common.api.proto.PulsarApi.Schema value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        schema_ = value;
-        
-        bitField0_ |= 0x00000001;
-        return this;
-      }
-      public Builder setSchema(
-          org.apache.pulsar.common.api.proto.PulsarApi.Schema.Builder builderForValue) {
-        schema_ = builderForValue.build();
-        
-        bitField0_ |= 0x00000001;
-        return this;
-      }
-      public Builder mergeSchema(org.apache.pulsar.common.api.proto.PulsarApi.Schema value) {
-        if (((bitField0_ & 0x00000001) == 0x00000001) &&
-            schema_ != org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance()) {
-          schema_ =
-            org.apache.pulsar.common.api.proto.PulsarApi.Schema.newBuilder(schema_).mergeFrom(value).buildPartial();
-        } else {
-          schema_ = value;
-        }
-        
-        bitField0_ |= 0x00000001;
-        return this;
-      }
-      public Builder clearSchema() {
-        schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
-        
-        bitField0_ = (bitField0_ & ~0x00000001);
-        return this;
-      }
-      
-      // optional .pulsar.proto.Tombstone tombstone = 4;
-      private org.apache.pulsar.common.api.proto.PulsarApi.Tombstone tombstone_ = org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance();
-      public boolean hasTombstone() {
-        return ((bitField0_ & 0x00000002) == 0x00000002);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.Tombstone getTombstone() {
-        return tombstone_;
-      }
-      public Builder setTombstone(org.apache.pulsar.common.api.proto.PulsarApi.Tombstone value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        tombstone_ = value;
-        
-        bitField0_ |= 0x00000002;
-        return this;
-      }
-      public Builder setTombstone(
-          org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.Builder builderForValue) {
-        tombstone_ = builderForValue.build();
-        
-        bitField0_ |= 0x00000002;
-        return this;
-      }
-      public Builder mergeTombstone(org.apache.pulsar.common.api.proto.PulsarApi.Tombstone value) {
-        if (((bitField0_ & 0x00000002) == 0x00000002) &&
-            tombstone_ != org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance()) {
-          tombstone_ =
-            org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.newBuilder(tombstone_).mergeFrom(value).buildPartial();
-        } else {
-          tombstone_ = value;
-        }
-        
-        bitField0_ |= 0x00000002;
-        return this;
-      }
-      public Builder clearTombstone() {
-        tombstone_ = org.apache.pulsar.common.api.proto.PulsarApi.Tombstone.getDefaultInstance();
-        
-        bitField0_ = (bitField0_ & ~0x00000002);
-        return this;
-      }
-      
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.SchemaEntry)
-    }
-    
-    static {
-      defaultInstance = new SchemaEntry(true);
-      defaultInstance.initFields();
-    }
-    
-    // @@protoc_insertion_point(class_scope:pulsar.proto.SchemaEntry)
   }
   
   public interface MessageIdDataOrBuilder
@@ -3686,13 +2982,13 @@ public final class PulsarApi {
     boolean hasEncryptionAlgo();
     String getEncryptionAlgo();
     
-    // optional bytes encryption_param = 15;
+    // optional bytes schema_version = 15;
+    boolean hasSchemaVersion();
+    com.google.protobuf.ByteString getSchemaVersion();
+    
+    // optional bytes encryption_param = 16;
     boolean hasEncryptionParam();
     com.google.protobuf.ByteString getEncryptionParam();
-    
-    // optional int64 schema_version = 16;
-    boolean hasSchemaVersion();
-    long getSchemaVersion();
   }
   public static final class MessageMetadata extends
       com.google.protobuf.GeneratedMessageLite
@@ -3975,24 +3271,24 @@ public final class PulsarApi {
       }
     }
     
-    // optional bytes encryption_param = 15;
-    public static final int ENCRYPTION_PARAM_FIELD_NUMBER = 15;
+    // optional bytes schema_version = 15;
+    public static final int SCHEMA_VERSION_FIELD_NUMBER = 15;
+    private com.google.protobuf.ByteString schemaVersion_;
+    public boolean hasSchemaVersion() {
+      return ((bitField0_ & 0x00000400) == 0x00000400);
+    }
+    public com.google.protobuf.ByteString getSchemaVersion() {
+      return schemaVersion_;
+    }
+    
+    // optional bytes encryption_param = 16;
+    public static final int ENCRYPTION_PARAM_FIELD_NUMBER = 16;
     private com.google.protobuf.ByteString encryptionParam_;
     public boolean hasEncryptionParam() {
-      return ((bitField0_ & 0x00000400) == 0x00000400);
+      return ((bitField0_ & 0x00000800) == 0x00000800);
     }
     public com.google.protobuf.ByteString getEncryptionParam() {
       return encryptionParam_;
-    }
-    
-    // optional int64 schema_version = 16;
-    public static final int SCHEMA_VERSION_FIELD_NUMBER = 16;
-    private long schemaVersion_;
-    public boolean hasSchemaVersion() {
-      return ((bitField0_ & 0x00000800) == 0x00000800);
-    }
-    public long getSchemaVersion() {
-      return schemaVersion_;
     }
     
     private void initFields() {
@@ -4009,8 +3305,8 @@ public final class PulsarApi {
       eventTime_ = 0L;
       encryptionKeys_ = java.util.Collections.emptyList();
       encryptionAlgo_ = "";
+      schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
       encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
-      schemaVersion_ = 0L;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4093,10 +3389,10 @@ public final class PulsarApi {
         output.writeBytes(14, getEncryptionAlgoBytes());
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        output.writeBytes(15, encryptionParam_);
+        output.writeBytes(15, schemaVersion_);
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
-        output.writeInt64(16, schemaVersion_);
+        output.writeBytes(16, encryptionParam_);
       }
     }
     
@@ -4165,11 +3461,11 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(15, encryptionParam_);
+          .computeBytesSize(15, schemaVersion_);
       }
       if (((bitField0_ & 0x00000800) == 0x00000800)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(16, schemaVersion_);
+          .computeBytesSize(16, encryptionParam_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4310,9 +3606,9 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000800);
         encryptionAlgo_ = "";
         bitField0_ = (bitField0_ & ~0x00001000);
-        encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
+        schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00002000);
-        schemaVersion_ = 0L;
+        encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00004000);
         return this;
       }
@@ -4406,11 +3702,11 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00002000) == 0x00002000)) {
           to_bitField0_ |= 0x00000400;
         }
-        result.encryptionParam_ = encryptionParam_;
+        result.schemaVersion_ = schemaVersion_;
         if (((from_bitField0_ & 0x00004000) == 0x00004000)) {
           to_bitField0_ |= 0x00000800;
         }
-        result.schemaVersion_ = schemaVersion_;
+        result.encryptionParam_ = encryptionParam_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4477,11 +3773,11 @@ public final class PulsarApi {
         if (other.hasEncryptionAlgo()) {
           setEncryptionAlgo(other.getEncryptionAlgo());
         }
-        if (other.hasEncryptionParam()) {
-          setEncryptionParam(other.getEncryptionParam());
-        }
         if (other.hasSchemaVersion()) {
           setSchemaVersion(other.getSchemaVersion());
+        }
+        if (other.hasEncryptionParam()) {
+          setEncryptionParam(other.getEncryptionParam());
         }
         return this;
       }
@@ -4609,12 +3905,12 @@ public final class PulsarApi {
             }
             case 122: {
               bitField0_ |= 0x00002000;
-              encryptionParam_ = input.readBytes();
+              schemaVersion_ = input.readBytes();
               break;
             }
-            case 128: {
+            case 130: {
               bitField0_ |= 0x00004000;
-              schemaVersion_ = input.readInt64();
+              encryptionParam_ = input.readBytes();
               break;
             }
           }
@@ -5130,10 +4426,34 @@ public final class PulsarApi {
         
       }
       
-      // optional bytes encryption_param = 15;
+      // optional bytes schema_version = 15;
+      private com.google.protobuf.ByteString schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+      public boolean hasSchemaVersion() {
+        return ((bitField0_ & 0x00002000) == 0x00002000);
+      }
+      public com.google.protobuf.ByteString getSchemaVersion() {
+        return schemaVersion_;
+      }
+      public Builder setSchemaVersion(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00002000;
+        schemaVersion_ = value;
+        
+        return this;
+      }
+      public Builder clearSchemaVersion() {
+        bitField0_ = (bitField0_ & ~0x00002000);
+        schemaVersion_ = getDefaultInstance().getSchemaVersion();
+        
+        return this;
+      }
+      
+      // optional bytes encryption_param = 16;
       private com.google.protobuf.ByteString encryptionParam_ = com.google.protobuf.ByteString.EMPTY;
       public boolean hasEncryptionParam() {
-        return ((bitField0_ & 0x00002000) == 0x00002000);
+        return ((bitField0_ & 0x00004000) == 0x00004000);
       }
       public com.google.protobuf.ByteString getEncryptionParam() {
         return encryptionParam_;
@@ -5142,35 +4462,14 @@ public final class PulsarApi {
         if (value == null) {
     throw new NullPointerException();
   }
-  bitField0_ |= 0x00002000;
+  bitField0_ |= 0x00004000;
         encryptionParam_ = value;
         
         return this;
       }
       public Builder clearEncryptionParam() {
-        bitField0_ = (bitField0_ & ~0x00002000);
-        encryptionParam_ = getDefaultInstance().getEncryptionParam();
-        
-        return this;
-      }
-      
-      // optional int64 schema_version = 16;
-      private long schemaVersion_ ;
-      public boolean hasSchemaVersion() {
-        return ((bitField0_ & 0x00004000) == 0x00004000);
-      }
-      public long getSchemaVersion() {
-        return schemaVersion_;
-      }
-      public Builder setSchemaVersion(long value) {
-        bitField0_ |= 0x00004000;
-        schemaVersion_ = value;
-        
-        return this;
-      }
-      public Builder clearSchemaVersion() {
         bitField0_ = (bitField0_ & ~0x00004000);
-        schemaVersion_ = 0L;
+        encryptionParam_ = getDefaultInstance().getEncryptionParam();
         
         return this;
       }
@@ -11565,9 +10864,9 @@ public final class PulsarApi {
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index);
     int getMetadataCount();
     
-    // optional int64 schema_version = 7;
-    boolean hasSchemaVersion();
-    long getSchemaVersion();
+    // optional .pulsar.proto.Schema schema = 7;
+    boolean hasSchema();
+    org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema();
   }
   public static final class CommandProducer extends
       com.google.protobuf.GeneratedMessageLite
@@ -11721,14 +11020,14 @@ public final class PulsarApi {
       return metadata_.get(index);
     }
     
-    // optional int64 schema_version = 7;
-    public static final int SCHEMA_VERSION_FIELD_NUMBER = 7;
-    private long schemaVersion_;
-    public boolean hasSchemaVersion() {
+    // optional .pulsar.proto.Schema schema = 7;
+    public static final int SCHEMA_FIELD_NUMBER = 7;
+    private org.apache.pulsar.common.api.proto.PulsarApi.Schema schema_;
+    public boolean hasSchema() {
       return ((bitField0_ & 0x00000020) == 0x00000020);
     }
-    public long getSchemaVersion() {
-      return schemaVersion_;
+    public org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema() {
+      return schema_;
     }
     
     private void initFields() {
@@ -11738,7 +11037,7 @@ public final class PulsarApi {
       producerName_ = "";
       encrypted_ = false;
       metadata_ = java.util.Collections.emptyList();
-      schemaVersion_ = 0L;
+      schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -11759,6 +11058,12 @@ public final class PulsarApi {
       }
       for (int i = 0; i < getMetadataCount(); i++) {
         if (!getMetadata(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
+      }
+      if (hasSchema()) {
+        if (!getSchema().isInitialized()) {
           memoizedIsInitialized = 0;
           return false;
         }
@@ -11794,7 +11099,7 @@ public final class PulsarApi {
         output.writeMessage(6, metadata_.get(i));
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
-        output.writeInt64(7, schemaVersion_);
+        output.writeMessage(7, schema_);
       }
     }
     
@@ -11830,7 +11135,7 @@ public final class PulsarApi {
       }
       if (((bitField0_ & 0x00000020) == 0x00000020)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(7, schemaVersion_);
+          .computeMessageSize(7, schema_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -11957,7 +11262,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000010);
         metadata_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000020);
-        schemaVersion_ = 0L;
+        schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
@@ -12020,7 +11325,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
           to_bitField0_ |= 0x00000020;
         }
-        result.schemaVersion_ = schemaVersion_;
+        result.schema_ = schema_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -12052,8 +11357,8 @@ public final class PulsarApi {
           }
           
         }
-        if (other.hasSchemaVersion()) {
-          setSchemaVersion(other.getSchemaVersion());
+        if (other.hasSchema()) {
+          mergeSchema(other.getSchema());
         }
         return this;
       }
@@ -12073,6 +11378,12 @@ public final class PulsarApi {
         }
         for (int i = 0; i < getMetadataCount(); i++) {
           if (!getMetadata(i).isInitialized()) {
+            
+            return false;
+          }
+        }
+        if (hasSchema()) {
+          if (!getSchema().isInitialized()) {
             
             return false;
           }
@@ -12133,9 +11444,14 @@ public final class PulsarApi {
               addMetadata(subBuilder.buildPartial());
               break;
             }
-            case 56: {
-              bitField0_ |= 0x00000040;
-              schemaVersion_ = input.readInt64();
+            case 58: {
+              org.apache.pulsar.common.api.proto.PulsarApi.Schema.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.Schema.newBuilder();
+              if (hasSchema()) {
+                subBuilder.mergeFrom(getSchema());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setSchema(subBuilder.buildPartial());
+              subBuilder.recycle();
               break;
             }
           }
@@ -12368,24 +11684,46 @@ public final class PulsarApi {
         return this;
       }
       
-      // optional int64 schema_version = 7;
-      private long schemaVersion_ ;
-      public boolean hasSchemaVersion() {
+      // optional .pulsar.proto.Schema schema = 7;
+      private org.apache.pulsar.common.api.proto.PulsarApi.Schema schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
+      public boolean hasSchema() {
         return ((bitField0_ & 0x00000040) == 0x00000040);
       }
-      public long getSchemaVersion() {
-        return schemaVersion_;
+      public org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema() {
+        return schema_;
       }
-      public Builder setSchemaVersion(long value) {
-        bitField0_ |= 0x00000040;
-        schemaVersion_ = value;
+      public Builder setSchema(org.apache.pulsar.common.api.proto.PulsarApi.Schema value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        schema_ = value;
         
+        bitField0_ |= 0x00000040;
         return this;
       }
-      public Builder clearSchemaVersion() {
-        bitField0_ = (bitField0_ & ~0x00000040);
-        schemaVersion_ = 0L;
+      public Builder setSchema(
+          org.apache.pulsar.common.api.proto.PulsarApi.Schema.Builder builderForValue) {
+        schema_ = builderForValue.build();
         
+        bitField0_ |= 0x00000040;
+        return this;
+      }
+      public Builder mergeSchema(org.apache.pulsar.common.api.proto.PulsarApi.Schema value) {
+        if (((bitField0_ & 0x00000040) == 0x00000040) &&
+            schema_ != org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance()) {
+          schema_ =
+            org.apache.pulsar.common.api.proto.PulsarApi.Schema.newBuilder(schema_).mergeFrom(value).buildPartial();
+        } else {
+          schema_ = value;
+        }
+        
+        bitField0_ |= 0x00000040;
+        return this;
+      }
+      public Builder clearSchema() {
+        schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
+        
+        bitField0_ = (bitField0_ & ~0x00000040);
         return this;
       }
       
