@@ -260,6 +260,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
                         = InstanceCommunication.FunctionStatus.newBuilder();
                 functionStatusBuilder.setRunning(false);
+                functionStatusBuilder.setInstanceId(String.valueOf(instanceId));
                 if (functionRuntimeInfo.getStartupException() != null) {
                     functionStatusBuilder.setFailureException(functionRuntimeInfo.getStartupException().getMessage());
                 }
@@ -279,6 +280,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
                 InstanceCommunication.FunctionStatus.Builder functionStatusBuilder
                         = InstanceCommunication.FunctionStatus.newBuilder();
                 functionStatusBuilder.setRunning(false);
+                functionStatusBuilder.setInstanceId(String.valueOf(instanceId));
                 functionStatusBuilder.setFailureException("Function has not been scheduled");
                 return functionStatusBuilder.build();
             }

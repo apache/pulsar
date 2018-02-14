@@ -109,7 +109,7 @@ public class Spawner implements AutoCloseable {
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         return functionContainer.getFunctionStatus().thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
-           builder.mergeFrom(f).setNumRestarts(numRestarts);
+           builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
            if (functionContainer.getDeathException() != null) {
                builder.setFailureException(functionContainer.getDeathException().getMessage());
            }
