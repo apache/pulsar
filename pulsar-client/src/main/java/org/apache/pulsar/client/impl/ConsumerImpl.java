@@ -115,7 +115,7 @@ public class ConsumerImpl extends ConsumerBase {
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
-    
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -1312,17 +1312,16 @@ public class ConsumerImpl extends ConsumerBase {
     private void internalGetLastMessageIdAsync(final Backoff backoff,
                                                final AtomicLong remainingTime,
                                                CompletableFuture<MessageId> future) {
-        if (isConnected()) {
-            if (!Commands.peerSupportsGetLastMessageId(cnx().getRemoteEndpointProtocolVersion())) {
+        ClientCnx cnx = cnx();
+        if (isConnected() && cnx != null) {
+            if (!Commands.peerSupportsGetLastMessageId(cnx.getRemoteEndpointProtocolVersion())) {
                 future.completeExceptionally(new PulsarClientException
                     .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
-                    cnx().getRemoteEndpointProtocolVersion()));
+                    cnx.getRemoteEndpointProtocolVersion()));
             }
 
             long requestId = client.newRequestId();
             ByteBuf getLastIdCmd = Commands.newGetLastMessageId(consumerId, requestId);
-            ClientCnx cnx = cnx();
-
             log.info("[{}][{}] Get topic last message Id", topic, subscription);
 
             cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept((result) -> {
