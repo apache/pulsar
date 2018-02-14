@@ -288,6 +288,7 @@ class PythonInstance(object):
     status.numProcessed = self.total_stats.nprocessed
     status.numSuccessfullyProcessed = self.total_stats.nsuccessfullyprocessed
     status.numUserExceptions = self.total_stats.nuserexceptions
+    status.instanceId = self.instance_config.instance_id
     for ex, tm in self.total_stats.latestuserexceptions:
       to_add = status.latestUserExceptions.add()
       to_add.exceptionString = ex

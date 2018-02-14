@@ -48,6 +48,7 @@ message FunctionStatus {
     // When was the last time the function was invoked.
     // expressed in ms since epoch
     int64 lastInvocationTime = 13;
+    string instanceId = 14;
 }
 
 message FunctionStatusList {
