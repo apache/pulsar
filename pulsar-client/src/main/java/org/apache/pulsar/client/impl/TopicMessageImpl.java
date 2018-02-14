@@ -36,9 +36,17 @@ public class TopicMessageImpl implements Message {
         this.msgId = new TopicMessageIdImpl(topicName, msg.getMessageId());
     }
 
-    @Override
+    /**
+     * Get the topic name of this message.
+     * @return the name of the topic on which this message was published
+     */
     public String getTopicName() {
         return topicName;
+    }
+
+    @Override
+    public MessageId getMessageId() {
+        return msgId;
     }
 
     @Override
@@ -59,11 +67,6 @@ public class TopicMessageImpl implements Message {
     @Override
     public byte[] getData() {
         return msg.getData();
-    }
-
-    @Override
-    public MessageId getMessageId() {
-        return msgId;
     }
 
     @Override

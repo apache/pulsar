@@ -29,7 +29,6 @@ public class TopicMessageIdImpl implements MessageId {
         this.messageId = messageId;
     }
 
-    @Override
     public String getTopicName() {
         return topicName;
     }
