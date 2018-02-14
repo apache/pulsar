@@ -87,7 +87,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             cursor.rewind();
 
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-            notifyConsumerGroupChanged(activeConsumer);
+            notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
             return;
         }
@@ -107,7 +107,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
             cursor.rewind();
 
             Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
-            notifyConsumerGroupChanged(activeConsumer);
+            notifyActiveConsumerChanged(activeConsumer);
             readMoreEntries(activeConsumer);
             readOnActiveConsumerTask = null;
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);

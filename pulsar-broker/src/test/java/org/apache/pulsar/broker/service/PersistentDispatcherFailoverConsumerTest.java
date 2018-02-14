@@ -21,8 +21,8 @@ package org.apache.pulsar.broker.service;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.matches;
+import static org.mockito.Matchers.same;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -311,7 +311,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         assertEquals(1, consumers.size());
         CommandActiveConsumerChange change = consumerChanges.take();
         verifyActiveConsumerChange(change, 1, true);
-        verify(consumer1, times(1)).notifyConsumerGroupChange(eq(1L));
+        verify(consumer1, times(1)).notifyActiveConsumerChange(same(consumer1));
 
         // 3. Add again, duplicate allowed
         pdfc.addConsumer(consumer1);
@@ -324,7 +324,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         // get the notified with who is the leader
         change = consumerChanges.take();
         verifyActiveConsumerChange(change, 1, true);
-        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
+        verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
 
         // 5. Add another consumer which does not change active consumer
         Consumer consumer2 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 2 /* consumer id */, 0, "Cons2"/* consumer name */,
@@ -336,8 +336,8 @@ public class PersistentDispatcherFailoverConsumerTest {
         // get notified with who is the leader
         change = consumerChanges.take();
         verifyActiveConsumerChange(change, 2, false);
-        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
-        verify(consumer2, times(1)).notifyConsumerGroupChange(eq(1L));
+        verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
 
         // 6. Add a consumer which changes active consumer
         Consumer consumer0 = spy(new Consumer(sub, SubType.Exclusive, topic.getName(), 0 /* consumer id */, 0,
@@ -356,11 +356,11 @@ public class PersistentDispatcherFailoverConsumerTest {
         verifyActiveConsumerChange(change, 1, false);
         change = consumerChanges.take();
         verifyActiveConsumerChange(change, 2, false);
-        verify(consumer0, times(1)).notifyConsumerGroupChange(eq(0L));
-        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(1L));
-        verify(consumer1, times(2)).notifyConsumerGroupChange(eq(0L));
-        verify(consumer2, times(1)).notifyConsumerGroupChange(eq(1L));
-        verify(consumer2, times(1)).notifyConsumerGroupChange(eq(0L));
+        verify(consumer0, times(1)).notifyActiveConsumerChange(same(consumer0));
+        verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer1));
+        verify(consumer1, times(2)).notifyActiveConsumerChange(same(consumer0));
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer1));
+        verify(consumer2, times(1)).notifyActiveConsumerChange(same(consumer0));
 
         // 7. Remove last consumer
         pdfc.removeConsumer(consumer2);

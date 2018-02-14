@@ -736,15 +736,15 @@ public class ConsumerImpl extends ConsumerBase {
     }
 
     void activeConsumerChanged(boolean isActive) {
-        if (activeConsumerListener == null) {
+        if (consumerEventListener == null) {
             return;
         }
 
         listenerExecutor.submit(() -> {
             if (isActive) {
-                activeConsumerListener.becomeActive(this, partitionIndex);
+                consumerEventListener.becomeActive(this, partitionIndex);
             } else {
-                activeConsumerListener.becomeInactive(this, partitionIndex);
+                consumerEventListener.becomeInactive(this, partitionIndex);
             }
         });
     }

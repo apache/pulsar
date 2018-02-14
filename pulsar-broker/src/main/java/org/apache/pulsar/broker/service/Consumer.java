@@ -145,7 +145,7 @@ public class Consumer {
         return consumerName;
     }
 
-    void notifyConsumerGroupChange(long activeConsumerId) {
+    void notifyActiveConsumerChange(Consumer activeConsumer) {
         if (Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
             // if the client is older than `v11`, we don't need to send consumer group changes.
             return;
@@ -153,10 +153,10 @@ public class Consumer {
 
         if (log.isDebugEnabled()) {
             log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
-                consumerId, topicName, subscription.getName(), activeConsumerId);
+                consumerId, topicName, subscription.getName(), activeConsumer);
         }
         cnx.ctx().writeAndFlush(
-            Commands.newActiveConsumerChange(consumerId, activeConsumerId),
+            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
             cnx.ctx().voidPromise());
     }
 

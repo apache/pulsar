@@ -21,7 +21,7 @@ package org.apache.pulsar.client.api;
 /**
  * Listener on the consumer state changes.
  */
-public interface ActiveConsumerListener {
+public interface ConsumerEventListener {
 
     /**
      * Notified when the consumer group is changed, and the consumer becomes the active consumer.

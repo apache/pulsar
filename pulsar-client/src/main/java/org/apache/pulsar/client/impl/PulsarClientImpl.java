@@ -242,7 +242,7 @@ public class PulsarClientImpl implements PulsarClient {
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        if (conf.getActiveConsumerListener() != null
+        if (conf.getConsumerEventListener() != null
             && conf.getSubscriptionType() != SubscriptionType.Failover) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException(

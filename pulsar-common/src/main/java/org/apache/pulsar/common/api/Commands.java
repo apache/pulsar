@@ -351,10 +351,10 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newActiveConsumerChange(long consumerId, long activeConsumerId) {
+    public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
         CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
             .setConsumerId(consumerId)
-            .setIsActive(activeConsumerId == consumerId);
+            .setIsActive(isActive);
 
         CommandActiveConsumerChange change = changeBuilder.build();
         ByteBuf res = serializeWithSize(

@@ -46,8 +46,7 @@ public class PulsarDecoderTest {
     @Test
     public void testChannelRead() throws Exception {
         long consumerId = 1234L;
-        long activeConsumerId = 4567L;
-        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, activeConsumerId);
+        ByteBuf changeBuf = Commands.newActiveConsumerChange(consumerId, true);
         ByteBuf cmdBuf = changeBuf.slice(4, changeBuf.writerIndex() - 4);
 
         doNothing().when(decoder).handleActiveConsumerChange(any(CommandActiveConsumerChange.class));
