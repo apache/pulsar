@@ -41,6 +41,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.Codec;
@@ -98,7 +99,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) {
+    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
             consumer.disconnect();
@@ -115,9 +116,35 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             messagesToReplay.clear();
         }
 
+        if (isConsumersExceededOnTopic()) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", name);
+            throw new ConsumerBusyException("Topic reached max consumers limit");
+        }
+
+        if (isConsumersExceededOnSubscription()) {
+            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
+            throw new ConsumerBusyException("Subscription reached max consumers limit");
+        }
+
         consumerList.add(consumer);
         consumerList.sort((c1, c2) -> c1.getPriorityLevel() - c2.getPriorityLevel());
         consumerSet.add(consumer);
+    }
+
+    private boolean isConsumersExceededOnTopic() {
+        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isConsumersExceededOnSubscription() {
+        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
+            return true;
+        }
+        return false;
     }
 
     @Override

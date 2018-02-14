@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -235,6 +236,11 @@ public class NonPersistentTopic implements Topic {
                 throw new TopicFencedException("Topic is temporarily unavailable");
             }
 
+            if (isProducersExceeded()) {
+                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+                throw new ProducerBusyException("Topic reached max producers limit");
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
@@ -253,6 +259,14 @@ public class NonPersistentTopic implements Topic {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private boolean isProducersExceeded() {
+        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        if (maxProducers > 0 && maxProducers <= producers.size()) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -592,6 +606,14 @@ public class NonPersistentTopic implements Topic {
         return producers;
     }
 
+    public int getNumberOfConsumers() {
+        int count = 0;
+        for (NonPersistentSubscription subscription : subscriptions.values()) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
+    }
+
     @Override
     public ConcurrentOpenHashMap<String, NonPersistentSubscription> getSubscriptions() {
         return subscriptions;
@@ -920,5 +942,4 @@ public class NonPersistentTopic implements Topic {
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
-
 }
