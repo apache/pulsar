@@ -197,9 +197,11 @@ int LZ4_decompress_safe_partial(const char* source, char* dest, int compressedSi
  * note : only allocated directly the structure if you are statically linking LZ4
  *        If you are using liblz4 as a DLL, please use below construction methods instead.
  */
+// clang-format off
 typedef struct {
     long long table[LZ4_STREAMSIZE_U64];
 } LZ4_stream_t;
+// clang-format on
 
 /*
  * LZ4_resetStream
@@ -254,9 +256,12 @@ int LZ4_saveDict(LZ4_stream_t* streamPtr, char* safeBuffer, int dictSize);
 
 #define LZ4_STREAMDECODESIZE_U64 4
 #define LZ4_STREAMDECODESIZE (LZ4_STREAMDECODESIZE_U64 * sizeof(unsigned long long))
+// clang-format off
 typedef struct {
     unsigned long long table[LZ4_STREAMDECODESIZE_U64];
 } LZ4_streamDecode_t;
+// clang-format on
+
 /*
  * LZ4_streamDecode_t
  * information structure to track an LZ4 stream.

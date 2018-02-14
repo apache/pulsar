@@ -20,16 +20,14 @@ package org.apache.bookkeeper.mledger;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.Arrays;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
-
 import com.google.common.annotations.Beta;
 import com.google.common.base.Charsets;
+import java.util.Arrays;
+import java.util.concurrent.TimeUnit;
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 
 /**
- * Configuration class for a ManagedLedger
+ * Configuration class for a ManagedLedger.
  */
 @Beta
 public class ManagedLedgerConfig {
@@ -98,7 +96,7 @@ public class ManagedLedgerConfig {
     /**
      * Set the minimum rollover time for ledgers in this managed ledger.
      *
-     * If this time is > 0, a ledger will not be rolled over more frequently than the specified time, even if it has
+     * <p/>If this time is > 0, a ledger will not be rolled over more frequently than the specified time, even if it has
      * reached the maximum number of entries or maximum size. This parameter can be used to reduce the amount of
      * rollovers on managed ledger with high write throughput.
      *
@@ -114,7 +112,7 @@ public class ManagedLedgerConfig {
     }
 
     /**
-     * @return the maximum rollover time
+     * @return the maximum rollover time.
      */
     public long getMaximumRolloverTimeMs() {
         return maximumRolloverTimeMs;
@@ -123,8 +121,8 @@ public class ManagedLedgerConfig {
     /**
      * Set the maximum rollover time for ledgers in this managed ledger.
      *
-     * If the ledger is not rolled over until this time, even if it has not reached the number of entry or size limit,
-     * this setting will trigger rollover. This parameter can be used for topics with low request rate to force
+     * <p/>If the ledger is not rolled over until this time, even if it has not reached the number of entry or size
+     * limit, this setting will trigger rollover. This parameter can be used for topics with low request rate to force
      * rollover, so recovery failure does not have to go far back.
      *
      * @param maximumRolloverTime
@@ -319,6 +317,16 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * Set the retention time for the ManagedLedger
+     * <p>
+     * Retention time will prevent data from being deleted for at least the specified amount of time, even if no cursors
+     * are created, or if all the cursors have marked the data for deletion.
+     * <p>
+     * A retention time of 0 (the default), will to have no time based retention.
+     * <p>
+     * Specifying a negative retention time will make the data to be retained indefinitely, based on the
+     * {@link #setRetentionSizeInMB(long)} value.
+     *
      * @param retentionTime
      *            duration for which messages should be retained
      * @param unit
@@ -338,6 +346,15 @@ public class ManagedLedgerConfig {
     }
 
     /**
+     * The retention size is used to set a maximum retention size quota on the ManagedLedger.
+     * <p>
+     * This setting works in conjuction with {@link #setRetentionSizeInMB(long)} and places a max size for retention,
+     * after which the data is deleted.
+     * <p>
+     * A retention size of 0, will make data to be deleted immediately.
+     * <p>
+     * A retention size of -1, means to have an unlimited retention size.
+     *
      * @param retentionSizeInMB
      *            quota for message retention
      */
@@ -357,8 +374,6 @@ public class ManagedLedgerConfig {
     /**
      * Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list. It helps when data-ledgers gets
      * corrupted at bookkeeper and managed-cursor is stuck at that ledger.
-     * 
-     * @param autoSkipNonRecoverableData
      */
     public boolean isAutoSkipNonRecoverableData() {
         return autoSkipNonRecoverableData;
@@ -384,10 +399,10 @@ public class ManagedLedgerConfig {
         this.maxUnackedRangesToPersist = maxUnackedRangesToPersist;
         return this;
     }
-    
+
     /**
      * @return max unacked message ranges up to which it can store in Zookeeper
-     * 
+     *
      */
     public int getMaxUnackedRangesToPersistInZk() {
         return maxUnackedRangesToPersistInZk;

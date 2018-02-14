@@ -56,12 +56,11 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
-import org.apache.pulsar.client.kafka.compat.PulsarKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
+import org.apache.pulsar.client.kafka.compat.PulsarConsumerKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.naming.DestinationName;
-
-import com.google.common.collect.Lists;
+import org.apache.pulsar.common.util.FutureUtil;
 
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener {
 
@@ -81,6 +80,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
 
     private volatile boolean closed = false;
+
+    private final Properties properties;
 
     private static class QueueItem {
         final org.apache.pulsar.client.api.Consumer consumer;
@@ -143,9 +144,12 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         String serviceUrl = config.getList(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG).get(0);
 
-        Properties properties = new Properties();
+        this.properties = new Properties();
         config.originals().forEach((k, v) -> properties.put(k, v));
-        ClientConfiguration clientConf = PulsarKafkaConfig.getClientConfiguration(properties);
+        ClientConfiguration clientConf = PulsarClientKafkaConfig.getClientConfiguration(properties);
+        // Since this client instance is going to be used just for the consumers, we can enable Nagle to group
+        // all the acknowledgments sent to broker within a short time frame
+        clientConf.setUseTcpNoDelay(false);
         try {
             client = PulsarClient.create(serviceUrl, clientConf);
         } catch (PulsarClientException e) {
@@ -200,7 +204,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 // acknowledgeCumulative()
                 int numberOfPartitions = ((PulsarClientImpl) client).getNumberOfPartitions(topic).get();
 
-                ConsumerConfiguration conf = new ConsumerConfiguration();
+                ConsumerConfiguration conf = PulsarConsumerKafkaConfig.getConsumerConfiguration(properties);
                 conf.setSubscriptionType(SubscriptionType.Failover);
                 conf.setMessageListener(this);
                 if (numberOfPartitions > 1) {
@@ -270,6 +274,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         });
     }
 
+    private static final int MAX_RECORDS_IN_SINGLE_POLL = 1000;
+
     @SuppressWarnings("unchecked")
     @Override
     public ConsumerRecords<K, V> poll(long timeoutMillis) {
@@ -279,40 +285,49 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 return (ConsumerRecords<K, V>) ConsumerRecords.EMPTY;
             }
 
+            Map<TopicPartition, List<ConsumerRecord<K, V>>> records = new HashMap<>();
+
+            int numberOfRecords = 0;
+
+            while (item != null && ++numberOfRecords < MAX_RECORDS_IN_SINGLE_POLL) {
+                DestinationName dn = DestinationName.get(item.consumer.getTopic());
+                String topic = dn.getPartitionedTopicName();
+                int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
+                Message msg = item.message;
+                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                long offset = MessageIdUtils.getOffset(msgId);
+
+                TopicPartition tp = new TopicPartition(topic, partition);
+
+                K key = getKey(topic, msg);
+                V value = valueDeserializer.deserialize(topic, msg.getData());
+
+                TimestampType timestampType = TimestampType.LOG_APPEND_TIME;
+                long timestamp = msg.getPublishTime();
+
+                if (msg.getEventTime() > 0) {
+                    // If we have Event time, use that in preference
+                    timestamp = msg.getEventTime();
+                    timestampType = TimestampType.CREATE_TIME;
+                }
+
+                ConsumerRecord<K, V> consumerRecord = new ConsumerRecord<>(topic, partition, offset, timestamp,
+                        timestampType, -1, msg.hasKey() ? msg.getKey().length() : 0, msg.getData().length, key, value);
+
+                records.computeIfAbsent(tp, k -> new ArrayList<>()).add(consumerRecord);
+
+                // Update last offset seen by application
+                lastReceivedOffset.put(tp, offset);
+
+                // Check if we have an item already available
+                item = receivedMessages.poll(0, TimeUnit.MILLISECONDS);
+            }
+
             if (isAutoCommit) {
                 // Commit the offset of previously dequeued messages
                 commitAsync();
             }
 
-            DestinationName dn = DestinationName.get(item.consumer.getTopic());
-            String topic = dn.getPartitionedTopicName();
-            int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
-            Message msg = item.message;
-            MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-            long offset = MessageIdUtils.getOffset(msgId);
-
-            TopicPartition tp = new TopicPartition(topic, partition);
-
-            K key = getKey(topic, msg);
-            V value = valueDeserializer.deserialize(topic, msg.getData());
-
-            TimestampType timestampType = TimestampType.LOG_APPEND_TIME;
-            long timestamp = msg.getPublishTime();
-
-            if (msg.getEventTime() > 0) {
-                // If we have Event time, use that in preference
-                timestamp = msg.getEventTime();
-                timestampType = TimestampType.CREATE_TIME;
-            }
-
-            ConsumerRecord<K, V> consumerRecord = new ConsumerRecord<>(topic, partition, offset, timestamp,
-                    timestampType, -1, msg.hasKey() ? msg.getKey().length() : 0, msg.getData().length, key, value);
-
-            Map<TopicPartition, List<ConsumerRecord<K, V>>> records = new HashMap<>();
-            records.put(tp, Lists.newArrayList(consumerRecord));
-
-            // Update last offset seen by application
-            lastReceivedOffset.put(tp, offset);
             return new ConsumerRecords<>(records);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);

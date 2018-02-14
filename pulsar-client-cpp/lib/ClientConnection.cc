@@ -97,6 +97,12 @@ static Result getResult(ServerError serverError) {
 
         case UnsupportedVersionError:
             return ResultUnsupportedVersionError;
+
+        case TooManyRequests:
+            return ResultTooManyLookupRequestException;
+
+        case TopicTerminatedError:
+            return ResultTopicTerminated;
     }
     // NOTE : Do not add default case in the switch above. In future if we get new cases for
     // ServerError and miss them in the switch above we would like to get notified. Adding
@@ -104,7 +110,8 @@ static Result getResult(ServerError serverError) {
     return ResultUnknownError;
 }
 
-ClientConnection::ClientConnection(const std::string& endpoint, ExecutorServicePtr executor,
+ClientConnection::ClientConnection(const std::string& logicalAddress, const std::string& physicalAddress,
+                                   ExecutorServicePtr executor,
                                    const ClientConfiguration& clientConfiguration,
                                    const AuthenticationPtr& authentication)
     : state_(Pending),
@@ -114,8 +121,9 @@ ClientConnection::ClientConnection(const std::string& endpoint, ExecutorServiceP
       executor_(executor),
       resolver_(executor->createTcpResolver()),
       socket_(executor->createSocket()),
-      address_(endpoint),
-      cnxString_("[<none> -> " + endpoint + "] "),
+      logicalAddress_(logicalAddress),
+      physicalAddress_(physicalAddress),
+      cnxString_("[<none> -> " + physicalAddress + "] "),
       error_(boost::system::error_code()),
       incomingBuffer_(SharedBuffer::allocate(DefaultBufferSize)),
       incomingCmd_(),
@@ -267,7 +275,11 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
         cnxStringStream << "[" << socket_->local_endpoint() << " -> " << socket_->remote_endpoint() << "] ";
         cnxString_ = cnxStringStream.str();
 
-        LOG_INFO(cnxString_ << "Connected to broker");
+        if (logicalAddress_ == physicalAddress_) {
+            LOG_INFO(cnxString_ << "Connected to broker");
+        } else {
+            LOG_INFO(cnxString_ << "Connected to broker through proxy. Logical broker: " << logicalAddress_);
+        }
         state_ = TcpConnected;
         socket_->set_option(tcp::no_delay(true));
 
@@ -288,7 +300,7 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
             if (!isTlsAllowInsecureConnection_) {
                 boost::system::error_code err;
                 Url service_url;
-                if (!Url::parse(address_, service_url)) {
+                if (!Url::parse(physicalAddress_, service_url)) {
                     LOG_ERROR(cnxString_ << "Invalid Url, unable to parse: " << err << " " << err.message());
                     close();
                     return;
@@ -315,7 +327,8 @@ void ClientConnection::handleTcpConnected(const boost::system::error_code& err,
 }
 
 void ClientConnection::handleHandshake(const boost::system::error_code& err) {
-    SharedBuffer buffer = Commands::newConnect(authentication_);
+    bool connectingThroughProxy = logicalAddress_ != physicalAddress_;
+    SharedBuffer buffer = Commands::newConnect(authentication_, logicalAddress_, connectingThroughProxy);
     // Send CONNECT command to broker
     asyncWrite(buffer.const_asio_buffer(),
                boost::bind(&ClientConnection::handleSentPulsarConnect, shared_from_this(),
@@ -343,7 +356,7 @@ void ClientConnection::handleSentPulsarConnect(const boost::system::error_code& 
 void ClientConnection::tcpConnectAsync() {
     boost::system::error_code err;
     Url service_url;
-    if (!Url::parse(address_, service_url)) {
+    if (!Url::parse(physicalAddress_, service_url)) {
         LOG_ERROR(cnxString_ << "Invalid Url, unable to parse: " << err << " " << err.message());
         close();
         return;
@@ -458,7 +471,8 @@ void ClientConnection::processIncomingBuffer() {
             MessageMetadata msgMetadata;
 
             // read checksum
-            bool isChecksumValid = verifyChecksum(incomingBuffer_, incomingCmd_);
+            uint32_t remainingBytes = frameSize - (cmdSize + 4);
+            bool isChecksumValid = verifyChecksum(incomingBuffer_, remainingBytes, incomingCmd_);
 
             uint32_t metadataSize = incomingBuffer_.readUnsignedInt();
             if (!msgMetadata.ParseFromArray(incomingBuffer_.data(), metadataSize)) {
@@ -472,8 +486,9 @@ void ClientConnection::processIncomingBuffer() {
             }
 
             incomingBuffer_.consume(metadataSize);
+            remainingBytes -= (4 + metadataSize);
 
-            uint32_t payloadSize = frameSize - (cmdSize + 4) - (metadataSize + 4);
+            uint32_t payloadSize = remainingBytes;
             SharedBuffer payload = SharedBuffer::copy(incomingBuffer_.data(), payloadSize);
             incomingBuffer_.consume(payloadSize);
             handleIncomingMessage(incomingCmd_.message(), isChecksumValid, msgMetadata, payload);
@@ -505,13 +520,17 @@ void ClientConnection::processIncomingBuffer() {
     readNextCommand();
 }
 
-bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, proto::BaseCommand& incomingCmd_) {
+bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes,
+                                      proto::BaseCommand& incomingCmd_) {
     int readerIndex = incomingBuffer_.readerIndex();
     bool isChecksumValid = true;
+
     if (incomingBuffer_.readUnsignedShort() == Commands::magicCrc32c) {
         uint32_t storedChecksum = incomingBuffer_.readUnsignedInt();
+        remainingBytes -= (2 + 4) /* subtract size of checksum itself */;
+
         // compute metadata-payload checksum
-        int metadataPayloadSize = incomingBuffer_.readableBytes();
+        int metadataPayloadSize = remainingBytes;
         uint32_t computedChecksum = computeChecksum(0, incomingBuffer_.data(), metadataPayloadSize);
         // verify checksum
         isChecksumValid = (storedChecksum == computedChecksum);
@@ -788,6 +807,8 @@ void ClientConnection::handleIncomingCommand() {
                             lookupResultPtr->setAuthoritative(lookupTopicResponse.authoritative());
                             lookupResultPtr->setRedirect(lookupTopicResponse.response() ==
                                                          CommandLookupTopicResponse::Redirect);
+                            lookupResultPtr->setShouldProxyThroughServiceUrl(
+                                lookupTopicResponse.proxy_through_service_url());
                             lookupDataPromise->setValue(lookupResultPtr);
                         }
 
@@ -1178,7 +1199,7 @@ void ClientConnection::removeConsumer(int consumerId) {
     consumers_.erase(consumerId);
 }
 
-const std::string& ClientConnection::brokerAddress() const { return address_; }
+const std::string& ClientConnection::brokerAddress() const { return physicalAddress_; }
 
 const std::string& ClientConnection::cnxString() const { return cnxString_; }
 

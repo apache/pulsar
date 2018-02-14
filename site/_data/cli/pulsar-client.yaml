@@ -30,7 +30,7 @@ commands:
     description: Comma-separated string of messages to send; either `-m` or `-f` must be specified
     default: '[]'
   - flags: -n, --num-produce
-    description: The number of times to send the message(s); the count of `messages`/`files` * `num-produce` should below than 1000
+    description: The number of times to send the message(s); the count of `messages`/`files` * `num-produce` should be below 1000
     default: 1
   - flags: -r, --rate
     description: Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible

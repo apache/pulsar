@@ -36,9 +36,9 @@ public interface EntryCache extends Comparable<EntryCache> {
 
     /**
      * Insert an entry in the cache.
-     * <p>
-     * If the overall limit have been reached, this will triggered the eviction of other entries, possibly from other
-     * EntryCache instances
+     *
+     * <p/>If the overall limit have been reached, this will triggered the eviction of other entries, possibly from
+     * other EntryCache instances
      *
      * @param entry
      *            the entry to be cached
@@ -55,7 +55,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     void invalidateEntries(PositionImpl lastPosition);
 
     /**
-     * Remove from the cache all the entries belonging to a specific ledger
+     * Remove from the cache all the entries belonging to a specific ledger.
      *
      * @param ledgerId
      *            the ledger id
@@ -63,7 +63,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     void invalidateAllEntries(long ledgerId);
 
     /**
-     * Remove all the entries from the cache
+     * Remove all the entries from the cache.
      */
     void clear();
 
@@ -79,7 +79,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     /**
      * Read entries from the cache or from bookkeeper.
      *
-     * Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
+     * <p/>Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
      *
      * @param lh
      *            the ledger handle
@@ -100,7 +100,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     /**
      * Read entry at given position from the cache or from bookkeeper.
      *
-     * Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
+     * <p/>Get the entry data either from cache or bookkeeper and mixes up the results in a single list.
      *
      * @param lh
      *            the ledger handle
@@ -114,7 +114,7 @@ public interface EntryCache extends Comparable<EntryCache> {
     void asyncReadEntry(LedgerHandle lh, PositionImpl position, ReadEntryCallback callback, Object ctx);
 
     /**
-     * Get the total size in bytes of all the entries stored in this cache
+     * Get the total size in bytes of all the entries stored in this cache.
      *
      * @return the size of the entry cache
      */

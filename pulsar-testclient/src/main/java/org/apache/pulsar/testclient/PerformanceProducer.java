@@ -269,12 +269,12 @@ public class PerformanceProducer {
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setSendTimeout(0, TimeUnit.SECONDS);
         producerConf.setCompressionType(arguments.compression);
+        producerConf.setMaxPendingMessages(arguments.maxOutstanding);
         // enable round robin message routing if it is a partitioned topic
         producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         if (arguments.batchTime > 0) {
             producerConf.setBatchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS);
             producerConf.setBatchingEnabled(true);
-            producerConf.setMaxPendingMessages(arguments.msgRate);
         }
 
         // Block if queue is full else we will start seeing errors in sendAsync

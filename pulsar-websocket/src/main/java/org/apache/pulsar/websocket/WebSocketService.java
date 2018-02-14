@@ -34,7 +34,7 @@ import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authorization.AuthorizationManager;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -64,7 +64,7 @@ public class WebSocketService implements Closeable {
     public static final int MaxTextFrameSize = 1024 * 1024;
 
     AuthenticationService authenticationService;
-    AuthorizationManager authorizationManager;
+    AuthorizationService authorizationService;
     PulsarClient pulsarClient;
 
     private final ScheduledExecutorService executor = Executors
@@ -112,13 +112,13 @@ public class WebSocketService implements Closeable {
             log.info("Global Zookeeper cache started");
         }
 
-        // start authorizationManager
+        // start authorizationService
         if (config.isAuthorizationEnabled()) {
             if (configurationCacheService == null) {
                 throw new PulsarServerException(
                         "Failed to initialize authorization manager due to empty GlobalZookeeperServers");
             }
-            authorizationManager = new AuthorizationManager(this.config, configurationCacheService);
+            authorizationService = new AuthorizationService(this.config, configurationCacheService);
         }
         // start authentication service
         authenticationService = new AuthenticationService(this.config);
@@ -147,8 +147,8 @@ public class WebSocketService implements Closeable {
         return authenticationService;
     }
 
-    public AuthorizationManager getAuthorizationManager() {
-        return authorizationManager;
+    public AuthorizationService getAuthorizationService() {
+        return authorizationService;
     }
 
     public ZooKeeperCache getGlobalZkCache() {

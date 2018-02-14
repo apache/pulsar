@@ -21,6 +21,7 @@ package org.apache.pulsar.proxy.server;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
@@ -34,7 +35,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     // ZooKeeper session timeout
     private int zookeeperSessionTimeoutMs = 30_000;
-
+    
+    // if Service Discovery is Disabled this url should point to the discovery service provider. 
+    private String brokerServiceURL;
+    private String brokerServiceURLTLS;
+    
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
@@ -55,6 +60,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> authenticationProviders = Sets.newTreeSet();
     // Enforce authorization
     private boolean authorizationEnabled = false;
+    // Authorization provider fully qualified class-name
+    private String authorizationProvider = PulsarAuthorizationProvider.class.getName();
+    // Forward client authData to Broker for re authorization
+    // make sure authentication is enabled for this to take effect
+    private boolean forwardAuthorizationCredentials = false;
 
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
@@ -75,9 +85,41 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath;
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-
+    // Validates hostname when proxy creates tls connection with broker
+    private boolean tlsHostnameVerificationEnabled = false;
+    // Specify the tls protocols the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLSv1.2, TLSv1.1, TLSv1]
+    private Set<String> tlsProtocols = Sets.newTreeSet();
+    // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
+    // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
+    private Set<String> tlsCiphers = Sets.newTreeSet();
+    
     private Properties properties = new Properties();
 
+    public boolean forwardAuthorizationCredentials() {
+        return forwardAuthorizationCredentials;
+    }
+    
+    public void setForwardAuthorizationCredentials(boolean forwardAuthorizationCredentials) {
+        this.forwardAuthorizationCredentials = forwardAuthorizationCredentials;
+    }
+    
+    public String getBrokerServiceURLTLS() {
+        return brokerServiceURLTLS;
+    }
+    
+    public void setBrokerServiceURLTLS(String discoveryServiceURLTLS) {
+        this.brokerServiceURLTLS = discoveryServiceURLTLS;
+    }
+    
+    public String getBrokerServiceURL() {
+        return brokerServiceURL;
+    }
+    
+    public void setBrokerServiceURL(String discoveryServiceURL) {
+        this.brokerServiceURL = discoveryServiceURL;
+    }
+    
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -182,6 +224,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.tlsAllowInsecureConnection = tlsAllowInsecureConnection;
     }
 
+    public boolean isTlsHostnameVerificationEnabled() {
+        return tlsHostnameVerificationEnabled;
+    }
+
+    public void setTlsHostnameVerificationEnabled(boolean tlsHostnameVerificationEnabled) {
+        this.tlsHostnameVerificationEnabled = tlsHostnameVerificationEnabled;
+    }
+
     public String getBrokerClientAuthenticationPlugin() {
         return brokerClientAuthenticationPlugin;
     }
@@ -222,6 +272,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.authorizationEnabled = authorizationEnabled;
     }
 
+    public String getAuthorizationProvider() {
+        return authorizationProvider;
+    }
+
+    public void setAuthorizationProvider(String authorizationProvider) {
+        this.authorizationProvider = authorizationProvider;
+    }
+
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
@@ -236,5 +294,21 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setProperties(Properties properties) {
         this.properties = properties;
+    }
+    
+    public Set<String> getTlsProtocols() {
+        return tlsProtocols;
+    }
+
+    public void setTlsProtocols(Set<String> tlsProtocols) {
+        this.tlsProtocols = tlsProtocols;
+    }
+
+    public Set<String> getTlsCiphers() {
+        return tlsCiphers;
+    }
+
+    public void setTlsCiphers(Set<String> tlsCiphers) {
+        this.tlsCiphers = tlsCiphers;
     }
 }

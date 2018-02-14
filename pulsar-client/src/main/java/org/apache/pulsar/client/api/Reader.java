@@ -62,4 +62,14 @@ public interface Reader extends Closeable {
      * Return true if the topic was terminated and this reader has reached the end of the topic
      */
     boolean hasReachedEndOfTopic();
+
+    /**
+     * Check if there is any message available to read from the current position.
+     */
+    boolean hasMessageAvailable() throws PulsarClientException;
+
+    /**
+     * Asynchronously Check if there is message that has been published successfully to the broker in the topic.
+     */
+    CompletableFuture<Boolean> hasMessageAvailableAsync();
 }

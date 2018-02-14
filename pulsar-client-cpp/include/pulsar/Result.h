@@ -71,7 +71,9 @@ enum Result
     ResultTopicNotFound,                          /// Topic not found
     ResultSubscriptionNotFound,                   /// Subscription not found
     ResultConsumerNotFound,                       /// Consumer not found
-    ResultUnsupportedVersionError  /// Error when an older client/version doesn't support a required feature
+    ResultUnsupportedVersionError,  /// Error when an older client/version doesn't support a required feature
+    ResultTopicTerminated,          /// Topic was already terminated
+    ResultCryptoError               /// Error when crypto operation fails
 };
 
 // Return string representation of result code

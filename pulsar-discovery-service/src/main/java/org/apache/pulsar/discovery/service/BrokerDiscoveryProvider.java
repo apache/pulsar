@@ -31,6 +31,8 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
@@ -96,11 +98,11 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DiscoveryService service,
-            DestinationName destination, String role) {
+            DestinationName destination, String role, AuthenticationDataSource authenticationData) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
-            checkAuthorization(service, destination, role);
+            checkAuthorization(service, destination, role, authenticationData);
             final String path = path(PARTITIONED_TOPIC_PATH_ZNODE, destination.getProperty(), destination.getCluster(),
                     destination.getNamespacePortion(), "persistent", destination.getEncodedLocalName());
             // gets the number of partitions from the zk cache
@@ -125,7 +127,8 @@ public class BrokerDiscoveryProvider implements Closeable {
         return metadataFuture;
     }
 
-    protected static void checkAuthorization(DiscoveryService service, DestinationName destination, String role)
+    protected static void checkAuthorization(DiscoveryService service, DestinationName destination, String role,
+            AuthenticationDataSource authenticationData)
             throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
@@ -133,7 +136,7 @@ public class BrokerDiscoveryProvider implements Closeable {
             return;
         }
         // get zk policy manager
-        if (!service.getAuthorizationManager().canLookup(destination, role)) {
+        if (!service.getAuthorizationService().canLookup(destination, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
             // check namespace authorization
             PropertyAdmin propertyAdmin;

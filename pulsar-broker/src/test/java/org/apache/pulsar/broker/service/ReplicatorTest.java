@@ -31,9 +31,10 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -43,30 +44,31 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.CursorAlreadyClosedException;
-import org.mockito.Mockito;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.checksum.utils.Crc32cChecksum;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
-import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
+import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -74,6 +76,8 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
+
+import io.netty.buffer.ByteBuf;
 
 /**
  * Starts 2 brokers that are in 2 different clusters
@@ -89,7 +93,13 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Override
     @AfterClass(timeOut = 30000)
     void shutdown() throws Exception {
-        super.shutdown();
+        ForkJoinPool.commonPool().execute(() -> {
+            try {
+                super.shutdown();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        });
     }
 
     @Test(enabled = true, timeOut = 30000)
@@ -664,6 +674,8 @@ public class ReplicatorTest extends ReplicatorTestBase {
             assertNull(topic.getPersistentReplicator(replicatorClusterName));
             return null;
         });
+
+        producer1.close();
     }
 
     @Test(priority = 5, timeOut = 30000)
@@ -683,6 +695,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         field.setAccessible(true);
         ProducerImpl producer = (ProducerImpl) field.get(replicator);
         assertNull(producer);
+        producer1.close();
     }
 
     /**
@@ -815,7 +828,32 @@ public class ReplicatorTest extends ReplicatorTestBase {
         producer1.close();
         consumer1.close();
         consumer2.close();
+    }
 
+    @Test(timeOut = 30000)
+    public void verifyChecksumAfterReplication() throws Exception {
+        final String topicName = "persistent://pulsar/global/ns/checksumAfterReplication";
+
+        PulsarClient c1 = PulsarClient.create(url1.toString());
+        Producer p1 = c1.createProducer(topicName);
+
+        PulsarClient c2 = PulsarClient.create(url2.toString());
+        RawReader reader2 = RawReader.create(c2, topicName, "sub").get();
+
+        p1.send("Hello".getBytes());
+
+        RawMessage msg = reader2.readNextAsync().get();
+
+        ByteBuf b = msg.getHeadersAndPayload();
+
+        assertTrue(Commands.hasChecksum(b));
+        int parsedChecksum = Commands.readChecksum(b).intValue();
+        int computedChecksum = Crc32cChecksum.computeChecksum(b);
+
+        assertEquals(parsedChecksum, computedChecksum);
+
+        p1.close();
+        reader2.closeAsync().get();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);

@@ -41,22 +41,25 @@ public class AllocatorStatsGenerator {
         if ("default".equals(allocatorName)) {
             allocator = PooledByteBufAllocator.DEFAULT;
         } else if ("ml-cache".equals(allocatorName)) {
-            allocator = EntryCacheImpl.allocator;
+            allocator = EntryCacheImpl.ALLOCATOR;
         } else {
             throw new IllegalArgumentException("Invalid allocator name : " + allocatorName);
         }
 
         AllocatorStats stats = new AllocatorStats();
-        stats.directArenas = allocator.directArenas().stream().map(x -> newPoolArenaStats(x))
-                .collect(Collectors.toList());
-        stats.heapArenas = allocator.heapArenas().stream().map(x -> newPoolArenaStats(x)).collect(Collectors.toList());
+        stats.directArenas = allocator.metric().directArenas().stream()
+            .map(AllocatorStatsGenerator::newPoolArenaStats)
+            .collect(Collectors.toList());
+        stats.heapArenas = allocator.metric().heapArenas().stream()
+            .map(AllocatorStatsGenerator::newPoolArenaStats)
+            .collect(Collectors.toList());
 
-        stats.numDirectArenas = allocator.numDirectArenas();
-        stats.numHeapArenas = allocator.numHeapArenas();
-        stats.numThreadLocalCaches = allocator.numThreadLocalCaches();
-        stats.normalCacheSize = allocator.normalCacheSize();
-        stats.smallCacheSize = allocator.smallCacheSize();
-        stats.tinyCacheSize = allocator.tinyCacheSize();
+        stats.numDirectArenas = allocator.metric().numDirectArenas();
+        stats.numHeapArenas = allocator.metric().numHeapArenas();
+        stats.numThreadLocalCaches = allocator.metric().numThreadLocalCaches();
+        stats.normalCacheSize = allocator.metric().normalCacheSize();
+        stats.smallCacheSize = allocator.metric().smallCacheSize();
+        stats.tinyCacheSize = allocator.metric().tinyCacheSize();
         return stats;
     }
 
@@ -66,9 +69,15 @@ public class AllocatorStatsGenerator {
         stats.numSmallSubpages = m.numSmallSubpages();
         stats.numChunkLists = m.numChunkLists();
 
-        stats.tinySubpages = m.tinySubpages().stream().map(x -> newPoolSubpageStats(x)).collect(Collectors.toList());
-        stats.smallSubpages = m.smallSubpages().stream().map(x -> newPoolSubpageStats(x)).collect(Collectors.toList());
-        stats.chunkLists = m.chunkLists().stream().map(x -> newPoolChunkListStats(x)).collect(Collectors.toList());
+        stats.tinySubpages = m.tinySubpages().stream()
+            .map(AllocatorStatsGenerator::newPoolSubpageStats)
+            .collect(Collectors.toList());
+        stats.smallSubpages = m.smallSubpages().stream()
+            .map(AllocatorStatsGenerator::newPoolSubpageStats)
+            .collect(Collectors.toList());
+        stats.chunkLists = m.chunkLists().stream()
+            .map(AllocatorStatsGenerator::newPoolChunkListStats)
+            .collect(Collectors.toList());
 
         stats.numAllocations = m.numAllocations();
         stats.numTinyAllocations = m.numTinyAllocations();

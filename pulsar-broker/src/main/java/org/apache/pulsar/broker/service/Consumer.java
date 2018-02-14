@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -65,10 +66,12 @@ public class Consumer {
     private final SubType subType;
     private final ServerCnx cnx;
     private final String appId;
+    private AuthenticationDataSource authenticationData;
     private final String topicName;
 
     private final long consumerId;
     private final int priorityLevel;
+    private final boolean readCompacted;
     private final String consumerName;
     private final Rate msgOut;
     private final Rate msgRedeliver;
@@ -98,20 +101,24 @@ public class Consumer {
 
     private final Map<String, String> metadata;
 
-    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId, int priorityLevel, String consumerName,
-            int maxUnackedMessages, ServerCnx cnx, String appId, Map<String, String> metadata) throws BrokerServiceException {
+    public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
+                    int priorityLevel, String consumerName,
+                    int maxUnackedMessages, ServerCnx cnx, String appId,
+                    Map<String, String> metadata, boolean readCompacted) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
         this.topicName = topicName;
         this.consumerId = consumerId;
         this.priorityLevel = priorityLevel;
+        this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
         this.appId = appId;
+        this.authenticationData = cnx.authenticationData;
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
@@ -146,8 +153,8 @@ public class Consumer {
     }
 
     void notifyActiveConsumerChange(Consumer activeConsumer) {
-        if (Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
-            // if the client is older than `v11`, we don't need to send consumer group changes.
+        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
+            // if the client is older than `v12`, we don't need to send consumer group changes.
             return;
         }
 
@@ -158,6 +165,10 @@ public class Consumer {
         cnx.ctx().writeAndFlush(
             Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
             cnx.ctx().voidPromise());
+    }
+
+    public boolean readCompacted() {
+        return readCompacted;
     }
 
     /**
@@ -209,7 +220,7 @@ public class Consumer {
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     readChecksum(metadataAndPayload);
                 }
 
@@ -241,7 +252,7 @@ public class Consumer {
         }
     }
 
-    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, String subscription, long consumerId) {
+    public static int getBatchSizeforEntry(ByteBuf metadataAndPayload, Subscription subscription, long consumerId) {
         try {
             // save the reader index and restore after parsing
             metadataAndPayload.markReaderIndex();
@@ -268,7 +279,7 @@ public class Consumer {
         while (iter.hasNext()) {
             Entry entry = iter.next();
             ByteBuf metadataAndPayload = entry.getDataBuffer();
-            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription.toString(), consumerId);
+            int batchSize = getBatchSizeforEntry(metadataAndPayload, subscription, consumerId);
             if (batchSize == -1) {
                 // this would suggest that the message might have been corrupted
                 iter.remove();
@@ -471,9 +482,10 @@ public class Consumer {
 
     public void checkPermissions() {
         DestinationName destination = DestinationName.get(subscription.getDestination());
-        if (cnx.getBrokerService().getAuthorizationManager() != null) {
+        if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId, subscription.getName())) {
+                if (cnx.getBrokerService().getAuthorizationService().canConsume(destination, appId, authenticationData,
+                        subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {

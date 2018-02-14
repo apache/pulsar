@@ -18,7 +18,12 @@
  */
 package org.apache.pulsar.common.util;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.IOException;
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyManagementException;
@@ -26,18 +31,25 @@ import java.security.KeyStore;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.Certificate;
-import java.security.cert.X509Certificate;
 import java.security.cert.CertificateFactory;
+import java.security.cert.X509Certificate;
 import java.security.spec.KeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.Base64;
 import java.util.Collection;
+import java.util.List;
+import java.util.Set;
 
-import javax.net.ssl.*;
+import javax.net.ssl.KeyManager;
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLException;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.TrustManagerFactory;
 
+import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.SslProvider;
 import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class SecurityUtility {
@@ -47,9 +59,10 @@ public class SecurityUtility {
         return createSslContext(allowInsecureConnection, trustCertificates, (Certificate[]) null, (PrivateKey) null);
     }
 
-    public static SslContext createNettySslContext(boolean allowInsecureConnection, String trustCertsFilePath)
+    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath)
             throws GeneralSecurityException, SSLException, FileNotFoundException {
-        return createNettySslContext(allowInsecureConnection, trustCertsFilePath, (Certificate[]) null, (PrivateKey) null);
+        return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, (Certificate[]) null,
+                (PrivateKey) null);
     }
 
     public static SSLContext createSslContext(boolean allowInsecureConnection, String trustCertsFilePath,
@@ -60,15 +73,17 @@ public class SecurityUtility {
         return createSslContext(allowInsecureConnection, trustCertificates, certificates, privateKey);
     }
 
-    public static SslContext createNettySslContext(boolean allowInsecureConnection, String trustCertsFilePath,
-                                              String certFilePath, String keyFilePath) throws GeneralSecurityException, SSLException, FileNotFoundException {
+    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
+            String certFilePath, String keyFilePath)
+            throws GeneralSecurityException, SSLException, FileNotFoundException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
-        return createNettySslContext(allowInsecureConnection, trustCertsFilePath, certificates, privateKey);
+        return createNettySslContextForClient(allowInsecureConnection, trustCertsFilePath, certificates, privateKey);
     }
 
-    public static SslContext createNettySslContext(boolean allowInsecureConnection, String trustCertsFilePath,
-                                                   Certificate[] certificates, PrivateKey privateKey) throws GeneralSecurityException, SSLException, FileNotFoundException {
+    public static SslContext createNettySslContextForClient(boolean allowInsecureConnection, String trustCertsFilePath,
+            Certificate[] certificates, PrivateKey privateKey)
+            throws GeneralSecurityException, SSLException, FileNotFoundException {
         SslContextBuilder builder = SslContextBuilder.forClient();
         if (allowInsecureConnection) {
             builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
@@ -78,6 +93,36 @@ public class SecurityUtility {
             }
         }
         builder.keyManager(privateKey, (X509Certificate[]) certificates);
+        return builder.build();
+    }
+
+    public static SslContext createNettySslContextForServer(boolean allowInsecureConnection, String trustCertsFilePath,
+            String certFilePath, String keyFilePath, Set<String> ciphers, Set<String> protocols)
+            throws GeneralSecurityException, SSLException, FileNotFoundException {
+        X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
+        PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
+
+        SslContextBuilder builder = SslContextBuilder.forServer(privateKey, (X509Certificate[]) certificates);
+        if (ciphers != null && ciphers.size() > 0) {
+            builder.ciphers(ciphers);
+        }
+
+        if (protocols != null && protocols.size() > 0) {
+            String[] protocolsArray = new String[protocols.size()];
+            builder.protocols(protocols.toArray(protocolsArray));
+        }
+        
+        if (allowInsecureConnection) {
+            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
+        } else {
+            if (trustCertsFilePath != null && trustCertsFilePath.length() != 0) {
+                builder.trustManager(new FileInputStream(trustCertsFilePath));
+            } else {
+                builder.trustManager((File) null);
+            }
+        }
+        builder.keyManager(privateKey, (X509Certificate[]) certificates);
+        builder.clientAuth(ClientAuth.OPTIONAL);
         return builder.build();
     }
 

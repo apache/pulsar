@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.loadbalance;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
@@ -68,8 +69,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
-
-import junit.framework.Assert;
 
 public class AntiAffinityNamespaceGroupTest {
     private LocalBookkeeperEnsemble bkEnsemble;
@@ -126,12 +125,13 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
+        config1.setAdvertisedAddress("localhost");
         createCluster(bkEnsemble.getZkClient(), config1);
         pulsar1 = new PulsarService(config1);
 
         pulsar1.start();
 
-        primaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(), PRIMARY_BROKER_WEBSERVICE_PORT);
+        primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
         admin1 = new PulsarAdmin(url1, (Authentication) null);
 
@@ -144,7 +144,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
         config2.setFailureDomainsEnabled(true);
         pulsar2 = new PulsarService(config2);
-        secondaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(),
+        secondaryHost = String.format("%s:%d", "localhost",
                 SECONDARY_BROKER_WEBSERVICE_PORT);
 
         pulsar2.start();
@@ -240,7 +240,7 @@ public class AntiAffinityNamespaceGroupTest {
         Set<String> candidate = Sets.newHashSet();
         Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange = Maps.newHashMap();
 
-        Assert.assertEquals(brokers.size(), totalBrokers);
+        assertEquals(brokers.size(), totalBrokers);
 
         String assignedNamespace = namespace + "0" + bundle;
         candidate.addAll(brokers);
@@ -248,7 +248,7 @@ public class AntiAffinityNamespaceGroupTest {
         // for namespace-0 all brokers available
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(brokers.size(), totalBrokers);
+        assertEquals(brokers.size(), totalBrokers);
 
         // add namespace-0 to broker-0 of domain-0 => state: n0->b0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-0", namespace + "0", assignedNamespace);
@@ -257,8 +257,8 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "1" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 2);
-        candidate.forEach(broker -> Assert.assertEquals(brokerToDomainMap.get(broker), "domain-1"));
+        assertEquals(candidate.size(), 2);
+        candidate.forEach(broker -> assertEquals(brokerToDomainMap.get(broker), "domain-1"));
 
         // add namespace-1 to broker-2 of domain-1 => state: n0->b0, n1->b2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-2", namespace + "1", assignedNamespace);
@@ -267,9 +267,9 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "2" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 2);
-        Assert.assertTrue(candidate.contains("brokerName-1"));
-        Assert.assertTrue(candidate.contains("brokerName-3"));
+        assertEquals(candidate.size(), 2);
+        assertTrue(candidate.contains("brokerName-1"));
+        assertTrue(candidate.contains("brokerName-3"));
 
         // add namespace-2 to broker-1 of domain-0 => state: n0->b0, n1->b2, n2->b1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-1", namespace + "2", assignedNamespace);
@@ -278,8 +278,8 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "3" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 1);
-        Assert.assertTrue(candidate.contains("brokerName-3"));
+        assertEquals(candidate.size(), 1);
+        assertTrue(candidate.contains("brokerName-3"));
         // add namespace-3 to broker-3 of domain-1 => state: n0->b0, n1->b2, n2->b1, n3->b3
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "brokerName-3", namespace + "3", assignedNamespace);
         candidate.addAll(brokers);
@@ -287,7 +287,7 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "4" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, brokerToDomainMap);
-        Assert.assertEquals(candidate.size(), 4);
+        assertEquals(candidate.size(), 4);
     }
 
     /**
@@ -335,7 +335,7 @@ public class AntiAffinityNamespaceGroupTest {
         candidate.addAll(brokers);
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, brokers,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(brokers.size(), 3);
+        assertEquals(brokers.size(), 3);
 
         // add ns-0 to broker-0
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-0", namespace + "0", assignedNamespace);
@@ -344,9 +344,9 @@ public class AntiAffinityNamespaceGroupTest {
         // available brokers for ns-1 => broker-1, broker-2
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(candidate.size(), 2);
-        Assert.assertTrue(candidate.contains("broker-1"));
-        Assert.assertTrue(candidate.contains("broker-2"));
+        assertEquals(candidate.size(), 2);
+        assertTrue(candidate.contains("broker-1"));
+        assertTrue(candidate.contains("broker-2"));
 
         // add ns-1 to broker-1
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-1", namespace + "1", assignedNamespace);
@@ -355,8 +355,8 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "2" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(candidate.size(), 1);
-        Assert.assertTrue(candidate.contains("broker-2"));
+        assertEquals(candidate.size(), 1);
+        assertTrue(candidate.contains("broker-2"));
 
         // add ns-2 to broker-2
         selectBrokerForNamespace(brokerToNamespaceToBundleRange, "broker-2", namespace + "2", assignedNamespace);
@@ -365,7 +365,7 @@ public class AntiAffinityNamespaceGroupTest {
         assignedNamespace = namespace + "3" + bundle;
         LoadManagerShared.filterAntiAffinityGroupOwnedBrokers(pulsar1, assignedNamespace, candidate,
                 brokerToNamespaceToBundleRange, null);
-        Assert.assertEquals(candidate.size(), 3);
+        assertEquals(candidate.size(), 3);
     }
 
     private void selectBrokerForNamespace(Map<String, Map<String, Set<String>>> brokerToNamespaceToBundleRange,

@@ -50,16 +50,20 @@ public class ConsumerConfiguration implements Serializable {
 
     private int receiverQueueSize = 1000;
 
+    private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
+
     private String consumerName = null;
 
     private long ackTimeoutMillis = 0;
-    
+
     private int priorityLevel = 0;
 
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     private final Map<String, String> properties = new HashMap<>();
+
+    private boolean readCompacted = false;
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
@@ -163,6 +167,27 @@ public class ConsumerConfiguration implements Serializable {
         return this.receiverQueueSize;
     }
 
+
+    /**
+     * @return the configured max total receiver queue size across partitions
+     */
+    public int getMaxTotalReceiverQueueSizeAcrossPartitions() {
+        return maxTotalReceiverQueueSizeAcrossPartitions;
+    }
+
+    /**
+     * Set the max total receiver queue size across partitons.
+     * <p>
+     * This setting will be used to reduce the receiver queue size for individual partitions
+     * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions
+     */
+    public void setMaxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= receiverQueueSize);
+        this.maxTotalReceiverQueueSizeAcrossPartitions = maxTotalReceiverQueueSizeAcrossPartitions;
+    }
+
     /**
      * @return the CryptoKeyReader
      */
@@ -184,7 +209,7 @@ public class ConsumerConfiguration implements Serializable {
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
-     * 
+     *
      * @param The consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
@@ -247,7 +272,7 @@ public class ConsumerConfiguration implements Serializable {
         this.consumerName = consumerName;
         return this;
     }
-    
+
     public int getPriorityLevel() {
         return priorityLevel;
     }
@@ -259,7 +284,7 @@ public class ConsumerConfiguration implements Serializable {
      * permits, else broker will consider next priority level consumers. </br>
      * If subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1 then broker will dispatch
      * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
-     * 
+     *
      * <pre>
      * Consumer PriorityLevel Permits
      * C1       0             2
@@ -269,11 +294,32 @@ public class ConsumerConfiguration implements Serializable {
      * C5       1             1
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
-     * 
+     *
      * @param priorityLevel
      */
     public void setPriorityLevel(int priorityLevel) {
         this.priorityLevel = priorityLevel;
+    }
+
+    public boolean getReadCompacted() {
+        return readCompacted;
+    }
+
+    /**
+     * If enabled, the consumer will read messages from the compacted topic rather than reading the full message
+     * backlog of the topic. This means that, if the topic has been compacted, the consumer will only see the latest
+     * value for each key in the topic, up until the point in the topic message backlog that has been compacted.
+     * Beyond that point, the messages will be sent as normal.
+     *
+     * readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer
+     * (i.e. failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent
+     * topics or on a shared subscription, will lead to the subscription call throwing a PulsarClientException.
+     *
+     * @param readCompacted whether to read from the compacted topic
+     */
+    public ConsumerConfiguration setReadCompacted(boolean readCompacted) {
+        this.readCompacted = readCompacted;
+        return this;
     }
 
     /**

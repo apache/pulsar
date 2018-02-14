@@ -37,8 +37,8 @@ import org.slf4j.LoggerFactory;
 */
 public abstract class Compactor {
     private static final Logger log = LoggerFactory.getLogger(Compactor.class);
-    private static final String COMPACTION_SUBSCRIPTION = "__compaction";
-    private static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
+    public static final String COMPACTION_SUBSCRIPTION = "__compaction";
+    public static final String COMPACTED_TOPIC_LEDGER_PROPERTY = "CompactedTopicLedger";
     static BookKeeper.DigestType COMPACTED_TOPIC_LEDGER_DIGEST_TYPE = BookKeeper.DigestType.CRC32;
     static byte[] COMPACTED_TOPIC_LEDGER_PASSWORD = "".getBytes(UTF_8);
 
