@@ -23,17 +23,10 @@ option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
 message Schema {
-	required string name = 1;
-	required bytes version = 2;
-	required bytes schema_data = 3;
+    required string name = 1;
+    required bytes version = 2;
+    required bytes schema_data = 3;
     repeated KeyValue properties = 4;
-}
-
-message Tombstone {}
-
-message SchemaEntry {
-	optional Schema schema = 3;
-	optional Tombstone tombstone = 4;
 }
 
 message MessageIdData {
@@ -93,9 +86,9 @@ message MessageMetadata {
 	repeated EncryptionKeys encryption_keys = 13;
 	// Algorithm used to encrypt data key
 	optional string encryption_algo = 14;
+	optional bytes schema_version = 15;
 	// Additional parameters required by encryption
-	optional bytes encryption_param = 15;
-	optional int64 schema_version = 16;
+	optional bytes encryption_param = 16;
 }
 
 
@@ -290,7 +283,7 @@ message CommandProducer {
     /// Add optional metadata key=value to this producer
     repeated KeyValue metadata    = 6;
 
-	optional int64 schema_version = 7;
+	optional Schema schema = 7;
 }
 
 message CommandSend {
