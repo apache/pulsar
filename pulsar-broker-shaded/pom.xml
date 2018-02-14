@@ -106,6 +106,7 @@
                   <include>com.wordnik:swagger-annotations</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
+                  <include>org.apache.httpcomponents:httpcore</include>
                 </includes>
               </artifactSet>
               <filters>
