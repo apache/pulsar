@@ -1062,7 +1062,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         Futures.waitForAll(futures).thenRun(() -> {
             callback.closeComplete(ctx);
         }).exceptionally(exception -> {
-            callback.closeFailed(getManagedLedgerException(exception.getCause()), ctx);
+            callback.closeFailed(ManagedLedgerException.getManagedLedgerException(exception.getCause()), ctx);
             return null;
         });
     }
@@ -1282,7 +1282,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             }).exceptionally(ex -> {
                 log.error("[{}] Error opening ledger for reading at position {} - {}", name, opReadEntry.readPosition,
                         ex.getMessage());
-                opReadEntry.readEntriesFailed(getManagedLedgerException(ex.getCause()), opReadEntry.ctx);
+                opReadEntry.readEntriesFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), opReadEntry.ctx);
                 return null;
             });
         }
@@ -1351,7 +1351,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 entryCache.asyncReadEntry(ledger, position, callback, ctx);
             }).exceptionally(ex -> {
                 log.error("[{}] Error opening ledger for reading at position {} - {}", name, position, ex.getMessage());
-                callback.readEntryFailed(getManagedLedgerException(ex.getCause()), ctx);
+                callback.readEntryFailed(ManagedLedgerException.getManagedLedgerException(ex.getCause()), ctx);
                 return null;
             });
         }
@@ -2173,7 +2173,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return pendingAddEntries.size();
     }
 
-    public PositionImpl getLastConfirmedEntry() {
+    @Override
+    public Position getLastConfirmedEntry() {
         return lastConfirmedEntry;
     }
 
