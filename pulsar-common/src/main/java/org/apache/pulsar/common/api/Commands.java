@@ -121,7 +121,7 @@ public class Commands {
         if (originalAuthData != null) {
             connectBuilder.setOriginalAuthData(originalAuthData);
         }
-        
+
         if (originalAuthMethod != null) {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
@@ -951,5 +951,9 @@ public class Commands {
         lookupTopicBuilder.recycle();
         lookupBroker.recycle();
         return res;
+    }
+
+    public static boolean peerSupportsGetLastMessageId() {
+        return getCurrentProtocolVersion() >= ProtocolVersion.v12.getNumber();
     }
 }

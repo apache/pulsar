@@ -28,6 +28,7 @@ import static org.apache.pulsar.common.api.Commands.readChecksum;
 import com.google.common.collect.Iterables;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Timeout;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 import java.io.IOException;
@@ -45,8 +46,11 @@ import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -114,6 +118,8 @@ public class ConsumerImpl extends ConsumerBase {
 
     private final boolean readCompacted;
 
+    private final ScheduledExecutorService getLastIdExecutor;
+
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
         // position
@@ -144,6 +150,9 @@ public class ConsumerImpl extends ConsumerBase {
         this.priorityLevel = conf.getPriorityLevel();
         this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
         this.readCompacted = conf.getReadCompacted();
+
+        this.getLastIdExecutor = Executors
+            .newSingleThreadScheduledExecutor(new DefaultThreadFactory("consumer-getlastid-executor"));
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);
@@ -682,6 +691,7 @@ public class ConsumerImpl extends ConsumerBase {
         if (getState() == State.Closing || getState() == State.Closed) {
             batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
+            getLastIdExecutor.shutdown();
             return CompletableFuture.completedFuture(null);
         }
 
@@ -690,6 +700,7 @@ public class ConsumerImpl extends ConsumerBase {
             setState(State.Closed);
             batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
+            getLastIdExecutor.shutdown();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
         }
@@ -713,6 +724,7 @@ public class ConsumerImpl extends ConsumerBase {
                 setState(State.Closed);
                 batchMessageAckTracker.clear();
                 unAckedMessageTracker.close();
+                getLastIdExecutor.shutdown();
                 closeFuture.complete(null);
                 client.cleanupConsumer(this);
                 // fail all pending-receive futures to notify application
@@ -1297,58 +1309,57 @@ public class ConsumerImpl extends ConsumerBase {
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));
         }
 
-        if (!isConnected()) {
-            long opTimeoutMs = client.getConfiguration().getOperationTimeoutMs();
-            Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
-                opTimeoutMs * 2, TimeUnit.MILLISECONDS,
-                0 , TimeUnit.MILLISECONDS);
+        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
+            opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
+            0 , TimeUnit.MILLISECONDS);
+        CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
 
-            long delayMs = backoff.firstBackoffTimeInMillis;;
-            while (delayMs < opTimeoutMs && !isConnected()); {
-                log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
-                    topic, getHandlerName(), delayMs);
-                try {
-                    Thread.sleep(delayMs);
-                } catch (InterruptedException e) {
-                    return FutureUtil
-                        .failedFuture(new PulsarClientException
-                            .ConnectException("InterruptedException, could not connect"));
-                }
-                delayMs = backoff.next();
-            }
+        internalGetLastMessageIdAsync(backoff, opTimeoutMs, getLastMessageIdFuture);
+        return getLastMessageIdFuture;
+    }
 
-            if (!isConnected()) {
-                return FutureUtil.failedFuture(new PulsarClientException("Not connected to broker"));
-            }
-        }
-
-        if (cnx().getRemoteEndpointProtocolVersion() < ProtocolVersion.v12.getNumber()) {
-            return FutureUtil
-                .failedFuture(new PulsarClientException
+    private void internalGetLastMessageIdAsync(final Backoff backoff,
+                                               final AtomicLong remainingTime,
+                                               CompletableFuture<MessageId> future) {
+        if (isConnected()) {
+            if (!Commands.peerSupportsGetLastMessageId()) {
+                future.completeExceptionally(new PulsarClientException
                     .NotSupportedException("GetLastMessageId Not supported for ProtocolVersion: " +
                     cnx().getRemoteEndpointProtocolVersion()));
+            }
+
+            long requestId = client.newRequestId();
+            ByteBuf getLastIdCmd = Commands.newGetLastMessageId(consumerId, requestId);
+            ClientCnx cnx = cnx();
+
+            log.info("[{}][{}] Get topic last message Id", topic, subscription);
+
+            cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept((result) -> {
+                log.info("[{}][{}] Successfully getLastMessageId {}:{}",
+                    topic, subscription, result.getLedgerId(), result.getEntryId());
+                future.complete(new MessageIdImpl(result.getLedgerId(),
+                    result.getEntryId(), result.getPartition()));
+            }).exceptionally(e -> {
+                log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
+                future.completeExceptionally(e.getCause());
+                return null;
+            });
+        } else {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            if (nextDelay <= 0) {
+                future.completeExceptionally(new PulsarClientException
+                    .TimeoutException("Could not getLastMessageId within configured timeout."));
+                return;
+            }
+
+            getLastIdExecutor.schedule(() -> {
+                log.warn("[{}] [{}] Could not get connection while getLastMessageId -- Will try again in {} ms",
+                    topic, getHandlerName(), nextDelay);
+                remainingTime.addAndGet(-nextDelay);
+                internalGetLastMessageIdAsync(backoff, remainingTime, future);
+            }, nextDelay, TimeUnit.MILLISECONDS);
         }
-
-        final CompletableFuture<MessageId> getLastMessageIdFuture = new CompletableFuture<>();
-
-        long requestId = client.newRequestId();
-        ByteBuf getLastIdCmd = Commands.newGetLastMessageId(consumerId, requestId);
-        ClientCnx cnx = cnx();
-
-        log.info("[{}][{}] Get topic last message Id", topic, subscription);
-
-        cnx.sendGetLastMessageId(getLastIdCmd, requestId).thenAccept((result) -> {
-            log.info("[{}][{}] Successfully getLastMessageId {}:{}",
-                topic, subscription, result.getLedgerId(), result.getEntryId());
-            getLastMessageIdFuture.complete(new MessageIdImpl(result.getLedgerId(),
-                result.getEntryId(), result.getPartition()));
-        }).exceptionally(e -> {
-            log.error("[{}][{}] Failed getLastMessageId command", topic, subscription);
-            getLastMessageIdFuture.completeExceptionally(e.getCause());
-            return null;
-        });
-
-        return getLastMessageIdFuture;
     }
 
     private MessageIdImpl getMessageIdImpl(Message msg) {
