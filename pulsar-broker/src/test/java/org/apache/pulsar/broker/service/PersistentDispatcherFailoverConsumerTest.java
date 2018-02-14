@@ -152,13 +152,13 @@ public class PersistentDispatcherFailoverConsumerTest {
             }
 
             return null;
-        }).when(channelCtx).write(any());
+        }).when(channelCtx).writeAndFlush(any(), any());
 
         serverCnx = spy(new ServerCnx(brokerService));
         doReturn(true).when(serverCnx).isActive();
         doReturn(true).when(serverCnx).isWritable();
         doReturn(new InetSocketAddress("localhost", 1234)).when(serverCnx).clientAddress();
-        when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v11.getNumber());
+        when(serverCnx.getRemoteEndpointProtocolVersion()).thenReturn(ProtocolVersion.v12.getNumber());
         when(serverCnx.ctx()).thenReturn(channelCtx);
 
         serverCnxWithOldVersion = spy(new ServerCnx(brokerService));
@@ -167,7 +167,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         doReturn(new InetSocketAddress("localhost", 1234))
             .when(serverCnxWithOldVersion).clientAddress();
         when(serverCnxWithOldVersion.getRemoteEndpointProtocolVersion())
-            .thenReturn(ProtocolVersion.v10.getNumber());
+            .thenReturn(ProtocolVersion.v11.getNumber());
         when(serverCnxWithOldVersion.ctx()).thenReturn(channelCtx);
 
         NamespaceService nsSvc = mock(NamespaceService.class);
@@ -285,7 +285,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         CommandActiveConsumerChange change = consumerChanges.take();
         verifyActiveConsumerChange(change, 2, false);
 
-        verify(channelCtx, times(1)).write(any());
+        verify(channelCtx, times(1)).writeAndFlush(any(), any());
     }
 
     @Test
