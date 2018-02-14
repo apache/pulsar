@@ -32,6 +32,9 @@ IMAGE="$BUILD_IMAGE_NAME:$BUILD_IMAGE_VERSION"
 
 echo $IMAGE
 
+# Force to pull image in case it was updated
+docker pull $IMAGE
+
 docker run -i \
     -v ${COMMON_DIR}:${COMMON_DIR} $IMAGE \
     bash -c "cd ${COMMON_DIR}; /pulsar/protobuf/src/protoc --java_out=src/main/java src/main/proto/PulsarApi.proto"
