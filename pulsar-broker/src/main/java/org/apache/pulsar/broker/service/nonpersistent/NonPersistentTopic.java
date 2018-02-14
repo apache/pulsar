@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -907,6 +908,11 @@ public class NonPersistentTopic implements Topic {
     public CompletableFuture<Void> unsubscribe(String subName) {
         // No-op
         return CompletableFuture.completedFuture(null);
+    }
+
+    @Override
+    public Position getLastMessageId() {
+        throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
     }
 
     public void markBatchMessagePublished() {
