@@ -135,6 +135,7 @@ enum ProtocolVersion {
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
 	v11 = 11;// C++ consumers before this version are not correctly handling the checksum field
+	v12 = 12;//Added get topic's last messageId from broker
 }
 
 message CommandConnect {
@@ -152,13 +153,13 @@ message CommandConnect {
 	// a Pulsar proxy. In this case the auth info above
 	// will be the auth of the proxy itself
 	optional string original_principal = 7;
-	
-	// Original auth role and auth Method that was passed 
+
+	// Original auth role and auth Method that was passed
 	// to the proxy. In this case the auth info above
-	// will be the auth of the proxy itself	
+	// will be the auth of the proxy itself
 	optional string original_auth_data = 8;
 	optional string original_auth_method = 9;
-	
+
 }
 
 message CommandConnected {
@@ -202,9 +203,9 @@ message CommandPartitionedTopicMetadata {
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 3;
-	
-	// Original auth role and auth Method that was passed 
-	// to the proxy.	
+
+	// Original auth role and auth Method that was passed
+	// to the proxy.
 	optional string original_auth_data = 4;
 	optional string original_auth_method = 5;
 }
@@ -225,13 +226,13 @@ message CommandLookupTopic {
 	required string topic            = 1;
 	required uint64 request_id       = 2;
 	optional bool authoritative      = 3 [default = false];
-	
+
 	// Original principal that was verified by
 	// a Pulsar proxy.
 	optional string original_principal = 4;
-	
-	// Original auth role and auth Method that was passed 
-	// to the proxy. 	
+
+	// Original auth role and auth Method that was passed
+	// to the proxy.
 	optional string original_auth_data = 5;
 	optional string original_auth_method = 6;
 }
@@ -340,7 +341,7 @@ message CommandUnsubscribe {
 message CommandSeek {
 	required uint64 consumer_id = 1;
 	required uint64 request_id  = 2;
-	
+
 	optional MessageIdData message_id = 3;
 }
 
@@ -374,7 +375,7 @@ message CommandSuccess {
 message CommandProducerSuccess {
 	required uint64 request_id    = 1;
 	required string producer_name = 2;
-	
+
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
@@ -443,6 +444,16 @@ message CommandConsumerStatsResponse {
         optional uint64 msgBacklog                  = 15;
 }
 
+message CommandGetLastMessageId {
+	required uint64 consumer_id = 1;
+	required uint64 request_id  = 2;
+}
+
+message CommandGetLastMessageIdResponse {
+	required MessageIdData last_message_id = 1;
+	required uint64 request_id  = 2;
+}
+
 message BaseCommand {
 	enum Type {
 		CONNECT     = 2;
@@ -486,6 +497,9 @@ message BaseCommand {
 		REACHED_END_OF_TOPIC = 27;
 
 		SEEK = 28;
+
+		GET_LAST_MESSAGE_ID = 29;
+		GET_LAST_MESSAGE_ID_RESPONSE = 30;
 	}
 
 	required Type type = 1;
@@ -524,6 +538,11 @@ message BaseCommand {
 	optional CommandConsumerStatsResponse consumerStatsResponse         = 26;
 
 	optional CommandReachedEndOfTopic reachedEndOfTopic  = 27;
-	
+
 	optional CommandSeek seek = 28;
+
+	optional CommandGetLastMessageId getLastMessageId = 29;
+	optional CommandGetLastMessageIdResponse getLastMessageIdResponse = 30;
+
+
 }

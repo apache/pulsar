@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.web;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
@@ -41,16 +42,13 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
-import static org.apache.commons.lang3.StringUtils.isBlank;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.admin.Namespaces;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceBundles;
-import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.*;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -127,6 +125,10 @@ public abstract class PulsarWebResource {
         return (String) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedRoleAttributeName);
     }
 
+    public AuthenticationDataHttps clientAuthData() {
+        return (AuthenticationDataHttps) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
+    }
+    
     public boolean isRequestHttps() {
     	return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
@@ -271,12 +273,13 @@ public abstract class PulsarWebResource {
     }
 
     protected static CompletableFuture<ClusterData> getClusterDataIfDifferentCluster(PulsarService pulsar,
-            String cluster, String clientAppId) {
+         String cluster, String clientAppId) {
 
         CompletableFuture<ClusterData> clusterDataFuture = new CompletableFuture<>();
 
         if (!isValidCluster(pulsar, cluster)) {
             try {
+                // this code should only happen with a v1 namespace format prop/cluster/namespaces
                 if (!pulsar.getConfiguration().getClusterName().equals(cluster)) {
                     // redirect to the cluster requested
                     pulsar.getConfigurationCache().clustersCache().getAsync(path("clusters", cluster))
@@ -304,15 +307,15 @@ public abstract class PulsarWebResource {
         return clusterDataFuture;
     }
 
-    protected static boolean isValidCluster(PulsarService pulsarSevice, String cluster) {// If the cluster name is
-        // "global", don't validate the
-        // cluster ownership.
+    static boolean isValidCluster(PulsarService pulsarService, String cluster) {// If the cluster name is
+        // cluster == null or "global", don't validate the
+        // cluster ownership. Cluster will be null in v2 naming.
         // The validation will be done by checking the namespace configuration
-        if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
+        if (cluster == null || Constants.GLOBAL_CLUSTER.equals(cluster)) {
             return true;
         }
 
-        if (!pulsarSevice.getConfiguration().isAuthorizationEnabled()) {
+        if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // Without authorization, any cluster name should be valid and accepted by the broker
             return true;
         }
@@ -559,8 +562,7 @@ public abstract class PulsarWebResource {
         }
         final CompletableFuture<ClusterData> validationFuture = new CompletableFuture<>();
         final String localCluster = pulsarService.getConfiguration().getClusterName();
-        final String path = AdminResource.path(POLICIES, namespace.getProperty(), namespace.getCluster(),
-                namespace.getLocalName());
+        final String path = AdminResource.path(POLICIES, namespace.toString());
 
         pulsarService.getConfigurationCache().policiesCache().getAsync(path).thenAccept(policiesResult -> {
             if (policiesResult.isPresent()) {
@@ -635,17 +637,17 @@ public abstract class PulsarWebResource {
     }
 
     protected void checkConnect(DestinationName destination) throws RestException, Exception {
-        checkAuthorization(pulsar(), destination, clientAppId());
+        checkAuthorization(pulsar(), destination, clientAppId(), clientAuthData());
     }
 
-    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role)
-            throws RestException, Exception {
+    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role,
+            AuthenticationDataSource authenticationData) throws RestException, Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationManager().canLookup(destination, role)) {
+        if (!pulsarService.getBrokerService().getAuthorizationService().canLookup(destination, role, authenticationData)) {
             log.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
             throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
         }

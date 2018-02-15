@@ -23,7 +23,6 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -131,6 +130,16 @@ public class ReaderImpl implements Reader {
     @Override
     public CompletableFuture<Void> closeAsync() {
         return consumer.closeAsync();
+    }
+
+    @Override
+    public boolean hasMessageAvailable() throws PulsarClientException {
+        return consumer.hasMessageAvailable();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return consumer.hasMessageAvailableAsync();
     }
 
 }

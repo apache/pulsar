@@ -20,8 +20,6 @@ package org.apache.pulsar.common.naming;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -35,10 +33,10 @@ public class NamespaceName implements ServiceUnitId {
 
     private final String namespace;
 
-    private String property;
-    private String cluster;
-    private String localName;
-    
+    private final String property;
+    private final String cluster;
+    private final String localName;
+
     private static final LoadingCache<String, NamespaceName> cache = CacheBuilder.newBuilder().maximumSize(100000)
             .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, NamespaceName>() {
                 @Override
@@ -46,6 +44,11 @@ public class NamespaceName implements ServiceUnitId {
                     return new NamespaceName(name);
                 }
             });
+
+    public static NamespaceName get(String property, String namespace) {
+        validateNamespaceName(property, namespace);
+        return get(property + '/' + namespace);
+    }
 
     public static NamespaceName get(String property, String cluster, String namespace) {
         validateNamespaceName(property, cluster, namespace);
@@ -68,14 +71,37 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     private NamespaceName(String namespace) {
-        try {
-            checkNotNull(namespace);
-        } catch (NullPointerException e) {
+        if (namespace == null || namespace.isEmpty()) {
             throw new IllegalArgumentException("Invalid null namespace: " + namespace);
         }
 
         // Verify it's a proper namespace
-        validateNamespaceName(namespace);
+        // The namespace name is composed of <property>/<namespace>
+        // or in the legacy format with the cluster name:
+        // <property>/<cluster>/<namespace>
+        try {
+
+            String[] parts = namespace.split("/");
+            if (parts.length == 2) {
+                // New style namespace : <property>/<namespace>
+                validateNamespaceName(parts[0], parts[1]);
+
+                property = parts[0];
+                cluster = null;
+                localName = parts[1];
+            } else if (parts.length == 3) {
+                // Old style namespace: <property>/<cluster>/<namespace>
+                validateNamespaceName(parts[0], parts[1], parts[2]);
+
+                property = parts[0];
+                cluster = parts[1];
+                localName = parts[2];
+            } else {
+                throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
+            }
+        } catch (NullPointerException e) {
+            throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace, e);
+        }
         this.namespace = namespace;
     }
 
@@ -83,6 +109,7 @@ public class NamespaceName implements ServiceUnitId {
         return property;
     }
 
+    @Deprecated
     public String getCluster() {
         return cluster;
     }
@@ -92,7 +119,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     public boolean isGlobal() {
-        return "global".equals(cluster);
+        return cluster == null || Constants.GLOBAL_CLUSTER.equalsIgnoreCase(cluster);
     }
 
     public String getPersistentTopicName(String localTopic) {
@@ -136,6 +163,22 @@ public class NamespaceName implements ServiceUnitId {
         return namespace.hashCode();
     }
 
+    public static void validateNamespaceName(String property, String namespace) {
+        try {
+            checkNotNull(property);
+            checkNotNull(namespace);
+            if (property.isEmpty() || namespace.isEmpty()) {
+                throw new IllegalArgumentException(
+                        String.format("Invalid namespace format. namespace: %s/%s", property, namespace));
+            }
+            NamedEntity.checkName(property);
+            NamedEntity.checkName(namespace);
+        } catch (NullPointerException e) {
+            throw new IllegalArgumentException(
+                    String.format("Invalid namespace format. namespace: %s/%s/%s", property, namespace), e);
+        }
+    }
+
     public static void validateNamespaceName(String property, String cluster, String namespace) {
         try {
             checkNotNull(property);
@@ -151,31 +194,6 @@ public class NamespaceName implements ServiceUnitId {
         } catch (NullPointerException e) {
             throw new IllegalArgumentException(
                     String.format("Invalid namespace format. namespace: %s/%s/%s", property, cluster, namespace), e);
-        }
-    }
-
-    private void validateNamespaceName(String namespace) {
-        // assume the namespace is in the form of <property>/<cluster>/<namespace>
-        try {
-            checkNotNull(namespace);
-            String testUrl = String.format("http://%s", namespace);
-            URI uri = new URI(testUrl);
-            checkNotNull(uri.getPath());
-            NamedEntity.checkURI(uri, testUrl);
-
-            String[] parts = uri.getPath().split("/");
-            if (parts.length != 3) {
-                throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace);
-            }
-            validateNamespaceName(uri.getHost(), parts[1], parts[2]);
-
-            property = uri.getHost();
-            cluster = parts[1];
-            localName = parts[2];
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace, e);
-        } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Invalid namespace format. namespace: " + namespace, e);
         }
     }
 

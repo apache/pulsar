@@ -107,6 +107,22 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
 
+    protected boolean isConsumersExceededOnTopic() {
+        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    protected boolean isConsumersExceededOnSubscription() {
+        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
+            return true;
+        }
+        return false;
+    }
+
     protected void cancelPendingRead() {
         if (havePendingRead && cursor.cancelPendingReadRequest()) {
             havePendingRead = false;

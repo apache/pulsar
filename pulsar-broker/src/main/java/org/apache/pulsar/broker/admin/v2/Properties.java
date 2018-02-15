@@ -16,23 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.discovery.service;
+package org.apache.pulsar.broker.admin.v2;
 
-import java.io.IOException;
+import io.swagger.annotations.Api;
+import org.apache.pulsar.broker.admin.impl.PropertiesBase;
 
-public class PulsarServerException extends IOException {
-    private static final long serialVersionUID = 1;
+import javax.ws.rs.Consumes;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.MediaType;
 
-    public PulsarServerException(String message) {
-        super(message);
-    }
-
-    public PulsarServerException(Throwable cause) {
-        super(cause);
-    }
-
-    public PulsarServerException(String message, Throwable cause) {
-        super(message, cause);
-    }
-
+@Path("/properties")
+@Produces(MediaType.APPLICATION_JSON)
+@Consumes(MediaType.APPLICATION_JSON)
+@Api(value = "/properties", description = "PropertiesBase admin apis", tags = "properties")
+public class Properties extends PropertiesBase {
 }

@@ -59,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -79,7 +80,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -94,6 +94,7 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.compaction.CompactedTopic;
@@ -315,6 +316,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 throw new TopicTerminatedException("Topic was already terminated");
             }
 
+            if (isProducersExceeded()) {
+                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+                throw new ProducerBusyException("Topic reached max producers limit");
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
@@ -336,6 +342,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private boolean isProducersExceeded() {
+        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        if (maxProducers > 0 && maxProducers <= producers.size()) {
+            return true;
+        }
+        return false;
     }
 
     private boolean hasLocalProducers() {
@@ -942,6 +956,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return producers;
     }
 
+    public int getNumberOfConsumers() {
+        int count = 0;
+        for (PersistentSubscription subscription : subscriptions.values()) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
+    }
+
     @Override
     public ConcurrentOpenHashMap<String, PersistentSubscription> getSubscriptions() {
         return subscriptions;
@@ -1534,6 +1556,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     public long getLastPublishedSequenceId(String producerName) {
         return messageDeduplication.getLastPublishedSequenceId(producerName);
+    }
+
+    @Override
+    public Position getLastMessageId() {
+        return ledger.getLastConfirmedEntry();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);

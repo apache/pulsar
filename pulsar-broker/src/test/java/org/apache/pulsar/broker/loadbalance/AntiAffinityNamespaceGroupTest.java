@@ -125,12 +125,13 @@ public class AntiAffinityNamespaceGroupTest {
         config1.setBrokerServicePort(PRIMARY_BROKER_PORT);
         config1.setFailureDomainsEnabled(true);
         config1.setLoadBalancerEnabled(true);
+        config1.setAdvertisedAddress("localhost");
         createCluster(bkEnsemble.getZkClient(), config1);
         pulsar1 = new PulsarService(config1);
 
         pulsar1.start();
 
-        primaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(), PRIMARY_BROKER_WEBSERVICE_PORT);
+        primaryHost = String.format("%s:%d", "localhost", PRIMARY_BROKER_WEBSERVICE_PORT);
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
         admin1 = new PulsarAdmin(url1, (Authentication) null);
 
@@ -143,7 +144,7 @@ public class AntiAffinityNamespaceGroupTest {
         config2.setBrokerServicePort(SECONDARY_BROKER_PORT);
         config2.setFailureDomainsEnabled(true);
         pulsar2 = new PulsarService(config2);
-        secondaryHost = String.format("%s:%d", InetAddress.getLocalHost().getHostName(),
+        secondaryHost = String.format("%s:%d", "localhost",
                 SECONDARY_BROKER_WEBSERVICE_PORT);
 
         pulsar2.start();

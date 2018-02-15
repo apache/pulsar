@@ -42,6 +42,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
@@ -51,6 +52,7 @@ import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -198,7 +200,7 @@ public class DestinationLookup extends PulsarWebResource {
      * @return
      */
     public static CompletableFuture<ByteBuf> lookupDestinationAsync(PulsarService pulsarService, DestinationName fqdn, boolean authoritative,
-            String clientAppId, long requestId) {
+            String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
 
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
@@ -210,14 +212,15 @@ public class DestinationLookup extends PulsarWebResource {
             if (differentClusterData != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Redirecting the lookup call to {}/{} cluster={}", clientAppId,
-                            differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(), cluster);
+                            differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(),
+                            cluster);
                 }
                 validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
                         differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
             } else {
                 // (2) authorize client
                 try {
-                    checkAuthorization(pulsarService, fqdn, clientAppId);
+                    checkAuthorization(pulsarService, fqdn, clientAppId, authenticationData);
                 } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, fqdn.toString());
                     validationFuture.complete(

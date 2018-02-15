@@ -21,13 +21,12 @@ package org.apache.pulsar.client.impl.auth;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
-import java.io.File;
 import java.io.IOException;
-import java.net.URI;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
+import java.net.URLConnection;
 import java.security.PrivateKey;
-import java.util.Base64;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
@@ -37,11 +36,13 @@ import org.apache.pulsar.client.api.AuthenticationUtil;
 import org.apache.pulsar.client.api.EncodedAuthenticationParameterSupport;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.GettingAuthenticationDataException;
+import org.apache.pulsar.client.api.url.URL;
 
-import com.google.common.base.Splitter;
+import com.google.common.io.CharStreams;
 import com.yahoo.athenz.auth.ServiceIdentityProvider;
 import com.yahoo.athenz.auth.impl.SimpleServiceIdentityProvider;
 import com.yahoo.athenz.auth.util.Crypto;
+import com.yahoo.athenz.auth.util.CryptoException;
 import com.yahoo.athenz.zts.RoleToken;
 import com.yahoo.athenz.zts.ZTSClient;
 
@@ -50,7 +51,6 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private static final long serialVersionUID = 1L;
 
     private static final String APPLICATION_X_PEM_FILE = "application/x-pem-file";
-    private static final String APPLICATION_X_PEM_FILE_BASE64 = "application/x-pem-file;base64";
 
     private transient ZTSClient ztsClient = null;
     private String ztsUrl;
@@ -80,7 +80,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         }
         try {
             // the following would set up the API call that requests tokens from the server
-            // that can only be used if they are 10 minutes from expiration and last twenty four hours
+            // that can only be used if they are 10 minutes from expiration and last twenty
+            // four hours
             RoleToken token = getZtsClient().getRoleToken(providerDomain, null, minValidity, maxValidity, false);
             roleToken = token.getToken();
             cachedRoleTokenTimestamp = System.nanoTime();
@@ -94,7 +95,8 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
         if (roleToken == null) {
             return false;
         }
-        // Ensure we refresh the Athenz role token every hour to avoid using an expired role token
+        // Ensure we refresh the Athenz role token every hour to avoid using an expired
+        // role token
         return (System.nanoTime() - cachedRoleTokenTimestamp) < TimeUnit.HOURS.toNanos(cacheDurationInHour);
     }
 
@@ -168,27 +170,18 @@ public class AuthenticationAthenz implements Authentication, EncodedAuthenticati
     private PrivateKey loadPrivateKey(String privateKeyURL) {
         PrivateKey privateKey = null;
         try {
-            URI uri = new URI(privateKeyURL);
-            if (isBlank(uri.getScheme())) {
-                // We treated as file path
-                privateKey = Crypto.loadPrivateKey(new File(privateKeyURL));
-            } else if (uri.getScheme().equals("file")) {
-                privateKey = Crypto.loadPrivateKey(new File(uri.getPath()));
-            } else if (uri.getScheme().equals("data")) {
-                List<String> dataParts = Splitter.on(",").splitToList(uri.getSchemeSpecificPart());
-                // Support Urlencode but not decode here because already decoded by URI class.
-                if (dataParts.get(0).equals(APPLICATION_X_PEM_FILE)) {
-                    privateKey = Crypto.loadPrivateKey(dataParts.get(1));
-                // Support base64
-                } else if (dataParts.get(0).equals(APPLICATION_X_PEM_FILE_BASE64)) {
-                    privateKey = Crypto.loadPrivateKey(new String(Base64.getDecoder().decode(dataParts.get(1))));
-                } else {
-                    throw new IllegalArgumentException(
-                            "Unsupported media type or encoding format: " + dataParts.get(0));
-                }
+            URLConnection urlConnection = new URL(privateKeyURL).openConnection();
+            String protocol = urlConnection.getURL().getProtocol();
+            if ("data".equals(protocol) && !APPLICATION_X_PEM_FILE.equals(urlConnection.getContentType())) {
+                throw new IllegalArgumentException(
+                        "Unsupported media type or encoding format: " + urlConnection.getContentType());
             }
+            String keyData = CharStreams.toString(new InputStreamReader((InputStream) urlConnection.getContent()));
+            privateKey = Crypto.loadPrivateKey(keyData);
         } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("Invalid privateKey format");
+            throw new IllegalArgumentException("Invalid privateKey format", e);
+        } catch (CryptoException | InstantiationException | IllegalAccessException | IOException e) {
+            privateKey = null;
         }
         return privateKey;
     }

@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.common.naming;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -64,6 +62,16 @@ public class DestinationName implements ServiceUnitId {
                 }
             });
 
+    public static DestinationName get(String domain, NamespaceName namespaceName, String destination) {
+        String name = domain + "://" + namespaceName.toString() + '/' + destination;
+        return DestinationName.get(name);
+    }
+
+    public static DestinationName get(String domain, String property, String namespace, String destination) {
+        String name = domain + "://" + property + '/' + namespace + '/' + destination;
+        return DestinationName.get(name);
+    }
+
     public static DestinationName get(String domain, String property, String cluster, String namespace,
             String destination) {
         String name = domain + "://" + property + '/' + cluster + '/' + namespace + '/' + destination;
@@ -92,7 +100,9 @@ public class DestinationName implements ServiceUnitId {
     private DestinationName(String destination) {
         this.destination = destination;
         try {
-            // persistent://property/cluster/namespace/topic
+            // The topic name can be in two different forms:
+            // new:    persistent://property/namespace/topic
+            // legacy: persistent://property/cluster/namespace/topic
             if (!destination.contains("://")) {
                 throw new IllegalArgumentException(
                         "Invalid destination name: " + destination + " -- Domain is missing");
@@ -102,29 +112,44 @@ public class DestinationName implements ServiceUnitId {
             this.domain = DestinationDomain.getEnum(parts.get(0));
 
             String rest = parts.get(1);
-            // property/cluster/namespace/<localName>
+
+            // The rest of the name can be in different forms:
+            // new:    property/namespace/<localName>
+            // legacy: property/cluster/namespace/<localName>
             // Examples of localName:
             // 1. some/name/xyz//
             // 2. /xyz-123/feeder-2
+
+
             parts = Splitter.on("/").limit(4).splitToList(rest);
-            if (parts.size() != 4) {
+            if (parts.size() == 3) {
+                // New topic name without cluster name
+                this.property = parts.get(0);
+                this.cluster = null;
+                this.namespacePortion = parts.get(1);
+                this.localName = parts.get(2);
+                this.partitionIndex = getPartitionIndex(destination);
+                this.namespaceName = NamespaceName.get(property, namespacePortion);
+            } else if (parts.size() == 4) {
+                // Legacy topic name that includes cluster name
+                this.property = parts.get(0);
+                this.cluster = parts.get(1);
+                this.namespacePortion = parts.get(2);
+                this.localName = parts.get(3);
+                this.partitionIndex = getPartitionIndex(destination);
+                this.namespaceName = NamespaceName.get(property, cluster, namespacePortion);
+            } else {
                 throw new IllegalArgumentException("Invalid destination name: " + destination);
             }
 
-            this.property = parts.get(0);
-            this.cluster = parts.get(1);
-            this.namespacePortion = parts.get(2);
-            this.localName = parts.get(3);
-            this.partitionIndex = getPartitionIndex(destination);
 
-            NamespaceName.validateNamespaceName(property, cluster, namespacePortion);
-            if (checkNotNull(localName).isEmpty()) {
+            if (localName == null || localName.isEmpty()) {
                 throw new IllegalArgumentException("Invalid destination name: " + destination);
             }
         } catch (NullPointerException e) {
             throw new IllegalArgumentException("Invalid destination name: " + destination, e);
         }
-        namespaceName = NamespaceName.get(property, cluster, namespacePortion);
+
     }
 
     /**
@@ -156,6 +181,7 @@ public class DestinationName implements ServiceUnitId {
         return property;
     }
 
+    @Deprecated
     public String getCluster() {
         return cluster;
     }
@@ -229,9 +255,16 @@ public class DestinationName implements ServiceUnitId {
      * @return the relative path to be used in persistence
      */
     public String getPersistenceNamingEncoding() {
-        // The convention is: domain://property/cluster/namespace/destination
-        // We want to persist in the order: property/cluster/namespace/domain/destination
-        return String.format("%s/%s/%s/%s/%s", property, cluster, namespacePortion, domain, getEncodedLocalName());
+        // The convention is: domain://property/namespace/topic
+        // We want to persist in the order: property/namespace/domain/topic
+
+        // For legacy naming scheme, the convention is: domain://property/cluster/namespace/topic
+        // We want to persist in the order: property/cluster/namespace/domain/topic
+        if (cluster == null) {
+            return String.format("%s/%s/%s/%s", property, namespacePortion, domain, getEncodedLocalName());
+        } else {
+            return String.format("%s/%s/%s/%s/%s", property, cluster, namespacePortion, domain, getEncodedLocalName());
+        }
     }
 
     /**
@@ -244,11 +277,15 @@ public class DestinationName implements ServiceUnitId {
      * @return
      */
     public String getLookupName() {
-        return String.format("%s/%s/%s/%s/%s", domain, property, cluster, namespacePortion, getEncodedLocalName());
+        if (cluster == null) {
+            return String.format("%s/%s/%s/%s", domain, property, namespacePortion, getEncodedLocalName());
+        } else {
+            return String.format("%s/%s/%s/%s/%s", domain, property, cluster, namespacePortion, getEncodedLocalName());
+        }
     }
 
     public boolean isGlobal() {
-        return "global".equals(cluster);
+        return cluster == null || Constants.GLOBAL_CLUSTER.equalsIgnoreCase(cluster);
     }
 
     @Override

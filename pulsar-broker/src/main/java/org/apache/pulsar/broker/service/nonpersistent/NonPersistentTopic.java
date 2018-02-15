@@ -34,6 +34,7 @@ import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.SafeRun;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -42,6 +43,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -56,7 +58,6 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -69,6 +70,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
@@ -234,6 +236,11 @@ public class NonPersistentTopic implements Topic {
                 throw new TopicFencedException("Topic is temporarily unavailable");
             }
 
+            if (isProducersExceeded()) {
+                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+                throw new ProducerBusyException("Topic reached max producers limit");
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
@@ -252,6 +259,14 @@ public class NonPersistentTopic implements Topic {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private boolean isProducersExceeded() {
+        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        if (maxProducers > 0 && maxProducers <= producers.size()) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -591,6 +606,14 @@ public class NonPersistentTopic implements Topic {
         return producers;
     }
 
+    public int getNumberOfConsumers() {
+        int count = 0;
+        for (NonPersistentSubscription subscription : subscriptions.values()) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
+    }
+
     @Override
     public ConcurrentOpenHashMap<String, NonPersistentSubscription> getSubscriptions() {
         return subscriptions;
@@ -909,10 +932,14 @@ public class NonPersistentTopic implements Topic {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public Position getLastMessageId() {
+        throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
+    }
+
     public void markBatchMessagePublished() {
         this.hasBatchMessagePublished = true;
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
-
 }
