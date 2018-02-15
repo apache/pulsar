@@ -44,8 +44,8 @@ import javax.ws.rs.core.Response.Status;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.core.config.Configurator;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -438,7 +438,7 @@ public class ApiV1ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("java.io.IOException: Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
@@ -755,7 +755,7 @@ public class ApiV1ResourceTest {
 
         Response response = updateDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("java.io.IOException: Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function registeration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
@@ -860,7 +860,7 @@ public class ApiV1ResourceTest {
 
         Response response = deregisterDefaultFunction();
         assertEquals(Status.INTERNAL_SERVER_ERROR.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("java.io.IOException: Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function deregisteration interrupted").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     //
