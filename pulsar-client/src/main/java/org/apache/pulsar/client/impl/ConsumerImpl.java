@@ -754,9 +754,9 @@ public class ConsumerImpl extends ConsumerBase {
 
         listenerExecutor.submit(() -> {
             if (isActive) {
-                consumerEventListener.becomeActive(this, partitionIndex);
+                consumerEventListener.becameActive(this, partitionIndex);
             } else {
-                consumerEventListener.becomeInactive(this, partitionIndex);
+                consumerEventListener.becameInactive(this, partitionIndex);
             }
         });
     }

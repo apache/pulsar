@@ -78,7 +78,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         final LinkedBlockingQueue<Integer> inActiveQueue = new LinkedBlockingQueue<>();
 
         @Override
-        public void becomeActive(Consumer consumer, int partitionId) {
+        public void becameActive(Consumer consumer, int partitionId) {
             try {
                 activeQueue.put(partitionId);
             } catch (InterruptedException e) {
@@ -86,7 +86,7 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         }
 
         @Override
-        public void becomeInactive(Consumer consumer, int partitionId) {
+        public void becameInactive(Consumer consumer, int partitionId) {
             try {
                 inActiveQueue.put(partitionId);
             } catch (InterruptedException e) {
@@ -115,13 +115,13 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         private final Set<Integer> inactivePtns = Sets.newHashSet();
 
         @Override
-        public synchronized void becomeActive(Consumer consumer, int partitionId) {
+        public synchronized void becameActive(Consumer consumer, int partitionId) {
             activePtns.add(partitionId);
             inactivePtns.remove(partitionId);
         }
 
         @Override
-        public synchronized void becomeInactive(Consumer consumer, int partitionId) {
+        public synchronized void becameInactive(Consumer consumer, int partitionId) {
             activePtns.remove(partitionId);
             inactivePtns.add(partitionId);
         }
