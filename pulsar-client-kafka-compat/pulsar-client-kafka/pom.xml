@@ -127,8 +127,17 @@
                   <include>com.yahoo.datasketches:sketches-core</include>
                   <include>org.apache.httpcomponents:httpclient</include>
                   <include>commons-logging:commons-logging</include>
+                  <include>org.apache.httpcomponents:httpcore</include>
                 </includes>
               </artifactSet>
+               <filters>
+                <filter>
+                   <artifact>commons-logging:commons-logging</artifact>
+                   <includes>
+                       <include>**</include>
+                   </includes>
+                </filter>
+              </filters>
               <relocations>
                 <relocation>
                   <pattern>org.apache.kafka.clients.producer.KafkaProducer</pattern>
