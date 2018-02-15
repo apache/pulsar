@@ -152,6 +152,21 @@ public class Consumer {
         return consumerName;
     }
 
+    void notifyActiveConsumerChange(Consumer activeConsumer) {
+        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
+            // if the client is older than `v12`, we don't need to send consumer group changes.
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
+                consumerId, topicName, subscription.getName(), activeConsumer);
+        }
+        cnx.ctx().writeAndFlush(
+            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
+            cnx.ctx().voidPromise());
+    }
+
     public boolean readCompacted() {
         return readCompacted;
     }

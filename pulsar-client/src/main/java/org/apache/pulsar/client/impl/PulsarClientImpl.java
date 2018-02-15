@@ -251,6 +251,13 @@ public class PulsarClientImpl implements PulsarClient {
                             "Read compacted can only be used with exclusive of failover persistent subscriptions"));
         }
 
+        if (conf.getConsumerEventListener() != null
+            && conf.getSubscriptionType() != SubscriptionType.Failover) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException(
+                        "Active consumer listener is only supported for failover subscription"));
+        }
+
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {

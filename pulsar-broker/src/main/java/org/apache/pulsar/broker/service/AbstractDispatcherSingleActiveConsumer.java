@@ -26,9 +26,9 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
+import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
@@ -72,7 +72,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
 
     protected abstract boolean isConsumersExceededOnSubscription();
 
-    protected void pickAndScheduleActiveConsumer() {
+    protected void notifyActiveConsumerChanged(Consumer activeConsumer) {
+        if (null != activeConsumer && subscriptionType == SubType.Failover) {
+            consumers.forEach(consumer ->
+                consumer.notifyActiveConsumerChange(activeConsumer));
+        }
+    }
+
+    /**
+     * @return the previous active consumer if the consumer is changed, otherwise null.
+     */
+    protected boolean pickAndScheduleActiveConsumer() {
         checkArgument(!consumers.isEmpty());
 
         consumers.sort((c1, c2) -> c1.consumerName().compareTo(c2.consumerName()));
@@ -80,12 +90,15 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
         int index = partitionIndex % consumers.size();
         Consumer prevConsumer = ACTIVE_CONSUMER_UPDATER.getAndSet(this, consumers.get(index));
 
-        if (prevConsumer == ACTIVE_CONSUMER_UPDATER.get(this)) {
+        Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+        if (prevConsumer == activeConsumer) {
             // Active consumer did not change. Do nothing at this point
-            return;
+            return false;
+        } else {
+            // If the active consumer is changed, send notification.
+            scheduleReadOnActiveConsumer();
+            return true;
         }
-
-        scheduleReadOnActiveConsumer();
     }
 
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
@@ -109,8 +122,17 @@ public abstract class AbstractDispatcherSingleActiveConsumer {
 
         consumers.add(consumer);
 
-        // Pick an active consumer and start it
-        pickAndScheduleActiveConsumer();
+        if (!pickAndScheduleActiveConsumer()) {
+            // the active consumer is not changed
+            Consumer currentActiveConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            if (null == currentActiveConsumer) {
+                if (log.isDebugEnabled()) {
+                    log.debug("Current active consumer disappears while adding consumer {}", consumer);
+                }
+            } else {
+                consumer.notifyActiveConsumerChange(currentActiveConsumer);
+            }
+        }
 
     }
 
