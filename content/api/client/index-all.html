@@ -136,6 +136,14 @@
 </a>
 <h2 class="title">B</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameActive-org.apache.pulsar.client.api.Consumer-int-">becameActive(Consumer, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
+<dd>
+<div class="block">Notified when the consumer group is changed, and the consumer becomes the active consumer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameInactive-org.apache.pulsar.client.api.Consumer-int-">becameInactive(Consumer, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
+<dd>
+<div class="block">Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.BrokerMetadataException.html#BrokerMetadataException-java.lang.String-">BrokerMetadataException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.BrokerMetadataException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.BrokerMetadataException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.BrokerPersistenceException.html#BrokerPersistenceException-java.lang.String-">BrokerPersistenceException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.BrokerPersistenceException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.BrokerPersistenceException</a></dt>
@@ -230,6 +238,10 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerCryptoFailureAction</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerEventListener</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">Listener on the consumer state changes.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationFactory.html#create-java.lang.String-java.lang.String-">create(String, String)</a></span> - Static method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationFactory.html" title="class in org.apache.pulsar.client.api">AuthenticationFactory</a></dt>
 <dd>
 <div class="block">Create an instance of the Authentication-Plugin</div>
@@ -354,6 +366,8 @@
 <div class="block">Get configured total allowed concurrent lookup-request.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getConnectionsPerBroker--">getConnectionsPerBroker()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getConsumerEventListener--">getConsumerEventListener()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getConsumerName--">getConsumerName()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>&nbsp;</dd>
@@ -903,6 +917,10 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-">setConnectionsPerBroker(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
 <div class="block">Sets the max number of connection that the client library will open to a single broker.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerEventListener-org.apache.pulsar.client.api.ConsumerEventListener-">setConsumerEventListener(ConsumerEventListener)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
+<dd>
+<div class="block">Sets a <a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerEventListener</code></a> for the consumer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-">setConsumerName(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>

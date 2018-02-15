@@ -1722,6 +1722,12 @@
           </li>
           
           <li>
+            <a href="#pulsar.proto.CommandActiveConsumerChange">
+              CommandActiveConsumerChange
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar.proto.CommandCloseConsumer">
               CommandCloseConsumer
             </a>
@@ -2322,6 +2328,16 @@
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">active_consumer_change</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandActiveConsumerChange">CommandActiveConsumerChange</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -2398,6 +2414,55 @@
               <td class="wrap"><a href="#pulsar.proto.KeyLongValue">KeyLongValue</a></td>
               
               <td>repeated</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandActiveConsumerChange">
+          CommandActiveConsumerChange
+        </h5>
+        <p class="message-name">pulsar.proto.CommandActiveConsumerChange</p>
+        <p class="lead">changes on active consumer</p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">consumer_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">is_active</td>
+              
+              <td class="wrap">bool</td>
+              
+              <td>optional</td>
               <td></td>
               <td></td>
             </tr>
@@ -4997,6 +5062,13 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
             <tr>
               <td>GET_LAST_MESSAGE_ID_RESPONSE</td>
               <td>30</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>ACTIVE_CONSUMER_CHANGE</td>
+              <td>31</td>
               <td>
 </td>
             </tr>
