@@ -439,7 +439,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
-
+        if (null != conf.getConsumerEventListener()) {
+            internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
+        }
         int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
                 conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
         internalConsumerConfig.setReceiverQueueSize(receiverQueueSize);

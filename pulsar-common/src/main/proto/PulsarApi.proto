@@ -135,7 +135,8 @@ enum ProtocolVersion {
 	v9 = 9;  // Added end of topic notification
 	v10 = 10;// Added proxy to broker
 	v11 = 11;// C++ consumers before this version are not correctly handling the checksum field
-	v12 = 12;//Added get topic's last messageId from broker
+	v12 = 12;// Added get topic's last messageId from broker
+                 // Added CommandActiveConsumerChange
 }
 
 message CommandConnect {
@@ -324,6 +325,12 @@ message CommandAck {
         repeated KeyLongValue properties = 5;
 }
 
+// changes on active consumer
+message CommandActiveConsumerChange {
+        required uint64 consumer_id	= 1;
+        optional bool is_active     = 2 [default = false];
+}
+
 message CommandFlow {
 	required uint64 consumer_id       = 1;
 
@@ -500,6 +507,8 @@ message BaseCommand {
 
 		GET_LAST_MESSAGE_ID = 29;
 		GET_LAST_MESSAGE_ID_RESPONSE = 30;
+
+                ACTIVE_CONSUMER_CHANGE = 31;
 	}
 
 	required Type type = 1;
@@ -544,5 +553,6 @@ message BaseCommand {
 	optional CommandGetLastMessageId getLastMessageId = 29;
 	optional CommandGetLastMessageIdResponse getLastMessageIdResponse = 30;
 
+        optional CommandActiveConsumerChange active_consumer_change = 31;
 
 }

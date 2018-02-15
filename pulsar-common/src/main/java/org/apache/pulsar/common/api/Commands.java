@@ -40,6 +40,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
@@ -357,6 +358,19 @@ public class Commands {
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.UNSUBSCRIBE).setUnsubscribe(unsubscribe));
         unsubscribeBuilder.recycle();
         unsubscribe.recycle();
+        return res;
+    }
+
+    public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
+        CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
+            .setConsumerId(consumerId)
+            .setIsActive(isActive);
+
+        CommandActiveConsumerChange change = changeBuilder.build();
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
+        changeBuilder.recycle();
+        change.recycle();
         return res;
     }
 
@@ -954,6 +968,10 @@ public class Commands {
     }
 
     public static boolean peerSupportsGetLastMessageId(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
+    }
+
+    public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 }
