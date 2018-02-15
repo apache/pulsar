@@ -345,7 +345,17 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     private boolean isProducersExceeded() {
-        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        Policies policies;
+        try {
+            policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxProducers = policies.max_producers_per_topic > 0 ?
+                policies.max_producers_per_topic :
+                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
