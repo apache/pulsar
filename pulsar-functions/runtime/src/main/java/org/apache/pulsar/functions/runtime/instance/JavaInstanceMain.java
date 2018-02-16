@@ -213,6 +213,7 @@ public class JavaInstanceMain {
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {
+                log.error("Exception in JavaInstance doing getFunctionStatus", e);
                 throw new RuntimeException(e);
             }
         }
