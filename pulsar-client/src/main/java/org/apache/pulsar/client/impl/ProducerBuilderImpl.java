@@ -139,7 +139,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     }
 
     @Override
-    public ProducerBuilder batchingEnabled(boolean batchMessagesEnabled) {
+    public ProducerBuilder enableBatching(boolean batchMessagesEnabled) {
         conf.setBatchingEnabled(batchMessagesEnabled);
         return this;
     }

@@ -183,9 +183,9 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *
      * When enabled default batch delay is set to 10 ms and default batch size is 1000 messages
      *
-     * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
+     * @see #batchingMaxPublishDelay(long, TimeUnit)
      */
-    ProducerBuilder batchingEnabled(boolean batchMessagesEnabled);
+    ProducerBuilder enableBatching(boolean enableBatching);
 
     /**
      * Sets a {@link CryptoKeyReader}

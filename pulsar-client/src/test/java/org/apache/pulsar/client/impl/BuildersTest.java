@@ -29,7 +29,7 @@ public class BuildersTest {
 
     @Test
     public void clientBuilderTest() {
-        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().enableTLS(true).ioThreads(10)
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().enableTls(true).ioThreads(10)
                 .maxNumberOfRejectedRequestPerConnection(200).serviceUrl("pulsar://service:6650");
 
         assertEquals(clientBuilder.conf.isUseTls(), true);

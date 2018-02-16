@@ -377,8 +377,8 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Sets the ProducerCryptoFailureAction to the value specified
      *
-     * @param The
-     *            producer action
+     * @param action
+     *            The producer action
      */
     public void setCryptoFailureAction(ProducerCryptoFailureAction action) {
         cryptoFailureAction = action;

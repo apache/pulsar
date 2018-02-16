@@ -111,7 +111,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder enableTLS(boolean useTls) {
+    public ClientBuilder enableTls(boolean useTls) {
         conf.setUseTls(useTls);
         return this;
     }
@@ -129,7 +129,7 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder tlsAllowInsecureConnection(boolean tlsAllowInsecureConnection) {
+    public ClientBuilder allowTlsInsecureConnection(boolean tlsAllowInsecureConnection) {
         conf.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
         return this;
     }
@@ -141,8 +141,8 @@ public class ClientBuilderImpl implements ClientBuilder {
     }
 
     @Override
-    public ClientBuilder concurrentLookupRequest(int concurrentLookupRequest) {
-        conf.setConcurrentLookupRequest(concurrentLookupRequest);
+    public ClientBuilder maxConcurrentLookupRequests(int concurrentLookupRequests) {
+        conf.setConcurrentLookupRequest(concurrentLookupRequests);
         return this;
     }
 

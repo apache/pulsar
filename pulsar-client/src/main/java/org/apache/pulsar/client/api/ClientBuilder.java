@@ -205,9 +205,9 @@ public interface ClientBuilder extends Serializable, Cloneable {
     /**
      * Configure whether to use TLS encryption on the connection <i>(default: false)</i>
      *
-     * @param enableTLS
+     * @param enableTls
      */
-    ClientBuilder enableTLS(boolean enableTLS);
+    ClientBuilder enableTls(boolean enableTls);
 
     /**
      * Set the path to the trusted TLS certificate file
@@ -219,9 +219,9 @@ public interface ClientBuilder extends Serializable, Cloneable {
     /**
      * Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i>
      *
-     * @param tlsAllowInsecureConnection
+     * @param allowTlsInsecureConnection
      */
-    ClientBuilder tlsAllowInsecureConnection(boolean tlsAllowInsecureConnection);
+    ClientBuilder allowTlsInsecureConnection(boolean allowTlsInsecureConnection);
 
     /**
      * It allows to validate hostname verification when client connects to broker over tls. It validates incoming x509
@@ -250,9 +250,9 @@ public interface ClientBuilder extends Serializable, Cloneable {
      * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe
      * on thousands of topic using created {@link PulsarClient}
      *
-     * @param concurrentLookupRequest
+     * @param maxConcurrentLookupRequests
      */
-    ClientBuilder concurrentLookupRequest(int concurrentLookupRequest);
+    ClientBuilder maxConcurrentLookupRequests(int maxConcurrentLookupRequests);
 
     /**
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
