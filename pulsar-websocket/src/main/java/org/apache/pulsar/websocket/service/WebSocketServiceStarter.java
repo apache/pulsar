@@ -26,6 +26,7 @@ import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
 import org.apache.pulsar.websocket.WebSocketReaderServlet;
 import org.apache.pulsar.websocket.WebSocketService;
+import org.apache.pulsar.websocket.admin.VipStatus;
 import org.apache.pulsar.websocket.admin.WebSocketProxyStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -54,6 +55,7 @@ public class WebSocketServiceStarter {
         proxyServer.addWebSocketServlet(WebSocketConsumerServlet.SERVLET_PATH, new WebSocketConsumerServlet(service));
         proxyServer.addWebSocketServlet(WebSocketReaderServlet.SERVLET_PATH, new WebSocketReaderServlet(service));
         proxyServer.addRestResources(ADMIN_PATH, WebSocketProxyStats.class.getPackage().getName(), service);
+        proxyServer.addRestResources(ADMIN_PATH, VipStatus.class.getPackage().getName(), service);
         proxyServer.start();
         service.start();
     }

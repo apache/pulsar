@@ -26,6 +26,8 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.proxy.server.admin.ProxyWebResource;
+import org.apache.pulsar.proxy.server.admin.VipStatus;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,8 +98,8 @@ public class ProxyServiceStarter {
 
         java.security.Security.addProvider(new org.bouncycastle.jce.provider.BouncyCastleProvider());
 
-        // create broker service
-        ProxyService discoveryService = new ProxyService(config);
+        // create proxy service
+        ProxyService proxyService = new ProxyService(config);
         // create a web-service
         final WebServer server = new WebServer(config);
 
@@ -105,7 +107,7 @@ public class ProxyServiceStarter {
             @Override
             public void run() {
                 try {
-                    discoveryService.close();
+                    proxyService.close();
                     server.stop();
                 } catch (Exception e) {
                     log.warn("server couldn't stop gracefully {}", e.getMessage(), e);
@@ -113,11 +115,12 @@ public class ProxyServiceStarter {
             }
         });
 
-        discoveryService.start();
+        proxyService.start();
 
         // Setup metrics
         DefaultExports.initialize();
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
+        server.addRestResources(ProxyWebResource.ADMIN_PATH, VipStatus.class.getPackage().getName(), proxyService);
 
         // start web-service
         server.start();

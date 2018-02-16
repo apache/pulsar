@@ -45,6 +45,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String serviceUrlTls;
     private String brokerServiceUrl;
     private String brokerServiceUrlTls;
+    
+    // Path for the file used to determine the rotation status for the broker
+    // when responding to service discovery health checks
+    private String statusFilePath;
 
     // Global Zookeeper quorum connection string
     private String globalZookeeperServers;
@@ -141,6 +145,14 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
 
     public void setBrokerServiceUrlTls(String brokerServiceUrlTls) {
         this.brokerServiceUrlTls = brokerServiceUrlTls;
+    }
+
+    public String getStatusFilePath() {
+        return statusFilePath;
+    }
+
+    public void setStatusFilePath(String statusFilePath) {
+        this.statusFilePath = statusFilePath;
     }
 
     public String getGlobalZookeeperServers() {

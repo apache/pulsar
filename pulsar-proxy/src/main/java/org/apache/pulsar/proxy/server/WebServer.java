@@ -27,7 +27,9 @@ import java.util.concurrent.Executors;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
+import org.apache.pulsar.proxy.server.admin.ProxyWebResource;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -40,9 +42,12 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -99,6 +104,21 @@ public class WebServer {
         handlers.add(context);
     }
 
+    public void addRestResources(String basePath, String javaPackages, ProxyService service) {
+        JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
+        provider.setMapper(ObjectMapperFactory.create());
+        ResourceConfig config = new ResourceConfig();
+        config.packages("jersey.config.server.provider.packages", javaPackages);
+        config.register(provider);
+        ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
+        servletHolder.setAsyncSupported(true);
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath(basePath);
+        context.addServlet(servletHolder, "/*");
+        context.setAttribute(ProxyWebResource.ATTRIBUTE_PROXY_SERVICE_NAME, service);
+        handlers.add(context);
+    }
+    
     public int getExternalServicePort() {
         return externalServicePort;
     }
