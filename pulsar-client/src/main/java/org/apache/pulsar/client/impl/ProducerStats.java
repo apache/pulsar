@@ -41,7 +41,7 @@ public class ProducerStats implements Serializable {
     private static final long serialVersionUID = 1L;
     private TimerTask stat;
     private Timeout statTimeout;
-    private ProducerImpl producer;
+    private ProducerImpl<?> producer;
     private PulsarClientImpl pulsarClient;
     private long oldTime;
     private long statsIntervalSeconds;
@@ -74,7 +74,7 @@ public class ProducerStats implements Serializable {
         ds = null;
     }
 
-    public ProducerStats(PulsarClientImpl pulsarClient, ProducerConfigurationData conf, ProducerImpl producer) {
+    public ProducerStats(PulsarClientImpl pulsarClient, ProducerConfigurationData conf, ProducerImpl<?> producer) {
         this.pulsarClient = pulsarClient;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
         this.producer = producer;
