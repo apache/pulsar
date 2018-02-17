@@ -46,6 +46,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.v1.BrokerStats;
@@ -59,6 +60,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -188,6 +190,16 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     @AfterMethod
     public void cleanup() throws Exception {
         super.internalCleanup();
+    }
+
+    @Test
+    void internalConfiguration() throws Exception {
+        InternalConfigurationData expectedData = new InternalConfigurationData(
+            pulsar.getConfiguration().getZookeeperServers(),
+            pulsar.getConfiguration().getGlobalZookeeperServers(),
+            new ClientConfiguration().getZkLedgersRootPath());
+
+        assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }
 
     @Test
