@@ -16,28 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.api;
+package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
-import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.annotations.Test;
 
-public class MessageIdTest {
+@SuppressWarnings("deprecation")
+public class BuildersTest {
 
     @Test
-    public void messageIdTest() {
-        MessageId mId = new MessageIdImpl(1, 2, 3);
-        assertEquals(mId.toString(), "1:2:3");
+    public void clientBuilderTest() {
+        ClientBuilderImpl clientBuilder = (ClientBuilderImpl) PulsarClient.builder().enableTls(true).ioThreads(10)
+                .maxNumberOfRejectedRequestPerConnection(200).serviceUrl("pulsar://service:6650");
 
-        mId = new BatchMessageIdImpl(0, 2, 3, 4);
-        assertEquals(mId.toString(), "0:2:3:4");
+        assertEquals(clientBuilder.conf.isUseTls(), true);
+        assertEquals(clientBuilder.serviceUrl, "pulsar://service:6650");
 
-        mId = new BatchMessageIdImpl(-1, 2, -3, 4);
-        assertEquals(mId.toString(), "-1:2:-3:4");
+        ClientBuilderImpl b2 = (ClientBuilderImpl) clientBuilder.clone();
+        assertTrue(b2 != clientBuilder);
 
-        mId = new MessageIdImpl(0, -23, 3);
-        assertEquals(mId.toString(), "0:-23:3");
+        b2.serviceUrl("pulsar://other-broker:6650");
+
+        assertEquals(clientBuilder.serviceUrl, "pulsar://service:6650");
+        assertEquals(b2.serviceUrl, "pulsar://other-broker:6650");
     }
+
 }

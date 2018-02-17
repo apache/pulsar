@@ -28,7 +28,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 
 import com.google.common.base.Objects;
@@ -36,7 +35,9 @@ import com.google.common.base.Objects;
 /**
  * Producer's configuration
  *
+ * @deprecated use {@link PulsarClient#newProducer()} to construct and configure a {@link Producer} instance
  */
+@Deprecated
 public class ProducerConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -268,7 +269,7 @@ public class ProducerConfiguration implements Serializable {
      *
      * @return message router.
      * @deprecated since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
-     * {@link MessageRouter#choosePartition(Message, TopicMetadata)}.
+     *             {@link MessageRouter#choosePartition(Message, TopicMetadata)}.
      * @see MessageRouter
      */
     @Deprecated
@@ -338,7 +339,7 @@ public class ProducerConfiguration implements Serializable {
      * @return encryptionKeys
      *
      */
-    public  ConcurrentOpenHashSet<String> getEncryptionKeys() {
+    public ConcurrentOpenHashSet<String> getEncryptionKeys() {
         return this.encryptionKeys;
     }
 
@@ -354,16 +355,15 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Add public encryption key, used by producer to encrypt the data key.
      *
-     * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys.
-     * If keys are found, a callback getKey(String keyName) is invoked against each key to load
-     * the values of the key. Application should implement this callback to return the key in pkcs8 format.
-     * If compression is enabled, message is encrypted after compression.
-     * If batch messaging is enabled, the batched message is encrypted.
+     * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys. If keys are
+     * found, a callback getKey(String keyName) is invoked against each key to load the values of the key. Application
+     * should implement this callback to return the key in pkcs8 format. If compression is enabled, message is encrypted
+     * after compression. If batch messaging is enabled, the batched message is encrypted.
      *
      */
     public void addEncryptionKey(String key) {
         if (this.encryptionKeys == null) {
-            this.encryptionKeys = new ConcurrentOpenHashSet<String>(16,1);
+            this.encryptionKeys = new ConcurrentOpenHashSet<String>(16, 1);
         }
         this.encryptionKeys.add(key);
     }
@@ -377,7 +377,8 @@ public class ProducerConfiguration implements Serializable {
     /**
      * Sets the ProducerCryptoFailureAction to the value specified
      *
-     * @param The producer action
+     * @param action
+     *            The producer action
      */
     public void setCryptoFailureAction(ProducerCryptoFailureAction action) {
         cryptoFailureAction = action;
@@ -467,6 +468,7 @@ public class ProducerConfiguration implements Serializable {
 
     /**
      * Set a name/value property with this producer.
+     *
      * @param key
      * @param value
      * @return
@@ -480,6 +482,7 @@ public class ProducerConfiguration implements Serializable {
 
     /**
      * Add all the properties in the provided map
+     *
      * @param properties
      * @return
      */

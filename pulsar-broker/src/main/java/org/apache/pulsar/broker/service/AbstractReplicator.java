@@ -22,10 +22,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.service.AbstractReplicator.State;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -43,7 +43,7 @@ public abstract class AbstractReplicator {
     protected volatile ProducerImpl producer;
 
     protected final int producerQueueSize;
-    protected final ProducerConfiguration producerConfiguration;
+    protected final ProducerBuilder producerBuilder;
 
     protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
 
@@ -68,10 +68,11 @@ public abstract class AbstractReplicator {
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
 
-        this.producerConfiguration = new ProducerConfiguration();
-        this.producerConfiguration.setSendTimeout(0, TimeUnit.SECONDS);
-        this.producerConfiguration.setMaxPendingMessages(producerQueueSize);
-        this.producerConfiguration.setProducerName(getReplicatorName(replicatorPrefix, localCluster));
+        this.producerBuilder = client.newProducer() //
+                .topic(topicName)
+                .sendTimeout(0, TimeUnit.SECONDS) //
+                .maxPendingMessages(producerQueueSize) //
+                .producerName(getReplicatorName(replicatorPrefix, localCluster));
         STATE_UPDATER.set(this, State.Stopped);
     }
 
@@ -82,10 +83,6 @@ public abstract class AbstractReplicator {
     protected abstract long getNumberOfEntriesInBacklog();
 
     protected abstract void disableReplicatorRead();
-
-    public ProducerConfiguration getProducerConfiguration() {
-        return producerConfiguration;
-    }
 
     public String getRemoteCluster() {
         return remoteCluster;
@@ -121,7 +118,7 @@ public abstract class AbstractReplicator {
         }
 
         log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        client.createProducerAsync(topicName, producerConfiguration).thenAccept(producer -> {
+        producerBuilder.createAsync().thenAccept(producer -> {
             readEntries(producer);
         }).exceptionally(ex -> {
             if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {

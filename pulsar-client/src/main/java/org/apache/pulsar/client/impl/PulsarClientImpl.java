@@ -32,13 +32,16 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.util.ExecutorProvider;
@@ -58,6 +61,7 @@ import io.netty.util.HashedWheelTimer;
 import io.netty.util.Timer;
 import io.netty.util.concurrent.DefaultThreadFactory;
 
+@SuppressWarnings("deprecation")
 public class PulsarClientImpl implements PulsarClient {
 
     private static final Logger log = LoggerFactory.getLogger(PulsarClientImpl.class);
@@ -92,8 +96,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup,
-            ConnectionPool cnxPool)
-            throws PulsarClientException {
+            ConnectionPool cnxPool) throws PulsarClientException {
         if (isBlank(serviceUrl) || conf == null || eventLoopGroup == null) {
             throw new PulsarClientException.InvalidConfigurationException("Invalid client configuration");
         }
@@ -115,6 +118,21 @@ public class PulsarClientImpl implements PulsarClient {
 
     public ClientConfiguration getConfiguration() {
         return conf;
+    }
+
+    @Override
+    public ProducerBuilder newProducer() {
+        return new ProducerBuilderImpl(this);
+    }
+
+    @Override
+    public ConsumerBuilder newConsumer() {
+        return new ConsumerBuilderImpl(this);
+    }
+
+    @Override
+    public ReaderBuilder newReader() {
+        return new ReaderBuilderImpl(this);
     }
 
     @Override
@@ -157,6 +175,7 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(topic, new ProducerConfiguration());
     }
 
+    @Override
     public CompletableFuture<Producer> createProducerAsync(final String topic, final ProducerConfiguration conf) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
