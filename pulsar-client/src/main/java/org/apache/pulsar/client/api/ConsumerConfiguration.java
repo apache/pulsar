@@ -31,8 +31,9 @@ import java.util.concurrent.TimeUnit;
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
  * will be able to use the same subscription name and the messages will be dispatched in a round robin fashion.
  *
- *
+ * @deprecated Use {@link PulsarClient#newConsumer} to build and configure a {@link Consumer} instance
  */
+@Deprecated
 public class ConsumerConfiguration implements Serializable {
 
     /**

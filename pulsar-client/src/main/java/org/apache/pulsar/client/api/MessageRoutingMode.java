@@ -16,24 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.tutorial;
+package org.apache.pulsar.client.api;
 
-import java.io.IOException;
-
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
-
-public class SampleProducer {
-    public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
-        PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:6650").build();
-
-        Producer producer = client.newProducer().topic("persistent://my-property/use/my-ns/my-topic").create();
-
-        for (int i = 0; i < 10; i++) {
-            producer.send("my-message".getBytes());
-        }
-
-        client.close();
-    }
+public enum MessageRoutingMode {
+    SinglePartition, RoundRobinPartition, CustomPartition
 }

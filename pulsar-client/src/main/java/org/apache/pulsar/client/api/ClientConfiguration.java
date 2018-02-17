@@ -30,14 +30,13 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 /**
  * Class used to specify client side configuration like authentication, etc..
  *
- *
+ * @deprecated Use {@link PulsarClient#builder()} to construct and configure a new {@link PulsarClient} instance
  */
+@Deprecated
 public class ClientConfiguration implements Serializable {
 
-    /**
-     *
-     */
     private static final long serialVersionUID = 1L;
+
     private Authentication authentication = new AuthenticationDisabled();
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
@@ -221,8 +220,7 @@ public class ClientConfiguration implements Serializable {
      *            max number of connections per broker (needs to be greater than 0)
      */
     public void setConnectionsPerBroker(int connectionsPerBroker) {
-        checkArgument(connectionsPerBroker > 0,
-                "Connections per broker need to be greater than 0");
+        checkArgument(connectionsPerBroker > 0, "Connections per broker need to be greater than 0");
         this.connectionsPerBroker = connectionsPerBroker;
     }
 
