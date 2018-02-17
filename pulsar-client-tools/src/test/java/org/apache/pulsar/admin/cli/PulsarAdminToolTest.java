@@ -37,7 +37,6 @@ import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
@@ -57,6 +56,7 @@ import com.google.common.collect.Sets;
 
 @Test
 public class PulsarAdminToolTest {
+
     @Test
     void brokers() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -76,6 +76,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
         verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
+
+        brokers.run(split("get-internal-config"));
+        verify(mockBrokers).getInternalConfigurationData();
     }
 
     @Test
