@@ -29,7 +29,6 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
-import org.apache.pulsar.client.admin.internal.InternalConfigurationImpl;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
@@ -60,7 +59,6 @@ import org.slf4j.bridge.SLF4JBridgeHandler;
 public class PulsarAdmin implements Closeable {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarAdmin.class);
 
-    private final InternalConfiguration internalConfiguration;
     private final Clusters clusters;
     private final Brokers brokers;
     private final BrokerStats brokerStats;
@@ -156,7 +154,6 @@ public class PulsarAdmin implements Closeable {
         WebTarget root = client.target(serviceUrl.toString());
         web = root.path("/admin");
 
-        this.internalConfiguration = new InternalConfigurationImpl(web, auth);
         this.clusters = new ClustersImpl(web, auth);
         this.brokers = new BrokersImpl(web, auth);
         this.brokerStats = new BrokerStatsImpl(web, auth);
@@ -217,13 +214,6 @@ public class PulsarAdmin implements Closeable {
      */
     public PulsarAdmin(URL serviceUrl, String authPluginClassName, Map<String, String> authParams) throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParams));
-    }
-
-    /**
-     * @return the internalConfiguration management object.
-     */
-    public InternalConfiguration internalConfiguration() {
-        return internalConfiguration;
     }
 
     /**

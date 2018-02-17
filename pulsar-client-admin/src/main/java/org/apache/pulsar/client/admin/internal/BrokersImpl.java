@@ -28,6 +28,7 @@ import javax.ws.rs.core.GenericType;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 
@@ -86,6 +87,15 @@ public class BrokersImpl extends BaseResource implements Brokers {
         try {
             return request(brokers.path("/configuration")).get(new GenericType<List<String>>() {
             });
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public InternalConfigurationData getInternalConfigurationData() throws PulsarAdminException {
+        try {
+            return request(brokers.path("/internal-configuration")).get(InternalConfigurationData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

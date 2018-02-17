@@ -90,7 +90,6 @@ import com.google.common.collect.Sets;
 public class AdminTest extends MockedPulsarServiceBaseTest {
     private ConfigurationCacheService configurationCache;
 
-    private InternalConfiguration internalConfiguration;
     private Clusters clusters;
     private Properties properties;
     private Namespaces namespaces;
@@ -113,9 +112,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         super.internalSetup();
 
         configurationCache = pulsar.getConfigurationCache();
-
-        internalConfiguration = spy(new InternalConfiguration());
-        internalConfiguration.setPulsar(pulsar);
 
         clusters = spy(new Clusters());
         clusters.setPulsar(pulsar);
@@ -203,7 +199,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
             pulsar.getConfiguration().getGlobalZookeeperServers(),
             new ClientConfiguration().getZkLedgersRootPath());
 
-        assertEquals(internalConfiguration.getInternalConfigurationData(), expectedData);
+        assertEquals(brokers.getInternalConfigurationData(), expectedData);
     }
 
     @Test

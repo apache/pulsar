@@ -20,14 +20,12 @@ package org.apache.pulsar.admin.cli;
 
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 
 import java.util.EnumSet;
 
-import org.apache.pulsar.client.admin.InternalConfiguration;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.Brokers;
 import org.apache.pulsar.client.admin.Clusters;
@@ -60,17 +58,6 @@ import com.google.common.collect.Sets;
 public class PulsarAdminToolTest {
 
     @Test
-    void internalConfiguration() throws Exception {
-        PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
-        InternalConfiguration mockInternalConfiguration = mock(InternalConfiguration.class);
-        doReturn(mockInternalConfiguration).when(admin).internalConfiguration();
-
-        CmdInternalConfiguration internalConfiguration = new CmdInternalConfiguration(admin);
-        internalConfiguration.run(split("get"));
-        verify(mockInternalConfiguration, times(1)).getInternalConfigurationData();
-    }
-
-    @Test
     void brokers() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
         Brokers mockBrokers = mock(Brokers.class);
@@ -89,6 +76,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
         verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
+
+        brokers.run(split("get-internal-config"));
+        verify(mockBrokers).getInternalConfigurationData();
     }
 
     @Test
