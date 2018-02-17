@@ -85,7 +85,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 log.debug("[{}] Rewind cursor and read more entries without delay", name);
             }
             cursor.rewind();
-            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+
+            Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            notifyActiveConsumerChanged(activeConsumer);
+            readMoreEntries(activeConsumer);
             return;
         }
 
@@ -102,7 +105,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
             cursor.rewind();
-            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+
+            Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            notifyActiveConsumerChanged(activeConsumer);
+            readMoreEntries(activeConsumer);
             readOnActiveConsumerTask = null;
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
     }
