@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -138,13 +138,19 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i3" class="rowColor">
+<td class="colFirst"><code>InternalConfigurationData</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Brokers.html#getInternalConfigurationData--">getInternalConfigurationData</a></span>()</code>
+<div class="block">Get the internal configuration data.</div>
+</td>
+</tr>
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>Map&lt;String,<a href="../../../../../org/apache/pulsar/common/policies/data/NamespaceOwnershipStatus.html" title="class in org.apache.pulsar.common.policies.data">NamespaceOwnershipStatus</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Brokers.html#getOwnedNamespaces-java.lang.String-java.lang.String-">getOwnedNamespaces</a></span>(String&nbsp;cluster,
                   String&nbsp;brokerUrl)</code>
 <div class="block">Get the map of owned namespaces and their status from a single broker in the cluster</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i5" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Brokers.html#updateDynamicConfiguration-java.lang.String-java.lang.String-">updateDynamicConfiguration</a></span>(String&nbsp;configName,
                           String&nbsp;configValue)</code>
@@ -265,7 +271,7 @@ var activeTableTab = "activeTableTab";
 <a name="getAllDynamicConfigurations--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>getAllDynamicConfigurations</h4>
 <pre>Map&lt;String,String&gt;&nbsp;getAllDynamicConfigurations()
@@ -273,6 +279,23 @@ var activeTableTab = "activeTableTab";
 <div class="block">Get values of all overridden dynamic-configs</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="getInternalConfigurationData--">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>getInternalConfigurationData</h4>
+<pre>InternalConfigurationData&nbsp;getInternalConfigurationData()
+                                                throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get the internal configuration data.</div>
+<dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>internal configuration data.</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>
