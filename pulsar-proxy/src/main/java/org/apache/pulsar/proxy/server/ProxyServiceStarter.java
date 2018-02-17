@@ -26,8 +26,6 @@ import static org.slf4j.bridge.SLF4JBridgeHandler.install;
 import static org.slf4j.bridge.SLF4JBridgeHandler.removeHandlersForRootLogger;
 
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.proxy.server.admin.ProxyWebResource;
-import org.apache.pulsar.proxy.server.admin.VipStatus;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +35,7 @@ import com.beust.jcommander.Parameter;
 
 import io.prometheus.client.exporter.MetricsServlet;
 import io.prometheus.client.hotspot.DefaultExports;
+import org.apache.pulsar.common.configuration.VipStatus;
 
 /**
  * Starts an instance of the Pulsar ProxyService
@@ -120,7 +119,8 @@ public class ProxyServiceStarter {
         // Setup metrics
         DefaultExports.initialize();
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
-        server.addRestResources(ProxyWebResource.ADMIN_PATH, VipStatus.class.getPackage().getName(), proxyService);
+        server.addRestResources("/admin", VipStatus.class.getPackage().getName(),
+                VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
         // start web-service
         server.start();

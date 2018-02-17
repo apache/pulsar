@@ -29,7 +29,6 @@ import javax.net.ssl.SSLContext;
 
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
-import org.apache.pulsar.proxy.server.admin.ProxyWebResource;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
@@ -104,7 +103,7 @@ public class WebServer {
         handlers.add(context);
     }
 
-    public void addRestResources(String basePath, String javaPackages, ProxyService service) {
+    public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
         JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
         provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
@@ -115,7 +114,7 @@ public class WebServer {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(basePath);
         context.addServlet(servletHolder, "/*");
-        context.setAttribute(ProxyWebResource.ATTRIBUTE_PROXY_SERVICE_NAME, service);
+        context.setAttribute(attribute, attributeValue);
         handlers.add(context);
     }
     

@@ -22,6 +22,7 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -113,7 +114,7 @@ public class WebService implements AutoCloseable {
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
-    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication) {
+    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Map<String,Object> attributeMap) {
         JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
         provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
@@ -121,14 +122,18 @@ public class WebService implements AutoCloseable {
         config.register(provider);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, requiresAuthentication);
+        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication) {
+    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication, Map<String,Object> attributeMap) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
-        context.setAttribute(WebService.ATTRIBUTE_PULSAR_NAME, pulsar);
+        if (attributeMap != null) {
+            attributeMap.forEach((key, value) -> {
+                context.setAttribute(key, value);
+            });
+        }
 
         if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(pulsar));
