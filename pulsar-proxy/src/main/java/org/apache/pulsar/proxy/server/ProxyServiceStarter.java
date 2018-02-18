@@ -119,7 +119,7 @@ public class ProxyServiceStarter {
         // Setup metrics
         DefaultExports.initialize();
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
-        server.addRestResources("/admin", VipStatus.class.getPackage().getName(),
+        server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
 
         // start web-service
