@@ -106,14 +106,39 @@
 <div class="block">Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
  message.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#addEncryptionKey-java.lang.String-">addEncryptionKey(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#ackTimeout-long-java.util.concurrent.TimeUnit-">ackTimeout(long, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Set the timeout for unacked messages, truncated to the nearest millisecond.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#addEncryptionKey-java.lang.String-">addEncryptionKey(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
 <dd>
 <div class="block">Add public encryption key, used by producer to encrypt the data key.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#addEncryptionKey-java.lang.String-">addEncryptionKey(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+<div class="block">Add public encryption key, used by producer to encrypt the data key.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#allowTlsInsecureConnection-boolean-">allowTlsInsecureConnection(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.AlreadyClosedException.html#AlreadyClosedException-java.lang.String-">AlreadyClosedException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.AlreadyClosedException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.AlreadyClosedException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Authentication</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#authentication-org.apache.pulsar.client.api.Authentication-">authentication(Authentication)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#authentication-java.lang.String-java.lang.String-">authentication(String, String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#authentication-java.lang.String-java.util.Map-">authentication(String, Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">AuthenticationDataProvider</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Interface for accessing data which are used in variety of authentication schemes on client side</div>
@@ -136,6 +161,15 @@
 </a>
 <h2 class="title">B</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxMessages-int-">batchingMaxMessages(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the maximum number of messages permitted in a batch.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-">batchingMaxPublishDelay(long, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
+ enabled.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameActive-org.apache.pulsar.client.api.Consumer-int-">becameActive(Consumer, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
 <dd>
 <div class="block">Notified when the consumer group is changed, and the consumer becomes the active consumer.</div>
@@ -144,13 +178,24 @@
 <dd>
 <div class="block">Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-">blockIfQueueFull(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set whether the <a href="org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
+ message queue is full.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.BrokerMetadataException.html#BrokerMetadataException-java.lang.String-">BrokerMetadataException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.BrokerMetadataException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.BrokerMetadataException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.BrokerPersistenceException.html#BrokerPersistenceException-java.lang.String-">BrokerPersistenceException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.BrokerPersistenceException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.BrokerPersistenceException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#build--">build()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#build--">build()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
 <dd>
 <div class="block">Finalize the immutable message</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#builder--">builder()</a></span> - Static method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dd>
+<div class="block">Get a new builder instance that can used to configure and build a <a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance.</div>
 </dd>
 </dl>
 <a name="I:C">
@@ -170,12 +215,36 @@
 <dd>
 <div class="block">Choose a partition based on msg and the topic metadata.</div>
 </dd>
+<dt><a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ClientBuilder</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">Builder interface that is used to construct a <a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">ClientConfiguration</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
-<div class="block">Class used to specify client side configuration like authentication, etc..</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#builder--"><code>PulsarClient.builder()</code></a> to construct and configure a new <a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#ClientConfiguration--">ClientConfiguration()</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#clone--">clone()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Create a copy of the current client builder.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#clone--">clone()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Create a copy of the current consumer builder.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#clone--">clone()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Create a copy of the current <a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a>.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#clone--">clone()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Create a copy of the current <a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#close--">close()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
 <dd>
 <div class="block">Close the consumer and stop the broker to push more messages.</div>
@@ -206,6 +275,10 @@
 </dd>
 <dt><a href="org/apache/pulsar/client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">CompressionType</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#compressionType-org.apache.pulsar.client.api.CompressionType-">compressionType(CompressionType)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the compression type for the producer.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Authentication.html#configure-java.util.Map-">configure(Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>
@@ -224,23 +297,39 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ConnectException.html#ConnectException-java.lang.String-">ConnectException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ConnectException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ConnectException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#connectionsPerBroker-int-">connectionsPerBroker(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Sets the max number of connection that the client library will open to a single broker.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Consumer</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">An interface that abstracts behavior of Pulsar's consumer.</div>
+</dd>
+<dt><a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerBuilder</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> is used to configure and create instances of <a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ConsumerBusyException.html#ConsumerBusyException-java.lang.String-">ConsumerBusyException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ConsumerBusyException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ConsumerBusyException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerConfiguration</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
-<div class="block">Class specifying the configuration of a consumer.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build and configure a <a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> instance</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#ConsumerConfiguration--">ConsumerConfiguration()</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerCryptoFailureAction</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerEventListener</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Listener on the consumer state changes.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#consumerName-java.lang.String-">consumerName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Set the consumer name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationFactory.html#create-java.lang.String-java.lang.String-">create(String, String)</a></span> - Static method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationFactory.html" title="class in org.apache.pulsar.client.api">AuthenticationFactory</a></dt>
 <dd>
@@ -254,45 +343,100 @@
 <dd>
 <div class="block">Create a new message builder instance.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#create--">create()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#create-java.lang.String-">create(String)</a></span> - Static method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Create a new PulsarClient object using default client configuration</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#builder--"><code>PulsarClient.builder()</code></a> to construct a client instance</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#create-java.lang.String-org.apache.pulsar.client.api.ClientConfiguration-">create(String, ClientConfiguration)</a></span> - Static method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Create a new PulsarClient object</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#builder--"><code>PulsarClient.builder()</code></a> to construct a client instance</span></div>
+</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#create--">create()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#createAsync--">createAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance in asynchronous mode.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#createAsync--">createAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Finalize the creation of the <a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance in asynchronous mode.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-">createProducer(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Create a producer with default <a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api"><code>ProducerConfiguration</code></a> for publishing on a specific topic</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-org.apache.pulsar.client.api.ProducerConfiguration-">createProducer(String, ProducerConfiguration)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Create a producer with given <code>ProducerConfiguration</code> for publishing on a specific topic</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducerAsync-java.lang.String-">createProducerAsync(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Asynchronously create a producer with default <a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api"><code>ProducerConfiguration</code></a> for publishing on a specific topic</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#createProducerAsync-java.lang.String-org.apache.pulsar.client.api.ProducerConfiguration-">createProducerAsync(String, ProducerConfiguration)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Asynchronously create a producer with given <code>ProducerConfiguration</code> for publishing on a specific topic</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to build a new producer</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#createReader-java.lang.String-org.apache.pulsar.client.api.MessageId-org.apache.pulsar.client.api.ReaderConfiguration-">createReader(String, MessageId, ReaderConfiguration)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Create a topic reader with given <code>ReaderConfiguration</code> for reading messages from the specified topic.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>PulsarClient.newReader()</code></a> to build a new reader</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#createReaderAsync-java.lang.String-org.apache.pulsar.client.api.MessageId-org.apache.pulsar.client.api.ReaderConfiguration-">createReaderAsync(String, MessageId, ReaderConfiguration)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Asynchronously create a topic reader with given <code>ReaderConfiguration</code> for reading messages from the
- specified topic.</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>PulsarClient.newReader()</code></a> to build a new reader</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/PulsarURLStreamHandlerFactory.html#createURLStreamHandler-java.lang.String-">createURLStreamHandler(String)</a></span> - Method in class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/PulsarURLStreamHandlerFactory.html" title="class in org.apache.pulsar.client.api.url">PulsarURLStreamHandlerFactory</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.CryptoException.html#CryptoException-java.lang.String-">CryptoException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.CryptoException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.CryptoException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#cryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">cryptoFailureAction(ConsumerCryptoFailureAction)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#cryptoFailureAction-org.apache.pulsar.client.api.ProducerCryptoFailureAction-">cryptoFailureAction(ProducerCryptoFailureAction)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Sets the ProducerCryptoFailureAction to the value specified</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#cryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">cryptoFailureAction(ConsumerCryptoFailureAction)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#cryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">cryptoKeyReader(CryptoKeyReader)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Sets a <a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">CryptoKeyReader</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#cryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">cryptoKeyReader(CryptoKeyReader)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Sets a <a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#cryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">cryptoKeyReader(CryptoKeyReader)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Sets a <a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
+</dd>
 </dl>
 <a name="I:D">
 <!--   -->
@@ -315,6 +459,22 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageId.html#earliest">earliest</a></span> - Static variable in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#enableBatching-boolean-">enableBatching(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Control whether automatic batching of messages is enabled for the producer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#enableTcpNoDelay-boolean-">enableTcpNoDelay(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Configure whether to use TCP no-delay flag on the connection, to disable Nagle algorithm.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#enableTls-boolean-">enableTls(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Configure whether to use TLS encryption on the connection <i>(default: false)</i></div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#enableTlsHostnameVerification-boolean-">enableTlsHostnameVerification(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">It allows to validate hostname verification when client connects to broker over tls.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/EncodedAuthenticationParameterSupport.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">EncodedAuthenticationParameterSupport</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">EncryptionKeyInfo</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
@@ -324,7 +484,9 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html#EncryptionKeyInfo-byte:A-java.util.Map-">EncryptionKeyInfo(byte[], Map&lt;String, String&gt;)</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#equals-java.lang.Object-">equals(Object)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 </dl>
 <a name="I:F">
 <!--   -->
@@ -342,71 +504,112 @@
 <h2 class="title">G</h2>
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getAckTimeoutMillis--">getAckTimeoutMillis()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Authentication.html#getAuthData--">getAuthData()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getAuthentication--">getAuthentication()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Authentication.html#getAuthMethodName--">getAuthMethodName()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api">Authentication</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getBatchingEnabled--">getBatchingEnabled()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getBatchingMaxMessages--">getBatchingMaxMessages()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getBatchingMaxPublishDelayMs--">getBatchingMaxPublishDelayMs()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getBlockIfQueueFull--">getBlockIfQueueFull()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html#getCommandData--">getCommandData()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api">AuthenticationDataProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getCompressionType--">getCompressionType()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getConcurrentLookupRequest--">getConcurrentLookupRequest()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get configured total allowed concurrent lookup-request.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getConnectionsPerBroker--">getConnectionsPerBroker()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getConsumerEventListener--">getConsumerEventListener()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getConsumerName--">getConsumerName()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/URL.html#getContent--">getContent()</a></span> - Method in class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/URL.html" title="class in org.apache.pulsar.client.api.url">URL</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/URL.html#getContent-java.lang.Class:A-">getContent(Class[])</a></span> - Method in class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/URL.html" title="class in org.apache.pulsar.client.api.url">URL</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getCryptoFailureAction--">getCryptoFailureAction()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getCryptoFailureAction--">getCryptoFailureAction()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getCryptoFailureAction--">getCryptoFailureAction()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getCryptoKeyReader--">getCryptoKeyReader()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getCryptoKeyReader--">getCryptoKeyReader()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getCryptoKeyReader--">getCryptoKeyReader()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getData--">getData()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Get the content of the message</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getEncryptionKeys--">getEncryptionKeys()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getEventTime--">getEventTime()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Get the event time associated with this message.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getHashingScheme--">getHashingScheme()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html#getHttpAuthType--">getHttpAuthType()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api">AuthenticationDataProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html#getHttpHeaders--">getHttpHeaders()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api">AuthenticationDataProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getInitialSequenceId--">getInitialSequenceId()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getIoThreads--">getIoThreads()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html#getKey--">getKey()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getKey--">getKey()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
@@ -418,44 +621,61 @@
 <div class="block">Get the last sequence id that was published by this producer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getListenerThreads--">getListenerThreads()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getMaxNumberOfRejectedRequestPerConnection--">getMaxNumberOfRejectedRequestPerConnection()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMaxPendingMessages--">getMaxPendingMessages()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMaxPendingMessagesAcrossPartitions--">getMaxPendingMessagesAcrossPartitions()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getMaxTotalReceiverQueueSizeAcrossPartitions--">getMaxTotalReceiverQueueSizeAcrossPartitions()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getMessageId--">getMessageId()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Get the unique message ID associated with this message.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getMessageListener--">getMessageListener()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter-int-">getMessageRouter(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>
 <div class="block"><span class="deprecationComment">since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
- <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a>.</span></div>
+             <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a>.</span></div>
 </div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRouter--">getMessageRouter()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the message router set by <a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRouter-org.apache.pulsar.client.api.MessageRouter-"><code>ProducerConfiguration.setMessageRouter(MessageRouter)</code></a>.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getMessageRoutingMode--">getMessageRoutingMode()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Get the message routing mode for the partitioned producer</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html#getMetadata--">getMetadata()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getOperationTimeoutMs--">getOperationTimeoutMs()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getPriorityLevel--">getPriorityLevel()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/CryptoKeyReader.html#getPrivateKey-java.lang.String-java.util.Map-">getPrivateKey(String, Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getProducerName--">getProducerName()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
@@ -465,37 +685,57 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Producer.html#getProducerName--">getProducerName()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getProducerName--">getProducerName()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getProperties--">getProperties()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getProperties--">getProperties()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Return the properties attached to the message.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getProperties--">getProperties()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getProperty-java.lang.String-">getProperty(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Get the value of a specific property</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/CryptoKeyReader.html#getPublicKey-java.lang.String-java.util.Map-">getPublicKey(String, Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block">Return the encryption key corresponding to the key name in the argument</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getPublishTime--">getPublishTime()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Get the publish time of this message.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getReadCompacted--">getReadCompacted()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getReaderListener--">getReaderListener()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getReaderName--">getReaderName()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getReceiverQueueSize--">getReceiverQueueSize()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getReceiverQueueSize--">getReceiverQueueSize()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#getSendTimeoutMs--">getSendTimeoutMs()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getSequenceId--">getSequenceId()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
 <dd>
 <div class="block">Get the sequence id associated with this message.</div>
@@ -523,6 +763,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getStatsIntervalSeconds--">getStatsIntervalSeconds()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Stats will be activated with positive statsIntervalSeconds</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#getSubscription--">getSubscription()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
@@ -530,7 +771,9 @@
 <div class="block">Get a subscription for the consumer</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getSubscriptionType--">getSubscriptionType()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.GettingAuthenticationDataException.html#GettingAuthenticationDataException-java.lang.Throwable-">GettingAuthenticationDataException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.GettingAuthenticationDataException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.GettingAuthenticationDataException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.GettingAuthenticationDataException.html#GettingAuthenticationDataException-java.lang.String-">GettingAuthenticationDataException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.GettingAuthenticationDataException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.GettingAuthenticationDataException</a></dt>
@@ -540,7 +783,9 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html#getTlsPrivateKey--">getTlsPrivateKey()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api">AuthenticationDataProvider</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#getTlsTrustCertsFilePath--">getTlsTrustCertsFilePath()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#getTopic--">getTopic()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
 <dd>
 <div class="block">Get a topic for the consumer</div>
@@ -597,6 +842,10 @@
 </a>
 <h2 class="title">I</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#initialSequenceId-long-">initialSequenceId(long)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the baseline for the sequence ids for messages published by the producer.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html#InvalidConfigurationException-java.lang.String-">InvalidConfigurationException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.InvalidConfigurationException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html#InvalidConfigurationException-java.lang.Throwable-">InvalidConfigurationException(Throwable)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.InvalidConfigurationException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.InvalidConfigurationException</a></dt>
@@ -607,18 +856,31 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.InvalidTopicNameException.html#InvalidTopicNameException-java.lang.String-">InvalidTopicNameException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.InvalidTopicNameException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.InvalidTopicNameException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#ioThreads-int-">ioThreads(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i></div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#isEncryptionEnabled--">isEncryptionEnabled()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Returns true if encryption keys are added</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#isTlsAllowInsecureConnection--">isTlsAllowInsecureConnection()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#isTlsHostnameVerificationEnable--">isTlsHostnameVerificationEnable()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#isUseTcpNoDelay--">isUseTcpNoDelay()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#isUseTls--">isUseTls()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 </dl>
 <a name="I:L">
 <!--   -->
@@ -627,6 +889,10 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageId.html#latest">latest</a></span> - Static variable in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#listenerThreads-int-">listenerThreads(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the number of threads to be used for message listeners <i>(default: 1 thread)</i></div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.LookupException.html#LookupException-java.lang.String-">LookupException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.LookupException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.LookupException</a></dt>
 <dd>&nbsp;</dd>
 </dl>
@@ -635,6 +901,28 @@
 </a>
 <h2 class="title">M</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#maxConcurrentLookupRequests-int-">maxConcurrentLookupRequests(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#maxNumberOfRejectedRequestPerConnection-int-">maxNumberOfRejectedRequestPerConnection(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
+ will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
+ 50)</i></div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessages-int-">maxPendingMessages(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessagesAcrossPartitions-int-">maxPendingMessagesAcrossPartitions(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the number of max pending messages across all the partitions</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#maxTotalReceiverQueueSizeAcrossPartitions-int-">maxTotalReceiverQueueSizeAcrossPartitions(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Set the max total receiver queue size across partitons.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Message</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">The message abstraction used in Pulsar.</div>
@@ -650,18 +938,44 @@
  The MessageId can be used to reference a specific message, for example when acknowledging, without having to retain
  the message content in memory for an extended period of time.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#messageListener-org.apache.pulsar.client.api.MessageListener-">messageListener(MessageListener)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Sets a <a href="org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> for the consumer</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageListener</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">A listener that will be called in order for every message received.</div>
 </dd>
 <dt><a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageRouter</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#messageRouter-org.apache.pulsar.client.api.MessageRouter-">messageRouter(MessageRouter)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
+</dd>
+<dt><a href="org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">MessageRoutingMode</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#messageRoutingMode-org.apache.pulsar.client.api.MessageRoutingMode-">messageRoutingMode(MessageRoutingMode)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the message routing mode for the partitioned producer</div>
+</dd>
 </dl>
 <a name="I:N">
 <!--   -->
 </a>
 <h2 class="title">N</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dd>
+<div class="block">Create a producer with default for publishing on a specific topic</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dd>
+<div class="block">Create a producer with default for publishing on a specific topic</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--">newReader()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
+<dd>
+<div class="block">Create a topic reader for reading messages from the specified topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.NotConnectedException.html#NotConnectedException--">NotConnectedException()</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.NotConnectedException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.NotConnectedException</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.NotSupportedException.html#NotSupportedException-java.lang.String-">NotSupportedException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.NotSupportedException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.NotSupportedException</a></dt>
@@ -680,6 +994,10 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/url/URL.html#openConnection--">openConnection()</a></span> - Method in class org.apache.pulsar.client.api.url.<a href="org/apache/pulsar/client/api/url/URL.html" title="class in org.apache.pulsar.client.api.url">URL</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#operationTimeout-int-java.util.concurrent.TimeUnit-">operationTimeout(int, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the operation timeout <i>(default: 30 seconds)</i></div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a> - package org.apache.pulsar.client.api</dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/url/package-summary.html">org.apache.pulsar.client.api.url</a> - package org.apache.pulsar.client.api.url</dt>
@@ -690,6 +1008,11 @@
 </a>
 <h2 class="title">P</h2>
 <dl>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#priorityLevel-int-">priorityLevel(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
+ messages.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Producer</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Producer object.</div>
@@ -698,25 +1021,57 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBlockedQuotaExceededException.html#ProducerBlockedQuotaExceededException-java.lang.String-">ProducerBlockedQuotaExceededException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBlockedQuotaExceededException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ProducerBlockedQuotaExceededException</a></dt>
 <dd>&nbsp;</dd>
+<dt><a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerBuilder</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block"><a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> is used to configure and create instances of <a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html#ProducerBusyException-java.lang.String-">ProducerBusyException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ProducerBusyException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ProducerBusyException</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerConfiguration</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
-<div class="block">Producer's configuration</div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">use <a href="org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to construct and configure a <a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#ProducerConfiguration--">ProducerConfiguration()</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerConfiguration.HashingScheme</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerConfiguration.MessageRoutingMode</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerCryptoFailureAction</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#producerName-java.lang.String-">producerName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Specify a name for the producer</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html#ProducerQueueIsFullError-java.lang.String-">ProducerQueueIsFullError(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ProducerQueueIsFullError</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#properties-java.util.Map-">properties(Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Add all the properties in the provided map</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#properties-java.util.Map-">properties(Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Add all the properties in the provided map</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#property-java.lang.String-java.lang.String-">property(String, String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Set a name/value property with this consumer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#property-java.lang.String-java.lang.String-">property(String, String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set a name/value property with this producer.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClient</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
-<div class="block">Class that provides a client interface to Pulsar</div>
+<div class="block">Class that provides a client interface to Pulsar.</div>
 </dd>
 <dt><a href="org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClientException</span></a> - Exception in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
@@ -794,17 +1149,40 @@
 <dd>
 <div class="block">Get the notification when a topic is terminated</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#readCompacted-boolean-">readCompacted(boolean)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
+ of the topic.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Reader</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">A Reader can be used to scan through all the messages currently available in a topic.</div>
 </dd>
+<dt><a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderBuilder</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block"><a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> is used to configure and create instances of <a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a>.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderConfiguration</span></a> - Class in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>PulsarClient.newReader()</code></a> to construct and configure a <a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance</span></div>
+</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#ReaderConfiguration--">ReaderConfiguration()</a></span> - Constructor for class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener(ReaderListener)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Sets a <a href="org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderListener</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">A listener that will be called in order for every message received.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#readerName-java.lang.String-">readerName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Set the reader name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Reader.html#readNext--">readNext()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></dt>
 <dd>
@@ -836,12 +1214,22 @@
 <dd>
 <div class="block">This method is called whenever a new message is received.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#receiverQueueSize-int-">receiverQueueSize(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Sets the size of the consumer receive queue.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#receiverQueueSize-int-">receiverQueueSize(int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Sets the size of the consumer receive queue.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Consumer.html#redeliverUnacknowledgedMessages--">redeliverUnacknowledgedMessages()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></dt>
 <dd>
 <div class="block">Redelivers all the unacknowledged messages.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#removeEncryptionKey-java.lang.String-">removeEncryptionKey(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 </dl>
 <a name="I:S">
 <!--   -->
@@ -872,58 +1260,79 @@
 <dd>
 <div class="block">Send a message asynchronously</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#sendTimeout-int-java.util.concurrent.TimeUnit-">sendTimeout(int, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Set the send timeout <i>(default: 30 seconds)</i></div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#serviceUrl-java.lang.String-">serviceUrl(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Configure the service URL for the Pulsar service.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setAckTimeout-long-java.util.concurrent.TimeUnit-">setAckTimeout(long, TimeUnit)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the timeout for unacked messages, truncated to the nearest millisecond.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-org.apache.pulsar.client.api.Authentication-">setAuthentication(Authentication)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.lang.String-">setAuthentication(String, String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setAuthentication-java.lang.String-java.util.Map-">setAuthentication(String, Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the authentication provider to use in the Pulsar client instance.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingEnabled-boolean-">setBatchingEnabled(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Control whether automatic batching of messages is enabled for the producer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxMessages-int-">setBatchingMaxMessages(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the maximum number of messages permitted in a batch.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setBatchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-">setBatchingMaxPublishDelay(long, TimeUnit)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
  enabled.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-">setBlockIfQueueFull(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set whether the <a href="org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
  message queue is full.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setCompressionType-org.apache.pulsar.client.api.CompressionType-">setCompressionType(CompressionType)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the compression type for the producer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setConcurrentLookupRequest-int-">setConcurrentLookupRequest(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setConnectionsPerBroker-int-">setConnectionsPerBroker(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets the max number of connection that the client library will open to a single broker.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerEventListener-org.apache.pulsar.client.api.ConsumerEventListener-">setConsumerEventListener(ConsumerEventListener)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerEventListener</code></a> for the consumer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setConsumerName-java.lang.String-">setConsumerName(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the consumer name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#setContent-byte:A-">setContent(byte[])</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
@@ -940,26 +1349,32 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setCryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">setCryptoFailureAction(ConsumerCryptoFailureAction)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoFailureAction-org.apache.pulsar.client.api.ProducerCryptoFailureAction-">setCryptoFailureAction(ProducerCryptoFailureAction)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets the ProducerCryptoFailureAction to the value specified</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setCryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">setCryptoFailureAction(ConsumerCryptoFailureAction)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">setCryptoKeyReader(CryptoKeyReader)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">setCryptoKeyReader(CryptoKeyReader)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setCryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">setCryptoKeyReader(CryptoKeyReader)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#setEventTime-long-">setEventTime(long)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
@@ -967,13 +1382,17 @@
 <div class="block">Set the event time for a given message.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setHashingScheme-org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme-">setHashingScheme(ProducerConfiguration.HashingScheme)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
-<dd>&nbsp;</dd>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setInitialSequenceId-long-">setInitialSequenceId(long)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the baseline for the sequence ids for messages published by the producer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setIoThreads-int-">setIoThreads(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the number of threads to be used for handling connections to brokers <i>(default: 1 thread)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html#setKey-byte:A-">setKey(byte[])</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></dt>
@@ -984,55 +1403,67 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setListenerThreads-int-">setListenerThreads(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the number of threads to be used for message listeners <i>(default: 1 thread)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setMaxNumberOfRejectedRequestPerConnection-int-">setMaxNumberOfRejectedRequestPerConnection(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
  will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
  50)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-">setMaxPendingMessages(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessagesAcrossPartitions-int-">setMaxPendingMessagesAcrossPartitions(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the number of max pending messages across all the partitions</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setMaxTotalReceiverQueueSizeAcrossPartitions-int-">setMaxTotalReceiverQueueSizeAcrossPartitions(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the max total receiver queue size across partitons.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setMessageListener-org.apache.pulsar.client.api.MessageListener-">setMessageListener(MessageListener)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> for the consumer</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRouter-org.apache.pulsar.client.api.MessageRouter-">setMessageRouter(MessageRouter)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setMessageRoutingMode-org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode-">setMessageRoutingMode(ProducerConfiguration.MessageRoutingMode)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the message routing mode for the partitioned producer</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html#setMetadata-java.util.Map-">setMetadata(Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setOperationTimeout-int-java.util.concurrent.TimeUnit-">setOperationTimeout(int, TimeUnit)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the operation timeout <i>(default: 30 seconds)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-">setPriorityLevel(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
  messages.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setProducerName-java.lang.String-">setProducerName(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Specify a name for the producer</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setProperties-java.util.Map-">setProperties(Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Add all the properties in the provided map</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#setProperties-java.util.Map-">setProperties(Map&lt;String, String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
@@ -1041,10 +1472,12 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setProperties-java.util.Map-">setProperties(Map&lt;String, String&gt;)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Add all the properties in the provided map</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setProperty-java.lang.String-java.lang.String-">setProperty(String, String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set a name/value property with this consumer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#setProperty-java.lang.String-java.lang.String-">setProperty(String, String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
@@ -1053,27 +1486,33 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setProperty-java.lang.String-java.lang.String-">setProperty(String, String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set a name/value property with this producer.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setReadCompacted-boolean-">setReadCompacted(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">If enabled, the consumer will read messages from the compacted topic rather than reading the full message
  backlog of the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setReaderListener-org.apache.pulsar.client.api.ReaderListener-">setReaderListener(ReaderListener)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setReaderName-java.lang.String-">setReaderName(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the consumer name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setReceiverQueueSize-int-">setReceiverQueueSize(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets the size of the consumer receive queue.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setReceiverQueueSize-int-">setReceiverQueueSize(int)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets the size of the consumer receive queue.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#setReplicationClusters-java.util.List-">setReplicationClusters(List&lt;String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
@@ -1082,6 +1521,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.html#setSendTimeout-int-java.util.concurrent.TimeUnit-">setSendTimeout(int, TimeUnit)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the send timeout <i>(default: 30 seconds)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageBuilder.html#setSequenceId-long-">setSequenceId(long)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></dt>
@@ -1090,31 +1530,38 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setStatsInterval-long-java.util.concurrent.TimeUnit-">setStatsInterval(long, TimeUnit)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
  statsIntervalSeconds It should be set to at least 1 second</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setSubscriptionType-org.apache.pulsar.client.api.SubscriptionType-">setSubscriptionType(SubscriptionType)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Select the subscription type to be used when subscribing to the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setTlsAllowInsecureConnection-boolean-">setTlsAllowInsecureConnection(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Configure whether the Pulsar client accept untrusted TLS certificate from broker <i>(default: false)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setTlsHostnameVerificationEnable-boolean-">setTlsHostnameVerificationEnable(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">It allows to validate hostname verification when client connects to broker over tls.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setTlsTrustCertsFilePath-java.lang.String-">setTlsTrustCertsFilePath(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the path to the trusted TLS certificate file</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setUseTcpNoDelay-boolean-">setUseTcpNoDelay(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Configure whether to use TCP no-delay flag on the connection, to disable Nagle algorithm.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientConfiguration.html#setUseTls-boolean-">setUseTls(boolean)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Configure whether to use TLS encryption on the connection <i>(default: false)</i></div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#shutdown--">shutdown()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
@@ -1125,23 +1572,54 @@
 <dd>
 <div class="block">Initialize the authentication provider</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#startMessageId-org.apache.pulsar.client.api.MessageId-">startMessageId(MessageId)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">The initial reader positioning is done by specifying a message id.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#statsInterval-long-java.util.concurrent.TimeUnit-">statsInterval(long, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
+ statsIntervalSeconds It should be set to at least 1 second</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscribe--">subscribe()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Finalize the <a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-">subscribe(String, String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Subscribe to the given topic and subscription combination with default <code>ConsumerConfiguration</code></div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribe(String, String, ConsumerConfiguration)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Subscribe to the given topic and subscription combination with given <code>ConsumerConfiguration</code></div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
+</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscribeAsync--">subscribeAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Finalize the <a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic in asynchronous mode.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-">subscribeAsync(String, String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Asynchronously subscribe to the given topic and subscription combination using default
- <code>ConsumerConfiguration</code></div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
+</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribeAsync(String, String, ConsumerConfiguration)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></dt>
 <dd>
-<div class="block">Asynchronously subscribe to the given topic and subscription combination using given
- <code>ConsumerConfiguration</code></div>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span>
+<div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
+</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionName-java.lang.String-">subscriptionName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Specify the subscription name for this consumer.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionType-org.apache.pulsar.client.api.SubscriptionType-">subscriptionType(SubscriptionType)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Select the subscription type to be used when subscribing to the topic.</div>
 </dd>
 <dt><a href="org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">SubscriptionType</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
@@ -1155,12 +1633,28 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.TimeoutException.html#TimeoutException-java.lang.String-">TimeoutException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.TimeoutException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.TimeoutException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ClientBuilder.html#tlsTrustCertsFilePath-java.lang.String-">tlsTrustCertsFilePath(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></dt>
+<dd>
+<div class="block">Set the path to the trusted TLS certificate file</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageId.html#toByteArray--">toByteArray()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></dt>
 <dd>
 <div class="block">Serialize the message ID into a byte array</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.TooManyRequestsException.html#TooManyRequestsException-java.lang.String-">TooManyRequestsException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.TooManyRequestsException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.TooManyRequestsException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#topic-java.lang.String-">topic(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Specify the topic this consumer will subscribe on.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerBuilder.html#topic-java.lang.String-">topic(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></dt>
+<dd>
+<div class="block">Specify the topic this producer will be publishing on.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#topic-java.lang.String-">topic(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Specify the topic this consumer will subscribe on.</div>
+</dd>
 <dt><a href="org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">TopicMetadata</span></a> - Interface in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
 <dd>
 <div class="block">Metadata of a topic that can be used for message routing.</div>
@@ -1203,12 +1697,18 @@
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRoutingMode.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this type with the specified name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.MessageRoutingMode</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a></dt>
@@ -1229,13 +1729,20 @@ the order they are declared.</div>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRoutingMode.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum type, in
+the order they are declared.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.MessageRoutingMode</a></dt>
 <dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
 </dd>

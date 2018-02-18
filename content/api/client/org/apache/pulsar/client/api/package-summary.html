@@ -91,9 +91,21 @@
 </td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api">ClientBuilder</a></td>
+<td class="colLast">
+<div class="block">Builder interface that is used to construct a <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></td>
 <td class="colLast">
 <div class="block">An interface that abstracts behavior of Pulsar's consumer.</div>
+</td>
+</tr>
+<tr class="altColor">
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></td>
+<td class="colLast">
+<div class="block"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a>.</div>
 </td>
 </tr>
 <tr class="rowColor">
@@ -148,15 +160,27 @@
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></td>
 <td class="colLast">
-<div class="block">Class that provides a client interface to Pulsar</div>
+<div class="block"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
 </td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api">PulsarClient</a></td>
+<td class="colLast">
+<div class="block">Class that provides a client interface to Pulsar.</div>
+</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></td>
 <td class="colLast">
 <div class="block">A Reader can be used to scan through all the messages currently available in a topic.</div>
+</td>
+</tr>
+<tr class="rowColor">
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></td>
+<td class="colLast">
+<div class="block"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a>.</div>
 </td>
 </tr>
 <tr class="altColor">
@@ -192,14 +216,14 @@
 </tr>
 <tr class="altColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ClientConfiguration.html" title="class in org.apache.pulsar.client.api">ClientConfiguration</a></td>
-<td class="colLast">
-<div class="block">Class used to specify client side configuration like authentication, etc..</div>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#builder--"><code>PulsarClient.builder()</code></a> to construct and configure a new <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><code>PulsarClient</code></a> instance</span></div>
 </td>
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></td>
-<td class="colLast">
-<div class="block">Class specifying the configuration of a consumer.</div>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build and configure a <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> instance</span></div>
 </td>
 </tr>
 <tr class="altColor">
@@ -208,13 +232,15 @@
 </tr>
 <tr class="rowColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></td>
-<td class="colLast">
-<div class="block">Producer's configuration</div>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>PulsarClient.newProducer()</code></a> to construct and configure a <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</span></div>
 </td>
 </tr>
 <tr class="altColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></td>
-<td class="colLast">&nbsp;</td>
+<td class="colLast">Deprecated
+<div class="block"><span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>PulsarClient.newReader()</code></a> to construct and configure a <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance</span></div>
+</td>
 </tr>
 </tbody>
 </table>
@@ -236,18 +262,22 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a></td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="rowColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.HashingScheme</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">ProducerConfiguration.MessageRoutingMode</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="altColor">
+<tr class="rowColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a></td>
 <td class="colLast">&nbsp;</td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a></td>
 <td class="colLast">
 <div class="block">Types of subscription supported by Pulsar</div>

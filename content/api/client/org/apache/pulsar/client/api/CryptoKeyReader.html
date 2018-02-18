@@ -126,7 +126,9 @@ var activeTableTab = "activeTableTab";
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html#getPublicKey-java.lang.String-java.util.Map-">getPublicKey</a></span>(String&nbsp;keyName,
-            Map&lt;String,String&gt;&nbsp;metadata)</code>&nbsp;</td>
+            Map&lt;String,String&gt;&nbsp;metadata)</code>
+<div class="block">Return the encryption key corresponding to the key name in the argument</div>
+</td>
 </tr>
 </table>
 </li>
@@ -151,6 +153,19 @@ var activeTableTab = "activeTableTab";
 <h4>getPublicKey</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a>&nbsp;getPublicKey(String&nbsp;keyName,
                                Map&lt;String,String&gt;&nbsp;metadata)</pre>
+<div class="block">Return the encryption key corresponding to the key name in the argument
+ <p>
+ This method should be implemented to return the EncryptionKeyInfo. This method will be called at the time of
+ producer creation as well as consumer receiving messages. Hence, application should not make any blocking calls
+ within the implementation.
+ <p></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>keyName</code> - Unique name to identify the key</dd>
+<dd><code>metadata</code> - Additional information needed to identify the key</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>EncryptionKeyInfo with details about the public key</dd>
+</dl>
 </li>
 </ul>
 <a name="getPrivateKey-java.lang.String-java.util.Map-">
@@ -161,6 +176,13 @@ var activeTableTab = "activeTableTab";
 <h4>getPrivateKey</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/EncryptionKeyInfo.html" title="class in org.apache.pulsar.client.api">EncryptionKeyInfo</a>&nbsp;getPrivateKey(String&nbsp;keyName,
                                 Map&lt;String,String&gt;&nbsp;metadata)</pre>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>keyName</code> - Unique name to identify the key</dd>
+<dd><code>metadata</code> - Additional information needed to identify the key</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>byte array of the private key value</dd>
+</dl>
 </li>
 </ul>
 </li>
