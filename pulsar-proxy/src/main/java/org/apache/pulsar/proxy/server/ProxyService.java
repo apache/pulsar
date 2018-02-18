@@ -102,7 +102,7 @@ public class ProxyService implements Closeable {
         }
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConfiguration.setUseTls(true);
-            clientConfiguration.setTlsTrustCertsFilePath(proxyConfig.getTlsTrustCertsFilePath());
+            clientConfiguration.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTlsTrustCertsFilePath());
             clientConfiguration.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
         }
 

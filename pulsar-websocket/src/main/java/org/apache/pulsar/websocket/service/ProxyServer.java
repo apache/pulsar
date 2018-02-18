@@ -95,7 +95,6 @@ public class ProxyServer {
             ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
             tlsConnector.setPort(config.getWebServicePortTls());
             connectors.add(tlsConnector);
-
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of
