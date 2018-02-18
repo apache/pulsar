@@ -69,7 +69,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
-    private String brokerClientTlsTrustCertsFilePath;
+    private String brokerClientTrustCertsFilePath;
 
     /***** --- TLS --- ****/
     // Enable TLS for the proxy handler
@@ -249,12 +249,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
     }
 
-    public String getBrokerClientTlsTrustCertsFilePath() {
-        return this.brokerClientTlsTrustCertsFilePath;
+    public String getBrokerClientTrustCertsFilePath() {
+        return this.brokerClientTrustCertsFilePath;
     }
 
-    public void setBrokerClientTlsTrustCertsFilePath(String brokerClientTlsTrustCertsFilePath) {
-        this.brokerClientTlsTrustCertsFilePath = brokerClientTlsTrustCertsFilePath;
+    public void setBrokerClientTrustCertsFilePath(String brokerClientTlsTrustCertsFilePath) {
+        this.brokerClientTrustCertsFilePath = brokerClientTlsTrustCertsFilePath;
     }
 
     public boolean isAuthenticationEnabled() {
