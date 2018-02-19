@@ -186,6 +186,56 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     }
 
+    @Test(dataProvider = "subscriptionType")
+    public void testPartitionedNonPersistentTopicWithTcpLookup(SubscriptionType type) throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int numPartitions = 5;
+        final String topic = "non-persistent://my-property/use/my-ns/partitioned-topic";
+        admin.nonPersistentTopics().createPartitionedTopic(topic, numPartitions);
+
+        PulsarClient client = PulsarClient.create("pulsar://localhost:" + BROKER_PORT);
+        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
+        consumerConf.setSubscriptionType(type);
+        Consumer consumer = client.subscribe(topic, "subscriber-1", consumerConf);
+
+        Producer producer = client.createProducer(topic);
+
+        // Ensure all partitions exist
+        for (int i = 0; i < numPartitions; i++) {
+            DestinationName partition = DestinationName.get(topic).getPartition(i);
+            assertNotNull(pulsar.getBrokerService().getTopicReference(partition.toString()));
+        }
+
+        int totalProduceMsg = 500;
+        for (int i = 0; i < totalProduceMsg; i++) {
+            String message = "my-message-" + i;
+            producer.send(message.getBytes());
+            Thread.sleep(10);
+        }
+
+        Message msg = null;
+        Set<String> messageSet = Sets.newHashSet();
+        for (int i = 0; i < totalProduceMsg; i++) {
+            msg = consumer.receive(1, TimeUnit.SECONDS);
+            if (msg != null) {
+                consumer.acknowledge(msg);
+                String receivedMessage = new String(msg.getData());
+                log.debug("Received message: [{}]", receivedMessage);
+                String expectedMessage = "my-message-" + i;
+                testMessageOrderAndDuplicates(messageSet, receivedMessage, expectedMessage);
+            } else {
+                break;
+            }
+        }
+        assertEquals(messageSet.size(), totalProduceMsg);
+
+        producer.close();
+        consumer.close();
+        log.info("-- Exiting {} test --", methodName);
+        client.close();
+    }
+
     /**
      * It verifies that broker doesn't dispatch messages if consumer runs out of permits
      * filled out with messages
