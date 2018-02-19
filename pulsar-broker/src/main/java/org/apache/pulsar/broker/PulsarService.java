@@ -33,6 +33,7 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
@@ -540,6 +541,10 @@ public class PulsarService implements AutoCloseable {
      */
     public BrokerService getBrokerService() {
         return this.brokerService;
+    }
+
+    public BookKeeper getBookKeeperClient() {
+        return managedLedgerClientFactory.getBookKeeperClient();
     }
 
     public ManagedLedgerFactory getManagedLedgerFactory() {

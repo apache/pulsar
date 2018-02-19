@@ -159,7 +159,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
-    private final CompactedTopic compactedTopic;
+    final CompactedTopic compactedTopic;
 
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
@@ -207,7 +207,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         this.dispatchRateLimiter = new DispatchRateLimiter(this);
 
-        this.compactedTopic = new CompactedTopicImpl();
+        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
 
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
