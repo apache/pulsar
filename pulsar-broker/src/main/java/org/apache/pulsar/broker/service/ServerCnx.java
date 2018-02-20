@@ -669,6 +669,11 @@ public class ServerCnx extends PulsarHandler {
                         ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
                     }
                     return null;
+                }).exceptionally(e -> {
+                    String msg = String.format("[%s] %s with role %s", remoteAddress, e.getMessage(), authRole);
+                    log.warn(msg);
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, e.getMessage()));
+                    return null;
                 });
             } else {
                 final String msg = "Proxy Client is not authorized to subscribe";
@@ -854,6 +859,11 @@ public class ServerCnx extends PulsarHandler {
                         log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
                         ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
                     }
+                    return null;
+                }).exceptionally(e -> {
+                    String msg = String.format("[%s] %s with role %s", remoteAddress, e.getMessage(), authRole);
+                    log.warn(msg);
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, e.getMessage()));
                     return null;
                 });
             } else {
