@@ -141,3 +141,5 @@ groups:
     endpoint: CliTools
   - title: Pulsar configuration
     endpoint: Configuration
+  - title: FAQ
+    endpoint: faq
