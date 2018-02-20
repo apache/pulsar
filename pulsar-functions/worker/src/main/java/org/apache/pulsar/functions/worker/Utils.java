@@ -157,10 +157,8 @@ public final class Utils {
                 .setUseDaemonThread(true);
     }
 
-    public static URI initializeDlogNamespace(String zkServers) throws IOException {
-        ClientConfiguration conf = new ClientConfiguration();
-
-        BKDLConfig dlConfig = new BKDLConfig(zkServers, conf.getZkLedgersRootPath());
+    public static URI initializeDlogNamespace(String zkServers, String ledgersRootPath) throws IOException {
+        BKDLConfig dlConfig = new BKDLConfig(zkServers, ledgersRootPath);
         DLMetadata dlMetadata = DLMetadata.create(dlConfig);
         URI dlogUri = URI.create(String.format("distributedlog://%s/pulsar/functions", zkServers));
 

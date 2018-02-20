@@ -117,8 +117,7 @@ public class ApiV1ResourceTest {
             .setDownloadDirectory("/tmp/pulsar/functions")
             .setFunctionMetadataTopicName("pulsar/functions")
             .setNumFunctionPackageReplicas(3)
-            .setPulsarServiceUrl("pulsar://localhost:6650/")
-            .setZookeeperServers("localhost:2181");
+            .setPulsarServiceUrl("pulsar://localhost:6650/");
         doReturn(workerConfig).when(resource).getWorkerConfig();
     }
 
