@@ -20,8 +20,10 @@ package org.apache.pulsar.functions.worker;
 
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
@@ -50,7 +52,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class SchedulerManager implements AutoCloseable {
 
-    private WorkerConfig workerConfig;
+    private final WorkerConfig workerConfig;
 
     @Setter
     private FunctionMetaDataManager functionMetaDataManager;
@@ -61,19 +63,25 @@ public class SchedulerManager implements AutoCloseable {
     @Setter
     private FunctionRuntimeManager functionRuntimeManager;
 
-    private IScheduler scheduler;
+    private final IScheduler scheduler;
 
-    private Producer producer;
+    private final Producer producer;
 
-    private ExecutorService executorService;
+    private final ExecutorService executorService;
 
     public SchedulerManager(WorkerConfig workerConfig, PulsarClient pulsarClient) {
         this.workerConfig = workerConfig;
         this.scheduler = Reflections.createInstance(workerConfig.getSchedulerClassName(), IScheduler.class,
                 Thread.currentThread().getContextClassLoader());
 
+        ProducerConfiguration producerConf = new ProducerConfiguration()
+            .setBatchingEnabled(true)
+            .setBlockIfQueueFull(true)
+            .setCompressionType(CompressionType.LZ4)
+            // retry until succeed
+            .setSendTimeout(0, TimeUnit.MILLISECONDS);
         try {
-            this.producer = pulsarClient.createProducer(this.workerConfig.getFunctionAssignmentTopic());
+            this.producer = pulsarClient.createProducer(this.workerConfig.getFunctionAssignmentTopic(), producerConf);
         } catch (PulsarClientException e) {
             log.error("Failed to create producer to function assignment topic "
                     + this.workerConfig.getFunctionAssignmentTopic(), e);
@@ -88,13 +96,7 @@ public class SchedulerManager implements AutoCloseable {
     public void schedule() {
         executorService.submit(() -> {
             synchronized (SchedulerManager.this) {
-                boolean isLeader = false;
-                try {
-                    isLeader = membershipManager.becomeLeader().get(30, TimeUnit.SECONDS);
-                } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                    log.debug("Failed to attempt becoming leader", e);
-                }
-
+                boolean isLeader = membershipManager.isLeader();
                 if (isLeader) {
                     invokeScheduler();
                 }

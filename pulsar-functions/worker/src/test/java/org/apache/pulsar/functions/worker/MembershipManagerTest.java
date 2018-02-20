@@ -18,7 +18,11 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.util.concurrent.atomic.AtomicReference;
 import org.apache.distributedlog.api.namespace.Namespace;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.functions.fs.MetricsConfig;
 import org.apache.pulsar.functions.proto.Function;
@@ -33,21 +37,64 @@ import java.util.List;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 public class MembershipManagerTest {
 
-    @Test
-    public void testCheckFailuresNoFailures() throws Exception {
-        WorkerConfig workerConfig = new WorkerConfig();
+    private final WorkerConfig workerConfig;
+
+    public MembershipManagerTest() {
+        this.workerConfig = new WorkerConfig();
         workerConfig.setWorkerId("worker-1");
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
+    }
+
+    @Test
+    public void testConsumerEventListener() throws Exception {
+        PulsarClient mockClient = mock(PulsarClient.class);
+        Consumer mockConsumer = mock(Consumer.class);
+
+        AtomicReference<ConsumerEventListener> listenerHolder = new AtomicReference<>();
+        when(mockClient.subscribe(
+            eq(workerConfig.getClusterCoordinationTopic()),
+            eq(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION),
+            any(ConsumerConfiguration.class)
+        )).thenAnswer(invocationOnMock -> {
+
+            ConsumerConfiguration conf = invocationOnMock.getArgumentAt(2, ConsumerConfiguration.class);
+            listenerHolder.set(conf.getConsumerEventListener());
+
+            return mockConsumer;
+        });
+
+        MembershipManager membershipManager = spy(new MembershipManager(workerConfig, mockClient));
+        assertFalse(membershipManager.isLeader());
+        verify(mockClient, times(1))
+            .subscribe(
+                eq(workerConfig.getClusterCoordinationTopic()),
+                eq(MembershipManager.COORDINATION_TOPIC_SUBSCRIPTION),
+                any(ConsumerConfiguration.class));
+
+        listenerHolder.get().becameActive(mockConsumer, 0);
+        assertTrue(membershipManager.isLeader());
+
+        listenerHolder.get().becameInactive(mockConsumer, 0);
+        assertFalse(membershipManager.isLeader());
+    }
+
+    @Test
+    public void testCheckFailuresNoFailures() throws Exception {
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
@@ -104,12 +151,6 @@ public class MembershipManagerTest {
 
     @Test
     public void testCheckFailuresSomeFailures() throws Exception {
-        WorkerConfig workerConfig = new WorkerConfig();
-        workerConfig.setWorkerId("worker-1");
-        workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
-        workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
-        workerConfig.setStateStorageServiceUrl("foo");
-        workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
