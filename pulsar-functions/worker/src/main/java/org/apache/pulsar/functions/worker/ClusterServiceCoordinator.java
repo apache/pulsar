@@ -19,18 +19,16 @@
 
 package org.apache.pulsar.functions.worker;
 
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.api.PulsarClientException;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 
 @Slf4j
 public class ClusterServiceCoordinator implements AutoCloseable {
@@ -49,13 +47,14 @@ public class ClusterServiceCoordinator implements AutoCloseable {
 
     private final String workerId;
     private final Map<String, TimerTaskInfo> tasks = new HashMap<>();
-    private final Timer timer;
+    private final ScheduledExecutorService executor;
     private final MembershipManager membershipManager;
 
     public ClusterServiceCoordinator(String workerId, MembershipManager membershipManager) {
         this.workerId = workerId;
-        this.timer = new Timer();
         this.membershipManager = membershipManager;
+        this.executor = Executors.newSingleThreadScheduledExecutor(
+            new ThreadFactoryBuilder().setNameFormat("cluster-service-coordinator-timer").build());
     }
 
     public void addTask(String taskName, long interval, Runnable task) {
@@ -66,32 +65,23 @@ public class ClusterServiceCoordinator implements AutoCloseable {
         for (Map.Entry<String, TimerTaskInfo> entry : this.tasks.entrySet()) {
             TimerTaskInfo timerTaskInfo = entry.getValue();
             String taskName = entry.getKey();
-            this.timer.scheduleAtFixedRate(new TimerTask() {
-                @Override
-                public void run() {
-                    boolean isLeader = false;
+            this.executor.scheduleAtFixedRate(() -> {
+                boolean isLeader = membershipManager.isLeader();
+                if (isLeader) {
                     try {
-                        isLeader = membershipManager.becomeLeader().get(30, TimeUnit.SECONDS);
-                    } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                        log.debug("Failed to attempt becoming leader", e);
-                    }
-
-                    if (isLeader) {
-                        try {
-                            timerTaskInfo.getTask().run();
-                        } catch (Exception e) {
-                            log.error("Cluster timer task {} failed with exception.", taskName, e);
-                        }
+                        timerTaskInfo.getTask().run();
+                    } catch (Exception e) {
+                        log.error("Cluster timer task {} failed with exception.", taskName, e);
                     }
                 }
-            }, timerTaskInfo.getInterval(), timerTaskInfo.getInterval());
+            }, timerTaskInfo.getInterval(), timerTaskInfo.getInterval(), TimeUnit.MILLISECONDS);
         }
     }
 
     @Override
     public void close() {
         log.info("Stopping Cluster Service Coordinator for worker {}", this.workerId);
-        this.timer.cancel();
+        this.executor.shutdown();
         log.info("Stopped Cluster Service Coordinator for worker", this.workerId);
     }
 }

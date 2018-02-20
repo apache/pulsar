@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -39,11 +40,10 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.functions.proto.Function;
@@ -53,14 +53,16 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
  * A simple implementation of leader election using a pulsar topic.
  */
 @Slf4j
-public class MembershipManager implements AutoCloseable {
+public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
-    private final Producer producer;
+    private final String consumerName;
     private final Consumer consumer;
     private WorkerConfig workerConfig;
     private PulsarAdmin pulsarAdminClient;
+    private final CompletableFuture<Void> firstConsumerEventFuture;
+    private final AtomicBoolean isLeader = new AtomicBoolean();
 
-    private static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
+    static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
     // How long functions have remained assigned or scheduled on a failed node
     // FullyQualifiedFunctionName -> time in millis
@@ -69,25 +71,46 @@ public class MembershipManager implements AutoCloseable {
 
     MembershipManager(WorkerConfig workerConfig, PulsarClient client)
             throws PulsarClientException {
-        producer = client.createProducer(workerConfig.getClusterCoordinationTopic());
-        consumer = client.subscribe(workerConfig.getClusterCoordinationTopic(), COORDINATION_TOPIC_SUBSCRIPTION,
-                new ConsumerConfiguration()
-                        .setSubscriptionType(SubscriptionType.Failover)
-                        .setConsumerName(String.format("%s:%s:%d", workerConfig.getWorkerId(),
-                                workerConfig.getWorkerHostname(), workerConfig.getWorkerPort())));
+        consumerName = String.format(
+            "%s:%s:%d",
+            workerConfig.getWorkerId(),
+            workerConfig.getWorkerHostname(),
+            workerConfig.getWorkerPort()
+        );
+        firstConsumerEventFuture = new CompletableFuture<>();
+        // the membership manager is using a `coordination` topic for leader election.
+        // we don't produce any messages into this topic, we only use the `failover` subscription
+        // to elect an active consumer as the leader worker. The leader worker will be responsible
+        // for scheduling snapshots for FMT and doing task assignment.
+        consumer = client.subscribe(
+            workerConfig.getClusterCoordinationTopic(),
+            COORDINATION_TOPIC_SUBSCRIPTION,
+            new ConsumerConfiguration()
+                .setSubscriptionType(SubscriptionType.Failover)
+                .setConsumerName(consumerName)
+                .setConsumerEventListener(this)
+        );
         this.workerConfig = workerConfig;
     }
 
-    /**
-     * Public methods
-     */
+    @Override
+    public void becameActive(Consumer consumer, int partitionId) {
+        firstConsumerEventFuture.complete(null);
+        if (isLeader.compareAndSet(false, true)) {
+            log.info("Worker {} became the leader.", consumerName);
+        }
+    }
 
-    public synchronized CompletableFuture<Boolean> becomeLeader() {
-        long time = System.currentTimeMillis();
-        String str = String.format("%s-%d", this.workerConfig.getWorkerId(), time);
-        return producer.sendAsync(str.getBytes())
-                .thenCompose(messageId -> MembershipManager.this.receiveTillMessage((MessageIdImpl) messageId))
-                .exceptionally(cause -> false);
+    @Override
+    public void becameInactive(Consumer consumer, int partitionId) {
+        firstConsumerEventFuture.complete(null);
+        if (isLeader.compareAndSet(true, false)) {
+            log.info("Worker {} lost the leadership.", consumerName);
+        }
+    }
+
+    public boolean isLeader() {
+        return isLeader.get();
     }
 
     public List<WorkerInfo> getCurrentMembership() {
@@ -114,7 +137,6 @@ public class MembershipManager implements AutoCloseable {
 
     @Override
     public void close() throws PulsarClientException {
-        producer.close();
         consumer.close();
         if (this.pulsarAdminClient != null) {
             this.pulsarAdminClient.close();
@@ -262,39 +284,4 @@ public class MembershipManager implements AutoCloseable {
         return this.pulsarAdminClient;
     }
 
-    private CompletableFuture<Boolean> receiveTillMessage(MessageIdImpl endMsgId) {
-        CompletableFuture<Boolean> finalFuture = new CompletableFuture<>();
-        receiveOne(endMsgId, finalFuture);
-        return finalFuture;
-    }
-
-    private void receiveOne(MessageIdImpl endMsgId, CompletableFuture<Boolean> finalFuture) {
-        consumer.receiveAsync()
-                .thenAccept(message -> {
-                    MessageIdImpl idReceived = (MessageIdImpl) message.getMessageId();
-
-                    int compareResult = idReceived.compareTo(endMsgId);
-                    if (compareResult < 0) {
-                        // drop the message
-                        consumer.acknowledgeCumulativeAsync(message);
-                        // receive next message
-                        receiveOne(endMsgId, finalFuture);
-                        return;
-                    } else if (compareResult > 0) {
-                        // the end message is consumed by other participants, which it means some other
-                        // consumers take over the leadership at some time. so `becomeLeader` fails
-                        finalFuture.complete(false);
-                        return;
-                    } else {
-                        // i got what I published, i become the leader
-                        consumer.acknowledgeCumulativeAsync(message);
-                        finalFuture.complete(true);
-                        return;
-                    }
-                })
-                .exceptionally(cause -> {
-                    finalFuture.completeExceptionally(cause);
-                    return null;
-                });
-    }
 }
