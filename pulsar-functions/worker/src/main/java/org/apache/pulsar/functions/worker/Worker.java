@@ -31,6 +31,7 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
@@ -65,14 +66,61 @@ public class Worker extends AbstractService {
     protected void doStartImpl() {
         log.info("Start worker {}...", workerConfig.getWorkerId());
         log.info("Worker Configs: {}", workerConfig);
+
+        // initializing pulsar functions namespace
+        log.info("Initialize Pulsar functions namespace...");
+        PulsarAdmin admin = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
+        InternalConfigurationData internalConf;
+        try {
+            try {
+                admin.namespaces().getPolicies(this.workerConfig.getPulsarFunctionsNamespace());
+            } catch (PulsarAdminException e) {
+                if (e.getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()) {
+                    // if not found than create
+                    try {
+                        admin.namespaces().createNamespace(this.workerConfig.getPulsarFunctionsNamespace());
+                    } catch (PulsarAdminException e1) {
+                        // prevent race condition with other workers starting up
+                        if (e1.getStatusCode() != Response.Status.CONFLICT.getStatusCode()) {
+                            log.error("Failed to create namespace {} for pulsar functions", this.workerConfig
+                                .getPulsarFunctionsNamespace(), e1);
+                            throw new RuntimeException(e1);
+                        }
+                    }
+                    try {
+                        admin.namespaces().setRetention(
+                            this.workerConfig.getPulsarFunctionsNamespace(),
+                            new RetentionPolicies(Integer.MAX_VALUE, Integer.MAX_VALUE));
+                    } catch (PulsarAdminException e1) {
+                        log.error("Failed to set retention policy for pulsar functions namespace", e);
+                        throw new RuntimeException(e1);
+                    }
+                } else {
+                    log.error("Failed to get retention policy for pulsar function namespace {}",
+                        this.workerConfig.getPulsarFunctionsNamespace(), e);
+                    throw new RuntimeException(e);
+                }
+            }
+            try {
+                internalConf = admin.brokers().getInternalConfigurationData();
+            } catch (PulsarAdminException e) {
+                log.error("Failed to retrieve broker internal configuration", e);
+                throw new RuntimeException(e);
+            }
+        } finally {
+            admin.close();
+        }
+
         // initialize the dlog namespace
         // TODO: move this as part of pulsar cluster initialization later
         URI dlogUri;
         try {
-            dlogUri = Utils.initializeDlogNamespace(workerConfig.getZookeeperServers());
+            dlogUri = Utils.initializeDlogNamespace(
+                internalConf.getZookeeperServers(),
+                internalConf.getLedgersRootPath());
         } catch (IOException ioe) {
             log.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                    workerConfig.getZookeeperServers(), ioe);
+                    internalConf.getZookeeperServers(), ioe);
             throw new RuntimeException(ioe);
         }
 
@@ -90,40 +138,7 @@ public class Worker extends AbstractService {
             throw new RuntimeException(e);
         }
 
-        // initializing pulsar functions namespace
-        log.info("Initialize Pulsar functions namespace...");
-        PulsarAdmin admin = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
-        try {
-            admin.namespaces().getPolicies(this.workerConfig.getPulsarFunctionsNamespace());
-        } catch (PulsarAdminException e) {
-            if (e.getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()) {
-                // if not found than create
-                try {
-                    admin.namespaces().createNamespace(this.workerConfig.getPulsarFunctionsNamespace());
-                } catch (PulsarAdminException e1) {
-                    // prevent race condition with other workers starting up
-                    if (e1.getStatusCode() != Response.Status.CONFLICT.getStatusCode()) {
-                        log.error("Failed to create namespace {} for pulsar functions", this.workerConfig
-                                .getPulsarFunctionsNamespace(), e1);
-                        throw new RuntimeException(e1);
-                    }
-                }
-                try {
-                    admin.namespaces().setRetention(
-                            this.workerConfig.getPulsarFunctionsNamespace(),
-                            new RetentionPolicies(Integer.MAX_VALUE, Integer.MAX_VALUE));
-                } catch (PulsarAdminException e1) {
-                    log.error("Failed to set retention policy for pulsar functions namespace", e);
-                    throw new RuntimeException(e1);
-                }
-            } else {
-                log.error("Failed to get retention policy for pulsar function namespace {}",
-                        this.workerConfig.getPulsarFunctionsNamespace(), e);
-                throw new RuntimeException(e);
-            }
-        } finally {
-            admin.close();
-        }
+
 
         // initialize the function metadata manager
         try {

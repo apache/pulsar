@@ -19,7 +19,6 @@
 
 workerId: test-worker
 workerPort: 7654
-zookeeperServers: localhost:1234
 pulsarServiceUrl: pulsar://localhost:6650
 functionMetadataTopicName: test-function-metadata-topic
 numFunctionPackageReplicas: 3

@@ -44,7 +44,6 @@ public class WorkerConfig implements Serializable {
     private String workerId;
     private String workerHostname;
     private int workerPort;
-    private String zookeeperServers;
     private String functionMetadataTopicName;
     private String pulsarServiceUrl;
     private String pulsarWebServiceUrl;
