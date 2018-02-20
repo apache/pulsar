@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,6 +56,7 @@ import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
+import org.apache.pulsar.common.configuration.VipStatus;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -77,6 +79,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -275,13 +278,19 @@ public class PulsarService implements AutoCloseable {
             brokerService.start();
 
             this.webService = new WebService(this);
-            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false);
-            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true);
-            this.webService.addRestResources("/admin/v2", "org.apache.pulsar.broker.admin.v2", true);
-            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true);
+            Map<String, Object> attributeMap = Maps.newHashMap();
+            attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
+            Map<String, Object> vipAttributeMap = Maps.newHashMap();
+            vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, this.config.getStatusFilePath());
+            this.webService.addRestResources("/", VipStatus.class.getPackage().getName(), false, vipAttributeMap);
+            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false, attributeMap);
+            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true, attributeMap);
+            this.webService.addRestResources("/admin/v2", "org.apache.pulsar.broker.admin.v2", true, attributeMap);
+            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true, attributeMap);
 
             this.webService.addServlet("/metrics",
-                    new ServletHolder(new PrometheusMetricsServlet(this, config.exposeTopicLevelMetricsInPrometheus())), false);
+                    new ServletHolder(new PrometheusMetricsServlet(this, config.exposeTopicLevelMetricsInPrometheus())),
+                    false, attributeMap);
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery
@@ -290,11 +299,11 @@ public class PulsarService implements AutoCloseable {
                         config);
                 this.webSocketService.start();
                 this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketProducerServlet(webSocketService)), true);
+                        new ServletHolder(new WebSocketProducerServlet(webSocketService)), true, attributeMap);
                 this.webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketConsumerServlet(webSocketService)), true);
+                        new ServletHolder(new WebSocketConsumerServlet(webSocketService)), true, attributeMap);
                 this.webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketReaderServlet(webSocketService)), true);
+                        new ServletHolder(new WebSocketReaderServlet(webSocketService)), true, attributeMap);
             }
 
             if (LOG.isDebugEnabled()) {

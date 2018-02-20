@@ -16,10 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.web;
+package org.apache.pulsar.common.configuration;
 
 import java.io.File;
 
+import javax.servlet.ServletContext;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.WebApplicationException;
@@ -27,22 +28,28 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response.Status;
 
 /**
- * Web resource used by the VIP service to check to availability of the Pulsar broker instance.
+ * Web resource used by the VIP service to check to availability of the service instance.
  */
 @Path("/status.html")
-@NoSwaggerDocumentation
-public class VipStatus extends PulsarWebResource {
+public class VipStatus {
+
+    public static final String ATTRIBUTE_STATUS_FILE_PATH = "statusFilePath";
+
+    @Context
+    protected ServletContext servletContext;
 
     @GET
     @Context
     public String checkStatus() {
-        String statusFilePath = pulsar().getStatusFilePath();
 
-        File statusFile = new File(statusFilePath);
-        if (statusFile.exists()) {
-            return "OK";
-        } else {
-            throw new WebApplicationException(Status.NOT_FOUND);
+        String statusFilePath = (String) servletContext.getAttribute(ATTRIBUTE_STATUS_FILE_PATH);
+        if (statusFilePath != null) {
+            File statusFile = new File(statusFilePath);
+            if (statusFile.exists() && statusFile.isFile()) {
+                return "OK";
+            }
         }
+        throw new WebApplicationException(Status.NOT_FOUND);
     }
+
 }

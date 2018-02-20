@@ -49,6 +49,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
+    
+    // Path for the file used to determine the rotation status for the broker
+    // when responding to service discovery health checks
+    private String statusFilePath;
 
     // Role names that are treated as "super-user", meaning they will be able to
     // do all admin operations and publish/consume from all topics
@@ -174,6 +178,14 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setWebServicePortTls(int webServicePortTls) {
         this.webServicePortTls = webServicePortTls;
+    }
+
+    public String getStatusFilePath() {
+        return statusFilePath;
+    }
+
+    public void setStatusFilePath(String statusFilePath) {
+        this.statusFilePath = statusFilePath;
     }
 
     public boolean isTlsEnabledInProxy() {
