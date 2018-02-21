@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,8 +46,10 @@ public class ConsumerConfiguration implements Serializable {
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
+    @JsonIgnore
     private MessageListener messageListener;
 
+    @JsonIgnore
     private ConsumerEventListener consumerEventListener;
 
     private int receiverQueueSize = 1000;
@@ -59,6 +62,7 @@ public class ConsumerConfiguration implements Serializable {
 
     private int priorityLevel = 0;
 
+    @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,6 +38,7 @@ public class ClientConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
+    @JsonIgnore
     private Authentication authentication = new AuthenticationDisabled();
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
