@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Queues;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -27,7 +28,6 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerEventListener;
@@ -41,8 +41,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
-
-import com.google.common.collect.Queues;
 
 public abstract class ConsumerBase extends HandlerBase implements Consumer {
 
@@ -59,7 +57,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
     protected final ExecutorService listenerExecutor;
     final BlockingQueue<Message> incomingMessages;
     protected final ConcurrentLinkedQueue<CompletableFuture<Message>> pendingReceives;
-    protected final int maxReceiverQueueSize;
+    protected int maxReceiverQueueSize;
 
     protected ConsumerBase(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
             int receiverQueueSize, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
@@ -333,7 +331,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
      * the connected consumers. This is a non blocking call and doesn't throw an exception. In case the connection
      * breaks, the messages are redelivered after reconnect.
      */
-    protected abstract void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds);
+    protected abstract void redeliverUnacknowledgedMessages(Set<MessageId> messageIds);
 
     @Override
     public String toString() {
@@ -343,4 +341,9 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer {
                 ", topic='" + topic + '\'' +
                 '}';
     }
+
+    protected void setMaxReceiverQueueSize(int newSize) {
+        this.maxReceiverQueueSize = newSize;
+    }
+
 }

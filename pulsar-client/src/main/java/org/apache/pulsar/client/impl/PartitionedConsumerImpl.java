@@ -470,7 +470,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds) {
+    public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
@@ -478,9 +479,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
         removeExpiredMessagesFromQueue(messageIds);
         messageIds.stream()
-                .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
-                .forEach((partitionIndex, messageIds1) ->
-                        consumers.get(partitionIndex).redeliverUnacknowledgedMessages(messageIds1));
+            .map(messageId -> (MessageIdImpl)messageId)
+            .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
+            .forEach((partitionIndex, messageIds1) ->
+                consumers.get(partitionIndex).redeliverUnacknowledgedMessages(
+                    messageIds1.stream().map(mid -> (MessageId)mid).collect(Collectors.toSet())));
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
@@ -548,10 +551,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return unAckedMessageTracker;
     }
 
-    private void removeExpiredMessagesFromQueue(Set<MessageIdImpl> messageIds) {
+    private void removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
         Message peek = incomingMessages.peek();
         if (peek != null) {
-            if (!messageIds.contains((MessageIdImpl) peek.getMessageId())) {
+            if (!messageIds.contains(peek.getMessageId())) {
                 // first message is not expired, then no message is expired in queue.
                 return;
             }
