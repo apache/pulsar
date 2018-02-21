@@ -82,7 +82,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
 
-        if (!authResult) {
+        if (!checkAuth(response)) {
             return;
         }
 
@@ -97,7 +97,8 @@ public class ReaderHandler extends AbstractWebSocketHandler {
             log.warn("[{}:{}] Failed in creating reader {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
             try {
-                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Failed to create reader");
+                response.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                        "Failed to create reader: " + e.getMessage());
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);

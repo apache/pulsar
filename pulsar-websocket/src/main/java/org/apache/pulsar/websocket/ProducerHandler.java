@@ -87,7 +87,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
-        if (!authResult) {
+        if (!checkAuth(response)) {
             return;
         }
 

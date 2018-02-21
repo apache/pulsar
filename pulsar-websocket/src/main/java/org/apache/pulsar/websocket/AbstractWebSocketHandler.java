@@ -48,7 +48,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected final String topic;
     protected final Map<String, String> queryParams;
-    protected final boolean authResult;
 
     public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
@@ -59,11 +58,9 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         request.getParameterMap().forEach((key, values) -> {
             queryParams.put(key, values[0]);
         });
-
-        authResult = checkAuth(response);
     }
 
-    private boolean checkAuth(ServletUpgradeResponse response) {
+    protected boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
         AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
         if (service.isAuthenticationEnabled()) {
