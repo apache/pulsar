@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.AbstractService;
 
 import java.io.IOException;
@@ -63,14 +65,40 @@ public class Worker extends AbstractService {
         }
     }
 
-    protected void doStartImpl() {
-        log.info("Start worker {}...", workerConfig.getWorkerId());
-        log.info("Worker Configs: {}", workerConfig);
+    protected void doStartImpl() throws InterruptedException {
+        log.info("Starting worker {}...", workerConfig.getWorkerId());
+        try {
+            log.info("Worker Configs: {}",new ObjectMapper().writerWithDefaultPrettyPrinter()
+                    .writeValueAsString(workerConfig));
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
+        }
 
         // initializing pulsar functions namespace
-        log.info("Initialize Pulsar functions namespace...");
         PulsarAdmin admin = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
         InternalConfigurationData internalConf;
+        // make sure pulsar broker is up
+        log.info("Checking if broker at {} is up...", this.workerConfig.getPulsarWebServiceUrl());
+        int maxRetries = workerConfig.getInitialBrokerReconnectMaxRetries();
+        int retries = 0;
+        while (true) {
+            try {
+                admin.clusters().getClusters();
+                break;
+            } catch (PulsarAdminException e) {
+                log.warn("Retry to connect to Pulsar broker at {}", this.workerConfig.getPulsarWebServiceUrl());
+                if (retries >= maxRetries) {
+                    log.error("Failed to connect to Pulsar broker at {} after {} attempts",
+                            this.workerConfig.getPulsarFunctionsNamespace(), maxRetries);
+                    throw new RuntimeException("Failed to connect to Pulsar broker");
+                }
+                retries ++;
+                Thread.sleep(1000);
+            }
+        }
+
+        // getting namespace policy
+        log.info("Initializing Pulsar Functions namespace...");
         try {
             try {
                 admin.namespaces().getPolicies(this.workerConfig.getPulsarFunctionsNamespace());
@@ -137,8 +165,6 @@ public class Worker extends AbstractService {
                     dlogUri, e);
             throw new RuntimeException(e);
         }
-
-
 
         // initialize the function metadata manager
         try {
