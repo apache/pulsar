@@ -126,7 +126,7 @@ public class LookupProxyHandler {
                         String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
                         if (result.redirect) {
                             // Need to try the lookup again on a different broker
-                            performLookup(clientRequestId, topic, brokerUrl, authoritative, numberOfRetries - 1);
+                            performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
                         } else {
                             // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
                             // between proxy
