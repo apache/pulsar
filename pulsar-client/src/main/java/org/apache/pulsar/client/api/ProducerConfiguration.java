@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -48,12 +49,15 @@ public class ProducerConfiguration implements Serializable {
     private int maxPendingMessagesAcrossPartitions = 50000;
     private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
     private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
+    @JsonIgnore
     private MessageRouter customMessageRouter = null;
     private long batchingMaxPublishDelayMs = 10;
     private int batchingMaxMessages = 1000;
     private boolean batchingEnabled = false; // disabled by default
 
+    @JsonIgnore
     private CryptoKeyReader cryptoKeyReader;
+    @JsonIgnore
     private ConcurrentOpenHashSet<String> encryptionKeys;
 
     private CompressionType compressionType = CompressionType.NONE;
