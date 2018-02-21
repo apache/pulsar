@@ -75,6 +75,7 @@ where command is one of:
     proxy               Run a pulsar proxy
     websocket           Run a web socket proxy server
     standalone          Run a broker server with local bookies and local zookeeper
+    compact-topic       Run compaction against a topic
 
     initialize-cluster-metadata     One-time metadata initialization
     zookeeper-shell     Open a ZK shell client
@@ -224,7 +225,7 @@ elif [ $COMMAND == "initialize-cluster-metadata" ]; then
     exec $JAVA $OPTS org.apache.pulsar.PulsarClusterMetadataSetup $@
 elif [ $COMMAND == "zookeeper-shell" ]; then
     exec $JAVA $OPTS org.apache.zookeeper.ZooKeeperMain $@
-elif [ $Command == "compact-topic" ]; then
+elif [ $COMMAND == "compact-topic" ]; then
     exec $JAVA $OPTS org.apache.pulsar.compaction.CompactorTool --broker-conf $PULSAR_BROKER_CONF $@
 elif [ $COMMAND == "help" ]; then
     pulsar_help;
