@@ -26,6 +26,7 @@ import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.PackageLocationMetaData;
@@ -33,6 +34,7 @@ import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.BaseApiResource;
@@ -52,8 +54,10 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
@@ -407,6 +411,27 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         return Response.status(Response.Status.OK).build();
+    }
+
+    @GET
+    @Path("/cluster")
+    public Response getCluster() {
+        MembershipManager membershipManager = getMembershipManager();
+        List<MembershipManager.WorkerInfo> members = membershipManager.getCurrentMembership();
+        return Response.status(Response.Status.OK).entity(new Gson().toJson(members)).build();
+    }
+
+    @GET
+    @Path("/assignments")
+    public Response getAssignments() {
+        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
+        Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
+        Map<String, Collection<String>> ret = new HashMap<>();
+        for (Map.Entry<String, Map<String, Function.Assignment>> entry : assignments.entrySet()) {
+            ret.put(entry.getKey(), entry.getValue().keySet());
+        }
+        return Response.status(Response.Status.OK).entity(
+                new Gson().toJson(ret)).build();
     }
 
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {

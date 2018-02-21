@@ -215,14 +215,14 @@ public class Worker extends AbstractService {
             // Start function runtime manager
             this.functionRuntimeManager.start();
 
-            //this.membershipManager.startMonitorMembership();
         } catch (Exception e) {
             log.error("Error Starting up in worker", e);
             throw new RuntimeException(e);
         }
 
         WorkerServer server = new WorkerServer(
-                this.workerConfig, this.functionMetaDataManager, this.functionRuntimeManager, this.dlogNamespace);
+                this.workerConfig, this.functionMetaDataManager, this.functionRuntimeManager,
+                this.membershipManager, this.dlogNamespace);
         this.serverThread = new Thread(server, server.getThreadName());
 
         log.info("Start worker server on port {}...", this.workerConfig.getWorkerPort());
