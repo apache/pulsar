@@ -611,6 +611,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                     return null;
                                 });
                             } catch (NamingException e) {
+                                log.warn("Failed to create topic {}-{}", topic, e.getMessage());
+                                pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
                         }

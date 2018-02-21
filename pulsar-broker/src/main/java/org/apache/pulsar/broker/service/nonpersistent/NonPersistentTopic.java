@@ -540,7 +540,7 @@ public class NonPersistentTopic implements Topic {
             if (!replicators.containsKey(cluster)) {
                 if (!startReplicator(cluster)) {
                     // it happens when global topic is a partitioned topic and replicator can't start on original
-                    // partitioned-topic (topic without partition prefix)
+                    // non partitioned-topic (topic without partition prefix)
                     return FutureUtil
                             .failedFuture(new NamingException(topic + " failed to start replicator for " + cluster));
                 }
