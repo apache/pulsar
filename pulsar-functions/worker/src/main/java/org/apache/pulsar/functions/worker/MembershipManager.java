@@ -64,6 +64,8 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
     static final String COORDINATION_TOPIC_SUBSCRIPTION = "participants";
 
+    private static String WORKER_IDENTIFIER = "id";
+
     // How long functions have remained assigned or scheduled on a failed node
     // FullyQualifiedFunctionName -> time in millis
     @VisibleForTesting
@@ -84,12 +86,12 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         // to elect an active consumer as the leader worker. The leader worker will be responsible
         // for scheduling snapshots for FMT and doing task assignment.
         consumer = client.subscribe(
-            workerConfig.getClusterCoordinationTopic(),
-            COORDINATION_TOPIC_SUBSCRIPTION,
-            new ConsumerConfiguration()
-                .setSubscriptionType(SubscriptionType.Failover)
-                .setConsumerName(consumerName)
-                .setConsumerEventListener(this)
+                workerConfig.getClusterCoordinationTopic(),
+                COORDINATION_TOPIC_SUBSCRIPTION,
+                new ConsumerConfiguration()
+                        .setSubscriptionType(SubscriptionType.Failover)
+                        .setConsumerEventListener(this)
+                        .setProperty(WORKER_IDENTIFIER, consumerName)
         );
     }
 
@@ -129,7 +131,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
 
         for (ConsumerStats consumerStats : persistentTopicStats.subscriptions
                 .get(COORDINATION_TOPIC_SUBSCRIPTION).consumers) {
-            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.consumerName);
+            WorkerInfo workerInfo = WorkerInfo.parseFrom(consumerStats.metadata.get(WORKER_IDENTIFIER));
             workerIds.add(workerInfo);
         }
         return workerIds;

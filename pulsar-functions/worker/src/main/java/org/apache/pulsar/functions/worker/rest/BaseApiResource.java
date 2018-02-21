@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.worker.rest;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
+import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 
 import javax.servlet.ServletContext;
@@ -32,10 +33,12 @@ public class BaseApiResource {
     public static final String ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER = "function-state-manager";
     public static final String ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER = "function-runtime-manager";
     public static final String ATTRIBUTE_WORKER_DLOG_NAMESPACE = "distributedlog-namespace";
+    public static final String ATTRIBUTE_MEMBERSHIP_MANAGER = "membership-manager";
 
     private WorkerConfig workerConfig;
     private FunctionMetaDataManager functionMetaDataManager;
     private FunctionRuntimeManager functionRuntimeManager;
+    private MembershipManager membershipManager;
     private Namespace dlogNamespace;
 
     @Context
@@ -62,6 +65,13 @@ public class BaseApiResource {
                     = (FunctionRuntimeManager) servletContext.getAttribute(ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER);
         }
         return this.functionRuntimeManager;
+    }
+
+    public MembershipManager getMembershipManager() {
+        if (this.membershipManager == null) {
+            this.membershipManager = (MembershipManager) servletContext.getAttribute(ATTRIBUTE_MEMBERSHIP_MANAGER);
+        }
+        return this.membershipManager;
     }
 
     public Namespace getDlogNamespace() {
