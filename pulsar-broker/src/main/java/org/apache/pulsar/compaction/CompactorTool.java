@@ -59,9 +59,6 @@ public class CompactorTool {
         @Parameter(names = {"-c", "--broker-conf"}, description = "Configuration file for Broker")
         private String brokerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/broker.conf";
 
-        @Parameter(names = {"-C", "--client-conf"}, description = "Configuration file for Pulsar Client")
-        private String clientConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/client.conf";
-
         @Parameter(names = {"-t", "--topic"}, description = "Topic to compact", required=true)
         private String topic;
 
@@ -94,25 +91,13 @@ public class CompactorTool {
         String pulsarServiceUrl = PulsarService.brokerUrl(brokerConfig);
         ClientConfiguration clientConfig = new ClientConfiguration();
 
-        if (!isNotBlank(arguments.clientConfigFile)) {
-            try (FileInputStream fis = new FileInputStream(arguments.clientConfigFile)) {
-                Properties properties = new Properties();
-                properties.load(fis);
-
-                if (isNotBlank(properties.getProperty("serviceUrl"))) {
-                    pulsarServiceUrl = properties.getProperty("serviceUrl");
-                }
-                if (isNotBlank(properties.getProperty("authPlugin"))) {
-                    clientConfig.setAuthentication(properties.getProperty("authPlugin"),
-                                                   properties.getProperty("authParams"));
-                }
-
-                clientConfig.setUseTls(Boolean.parseBoolean(properties.getProperty("useTls")));
-                clientConfig.setTlsAllowInsecureConnection(
-                        Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection")));
-                clientConfig.setTlsTrustCertsFilePath(properties.getProperty("tlsTrustCertsFilePath"));
-            }
+        if (isNotBlank(brokerConfig.getBrokerClientAuthenticationPlugin())) {
+            clientConfig.setAuthentication(brokerConfig.getBrokerClientAuthenticationPlugin(),
+                                           brokerConfig.getBrokerClientAuthenticationParameters());
         }
+        clientConfig.setUseTls(brokerConfig.isTlsEnabled());
+        clientConfig.setTlsAllowInsecureConnection(brokerConfig.isTlsAllowInsecureConnection());
+        clientConfig.setTlsTrustCertsFilePath(brokerConfig.getTlsCertificateFilePath());
 
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
