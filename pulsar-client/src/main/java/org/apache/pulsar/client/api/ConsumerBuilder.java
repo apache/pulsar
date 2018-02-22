@@ -78,13 +78,13 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
     CompletableFuture<Consumer> subscribeAsync();
 
     /**
-     * Specify the topic this consumer will subscribe on.
+     * Specify the topics this consumer will subscribe on.
      * <p>
      * This argument is required when constructing the consumer.
      *
-     * @param topicName
+     * @param topicNames
      */
-    ConsumerBuilder topic(String topicName);
+    ConsumerBuilder topic(String... topicNames);
 
     /**
      * Specify a list of topics that this consumer will subscribe on.

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -41,7 +44,6 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private String topicName;
     private String subscriptionName;
     private final ConsumerConfiguration conf;
     private List<String> topicNames;
@@ -79,13 +81,9 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync() {
-        if (topicName == null && topicNames == null) {
+        if (topicNames == null || topicNames.isEmpty()) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
-        }
-        if (topicName != null && topicNames != null) {
-            return FutureUtil
-                .failedFuture(new IllegalArgumentException("Should set either topicName or topicNames not both on the consumer builder"));
         }
 
         if (subscriptionName == null) {
@@ -93,22 +91,41 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
                     new IllegalArgumentException("Subscription name must be set on the consumer builder"));
         }
 
-        if (topicName != null) {
-            return client.subscribeAsync(topicName, subscriptionName, conf);
+        if (topicNames.size() == 1) {
+            return client.subscribeAsync(topicNames.get(0), subscriptionName, conf);
         } else {
             return client.subscribeAsync(topicNames, subscriptionName, conf);
         }
     }
 
     @Override
-    public ConsumerBuilder topic(String topicName) {
-        this.topicName = topicName;
+    public ConsumerBuilder topic(String... topicNames) {
+        checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
+        if (this.topicNames == null) {
+            this.topicNames = Lists.newArrayList();
+        }
+
+        for (int i = 0; i < topicNames.length; i++) {
+            if (!this.topicNames.contains(topicNames[i])) {
+                this.topicNames.add(topicNames[i]);
+            }
+        }
         return this;
     }
 
     @Override
     public ConsumerBuilder topics(List<String> topicNames) {
-        this.topicNames = topicNames;
+        checkArgument(topicNames != null && !topicNames.isEmpty(),
+            "Passed in topicNames list should not be empty.");
+        if (this.topicNames == null) {
+            this.topicNames = topicNames;
+        } else {
+            topicNames.forEach(name -> {
+                if (!this.topicNames.contains(name)) {
+                    this.topicNames.add(name);
+                }
+            });
+        }
         return this;
     }
 

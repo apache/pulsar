@@ -101,7 +101,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
         final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
         admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
@@ -110,6 +110,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         // 2. Create consumer
         Consumer consumer = pulsarClient.newConsumer()
             .topics(topicNames)
+            .topic(topicName3)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -545,28 +546,51 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        // test failing builder with wrong parameter
+        // test failing builder with empty topics
         try {
             Consumer consumer1 = pulsarClient.newConsumer()
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscribe();
-            fail("subscribe with no topicName should fail.");
+            fail("subscribe1 with no topicName should fail.");
         } catch (PulsarClientException e) {
             // expected
         }
 
         try {
             Consumer consumer2 = pulsarClient.newConsumer()
-                .topic("fakeTopicName")
-                .topics(topicNames)
+                .topic()
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
                 .subscribe();
-            fail("subscribe with both topicName and topicNames should fail.");
-        } catch (PulsarClientException e) {
+            fail("subscribe2 with no topicName should fail.");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        try {
+            Consumer consumer3 = pulsarClient.newConsumer()
+                .topics(null)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe3 with no topicName should fail.");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        try {
+            Consumer consumer4 = pulsarClient.newConsumer()
+                .topics(Lists.newArrayList())
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe4 with no topicName should fail.");
+        } catch (IllegalArgumentException e) {
             // expected
         }
     }
