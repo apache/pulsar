@@ -22,9 +22,20 @@ package org.apache.pulsar.functions.runtime.instance;
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 import static org.apache.distributedlog.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
+import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
+import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
 import org.apache.distributedlog.api.StorageClient;
@@ -38,61 +49,78 @@ import org.apache.distributedlog.clients.utils.NetUtils;
 import org.apache.distributedlog.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.runtime.instance.producers.MultiConsumersOneSinkTopicProducers;
+import org.apache.pulsar.functions.runtime.instance.producers.Producers;
+import org.apache.pulsar.functions.runtime.instance.producers.SimpleOneSinkTopicProducers;
 import org.apache.pulsar.functions.runtime.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
-import java.util.*;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
+import org.apache.pulsar.functions.utils.Utils;
 
 /**
  * A function container implemented using java thread.
  */
 @Slf4j
-public class JavaInstanceRunnable implements AutoCloseable, Runnable {
+public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEventListener {
 
     // The class loader that used for loading functions
     private ClassLoader fnClassLoader;
     private final InstanceConfig instanceConfig;
     private final FunctionConfig.ProcessingGuarantees processingGuarantees;
     private final FunctionCacheManager fnCache;
-    private final LinkedBlockingQueue<InputMessage> queue;
+    private final LinkedBlockingDeque<InputMessage> queue;
     private final String jarFile;
 
-    // source topic consumer & sink topic produder
+    // source topic consumer & sink topic producer
     private final PulsarClientImpl client;
-    private Producer sinkProducer;
-    private Map<String, Consumer> sourceConsumers;
+    @Getter(AccessLevel.PACKAGE)
+    private Producers sinkProducer;
+    @Getter(AccessLevel.PACKAGE)
+    private final Map<String, Consumer> sourceConsumers;
+    private LinkedList<String> sourceTopicsToResubscribe = null;
 
     // provide tables for storing states
     private final String stateStorageServiceUrl;
+    @Getter(AccessLevel.PACKAGE)
     private StorageClient storageClient;
+    @Getter(AccessLevel.PACKAGE)
     private Table<ByteBuf, ByteBuf> stateTable;
 
     @Getter
     private Exception failureException;
     private JavaInstance javaInstance;
+    private volatile boolean running = true;
 
+    @Getter(AccessLevel.PACKAGE)
     private Map<String, SerDe> inputSerDe;
     private SerDe outputSerDe;
 
     @Getter
     @Setter
+    @ToString
     private class InputMessage {
         private Message actualMessage;
         String topicName;
         SerDe inputSerDe;
         Consumer consumer;
+
+        public int getTopicPartition() {
+            MessageIdImpl msgId = (MessageIdImpl) actualMessage.getMessageId();
+            return msgId.getPartitionIndex();
+        }
     }
 
     // function stats
@@ -108,11 +136,68 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 ? FunctionConfig.ProcessingGuarantees.ATMOST_ONCE
                 : instanceConfig.getFunctionConfig().getProcessingGuarantees();
         this.fnCache = fnCache;
-        this.queue = new LinkedBlockingQueue<>(instanceConfig.getMaxBufferedTuples());
+        this.queue = new LinkedBlockingDeque<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
+        this.sourceConsumers = Maps.newConcurrentMap();
+    }
+
+    private SubscriptionType getSubscriptionType() {
+        if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            return SubscriptionType.Failover;
+        } else {
+            if (instanceConfig.getFunctionConfig().getSubscriptionType() == null
+                || instanceConfig.getFunctionConfig().getSubscriptionType() == FunctionConfig.SubscriptionType.SHARED) {
+                return SubscriptionType.Shared;
+            } else {
+                return SubscriptionType.Failover;
+            }
+        }
+    }
+
+    /**
+     * NOTE: this method should be called in the instance thread, in order to make class loading work.
+     */
+    JavaInstance setupJavaInstance() throws Exception {
+        // initialize the thread context
+        ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+        ThreadContext.put("instance", instanceConfig.getInstanceId());
+
+        log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
+
+        // start the function thread
+        loadJars();
+
+        ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
+
+        Object object = Reflections.createInstance(
+                instanceConfig.getFunctionConfig().getClassName(),
+                clsLoader);
+        if (!(object instanceof PulsarFunction) && !(object instanceof Function)) {
+            throw new RuntimeException("User class must either be PulsarFunction or java.util.Function");
+        }
+        Class<?>[] typeArgs;
+        if (object instanceof PulsarFunction) {
+            PulsarFunction pulsarFunction = (PulsarFunction) object;
+            typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+        } else {
+            Function function = (Function) object;
+            typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
+        }
+
+        // setup serde
+        setupSerDe(typeArgs, clsLoader);
+
+        // start the state table
+        setupStateTable();
+        // start the sink producer
+        startSinkProducer();
+        // start the source consumer
+        startSourceConsumers();
+
+        return new JavaInstance(instanceConfig, object, clsLoader, client, sourceConsumers);
     }
 
     /**
@@ -121,45 +206,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     @Override
     public void run() {
         try {
-            // initialize the thread context
-            ThreadContext.put("function", FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
-            ThreadContext.put("instance", instanceConfig.getInstanceId());
+            javaInstance = setupJavaInstance();
+            while (running) {
+                // some src topics might be put into resubscribe list because of processing failure
+                // so this is the chance to resubscribe to those topics.
+                resubscribeTopicsIfNeeded();
 
-            log.info("Starting Java Instance {}", instanceConfig.getFunctionConfig().getName());
-
-            // start the function thread
-            loadJars();
-
-            ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-
-            Object object = Reflections.createInstance(
-                    instanceConfig.getFunctionConfig().getClassName(),
-                    clsLoader);
-            if (!(object instanceof PulsarFunction) && !(object instanceof Function)) {
-                throw new RuntimeException("User class must either be PulsarFunction or java.util.Function");
-            }
-            Class<?>[] typeArgs;
-            if (object instanceof PulsarFunction) {
-                PulsarFunction pulsarFunction = (PulsarFunction) object;
-                typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-            } else {
-                Function function = (Function) object;
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
-            }
-
-            // setup serde
-            setupSerDe(typeArgs, clsLoader);
-
-            // start the state table
-            setupStateTable();
-            // start the sink producer
-            startSinkProducer();
-            // start the source consumer
-            startSourceConsumers();
-
-            javaInstance = new JavaInstance(instanceConfig, object, clsLoader, client, sourceConsumers);
-
-            while (true) {
                 JavaExecutionResult result;
                 InputMessage msg;
                 try {
@@ -169,6 +221,31 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                     log.info("Function thread {} is interrupted",
                             FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), ie);
                     break;
+                }
+
+                if (ProcessingGuarantees.EFFECTIVELY_ONCE == processingGuarantees) {
+                    // if the messages are received from old consumers, we discard it since new consumer was
+                    // re-created for the correctness of effectively-once
+                    if (msg.getConsumer() != sourceConsumers.get(msg.getTopicName())) {
+                        continue;
+                    }
+                }
+
+                // before processing the message, we have a producer connection setup for producing results.
+                Producer producer = null;
+                while (null == producer) {
+                    try {
+                        producer = sinkProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
+                    } catch (PulsarClientException e) {
+                        // `ProducerBusy` is thrown when an producer with same name is still connected.
+                        // This can happen when a active consumer is changed for a given source topic partition
+                        // so we need to wait until the old active consumer release the produce connection.
+                        if (!(e instanceof ProducerBusyException)) {
+                            log.error("Failed to get a producer for producing results computed from source topic {}",
+                                msg.getTopicName());
+                        }
+                        TimeUnit.MILLISECONDS.sleep(500);
+                    }
                 }
 
                 // state object is per function, because we need to have the ability to know what updates
@@ -239,6 +316,26 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
         Thread.currentThread().setContextClassLoader(fnClassLoader);
     }
 
+    @Override
+    public void becameActive(Consumer consumer, int partitionId) {
+        // if the instance becomes active for a given topic partition,
+        // open a producer for the results computed from this topic partition.
+        try {
+            this.sinkProducer.getProducer(consumer.getTopic(), partitionId);
+        } catch (PulsarClientException e) {
+            // this can be ignored, because producer can be lazily created when accessing it.
+            log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
+                consumer.getTopic(), partitionId);
+        }
+    }
+
+    @Override
+    public void becameInactive(Consumer consumer, int partitionId) {
+        // if I lost the ownership of a partition, close its corresponding topic partition.
+        // this is to allow the new active consumer be able to produce to the result topic.
+        this.sinkProducer.closeProducer(consumer.getTopic(), partitionId);
+    }
+
     private void setupStateTable() throws Exception {
         if (null == stateStorageServiceUrl) {
             return;
@@ -286,19 +383,20 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                 && !instanceConfig.getFunctionConfig().getOutput().isEmpty()
                 && this.outputSerDe != null) {
             log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getOutput());
-            ProducerConfiguration conf = new ProducerConfiguration();
-            conf.setBlockIfQueueFull(true);
-            conf.setBatchingEnabled(true);
-            conf.setBatchingMaxPublishDelay(1, TimeUnit.MILLISECONDS);
-            conf.setMaxPendingMessages(1000000);
 
-            this.sinkProducer = client.createProducer(instanceConfig.getFunctionConfig().getOutput(), conf);
+            if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                this.sinkProducer = new MultiConsumersOneSinkTopicProducers(
+                    client, instanceConfig.getFunctionConfig().getOutput());
+            } else {
+                this.sinkProducer = new SimpleOneSinkTopicProducers(
+                    client, instanceConfig.getFunctionConfig().getOutput());
+            }
+            this.sinkProducer.initialize();
         }
     }
 
     private void startSourceConsumers() throws Exception {
         log.info("Consumer map {}", instanceConfig.getFunctionConfig());
-        sourceConsumers = new HashMap<>();
         for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
             ConsumerConfiguration conf = createConsumerConfiguration(entry.getKey());
             this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
@@ -314,12 +412,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
     private ConsumerConfiguration createConsumerConfiguration(String topicName) {
         log.info("Starting Consumer for topic " + topicName);
         ConsumerConfiguration conf = new ConsumerConfiguration();
-        if (instanceConfig.getFunctionConfig().getSubscriptionType() == null
-                || instanceConfig.getFunctionConfig().getSubscriptionType() == FunctionConfig.SubscriptionType.SHARED) {
-            conf.setSubscriptionType(SubscriptionType.Shared);
-        } else {
-            conf.setSubscriptionType(SubscriptionType.Exclusive);
-        }
+        conf.setSubscriptionType(getSubscriptionType());
+
         SerDe inputSerde = inputSerDe.get(topicName);
         conf.setMessageListener((consumer, msg) -> {
             try {
@@ -339,6 +433,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
                         Thread.currentThread().getId(), e);
             }
         });
+
+        // for failover subscription, register a consumer event listener to react to active consumer changes.
+        if (getSubscriptionType() == SubscriptionType.Failover) {
+            conf.setConsumerEventListener(this);
+        }
+
         return conf;
     }
 
@@ -348,66 +448,175 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable {
          if (result.getUserException() != null) {
             log.info("Encountered user exception when processing message {}", msg, result.getUserException());
             stats.incrementUserExceptions(result.getUserException());
+            handleProcessException(msg.getTopicName());
         } else if (result.getSystemException() != null) {
             log.info("Encountered system exception when processing message {}", msg, result.getSystemException());
             stats.incrementSystemExceptions(result.getSystemException());
+            handleProcessException(msg.getTopicName());
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
             if (result.getResult() != null && sinkProducer != null) {
-                byte[] output = null;
+                byte[] output;
                 try {
                     output = outputSerDe.serialize(result.getResult());
                 } catch (Exception ex) {
                     stats.incrementSerializationExceptions();
+                    handleProcessException(msg.getTopicName());
+                    return;
                 }
                 if (output != null) {
-                    sinkProducer.sendAsync(output)
-                            .thenAccept(messageId -> {
-                                if (instanceConfig.getFunctionConfig().getAutoAck()) {
-                                    if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                                        msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
-                                    }
-                                }
-                            })
-                            .exceptionally(cause -> {
-                                log.error("Failed to send the process result {} of message {} to sink topic {}",
-                                        result, msg, instanceConfig.getFunctionConfig().getOutput(), cause);
-                                return null;
-                            });
-                } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                    if (instanceConfig.getFunctionConfig().getAutoAck()) {
-                        msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+                    try {
+                        sendOutputMessage(msg, result, output);
+                    } catch (Throwable t) {
+                        log.error("Encountered error when sending result {} computed from src message {}",
+                            result, msg, t);
+                        handleProcessException(msg.getTopicName());
                     }
+                } else if (processingGuarantees != ProcessingGuarantees.ATMOST_ONCE) {
+                    ackMessage(msg);
                 }
-            } else if (processingGuarantees == FunctionConfig.ProcessingGuarantees.ATLEAST_ONCE) {
-                if (instanceConfig.getFunctionConfig().getAutoAck()) {
-                    msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
-                }
+            } else if (processingGuarantees != ProcessingGuarantees.ATMOST_ONCE) {
+                ackMessage(msg);
             }
+        }
+    }
+
+    private void ackMessage(InputMessage msg) {
+        if (instanceConfig.getFunctionConfig().getAutoAck()) {
+            if (ProcessingGuarantees.EFFECTIVELY_ONCE == processingGuarantees) {
+                msg.getConsumer().acknowledgeCumulativeAsync(msg.getActualMessage());
+            } else {
+                msg.getConsumer().acknowledgeAsync(msg.getActualMessage());
+            }
+        }
+    }
+
+    private void sendOutputMessage(InputMessage srcMsg,
+                                   JavaExecutionResult result,
+                                   byte[] output) {
+        MessageBuilder msgBuilder = MessageBuilder.create()
+            .setContent(output);
+        if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
+            msgBuilder = msgBuilder
+                .setSequenceId(Utils.getSequenceId(srcMsg.getActualMessage().getMessageId()));
+        }
+        Producer producer;
+        try {
+            producer = sinkProducer.getProducer(srcMsg.getTopicName(), srcMsg.getTopicPartition());
+        } catch (PulsarClientException e) {
+            log.error("Failed to get a producer for producing results computed from source topic {}",
+                srcMsg.getTopicName());
+
+            // if we fail to get a producer, put this message back to queue and reprocess it.
+            queue.offerFirst(srcMsg);
+            return;
+        }
+
+        Message destMsg = msgBuilder.build();
+        producer.sendAsync(destMsg)
+            .thenAccept(messageId -> {
+                if (processingGuarantees != ProcessingGuarantees.ATMOST_ONCE) {
+                    ackMessage(srcMsg);
+                }
+            })
+            .exceptionally(cause -> {
+                log.error("Failed to send the process result {} of message {} to sink topic {}",
+                    result, srcMsg, instanceConfig.getFunctionConfig().getOutput(), cause);
+                handleProcessException(srcMsg.getTopicName());
+                return null;
+            });
+    }
+
+    private void handleProcessException(String srcTopic) {
+        // if the src message is coming from a shared subscription,
+        // we don't need any special logic on handling failures, just don't ack.
+        // the message will be redelivered to other consumer.
+        //
+        // BUT, if the src message is coming from a failover subscription,
+        // we need to stop processing messages and recreate consumer to reprocess
+        // the message. otherwise we might break the correctness of effectively-once
+        if (getSubscriptionType() != SubscriptionType.Shared) {
+            // in this case (effectively-once), we need to close the consumer
+            // release the partition and open the consumer again. so we guarantee
+            // that we always process messages in order
+            //
+            // but this is in pulsar's callback, so add this to a retry list. so we can
+            // retry on java instance's main thread.
+            addTopicToResubscribeList(srcTopic);
+        }
+    }
+
+    private synchronized void addTopicToResubscribeList(String topicName) {
+        if (null == sourceTopicsToResubscribe) {
+            sourceTopicsToResubscribe = new LinkedList<>();
+        }
+        sourceTopicsToResubscribe.add(topicName);
+    }
+
+    private void resubscribeTopicsIfNeeded() {
+        List<String> topicsToResubscribe;
+        synchronized (this) {
+            topicsToResubscribe = sourceTopicsToResubscribe;
+            sourceTopicsToResubscribe = null;
+        }
+        if (null != topicsToResubscribe) {
+            for (String topic : topicsToResubscribe) {
+                resubscribe(topic);
+            }
+        }
+    }
+
+    private void resubscribe(String srcTopic) {
+        // if we can not produce a message to output topic, then close the consumer of the src topic
+        // and retry to instantiate a consumer again.
+        Consumer consumer = sourceConsumers.remove(srcTopic);
+        if (consumer != null) {
+            // TODO (sijie): currently we have to close the entire consumer for a given topic. However
+            //               ideally we should do this in a finer granularity - we can close consumer
+            //               on a given partition, without impact other partitions.
+            try {
+                consumer.close();
+            } catch (PulsarClientException e) {
+                log.error("Failed to close consumer for source topic {} when handling produce exceptions",
+                    srcTopic, e);
+            }
+        }
+        // subscribe to the src topic again
+        ConsumerConfiguration conf = createConsumerConfiguration(srcTopic);
+        try {
+            sourceConsumers.put(
+                srcTopic,
+                client.subscribe(
+                    srcTopic,
+                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
+                    conf
+                ));
+        } catch (PulsarClientException e) {
+            log.error("Failed to resubscribe to source topic {}. Added it to retry list and retry it later",
+                srcTopic, e);
+            addTopicToResubscribeList(srcTopic);
         }
     }
 
     @Override
     public void close() {
-        if (sourceConsumers != null) {
-            // stop the consumer first, so no more messages are coming in
-            sourceConsumers.forEach((k, v) -> {
-                try {
-                    v.close();
-                } catch (PulsarClientException e) {
-                    log.warn("Failed to close consumer to source topic {}", k, e);
-                }
-            });
-            sourceConsumers.clear();
+        if (!running) {
+            return;
         }
+        running = false;
+        // stop the consumer first, so no more messages are coming in
+        sourceConsumers.forEach((k, v) -> {
+            try {
+                v.close();
+            } catch (PulsarClientException e) {
+                log.warn("Failed to close consumer to source topic {}", k, e);
+            }
+        });
+        sourceConsumers.clear();
 
         // kill the result producer
         if (null != sinkProducer) {
-            try {
-                sinkProducer.close();
-            } catch (PulsarClientException e) {
-                log.warn("Failed to close producer to sink topic {}", instanceConfig.getFunctionConfig().getOutput(), e);
-            }
+            sinkProducer.close();
             sinkProducer = null;
         }
 

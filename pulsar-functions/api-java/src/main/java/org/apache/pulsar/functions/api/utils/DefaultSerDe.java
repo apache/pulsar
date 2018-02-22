@@ -40,7 +40,7 @@ public class DefaultSerDe implements SerDe<Object> {
             Byte.class,
             Float.class
     ));
-    private Class type;
+    private final Class type;
 
     public DefaultSerDe(Class type) {
         this.type = type;

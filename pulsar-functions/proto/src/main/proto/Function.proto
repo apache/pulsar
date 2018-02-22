@@ -27,6 +27,7 @@ message FunctionConfig {
     enum ProcessingGuarantees {
         ATMOST_ONCE = 0;
         ATLEAST_ONCE = 1;
+        EFFECTIVELY_ONCE = 2;
     }
     enum SubscriptionType {
         SHARED = 0;
