@@ -276,7 +276,13 @@ The following diagram illustrates what happens when message deduplication is ena
 
 {% img /img/message-deduplication.png 75 %}
 
+The other available approach is to ensure that each message is only produced on a topic once. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the {% popover broker %} level, which means that you don't need to modify your Pulsar client code. You just need to pull a simply administrative lever.
+
+### Message deduplication and effectively-once semantics
+
+{% include admonition.html type="info" content='
 More information can be found in [this post](https://streaml.io/blog/pulsar-effectively-once/) on the [Streamlio blog](https://blog.streaml.io).
+' %}
 
 ## Multi-tenancy
 
