@@ -16,24 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.impl.conf;
 
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.ReaderListener;
 
-public abstract class MessageRouterBase implements MessageRouter {
-    private static final long serialVersionUID = 1L;
+import lombok.Data;
 
-    protected final Hash hash;
+@Data
+public class ReaderConfigurationData {
 
-    MessageRouterBase(HashingScheme hashingScheme) {
-        switch (hashingScheme) {
-        case JavaStringHash:
-            this.hash = JavaStringHash.getInstance();
-            break;
-        case Murmur3_32Hash:
-        default:
-            this.hash = Murmur3_32Hash.getInstance();
-        }
-    }
+    private String topicName;
+    private MessageId startMessageId;
+
+    private int receiverQueueSize = 1000;
+
+    private ReaderListener readerListener;
+
+    private String readerName = null;
+
+    private CryptoKeyReader cryptoKeyReader = null;
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+
 }

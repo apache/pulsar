@@ -27,24 +27,20 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.ReaderListener;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@SuppressWarnings("deprecation")
 public class ReaderBuilderImpl implements ReaderBuilder {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
 
-    private final ReaderConfiguration conf;
-    private String topicName;
-    private MessageId startMessageId;
+    private final ReaderConfigurationData conf = new ReaderConfigurationData();
 
     ReaderBuilderImpl(PulsarClientImpl client) {
         this.client = client;
-        this.conf = new ReaderConfiguration();
     }
 
     @Override
@@ -75,28 +71,28 @@ public class ReaderBuilderImpl implements ReaderBuilder {
 
     @Override
     public CompletableFuture<Reader> createAsync() {
-        if (topicName == null) {
+        if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the reader builder"));
         }
 
-        if (startMessageId == null) {
+        if (conf.getStartMessageId() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Start message id must be set on the reader builder"));
         }
 
-        return client.createReaderAsync(topicName, startMessageId, conf);
+        return client.createReaderAsync(conf);
     }
 
     @Override
     public ReaderBuilder topic(String topicName) {
-        this.topicName = topicName;
+        conf.setTopicName(topicName);
         return this;
     }
 
     @Override
     public ReaderBuilder startMessageId(MessageId startMessageId) {
-        this.startMessageId = startMessageId;
+        conf.setStartMessageId(startMessageId);
         return this;
     }
 

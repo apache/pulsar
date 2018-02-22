@@ -16,24 +16,22 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.impl;
+package org.apache.pulsar.client.api;
 
-import org.apache.pulsar.client.api.HashingScheme;
-import org.apache.pulsar.client.api.MessageRouter;
+/**
+ * Standard hashing functions available when choosing the partition to use for a particular message.
+ */
+public enum HashingScheme {
 
-public abstract class MessageRouterBase implements MessageRouter {
-    private static final long serialVersionUID = 1L;
+    /**
+     * Use regural <code>String.hashCode()</code>
+     */
+    JavaStringHash,
 
-    protected final Hash hash;
+    /**
+     * Use Murmur3 hashing function.
+     * <a href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
+     */
+    Murmur3_32Hash
 
-    MessageRouterBase(HashingScheme hashingScheme) {
-        switch (hashingScheme) {
-        case JavaStringHash:
-            this.hash = JavaStringHash.getInstance();
-            break;
-        case Murmur3_32Hash:
-        default:
-            this.hash = Murmur3_32Hash.getInstance();
-        }
-    }
 }
