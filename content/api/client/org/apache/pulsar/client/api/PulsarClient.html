@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":17,"i1":6,"i2":6,"i3":49,"i4":49,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":6,"i12":6,"i13":6,"i14":6,"i15":38,"i16":38,"i17":38,"i18":38};
+var methods = {"i0":17,"i1":6,"i2":6,"i3":49,"i4":49,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":38,"i18":38,"i19":6,"i20":6,"i21":38,"i22":38};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -242,6 +242,21 @@ extends Closeable</pre>
 </tr>
 <tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.util.Collection-java.lang.String-">subscribe</a></span>(Collection&lt;String&gt;&nbsp;topics,
+         String&nbsp;subscription)</code>
+<div class="block">Subscribe to the given topic and subscription combination with default <code>ConsumerConfiguration</code></div>
+</td>
+</tr>
+<tr id="i16" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.util.Collection-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribe</a></span>(Collection&lt;String&gt;&nbsp;topics,
+         String&nbsp;subscription,
+         <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</code>
+<div class="block">Subscribe to the given topics and subscription combination using given <code>ConsumerConfiguration</code></div>
+</td>
+</tr>
+<tr id="i17" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-">subscribe</a></span>(String&nbsp;topic,
          String&nbsp;subscription)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -249,7 +264,7 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribe</a></span>(String&nbsp;topic,
          String&nbsp;subscription,
@@ -259,7 +274,24 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i19" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.util.Collection-java.lang.String-">subscribeAsync</a></span>(Collection&lt;String&gt;&nbsp;topics,
+              String&nbsp;subscription)</code>
+<div class="block">Asynchronously subscribe to the given topics and subscription combination with
+ default <code>ConsumerConfiguration</code></div>
+</td>
+</tr>
+<tr id="i20" class="altColor">
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.util.Collection-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribeAsync</a></span>(Collection&lt;String&gt;&nbsp;topics,
+              String&nbsp;subscription,
+              <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</code>
+<div class="block">Asynchronously subscribe to the given topics and subscription combination using given
+ <code>ConsumerConfiguration</code></div>
+</td>
+</tr>
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-">subscribeAsync</a></span>(String&nbsp;topic,
               String&nbsp;subscription)</code>
@@ -268,7 +300,7 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i22" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribeAsync</a></span>(String&nbsp;topic,
               String&nbsp;subscription,
@@ -706,7 +738,7 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader
 <a name="shutdown--">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>shutdown</h4>
 <pre>void&nbsp;shutdown()
@@ -717,6 +749,90 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader
 <dl>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code> - if the forceful shutdown fails</dd>
+</dl>
+</li>
+</ul>
+<a name="subscribe-java.util.Collection-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>subscribe</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;subscribe(Collection&lt;String&gt;&nbsp;topics,
+                   String&nbsp;subscription)
+            throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<div class="block">Subscribe to the given topic and subscription combination with default <code>ConsumerConfiguration</code></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topics</code> - The collection of topic names, they should be under same namespace</dd>
+<dd><code>subscription</code> - The name of the subscription</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>The <code>Consumer</code> object</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="subscribeAsync-java.util.Collection-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>subscribeAsync</h4>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;&nbsp;subscribeAsync(Collection&lt;String&gt;&nbsp;topics,
+                                           String&nbsp;subscription)</pre>
+<div class="block">Asynchronously subscribe to the given topics and subscription combination with
+ default <code>ConsumerConfiguration</code></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topics</code> - The collection of topic names, they should be under same namespace</dd>
+<dd><code>subscription</code> - The name of the subscription</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Future of the <code>Consumer</code> object</dd>
+</dl>
+</li>
+</ul>
+<a name="subscribe-java.util.Collection-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>subscribe</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;subscribe(Collection&lt;String&gt;&nbsp;topics,
+                   String&nbsp;subscription,
+                   <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)
+            throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<div class="block">Subscribe to the given topics and subscription combination using given <code>ConsumerConfiguration</code></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topics</code> - The collection of topic names, they should be under same namespace</dd>
+<dd><code>subscription</code> - The name of the subscription</dd>
+<dd><code>conf</code> - The <code>ConsumerConfiguration</code> object</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Future of the <code>Consumer</code> object</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code></dd>
+</dl>
+</li>
+</ul>
+<a name="subscribeAsync-java.util.Collection-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>subscribeAsync</h4>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;&nbsp;subscribeAsync(Collection&lt;String&gt;&nbsp;topics,
+                                           String&nbsp;subscription,
+                                           <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</pre>
+<div class="block">Asynchronously subscribe to the given topics and subscription combination using given
+ <code>ConsumerConfiguration</code></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topics</code> - The collection of topic names, they should be under same namespace</dd>
+<dd><code>subscription</code> - The name of the subscription</dd>
+<dd><code>conf</code> - The <code>ConsumerConfiguration</code> object</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>Future of the <code>Consumer</code> object</dd>
 </dl>
 </li>
 </ul>
