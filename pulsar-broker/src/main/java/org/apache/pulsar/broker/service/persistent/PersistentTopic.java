@@ -80,6 +80,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -413,7 +414,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<Consumer> subscribe(final ServerCnx cnx, String subscriptionName, long consumerId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, boolean initializeOnLatest) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialPosition) {
 
         final CompletableFuture<Consumer> future = new CompletableFuture<>();
 
@@ -461,7 +462,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
 
         CompletableFuture<? extends Subscription> subscriptionFuture = isDurable ? //
-                getDurableSubscription(subscriptionName, initializeOnLatest) //
+                getDurableSubscription(subscriptionName, initialPosition) //
                 : getNonDurableSubscription(subscriptionName, startMessageId);
 
         int maxUnackedMessages  = isDurable ? brokerService.pulsar().getConfiguration().getMaxUnackedMessagesPerConsumer() :0;
@@ -504,7 +505,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return future;
     }
 
-    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, boolean initializeOnLatest) {
+    private CompletableFuture<Subscription> getDurableSubscription(String subscriptionName, InitialPosition initialPosition) {
         CompletableFuture<Subscription> subscriptionFuture = new CompletableFuture<>();
         ledger.asyncOpenCursor(Codec.encode(subscriptionName), new OpenCursorCallback() {
             @Override
@@ -523,7 +524,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
             }
-        }, null, initializeOnLatest);
+        }, null, initialPosition);
         return subscriptionFuture;
     }
 
@@ -569,8 +570,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @SuppressWarnings("unchecked")
     @Override
-    public CompletableFuture<Subscription> createSubscription(String subscriptionName, boolean initializeOnLatest) {
-        return getDurableSubscription(subscriptionName, initializeOnLatest);
+    public CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialPosition) {
+        return getDurableSubscription(subscriptionName, initialPosition);
     }
 
     /**
@@ -892,7 +893,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 future.completeExceptionally(new PersistenceException(exception));
             }
 
-        }, null, true);
+        }, null, InitialPosition.Latest);
 
         return future;
     }

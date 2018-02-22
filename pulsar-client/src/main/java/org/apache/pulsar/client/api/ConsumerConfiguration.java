@@ -26,6 +26,8 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
@@ -63,7 +65,8 @@ public class ConsumerConfiguration implements Serializable {
 
     private boolean readCompacted = false;
 
-    private boolean initializeSubscriptionOnLatest = true;
+    private InitialPosition subscriptionInitialPosition = InitialPosition.Latest;
+
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
@@ -329,14 +332,14 @@ public class ConsumerConfiguration implements Serializable {
      * <p>
      * Default is {@value true} which means {@link MessageId.lastest}
      */
-    public void setInitializeSubscriptionOnLatest(boolean initializeSubscriptionOnLatest) {
-        this.initializeSubscriptionOnLatest = initializeSubscriptionOnLatest;
+    public void setSubscriptionInitialPosition(InitialPosition subscriptionInitialPosition) {
+        this.subscriptionInitialPosition = subscriptionInitialPosition;
     }   
 
     /** 
      * @return the configured {@link initializedSubscriptionOnLatest} for the consumer
      */
-    public boolean getInitializeSubscriptionOnLatest(){
-        return this.initializeSubscriptionOnLatest;
+    public InitialPosition getSubscriptionInitialPosition(){
+        return subscriptionInitialPosition;
     }   
 }

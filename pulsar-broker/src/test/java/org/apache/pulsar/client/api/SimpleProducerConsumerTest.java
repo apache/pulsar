@@ -58,6 +58,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -2463,9 +2464,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // second create consumers
         ConsumerConfiguration conf = new ConsumerConfiguration();
         Consumer defaultConsumer = pulsarClient.subscribe(topic, "test-subscription-default");
-        conf.setInitializeSubscriptionOnLatest(true);
+        conf.setSubscriptionInitialPosition(InitialPosition.Latest);
         Consumer latestConsumer = pulsarClient.subscribe(topic, "test-subscription-latest", conf);
-        conf.setInitializeSubscriptionOnLatest(false);
+        conf.setSubscriptionInitialPosition(InitialPosition.Earliest);
         Consumer earlistConsumer = pulsarClient.subscribe(topic, "test-subscription-earliest", conf);
 
         // third produce 5 messages

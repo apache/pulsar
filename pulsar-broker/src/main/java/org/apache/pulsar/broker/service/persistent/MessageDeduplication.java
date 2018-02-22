@@ -42,6 +42,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
@@ -259,7 +260,7 @@ public class MessageDeduplication {
                             future.completeExceptionally(exception);
                         }
 
-                    }, null, true);
+                    }, null);
                     return future;
                 } else {
                     // Nothing to do, we are in the correct state

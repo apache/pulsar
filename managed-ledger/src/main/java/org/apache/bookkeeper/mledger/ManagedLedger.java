@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 
 import com.google.common.annotations.Beta;
 
@@ -145,12 +146,12 @@ public interface ManagedLedger {
      *
      * @param name
      *            the name associated with the ManagedCursor
-     * @param initializeOnLatest
-     *            the flag tell the method wthether it should intialize the cursor at latest position or not.
+     * @param initailPositon
+     *            the position at which the cursor will be initialized
      * @return the ManagedCursor
      * @throws ManagedLedgerException
      */
-    public ManagedCursor openCursor(String name, boolean initializeOnLatest) throws InterruptedException, ManagedLedgerException;
+    public ManagedCursor openCursor(String name, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Creates a new cursor whose metadata is not backed by durable storage. A caller can treat the non-durable cursor
@@ -217,11 +218,11 @@ public interface ManagedLedger {
      *            callback object
      * @param ctx
      *            opaque context
-     * @param initializeOnLatest
-     *            the cursor will be set at lastest position or not when first created
-     *            default is <b>true</b>
+     * @param position
+     *            the cursor will be initialized at lastest position or not when first created
+     *            default is <b>InitialPosition.Latest</b>
      */
-    public void asyncOpenCursor(String name, OpenCursorCallback callback, Object ctx, boolean initializeOnLatest);
+    public void asyncOpenCursor(String name, OpenCursorCallback callback, Object ctx, InitialPosition initialPosition);
 
     /**
      * Get a list of all the cursors reading from this ManagedLedger

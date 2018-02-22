@@ -195,7 +195,11 @@ message CommandSubscribe {
     optional bool read_compacted = 11;
 	// Signal wthether the subscription will initialize on latest
 	// or not -- earliest
-	optional bool initialize_on_latest = 12 [default = true];
+    enum InitialPosition {
+		Latest   = 0;
+		Earliest = 1;
+	}
+	optional InitialPosition initialPosition = 12 [default = Latest];
 }
 
 message CommandPartitionedTopicMetadata {

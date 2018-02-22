@@ -88,6 +88,7 @@ import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.DestinationDomain;
@@ -1036,7 +1037,7 @@ public class PersistentTopics extends AdminResource {
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subscriptionName") String subscriptionName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
-            @QueryParam("initializeOnLatest") @DefaultValue("true") boolean initializeOnLatest) throws PulsarServerException {
+            @QueryParam("initialPosition") @DefaultValue("latest") InitialPosition initialPosition) throws PulsarServerException {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
@@ -1070,7 +1071,7 @@ public class PersistentTopics extends AdminResource {
                 }
 
                 PersistentSubscription subscription = (PersistentSubscription) topic
-                        .createSubscription(subscriptionName, initializeOnLatest).get();
+                        .createSubscription(subscriptionName, initialPosition).get();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(), dn,
                         subscriptionName, messageId);
