@@ -175,6 +175,9 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("update-peer-clusters my-cluster --peer-clusters c1,c2"));
         verify(mockClusters).updatePeerClusterNames("my-cluster", Sets.newLinkedHashSet(Lists.newArrayList("c1", "c2")));
+        
+        clusters.run(split("get-peer-clusters my-cluster"));
+        verify(mockClusters).getPeerClusterNames("my-cluster");
     }
 
     @Test
