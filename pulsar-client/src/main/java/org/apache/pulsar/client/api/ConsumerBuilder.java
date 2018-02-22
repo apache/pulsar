@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.api;
 
 import java.io.Serializable;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -84,6 +85,15 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param topicName
      */
     ConsumerBuilder topic(String topicName);
+
+    /**
+     * Specify a list of topics that this consumer will subscribe on.
+     * <p>
+     * This argument is required when constructing the consumer.
+     *
+     * @param topicNames
+     */
+    ConsumerBuilder topics(List<String> topicNames);
 
     /**
      * Specify the subscription name for this consumer.

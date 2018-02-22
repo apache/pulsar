@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -43,6 +44,7 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     private String topicName;
     private String subscriptionName;
     private final ConsumerConfiguration conf;
+    private List<String> topicNames;
 
     ConsumerBuilderImpl(PulsarClientImpl client) {
         this.client = client;
@@ -77,22 +79,36 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync() {
-        if (topicName == null) {
+        if (topicName == null && topicNames == null) {
             return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
+                    .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
+        }
+        if (topicName != null && topicNames != null) {
+            return FutureUtil
+                .failedFuture(new IllegalArgumentException("Should set either topicName or topicNames not both on the consumer builder"));
         }
 
         if (subscriptionName == null) {
             return FutureUtil.failedFuture(
-                    new IllegalArgumentException("Subscription name must be set on the producer builder"));
+                    new IllegalArgumentException("Subscription name must be set on the consumer builder"));
         }
 
-        return client.subscribeAsync(topicName, subscriptionName, conf);
+        if (topicName != null) {
+            return client.subscribeAsync(topicName, subscriptionName, conf);
+        } else {
+            return client.subscribeAsync(topicNames, subscriptionName, conf);
+        }
     }
 
     @Override
     public ConsumerBuilder topic(String topicName) {
         this.topicName = topicName;
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder topics(List<String> topicNames) {
+        this.topicNames = topicNames;
         return this;
     }
 
