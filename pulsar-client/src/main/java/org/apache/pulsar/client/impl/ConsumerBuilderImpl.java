@@ -18,7 +18,13 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -40,9 +46,9 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private String topicName;
     private String subscriptionName;
     private final ConsumerConfiguration conf;
+    private Set<String> topicNames;
 
     ConsumerBuilderImpl(PulsarClientImpl client) {
         this.client = client;
@@ -77,22 +83,43 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync() {
-        if (topicName == null) {
+        if (topicNames == null || topicNames.isEmpty()) {
             return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
+                    .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
         }
 
         if (subscriptionName == null) {
             return FutureUtil.failedFuture(
-                    new IllegalArgumentException("Subscription name must be set on the producer builder"));
+                    new IllegalArgumentException("Subscription name must be set on the consumer builder"));
         }
 
-        return client.subscribeAsync(topicName, subscriptionName, conf);
+        if (topicNames.size() == 1) {
+            return client.subscribeAsync(topicNames.stream().findFirst().orElse(""), subscriptionName, conf);
+        } else {
+            return client.subscribeAsync(topicNames, subscriptionName, conf);
+        }
     }
 
     @Override
-    public ConsumerBuilder topic(String topicName) {
-        this.topicName = topicName;
+    public ConsumerBuilder topic(String... topicNames) {
+        checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
+        if (this.topicNames == null) {
+            this.topicNames = Sets.newHashSet(topicNames);
+        } else {
+            this.topicNames.addAll(Lists.newArrayList(topicNames));
+        }
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder topics(List<String> topicNames) {
+        checkArgument(topicNames != null && !topicNames.isEmpty(),
+            "Passed in topicNames list should not be empty.");
+        if (this.topicNames == null) {
+            this.topicNames = Sets.newHashSet();
+        }
+        this.topicNames.addAll(topicNames);
+
         return this;
     }
 

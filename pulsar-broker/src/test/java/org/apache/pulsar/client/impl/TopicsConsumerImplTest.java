@@ -33,12 +33,9 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.IntStream;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
@@ -82,12 +79,13 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(4);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
         try {
-            Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+            Consumer consumer = pulsarClient.newConsumer()
+                .topics(topicNames)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
             fail("subscribe for topics from different namespace should fail.");
         } catch (IllegalArgumentException e) {
             // expected for have different namespace
@@ -103,18 +101,21 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
         final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2);
 
         admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(4);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+        Consumer consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .topic(topicName3)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
+            .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
         List<String> topics = ((TopicsConsumerImpl) consumer).getPartitionedTopics();
@@ -148,20 +149,24 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-
         // 1. producer connect
-        Producer producer1 = pulsarClient.createProducer(topicName1);
-        Producer producer2 = pulsarClient.createProducer(topicName2, producerConfiguration);
-        Producer producer3 = pulsarClient.createProducer(topicName3, producerConfiguration);
+        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+            .create();
+        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
+        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(4);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+        Consumer consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
+            .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
         // 3. producer publish messages
@@ -205,20 +210,24 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-
         // 1. producer connect
-        Producer producer1 = pulsarClient.createProducer(topicName1);
-        Producer producer2 = pulsarClient.createProducer(topicName2, producerConfiguration);
-        Producer producer3 = pulsarClient.createProducer(topicName3, producerConfiguration);
+        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+            .create();
+        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
+        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(4);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+        Consumer consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
+            .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
         // Asynchronously produce messages
@@ -280,20 +289,24 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-
         // 1. producer connect
-        Producer producer1 = pulsarClient.createProducer(topicName1);
-        Producer producer2 = pulsarClient.createProducer(topicName2, producerConfiguration);
-        Producer producer3 = pulsarClient.createProducer(topicName3, producerConfiguration);
+        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+            .create();
+        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
+        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(4);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+        Consumer consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
+            .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
         // 3. producer publish messages
@@ -416,20 +429,24 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration();
-        producerConfiguration.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-
         // 1. producer connect
-        Producer producer1 = pulsarClient.createProducer(topicName1);
-        Producer producer2 = pulsarClient.createProducer(topicName2, producerConfiguration);
-        Producer producer3 = pulsarClient.createProducer(topicName3, producerConfiguration);
+        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+            .create();
+        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
+        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+            .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
+            .create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(4);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribeAsync(topicNames, subscriptionName, conf).get();
+        Consumer consumer = pulsarClient.newConsumer()
+            .topics(topicNames)
+            .subscriptionName(subscriptionName)
+            .subscriptionType(SubscriptionType.Shared)
+            .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
+            .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
         // 3. producer publish messages
@@ -517,6 +534,70 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         producer1.close();
         producer2.close();
         producer3.close();
+    }
+
+
+    @Test(timeOut = testTimeout)
+    public void testTopicsNameSubscribeWithBuilderFail() throws Exception {
+        String key = "TopicsNameSubscribeWithBuilder";
+        final String subscriptionName = "my-ex-subscription-" + key;
+
+        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
+        final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
+        final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
+        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
+
+        admin.properties().createProperty("prop", new PropertyAdmin());
+        admin.persistentTopics().createPartitionedTopic(topicName2, 2);
+        admin.persistentTopics().createPartitionedTopic(topicName3, 3);
+
+        // test failing builder with empty topics
+        try {
+            Consumer consumer1 = pulsarClient.newConsumer()
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe1 with no topicName should fail.");
+        } catch (PulsarClientException e) {
+            // expected
+        }
+
+        try {
+            Consumer consumer2 = pulsarClient.newConsumer()
+                .topic()
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe2 with no topicName should fail.");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        try {
+            Consumer consumer3 = pulsarClient.newConsumer()
+                .topics(null)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe3 with no topicName should fail.");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
+
+        try {
+            Consumer consumer4 = pulsarClient.newConsumer()
+                .topics(Lists.newArrayList())
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe4 with no topicName should fail.");
+        } catch (IllegalArgumentException e) {
+            // expected
+        }
     }
 
 }
