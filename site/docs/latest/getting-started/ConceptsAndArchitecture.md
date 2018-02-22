@@ -270,6 +270,12 @@ A future version of BookKeeper will support *non-persistent messaging* and thus 
 
 Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. [Geo-replication](../../admin/GeoReplication) in Pulsar enables you to do that.
 
+## Message deduplication
+
+The following diagram illustrates what happens when message deduplication is enabled vs. disabled:
+
+{% img /img/message-deduplication.png 75 %}
+
 ## Multi-tenancy
 
 Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](TODO), and [isolation policies](TODO) can be managed.
