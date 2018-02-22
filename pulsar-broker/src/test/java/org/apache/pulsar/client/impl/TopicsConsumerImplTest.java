@@ -114,6 +114,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
@@ -164,6 +165,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
@@ -224,6 +226,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
@@ -302,6 +305,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
@@ -441,6 +445,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+            .receiverQueueSize(4)
             .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 

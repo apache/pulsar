@@ -21,8 +21,10 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -46,7 +48,7 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     private final PulsarClientImpl client;
     private String subscriptionName;
     private final ConsumerConfiguration conf;
-    private List<String> topicNames;
+    private Set<String> topicNames;
 
     ConsumerBuilderImpl(PulsarClientImpl client) {
         this.client = client;
@@ -92,7 +94,7 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
         }
 
         if (topicNames.size() == 1) {
-            return client.subscribeAsync(topicNames.get(0), subscriptionName, conf);
+            return client.subscribeAsync(topicNames.stream().findFirst().orElse(""), subscriptionName, conf);
         } else {
             return client.subscribeAsync(topicNames, subscriptionName, conf);
         }
@@ -102,13 +104,9 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     public ConsumerBuilder topic(String... topicNames) {
         checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
         if (this.topicNames == null) {
-            this.topicNames = Lists.newArrayList();
-        }
-
-        for (int i = 0; i < topicNames.length; i++) {
-            if (!this.topicNames.contains(topicNames[i])) {
-                this.topicNames.add(topicNames[i]);
-            }
+            this.topicNames = Sets.newHashSet(topicNames);
+        } else {
+            this.topicNames.addAll(Lists.newArrayList(topicNames));
         }
         return this;
     }
@@ -118,14 +116,10 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
         checkArgument(topicNames != null && !topicNames.isEmpty(),
             "Passed in topicNames list should not be empty.");
         if (this.topicNames == null) {
-            this.topicNames = topicNames;
-        } else {
-            topicNames.forEach(name -> {
-                if (!this.topicNames.contains(name)) {
-                    this.topicNames.add(name);
-                }
-            });
+            this.topicNames = Sets.newHashSet();
         }
+        this.topicNames.addAll(topicNames);
+
         return this;
     }
 
