@@ -31,7 +31,7 @@ public final class Resources {
     private Resources() {
     }
 
-    static Set<Class<?>> get() {
+    public static Set<Class<?>> get() {
         return new HashSet<>(getClasses());
     }
 
