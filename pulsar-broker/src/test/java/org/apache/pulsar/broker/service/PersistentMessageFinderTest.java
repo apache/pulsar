@@ -115,7 +115,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         config.setMaxEntriesPerLedger(entriesPerLedger);
         config.setRetentionTime(1, TimeUnit.HOURS);
         ManagedLedger ledger = factory.open(ledgerAndCursorName, config);
-        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName, true);
+        ManagedCursorImpl c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
 
         ledger.addEntry(createMessageWrittenToLedger("retained1"));
         // space apart message publish times
@@ -139,7 +139,7 @@ public class PersistentMessageFinderTest extends MockedBookKeeperTestCase {
         Thread.sleep(1000);
 
         ledger = factory.open(ledgerAndCursorName, config);
-        c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName, true);
+        c1 = (ManagedCursorImpl) ledger.openCursor(ledgerAndCursorName);
         long endTimestamp = System.currentTimeMillis();
 
         Result result = new Result();

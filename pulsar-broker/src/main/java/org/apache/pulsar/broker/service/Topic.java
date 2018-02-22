@@ -25,6 +25,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -80,9 +81,9 @@ public interface Topic {
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
             int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
-            Map<String, String> metadata, boolean readCompacted, boolean initializeOnLatest);
+            Map<String, String> metadata, boolean readCompacted, InitialPosition initialOnLatest);
 
-    CompletableFuture<Subscription> createSubscription(String subscriptionName, boolean initializeOnLatest);
+    CompletableFuture<Subscription> createSubscription(String subscriptionName, InitialPosition initialOnLatest);
 
     CompletableFuture<Void> unsubscribe(String subName);
 
