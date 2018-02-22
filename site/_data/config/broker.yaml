@@ -44,10 +44,22 @@ configs:
   description: Hostname or IP address the service binds on, default is 0.0.0.0.
 - name: advertisedAddress
   default: ''
-  description: Hostname or IP address the service advertises to the outside world. If not set, the value of InetAddress.getLocalHost().getHostName() is used.
+  description: Hostname or IP address the service advertises to the outside world. If not set, the value of `InetAddress.getLocalHost().getHostName()` is used.
 - name: clusterName
   default: ''
   description: Name of the cluster to which this broker belongs to
+- name: brokerDeduplicationEnabled
+  default: 'false'
+  description: Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis.
+- name: brokerDeduplicationMaxNumberOfProducers
+  default: '10000'
+  description: The maximum number of producers for which information will be stored for deduplication purposes.
+- name: brokerDeduplicationEntriesInterval
+  default: '1000'
+  description: The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
+- name: brokerDeduplicationProducerInactivityTimeoutMinutes
+  default: '360'
+  description: The time of inactivity (in minutes) after which the broker will discard deduplication information relative to a disconnected producer.
 - name: zooKeeperSessionTimeoutMillis
   default: '30000'
   description: Zookeeper session timeout in milliseconds
@@ -290,6 +302,7 @@ configs:
 - name: brokerServicePurgeInactiveFrequencyInSeconds
   default: '60'
   description: How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
+- 
 - name: loadManagerClassName
   default: org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
   description: Name of load manager to use
