@@ -308,38 +308,6 @@ public class PulsarClientImpl implements PulsarClient {
         return consumerSubscribedFuture;
     }
 
-
-    @Override
-    public Consumer subscribe(Collection<String> topics, final String subscription) throws PulsarClientException {
-        return subscribe(topics, subscription, new ConsumerConfiguration());
-    }
-
-    @Override
-    public Consumer subscribe(Collection<String> topics,
-                              String subscription,
-                              ConsumerConfiguration conf)
-        throws PulsarClientException {
-        try {
-            return subscribeAsync(topics, subscription, conf).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
-        }
-    }
-
-    @Override
-    public CompletableFuture<Consumer> subscribeAsync(Collection<String> topics, String subscription) {
-        return subscribeAsync(topics, subscription, new ConsumerConfiguration());
-    }
-
-    @Override
     public CompletableFuture<Consumer> subscribeAsync(Collection<String> topics,
                                                       String subscription,
                                                       ConsumerConfiguration conf) {
