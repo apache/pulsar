@@ -29,7 +29,7 @@ DEFAULT_DISCOVERY_CONF=$PULSAR_HOME/conf/discovery.conf
 DEFAULT_PROXY_CONF=$PULSAR_HOME/conf/proxy.conf
 DEFAULT_STANDALONE_CONF=$PULSAR_HOME/conf/standalone.conf
 DEFAULT_WEBSOCKET_CONF=$PULSAR_HOME/conf/websocket.conf
-DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -174,7 +174,7 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
+OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 
 # Ensure we can read bigger content from ZK. (It might be
 # rarely needed when trying to list many z-nodes under a
@@ -186,11 +186,11 @@ OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
-PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
+PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 
 #Configure log configuration system properties
-OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
+OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 
 #Change to PULSAR_HOME to support relative paths
