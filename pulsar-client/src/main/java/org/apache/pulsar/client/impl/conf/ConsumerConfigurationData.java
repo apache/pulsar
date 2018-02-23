@@ -64,14 +64,17 @@ public class ConsumerConfigurationData implements Serializable {
 
     @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
+
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     private final Map<String, String> properties = new TreeMap<>();
 
     private boolean readCompacted = false;
 
+    @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);
         return topicNames.iterator().next();
     }
+
 }
