@@ -98,7 +98,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @PrepareForTest({ JavaInstanceRunnable.class, StorageClientBuilder.class, MessageBuilder.class })
-@PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*" })
+@PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*", "org.apache.logging.log4j.*" })
 public class JavaInstanceRunnableProcessTest {
 
     @ObjectFactory

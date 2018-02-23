@@ -44,7 +44,7 @@ import org.testng.annotations.Test;
  * Unit test of {@link ClusterServiceCoordinator}.
  */
 @PrepareForTest({ ClusterServiceCoordinator.class })
-@PowerMockIgnore("javax.management.*")
+@PowerMockIgnore({ "javax.management.*", "org.apache.logging.log4j.*" })
 public class ClusterServiceCoordinatorTest {
 
     @ObjectFactory
