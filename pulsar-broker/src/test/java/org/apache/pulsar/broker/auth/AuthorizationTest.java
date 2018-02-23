@@ -49,6 +49,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName("c1");
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
+        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
         internalSetup();
     }
 
@@ -206,6 +207,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"), true);
         assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"), true);
+        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"), true);
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.properties().deleteProperty("p1");
