@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -201,13 +201,19 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i12" class="altColor">
+<td class="colFirst"><code>Set&lt;String&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Clusters.html#getPeerClusterNames-java.lang.String-">getPeerClusterNames</a></span>(String&nbsp;cluster)</code>
+<div class="block">Get peer-cluster names</div>
+</td>
+</tr>
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Clusters.html#updateCluster-java.lang.String-org.apache.pulsar.common.policies.data.ClusterData-">updateCluster</a></span>(String&nbsp;cluster,
              <a href="../../../../../org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a>&nbsp;clusterData)</code>
 <div class="block">Update the configuration for a cluster.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Clusters.html#updateFailureDomain-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.FailureDomain-">updateFailureDomain</a></span>(String&nbsp;cluster,
                    String&nbsp;domainName,
@@ -215,7 +221,7 @@ var activeTableTab = "activeTableTab";
 <div class="block">Update a domain into cluster</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Clusters.html#updateNamespaceIsolationPolicy-java.lang.String-java.lang.String-org.apache.pulsar.common.policies.data.NamespaceIsolationData-">updateNamespaceIsolationPolicy</a></span>(String&nbsp;cluster,
                               String&nbsp;policyName,
@@ -223,7 +229,7 @@ var activeTableTab = "activeTableTab";
 <div class="block">Update a namespace isolation policy for a cluster</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Clusters.html#updatePeerClusterNames-java.lang.String-java.util.LinkedHashSet-">updatePeerClusterNames</a></span>(String&nbsp;cluster,
                       LinkedHashSet&lt;String&gt;&nbsp;peerClusterNames)</code>
@@ -363,6 +369,28 @@ var activeTableTab = "activeTableTab";
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission to create the cluster</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Cluster doesn't exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
+</dl>
+</li>
+</ul>
+<a name="getPeerClusterNames-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getPeerClusterNames</h4>
+<pre>Set&lt;String&gt;&nbsp;getPeerClusterNames(String&nbsp;cluster)
+                         throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Get peer-cluster names
+ <p></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>cluster</code> - Cluster name</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - You don't have admin permission to create the cluster</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Domain doesn't exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.PreconditionFailedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.PreconditionFailedException</a></code> - Cluster doesn't exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
 </li>

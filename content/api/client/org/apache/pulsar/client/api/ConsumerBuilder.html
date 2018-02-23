@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -232,8 +232,14 @@ extends Serializable, Cloneable</pre>
 </tr>
 <tr id="i16" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
-<div class="block">Specify the topic this consumer will subscribe on.</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topic-java.lang.String...-">topic</a></span>(String...&nbsp;topicNames)</code>
+<div class="block">Specify the topics this consumer will subscribe on.</div>
+</td>
+</tr>
+<tr id="i17" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topics-java.util.List-">topics</a></span>(List&lt;String&gt;&nbsp;topicNames)</code>
+<div class="block">Specify a list of topics that this consumer will subscribe on.</div>
 </td>
 </tr>
 </table>
@@ -315,19 +321,35 @@ extends Serializable, Cloneable</pre>
 </dl>
 </li>
 </ul>
-<a name="topic-java.lang.String-">
+<a name="topic-java.lang.String...-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>topic</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topic(String&nbsp;topicName)</pre>
-<div class="block">Specify the topic this consumer will subscribe on.
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topic(String...&nbsp;topicNames)</pre>
+<div class="block">Specify the topics this consumer will subscribe on.
  <p>
  This argument is required when constructing the consumer.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>topicName</code> - </dd>
+<dd><code>topicNames</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="topics-java.util.List-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>topics</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topics(List&lt;String&gt;&nbsp;topicNames)</pre>
+<div class="block">Specify a list of topics that this consumer will subscribe on.
+ <p>
+ This argument is required when constructing the consumer.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topicNames</code> - </dd>
 </dl>
 </li>
 </ul>
