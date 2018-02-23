@@ -41,6 +41,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -85,7 +87,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
-        if (!authResult) {
+        if (!checkAuth(response)) {
             return;
         }
 
@@ -114,6 +116,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             return HttpServletResponse.SC_BAD_REQUEST;
         } else if (e instanceof ProducerBusyException) {
             return HttpServletResponse.SC_CONFLICT;
+        } else if (e instanceof ProducerBlockedQuotaExceededError || e instanceof ProducerBlockedQuotaExceededException) {
+            return HttpServletResponse.SC_SERVICE_UNAVAILABLE;
         } else {
             return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
         }
