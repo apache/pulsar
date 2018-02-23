@@ -20,7 +20,7 @@
 package org.apache.pulsar.functions.runtime.instance;
 
 import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-import static org.apache.distributedlog.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
+import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_STREAM_CONF;
 
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
@@ -38,15 +38,15 @@ import lombok.Setter;
 import lombok.ToString;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
-import org.apache.distributedlog.api.StorageClient;
-import org.apache.distributedlog.api.kv.Table;
-import org.apache.distributedlog.clients.StorageClientBuilder;
-import org.apache.distributedlog.clients.admin.StorageAdminClient;
-import org.apache.distributedlog.clients.config.StorageClientSettings;
-import org.apache.distributedlog.clients.exceptions.NamespaceNotFoundException;
-import org.apache.distributedlog.clients.exceptions.StreamNotFoundException;
-import org.apache.distributedlog.clients.utils.NetUtils;
-import org.apache.distributedlog.stream.proto.NamespaceConfiguration;
+import org.apache.bookkeeper.api.StorageClient;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.admin.StorageAdminClient;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
+import org.apache.bookkeeper.clients.exceptions.NamespaceNotFoundException;
+import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
+import org.apache.bookkeeper.clients.utils.NetUtils;
+import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;

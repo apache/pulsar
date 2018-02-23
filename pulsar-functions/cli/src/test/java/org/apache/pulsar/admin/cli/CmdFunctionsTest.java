@@ -36,11 +36,11 @@ import io.netty.buffer.ByteBufUtil;
 import java.io.File;
 import java.net.URI;
 import java.util.concurrent.atomic.AtomicReference;
+import org.apache.bookkeeper.api.StorageClient;
+import org.apache.bookkeeper.api.kv.Table;
+import org.apache.bookkeeper.clients.StorageClientBuilder;
+import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.distributedlog.api.StorageClient;
-import org.apache.distributedlog.api.kv.Table;
-import org.apache.distributedlog.clients.StorageClientBuilder;
-import org.apache.distributedlog.clients.config.StorageClientSettings;
 import java.util.HashMap;
 import java.util.Map;
 

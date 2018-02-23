@@ -25,8 +25,8 @@ import io.netty.buffer.Unpooled;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.api.kv.Table;
 import org.apache.bookkeeper.common.concurrent.FutureUtils;
-import org.apache.distributedlog.api.kv.Table;
 
 /**
  * This class accumulates the state updates from one function.
