@@ -180,7 +180,7 @@ public class WebSocketService implements Closeable {
         clientConf.setStatsInterval(0, TimeUnit.SECONDS);
         clientConf.setUseTls(config.isTlsEnabled());
         clientConf.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-        clientConf.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
+        clientConf.setTlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath());
         clientConf.setIoThreads(config.getWebSocketNumIoThreads());
         clientConf.setConnectionsPerBroker(config.getWebSocketConnectionsPerBroker());
 
