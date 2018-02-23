@@ -48,6 +48,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.namespace.OwnedBundle;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.checksum.utils.Crc32cChecksum;
@@ -74,6 +75,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
@@ -84,6 +87,14 @@ import io.netty.buffer.ByteBuf;
  */
 public class ReplicatorTest extends ReplicatorTestBase {
 
+    protected String methodName;
+
+    @BeforeMethod
+    public void beforeMethod(Method m) throws Exception {
+        methodName = m.getName();
+    }
+
+    
     @Override
     @BeforeClass(timeOut = 30000)
     void setup() throws Exception {
@@ -102,6 +113,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
         });
     }
 
+    @DataProvider(name = "partitionedTopic")
+    public Object[][] partitionedTopicProvider() {
+        return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
+    }
+    
     @Test(enabled = true, timeOut = 30000)
     public void testConfigChange() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
@@ -856,6 +872,62 @@ public class ReplicatorTest extends ReplicatorTestBase {
         reader2.closeAsync().get();
     }
 
+    /**
+     * It verifies that broker should not start replicator for partitioned-topic (topic without -partition postfix)
+     * 
+     * @param isPartitionedTopic
+     * @throws Exception
+     */
+    @Test(dataProvider = "partitionedTopic")
+    public void testReplicatorOnPartitionedTopic(boolean isPartitionedTopic) throws Exception {
+
+        log.info("--- Starting ReplicatorTest::{} --- ", methodName);
+
+        final String namespace = "pulsar/global/partitionedNs-" + isPartitionedTopic;
+        final String persistentTopicName = "persistent://" + namespace + "/partTopic-" + isPartitionedTopic;
+        final String nonPersistentTopicName = "non-persistent://" + namespace + "/partTopic-" + isPartitionedTopic;
+        BrokerService brokerService = pulsar1.getBrokerService();
+
+        admin1.namespaces().createNamespace(namespace);
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2", "r3"));
+
+        if (isPartitionedTopic) {
+            admin1.persistentTopics().createPartitionedTopic(persistentTopicName, 5);
+            admin1.nonPersistentTopics().createPartitionedTopic(nonPersistentTopicName, 5);
+        }
+
+        // load namespace with dummy topic on ns
+        PulsarClient client = PulsarClient.create(url1.toString());
+        client.createProducer("persistent://" + namespace + "/dummyTopic");
+
+        // persistent topic test
+        try {
+            brokerService.getTopic(persistentTopicName).get();
+            if (isPartitionedTopic) {
+                fail("Topic creation fails with partitioned topic as replicator init fails");
+            }
+        } catch (Exception e) {
+            if (!isPartitionedTopic) {
+                fail("Topic creation should not fail without any partitioned topic");
+            }
+            assertTrue(e.getCause() instanceof NamingException);
+        }
+
+        // non-persistent topic test
+        try {
+            brokerService.getTopic(nonPersistentTopicName).get();
+            if (isPartitionedTopic) {
+                fail("Topic creation fails with partitioned topic as replicator init fails");
+            }
+        } catch (Exception e) {
+            if (!isPartitionedTopic) {
+                fail("Topic creation should not fail without any partitioned topic");
+            }
+            assertTrue(e.getCause() instanceof NamingException);
+        }
+
+    }
+    
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }
