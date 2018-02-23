@@ -270,17 +270,6 @@ public class NonPersistentTopic implements Topic {
         return foundLocal.get();
     }
 
-    private boolean hasRemoteProducers() {
-        AtomicBoolean foundRemote = new AtomicBoolean(false);
-        producers.forEach(producer -> {
-            if (producer.isRemote()) {
-                foundRemote.set(true);
-            }
-        });
-
-        return foundRemote.get();
-    }
-
     @Override
     public void removeProducer(Producer producer) {
         checkArgument(producer.getTopic() == this);
@@ -520,7 +509,12 @@ public class NonPersistentTopic implements Topic {
             }
 
             if (!replicators.containsKey(cluster)) {
-                startReplicator(cluster);
+                if (!startReplicator(cluster)) {
+                    // it happens when global topic is a partitioned topic and replicator can't start on original
+                    // non partitioned-topic (topic without partition prefix)
+                    return FutureUtil
+                            .failedFuture(new NamingException(topic + " failed to start replicator for " + cluster));
+                }
             }
         }
 
@@ -535,13 +529,30 @@ public class NonPersistentTopic implements Topic {
         return FutureUtil.waitForAll(futures);
     }
 
-    void startReplicator(String remoteCluster) {
+    boolean startReplicator(String remoteCluster) {
         log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-        replicators.computeIfAbsent(remoteCluster,
-                r -> new NonPersistentReplicator(NonPersistentTopic.this, localCluster, remoteCluster, brokerService));
+        return addReplicationCluster(remoteCluster,NonPersistentTopic.this, localCluster);
     }
 
+    protected boolean addReplicationCluster(String remoteCluster, NonPersistentTopic nonPersistentTopic, String localCluster) {
+        AtomicBoolean isReplicatorStarted = new AtomicBoolean(true);
+        replicators.computeIfAbsent(remoteCluster, r -> {
+            try {
+                return new NonPersistentReplicator(NonPersistentTopic.this, localCluster, remoteCluster, brokerService);
+            } catch (NamingException e) {
+                isReplicatorStarted.set(false);
+                log.error("[{}] Replicator startup failed due to partitioned-topic {}", topic, remoteCluster);
+            }
+            return null;
+        });
+        // clean up replicator if startup is failed
+        if (!isReplicatorStarted.get()) {
+            replicators.remove(remoteCluster);
+        }
+        return isReplicatorStarted.get();
+    }
+    
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
         log.info("[{}] Removing replicator to {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -913,6 +924,8 @@ public class NonPersistentTopic implements Topic {
         this.hasBatchMessagePublished = true;
     }
 
+    
+    
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
 }
