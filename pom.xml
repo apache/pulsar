@@ -113,6 +113,7 @@ flexible messaging model and an intuitive client API.</description>
     <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
+    <jersey.version>2.26</jersey.version>
     <athenz.version>1.7.17</athenz.version>
     <prometheus.version>0.0.23</prometheus.version>
     <aspectj.version>1.8.9</aspectj.version>
@@ -354,37 +355,37 @@ flexible messaging model and an intuitive client API.</description>
       <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-server</artifactId>
-        <version>2.23.2</version>
+        <version>${jersey.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.core</groupId>
         <artifactId>jersey-client</artifactId>
-        <version>2.23.2</version>
+        <version>${jersey.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet-core</artifactId>
-        <version>2.23.2</version>
+        <version>${jersey.version}</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.containers</groupId>
         <artifactId>jersey-container-servlet</artifactId>
-        <version>2.23.2</version>
+        <version>${jersey.version}</version>
       </dependency>
       
       <dependency>
         <groupId>javax.ws.rs</groupId>
         <artifactId>javax.ws.rs-api</artifactId>
-        <version>2.0.1</version>
+        <version>2.1</version>
       </dependency>
 
       <dependency>
         <groupId>org.glassfish.jersey.media</groupId>
         <artifactId>jersey-media-json-jackson</artifactId>
-        <version>2.9</version>
+        <version>${jersey.version}</version>
       </dependency>
 
       <dependency>
