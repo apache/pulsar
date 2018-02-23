@@ -25,6 +25,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.BrokerOperabilityMetrics;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
@@ -42,7 +43,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.Unpooled;
 import io.netty.util.ReferenceCountUtil;
 
 public class PulsarStats implements Closeable {
@@ -55,13 +56,14 @@ public class PulsarStats implements Closeable {
     private Map<String, NamespaceBundleStats> bundleStats;
     private List<Metrics> tempMetricsCollection;
     private List<Metrics> metricsCollection;
+    private List<NonPersistentTopic> tempNonPersistentTopics;
     private final BrokerOperabilityMetrics brokerOperabilityMetrics;
 
     private final ReentrantReadWriteLock bufferLock = new ReentrantReadWriteLock();
 
     public PulsarStats(PulsarService pulsar) {
-        this.topicStatsBuf = PooledByteBufAllocator.DEFAULT.heapBuffer(16 * 1024);
-        this.tempTopicStatsBuf = PooledByteBufAllocator.DEFAULT.heapBuffer(16 * 1024);
+        this.topicStatsBuf = Unpooled.buffer(16 * 1024);
+        this.tempTopicStatsBuf = Unpooled.buffer(16 * 1024);
 
         this.nsStats = new NamespaceStats();
         this.clusterReplicationMetrics = new ClusterReplicationMetrics(pulsar.getConfiguration().getClusterName(),
@@ -71,12 +73,18 @@ public class PulsarStats implements Closeable {
         this.metricsCollection = Lists.newArrayList();
         this.brokerOperabilityMetrics = new BrokerOperabilityMetrics(pulsar.getConfiguration().getClusterName(),
                 pulsar.getAdvertisedAddress());
+        this.tempNonPersistentTopics = Lists.newArrayList();
     }
 
     @Override
     public void close() {
-        ReferenceCountUtil.safeRelease(topicStatsBuf);
-        ReferenceCountUtil.safeRelease(tempTopicStatsBuf);
+        bufferLock.writeLock().lock();
+        try {
+            ReferenceCountUtil.safeRelease(topicStatsBuf);
+            ReferenceCountUtil.safeRelease(tempTopicStatsBuf);
+        } finally {
+            bufferLock.writeLock().unlock();
+        }
     }
 
     public ClusterReplicationMetrics getClusterReplicationMetrics() {
@@ -113,22 +121,46 @@ public class PulsarStats implements Closeable {
                         currentBundleStats.topics = topics.size();
 
                         topicStatsStream.startObject(NamespaceBundle.getBundleRange(bundle));
+
+                        tempNonPersistentTopics.clear();
+                        // start persistent topic
                         topicStatsStream.startObject("persistent");
                         topics.forEach((name, topic) -> {
-                            try {
-                                topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
-                                        clusterReplicationMetrics, namespaceName);
-                            } catch (Exception e) {
-                                log.error("Failed to generate topic stats for topic {}: {}", name, e.getMessage(), e);
-                            }
-                            // this task: helps to activate inactive-backlog-cursors which have caught up and
-                            // connected, also deactivate active-backlog-cursors which has backlog
                             if (topic instanceof PersistentTopic) {
+                                try {
+                                    topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
+                                            clusterReplicationMetrics, namespaceName);
+                                } catch (Exception e) {
+                                    log.error("Failed to generate topic stats for topic {}: {}", name, e.getMessage(), e);
+                                }
+                                // this task: helps to activate inactive-backlog-cursors which have caught up and
+                                // connected, also deactivate active-backlog-cursors which has backlog
                                 ((PersistentTopic) topic).getManagedLedger().checkBackloggedCursors();
+                            }else if (topic instanceof NonPersistentTopic) {
+                                tempNonPersistentTopics.add((NonPersistentTopic) topic);
+                            } else {
+                                log.warn("Unsupported type of topic {}", topic.getClass().getName());
                             }
                         });
-
+                        // end persistent topics section
                         topicStatsStream.endObject();
+                        
+                        if(!tempNonPersistentTopics.isEmpty()) {
+                         // start non-persistent topic
+                            topicStatsStream.startObject("non-persistent");
+                            tempNonPersistentTopics.forEach(topic -> {
+                                try {
+                                    topic.updateRates(nsStats, currentBundleStats, topicStatsStream,
+                                            clusterReplicationMetrics, namespaceName);
+                                } catch (Exception e) {
+                                    log.error("Failed to generate topic stats for topic {}: {}", topic.getName(), e.getMessage(), e);
+                                }
+                            });
+                            // end non-persistent topics section
+                            topicStatsStream.endObject();    
+                        }
+                        
+                        // end namespace-bundle section
                         topicStatsStream.endObject();
                     });
 
@@ -169,6 +201,10 @@ public class PulsarStats implements Closeable {
         }
     }
 
+    public NamespaceBundleStats invalidBundleStats(String bundleName) {
+        return bundleStats.remove(bundleName);
+    }
+
     public void getDimensionMetrics(Consumer<ByteBuf> consumer) {
         bufferLock.readLock().lock();
         try {
@@ -193,7 +229,7 @@ public class PulsarStats implements Closeable {
             log.warn("Exception while recording topic load time for topic {}, {}", topic, ex.getMessage());
         }
     }
-    
+
     public void recordZkLatencyTimeValue(EventType eventType, long latencyMs) {
         try {
             if (EventType.write.equals(eventType)) {

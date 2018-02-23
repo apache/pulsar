@@ -1,26 +1,47 @@
-.rest-api-container, .docs-container {
-  margin-top: $top-margin;
-
-  nav.sidebar {
-    display: inline;
-    width: 100%;
-    //border: 1px solid green;
-
-    ul {
-      //border: 1px solid orange;
-      width: 100%;
-
-      li + li {
-        margin-top: 5px;
-      }
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+@media screen and (min-width: 769px) {
+  .rest-api-container, .docs-container {
+    article {
+      padding: 0 2%;
+      margin-bottom: 2rem;
     }
+  }
+}
+
+
+.rest-api-container, .docs-container {
+  blockquote {
+    border: 1px solid $sx-light-gray;
+    background-color: lighten($sx-light-gray, 20%);
+    padding: 0.75rem;
+  }
+
+  h4 + ul {
+    margin-top: 1rem;
+  }
+
+  ul ul {
+    margin: 8px 0;
   }
 
   article {
-    @include shadow($shadow-size);
-    padding: 2% 3%;
-    margin-bottom: 50px;
-
     section.docs-header {
       margin-bottom: 35px;
       //border: 1px solid blue;
@@ -36,6 +57,7 @@
 
       h1.docs-title {
         font-size: 40px;
+        line-height: 3.2rem;
       }
 
       span.docs-lead {
@@ -103,23 +125,27 @@
 
       .highlighter-rouge {
         font-family: $font-family-monospace;
-      
-        & + h2 {
-          margin-top: 40px;
-        }
 
         .highlight {
-          padding: 15px;
+          margin: 0;
+          padding: 1rem;
 
-          code {
-            font-size: $code-font-size;
+          pre.highlight {
+            margin: 0;
+            padding: 0;
+
+            code {
+              margin: 0;
+              padding: 0;
+              font-size: $code-font-size;
+            }
           }
         }
       }
 
       code.highlighter-rouge {
         color: $pulsar-blue;
-        padding: .2rem .3rem;
+        //padding: .2rem .3rem;
         background-color: lighten($sx-light-gray, 22%);
         border-radius: 0;
       }
@@ -128,9 +154,10 @@
         margin-right: 2px;
       }
 
-      img {
-        margin: 20px 0;
-        width: 100%;
+      p img {
+        display: block;
+        margin: 20px auto;
+        max-width: 100%;
 
         &[alt="Maven Central"] {
           width: 20%;
@@ -146,10 +173,6 @@
 
       p {
         font-size: $docs-font-size;
-
-        & + .highlighter-rouge {
-          margin-top: 15px;
-        }
       }
 
       h2, h3 {
@@ -238,14 +261,6 @@
             }
           }
         }
-      }
-
-      p + table, table + p, table + h4, h4 + .highlighter-rouge {
-        margin-top: 20px;
-      }
-
-      .highlighter-rouge + table, .highlighter-rouge + h4 {
-        margin-top: 20px;
       }
     }
   }

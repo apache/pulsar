@@ -239,4 +239,43 @@ public interface Consumer extends Closeable {
      * breaks, the messages are redelivered after reconnect.
      */
     void redeliverUnacknowledgedMessages();
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message id.
+     * <p>
+     *
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     * <p>
+     * <ul>
+     * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
+     * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
+     * </ul>
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param messageId
+     *            the message id where to reposition the subscription
+     */
+    void seek(MessageId messageId) throws PulsarClientException;
+
+    /**
+     * Reset the subscription associated with this consumer to a specific message id.
+     * <p>
+     *
+     * The message id can either be a specific message or represent the first or last messages in the topic.
+     * <p>
+     * <ul>
+     * <li><code>MessageId.earliest</code> : Reset the subscription on the earliest message available in the topic
+     * <li><code>MessageId.latest</code> : Reset the subscription on the latest message in the topic
+     * </ul>
+     *
+     * Note: this operation can only be done on non-partitioned topics. For these, one can rather perform the seek() on
+     * the individual partitions.
+     *
+     * @param messageId
+     *            the message id where to reposition the subscription
+     * @return a future to track the completion of the seek operation
+     */
+    CompletableFuture<Void> seekAsync(MessageId messageId);
 }

@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.Backoff;
@@ -58,7 +59,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
 
-    private final int producerQueueSize;
+
     private static final int MaxReadBatchSize = 100;
     private int readBatchSize;
 
@@ -80,7 +81,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
     private int messageTTLInSeconds = 0;
 
-    private final Backoff readFailureBackoff = new Backoff(1, TimeUnit.SECONDS, 1, TimeUnit.MINUTES);
+    private final Backoff readFailureBackoff = new Backoff(1, TimeUnit.SECONDS, 1, TimeUnit.MINUTES, 0, TimeUnit.MILLISECONDS);
 
     private PersistentMessageExpiryMonitor expiryMonitor;
     // for connected subscriptions, message expiry will be checked if the backlog is greater than this threshold
@@ -89,7 +90,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private final ReplicatorStats stats = new ReplicatorStats();
 
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
-            BrokerService brokerService) {
+            BrokerService brokerService) throws NamingException {
         super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
         this.topic = topic;
         this.cursor = cursor;
@@ -97,7 +98,6 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         HAVE_PENDING_READ_UPDATER.set(this, FALSE);
         PENDING_MESSAGES_UPDATER.set(this, 0);
 
-        producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
         readBatchSize = Math.min(producerQueueSize, MaxReadBatchSize);
         producerQueueThreshold = (int) (producerQueueSize * 0.9);
 
@@ -139,14 +139,14 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     protected long getNumberOfEntriesInBacklog() {
         return cursor.getNumberOfEntriesInBacklog();
     }
-    
+
     @Override
     protected void disableReplicatorRead() {
         // deactivate cursor after successfully close the producer
         this.cursor.setInactive();
     }
 
-    
+
     protected void readMoreEntries() {
         int availablePermits = producerQueueSize - PENDING_MESSAGES_UPDATER.get(this);
 
@@ -350,9 +350,9 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
             recycle();
         }
 
-        private final Handle recyclerHandle;
+        private final Handle<ProducerSendCallback> recyclerHandle;
 
-        private ProducerSendCallback(Handle recyclerHandle) {
+        private ProducerSendCallback(Handle<ProducerSendCallback> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
@@ -371,15 +371,14 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                 msg.recycle();
                 msg = null;
             }
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
 
         private static final Recycler<ProducerSendCallback> RECYCLER = new Recycler<ProducerSendCallback>() {
             @Override
-            protected ProducerSendCallback newObject(Handle handle) {
+            protected ProducerSendCallback newObject(Handle<ProducerSendCallback> handle) {
                 return new ProducerSendCallback(handle);
             }
-
         };
 
         @Override
@@ -423,7 +422,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{} -> {}] Throttled by bookies while reading at {}. Retrying to read in {}s. ({})",
-                        topic, localCluster, remoteCluster, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
+                        topicName, localCluster, remoteCluster, ctx, waitTimeMillis / 1000.0, exception.getMessage(),
                         exception);
             }
         }

@@ -22,14 +22,17 @@
 namespace pulsar {
 
 class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
- public:
+   public:
     ~UnAckedMessageTrackerEnabled();
     UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr, ConsumerImplBase&);
     bool add(const MessageId& m);
     bool remove(const MessageId& m);
     void removeMessagesTill(const MessageId& msgId);
     void timeoutHandler();
- private:
+
+    void clear();
+
+   private:
     void timeoutHandler(const boost::system::error_code& ec);
     void timeoutHandlerHelper();
     bool isEmpty();
@@ -42,6 +45,6 @@ class UnAckedMessageTrackerEnabled : public UnAckedMessageTrackerInterface {
     ClientImplPtr client_;
     long timeoutMs_;
 };
-}
+}  // namespace pulsar
 
 #endif /* LIB_UNACKEDMESSAGETRACKERENABLED_H_ */

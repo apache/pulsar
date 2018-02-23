@@ -18,7 +18,6 @@
 #
 
 destination: generated
-livereload: true
-baseurl: "/"
+baseurl: ""
 include:
 - docs/example.md

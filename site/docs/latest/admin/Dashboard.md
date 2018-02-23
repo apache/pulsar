@@ -2,6 +2,27 @@
 title: The Pulsar dashboard
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 The Pulsar dashboard is a web application that enables users to monitor current stats for all {% popover topics %} in tabular form.
 
 The dashboard is a data collector that polls stats from all the {% popover brokers %} in a Pulsar {% popover instance %} (across multiple {% popover clusters %}) and stores all the information in a [PostgreSQL](https://www.postgresql.org/) database.
@@ -24,7 +45,7 @@ To run the dashboard:
 $ SERVICE_URL=http://broker.example.com:8080/
 $ docker run -p 80:80 \
   -e SERVICE_URL=$SERVICE_URL \
-  pulsar-dashboard
+  apachepulsar/pulsar-dashboard
 ```
 
 You need to specify only one service URL for a Pulsar cluster. Internally, the collector will figure out all the existing clusters and the brokers from where it needs to pull the metrics. If you're connecting the dashboard to Pulsar running in {% popover standalone %} mode, the URL will be `http://localhost:8080` by default.

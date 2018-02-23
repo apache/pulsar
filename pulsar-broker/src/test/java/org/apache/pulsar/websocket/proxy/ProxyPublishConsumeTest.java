@@ -52,7 +52,7 @@ import org.eclipse.jetty.websocket.api.UpgradeException;
 import org.eclipse.jetty.websocket.client.ClientUpgradeRequest;
 import org.eclipse.jetty.websocket.client.WebSocketClient;
 import org.glassfish.jersey.client.ClientConfig;
-import org.glassfish.jersey.filter.LoggingFilter;
+import org.glassfish.jersey.logging.LoggingFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -99,15 +99,19 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
     public void socketTest() throws Exception {
         String consumerUri = "ws://localhost:" + port
                 + "/ws/consumer/persistent/my-property/use/my-ns/my-topic1/my-sub1?subscriptionType=Failover";
+        String readerUri = "ws://localhost:" + port + "/ws/reader/persistent/my-property/use/my-ns/my-topic1";
         String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/my-property/use/my-ns/my-topic1/";
 
         URI consumeUri = URI.create(consumerUri);
+        URI readUri = URI.create(readerUri);
         URI produceUri = URI.create(producerUri);
 
         WebSocketClient consumeClient1 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
         WebSocketClient consumeClient2 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket2 = new SimpleConsumerSocket();
+        WebSocketClient readClient = new WebSocketClient();
+        SimpleConsumerSocket readSocket = new SimpleConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
 
@@ -120,17 +124,28 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> consumerFuture2 = consumeClient2.connect(consumeSocket2, consumeUri, consumeRequest2);
             log.info("Connecting to : {}", consumeUri);
 
-            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
-            produceClient.start();
-            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
+            readClient.start();
+            ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
+            Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
+            log.info("Connecting to : {}", readUri);
+
             // let it connect
             Assert.assertTrue(consumerFuture1.get().isOpen());
             Assert.assertTrue(consumerFuture2.get().isOpen());
+            Assert.assertTrue(readerFuture.get().isOpen());
+
+            // Also make sure subscriptions and reader are already created
+            Thread.sleep(500);
+
+            ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
+            produceClient.start();
+            Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             Assert.assertTrue(producerFuture.get().isOpen());
 
             int retry = 0;
             int maxRetry = 400;
-            while (consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10) {
+            while ((consumeSocket1.getReceivedMessagesCount() < 10 && consumeSocket2.getReceivedMessagesCount() < 10)
+                    || readSocket.getReceivedMessagesCount() < 10) {
                 Thread.sleep(10);
                 if (retry++ > maxRetry) {
                     final String msg = String.format("Consumer still has not received the message after %s ms",
@@ -150,6 +165,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             } else {
                 Assert.assertEquals(produceSocket.getBuffer(), consumeSocket2.getBuffer());
             }
+            Assert.assertEquals(produceSocket.getBuffer(), readSocket.getBuffer());
         } finally {
             ExecutorService executor = newFixedThreadPool(1);
             try {
@@ -157,6 +173,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                     try {
                         consumeClient1.stop();
                         consumeClient2.stop();
+                        readClient.stop();
                         produceClient.stop();
                         log.info("proxy clients are stopped successfully");
                     } catch (Exception e) {
@@ -210,7 +227,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
 
     /**
      * It verifies proxy topic-stats and proxy-metrics api
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 10000)
@@ -219,14 +236,18 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         final String consumerUri = "ws://localhost:" + port + "/ws/consumer/persistent/" + topic
                 + "/my-sub?subscriptionType=Failover";
         final String producerUri = "ws://localhost:" + port + "/ws/producer/persistent/" + topic + "/";
+        final String readerUri = "ws://localhost:" + port + "/ws/reader/persistent/" + topic;
         System.out.println(consumerUri+", "+producerUri);
         URI consumeUri = URI.create(consumerUri);
         URI produceUri = URI.create(producerUri);
+        URI readUri = URI.create(readerUri);
 
         WebSocketClient consumeClient1 = new WebSocketClient();
         SimpleConsumerSocket consumeSocket1 = new SimpleConsumerSocket();
         WebSocketClient produceClient = new WebSocketClient();
         SimpleProducerSocket produceSocket = new SimpleProducerSocket();
+        WebSocketClient readClient = new WebSocketClient();
+        SimpleConsumerSocket readSocket = new SimpleConsumerSocket();
 
         try {
             consumeClient1.start();
@@ -234,11 +255,21 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
             Future<Session> consumerFuture1 = consumeClient1.connect(consumeSocket1, consumeUri, consumeRequest1);
             log.info("Connecting to : {}", consumeUri);
 
+            readClient.start();
+            ClientUpgradeRequest readRequest = new ClientUpgradeRequest();
+            Future<Session> readerFuture = readClient.connect(readSocket, readUri, readRequest);
+            log.info("Connecting to : {}", readUri);
+
+            Assert.assertTrue(consumerFuture1.get().isOpen());
+            Assert.assertTrue(readerFuture.get().isOpen());
+
+            Thread.sleep(500);
+
             ClientUpgradeRequest produceRequest = new ClientUpgradeRequest();
             produceClient.start();
             Future<Session> producerFuture = produceClient.connect(produceSocket, produceUri, produceRequest);
             // let it connect
-            Assert.assertTrue(consumerFuture1.get().isOpen());
+
             Assert.assertTrue(producerFuture.get().isOpen());
 
             // sleep so, proxy can deliver few messages to consumers for stats
@@ -253,7 +284,7 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
                 }
             }
 
-            Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFilter.class));
+            Client client = ClientBuilder.newClient(new ClientConfig().register(LoggingFeature.class));
             final String baseUrl = pulsar.getWebServiceAddress()
                     .replace(Integer.toString(pulsar.getConfiguration().getWebServicePort()), (Integer.toString(port)))
                     + "/admin/proxy-stats/";
@@ -317,8 +348,8 @@ public class ProxyPublishConsumeTest extends ProducerConsumerBase {
         Entry<String, ProxyTopicStat> entry = data.entrySet().iterator().next();
         Assert.assertEquals(entry.getKey(), "persistent://" + topic);
         ProxyTopicStat stats = entry.getValue();
-        // number of consumers are connected = 1
-        Assert.assertEquals(stats.consumerStats.size(), 1);
+        // number of consumers are connected = 2 (one is reader)
+        Assert.assertEquals(stats.consumerStats.size(), 2);
         ConsumerStats consumerStats = stats.consumerStats.iterator().next();
         // Assert.assertTrue(consumerStats.numberOfMsgDelivered > 0);
         Assert.assertNotNull(consumerStats.remoteConnection);

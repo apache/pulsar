@@ -42,7 +42,9 @@
         <include>**/conf/**</include>
         <include>**/bin/**</include>
         <include>**/*.txt</include>
-        <include>doc/*</include>
+        <include>docker/**</include>
+        <include>dashboard/**</include>
+        <include>deployment/**</include>
       </includes>
       <excludes>
         <exclude>.git/**</exclude>
@@ -85,10 +87,6 @@
         <exclude>**/*.so.*</exclude>
         <exclude>**/*.dylib</exclude>
       </excludes>
-    </fileSet>
-    <fileSet>
-      <directory>target/site/apidocs</directory>
-      <outputDirectory>doc/apidocs</outputDirectory>
     </fileSet>
   </fileSets>
 </assembly>

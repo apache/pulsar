@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.web;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -43,7 +42,6 @@ import javax.net.ssl.TrustManager;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.Authentication;
@@ -84,43 +82,6 @@ public class WebServiceTest {
     private static final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
     private static final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/certificate/client.crt";
     private static final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/certificate/client.key";
-
-    /**
-     * Test that if the enableClientVersionCheck option is enabled, the {@code ApiVersionFilter} is added to the filter
-     * chain. We test this indirectly by creating live PulsarService and making an http call to it.
-     */
-    @Test
-    public void testFilterEnabled() throws Exception {
-        setupEnv(true, "1.0", false, false, false, false);
-
-        // Make an HTTP request to lookup a namespace. The request should fail
-        // with a 400 error.
-        try {
-            makeHttpRequest(false, false);
-            Assert.fail("Request should have failed."); // We should have gotten an exception on the previous
-            // line.
-        } catch (IOException ex) {
-            Assert.assertTrue(ex.getMessage().contains("HTTP response code: 400"));
-        }
-    }
-
-    /**
-     * Test that if the enableClientVersionCheck option is disabled, the {@code ApiVersionFilter} is not added to the
-     * filter chain. We test this indirectly by creating live PulsarService and making an http call to it.
-     *
-     */
-    @Test
-    public void testFilterDisabled() throws Exception {
-        setupEnv(false, "1.0", false, false, false, false);
-
-        try {
-            // Make an HTTP request to lookup a namespace. The request should
-            // succeed
-            makeHttpRequest(false, false);
-        } catch (Exception e) {
-            Assert.fail("HTTP request to lookup a namespace shouldn't fail ", e);
-        }
-    }
 
     /**
      * Test that the {@WebService} class properly passes the allowUnversionedClients value. We do this by setting
@@ -280,13 +241,13 @@ public class WebServiceTest {
         roles.add("client");
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setAdvertisedAddress("localhost");
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
         config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         config.setClientLibraryVersionCheckEnabled(enableFilter);
         config.setAuthenticationEnabled(enableAuth);
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(false);
-        config.setClientLibraryVersionCheckAllowUnversioned(allowUnversionedClients);
         config.setSuperUserRoles(roles);
         config.setTlsEnabled(enableTls);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
@@ -295,6 +256,7 @@ public class WebServiceTest {
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
+        config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
         pulsar.start();

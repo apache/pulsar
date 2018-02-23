@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.namespace;
 
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -75,16 +76,22 @@ public class OwnedBundle {
     }
 
     /**
-     * This method initiates the unload namespace process. It is invoked by Admin API
-     * <code>Namespaces.unloadNamespace()</code>.
-     *
+     * It unloads the bundle by closing all topics concurrently under this bundle.
+     * 
+     * <pre>
+     * a. disable bundle ownership in memory and not in zk
+     * b. close all the topics concurrently
+     * c. delete ownership znode from zookeeper.
+     * </pre>
+     * 
      * @param pulsar
-     * @param adminView
-     * @param ownershipCache
-     *
+     * @param timeout
+     *            timeout for unloading bundle. It doesn't throw exception if it timesout while waiting on closing all
+     *            topics
+     * @param timeoutUnit
      * @throws Exception
      */
-    public void handleUnloadRequest(PulsarService pulsar) throws Exception {
+    public void handleUnloadRequest(PulsarService pulsar, long timeout, TimeUnit timeoutUnit) throws Exception {
 
         long unloadBundleStartTime = System.nanoTime();
         // Need a per namespace RenetrantReadWriteLock
@@ -115,14 +122,18 @@ public class OwnedBundle {
 
             // close topics forcefully
             try {
-                unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle).get();
+                unloadedTopics = pulsar.getBrokerService().unloadServiceUnit(bundle).get(timeout, timeoutUnit);
+            } catch (TimeoutException e) {
+                // ignore topic-close failure to unload bundle
+                LOG.error("Failed to close topics in namespace {} in {}/{} timeout", bundle.toString(), timeout,
+                        timeoutUnit);
             } catch (Exception e) {
                 // ignore topic-close failure to unload bundle
                 LOG.error("Failed to close topics under namespace {}", bundle.toString(), e);
             }
             // delete ownership node on zk
             try {
-                pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle).get();
+                pulsar.getNamespaceService().getOwnershipCache().removeOwnership(bundle).get(timeout, timeoutUnit);
             } catch (Exception e) {
                 // Failed to remove ownership node: enable namespace-bundle again so, it can serve new topics
                 pulsar.getNamespaceService().getOwnershipCache().updateBundleState(this.bundle, true);

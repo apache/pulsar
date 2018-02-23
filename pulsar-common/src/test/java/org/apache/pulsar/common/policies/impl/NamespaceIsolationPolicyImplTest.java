@@ -110,28 +110,28 @@ public class NamespaceIsolationPolicyImplTest {
             String broker = String.format("prod1-broker%d.messaging.usw.example.com", i);
             brokers.add(new URL(String.format("http://%s:8080", broker)));
         }
-        List<URL> primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, new NamespaceName("pulsar/use/testns-1"));
+        List<URL> primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("pulsar/use/testns-1"));
         assertEquals(primaryBrokers.size(), 3);
         for (URL primaryBroker : primaryBrokers) {
             assertTrue(primaryBroker.getHost().matches("prod1-broker[1-3].messaging.use.example.com"));
         }
-        primaryBrokers = defaultPolicy.findPrimaryBrokers(otherBrokers, new NamespaceName("pulsar/use/testns-1"));
+        primaryBrokers = defaultPolicy.findPrimaryBrokers(otherBrokers, NamespaceName.get("pulsar/use/testns-1"));
         assertTrue(primaryBrokers.isEmpty());
         try {
-            primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, new NamespaceName("no/such/namespace"));
+            primaryBrokers = defaultPolicy.findPrimaryBrokers(brokers, NamespaceName.get("no/such/namespace"));
         } catch (IllegalArgumentException iae) {
             // OK
         }
         List<URL> secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers,
-                new NamespaceName("pulsar/use/testns-1"));
+                NamespaceName.get("pulsar/use/testns-1"));
         assertEquals(secondaryBrokers.size(), 10);
         for (URL secondaryBroker : secondaryBrokers) {
             assertTrue(secondaryBroker.getHost().matches("prod1-broker.*.messaging.use.example.com"));
         }
-        secondaryBrokers = defaultPolicy.findSecondaryBrokers(otherBrokers, new NamespaceName("pulsar/use/testns-1"));
+        secondaryBrokers = defaultPolicy.findSecondaryBrokers(otherBrokers, NamespaceName.get("pulsar/use/testns-1"));
         assertTrue(secondaryBrokers.isEmpty());
         try {
-            secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers, new NamespaceName("no/such/namespace"));
+            secondaryBrokers = defaultPolicy.findSecondaryBrokers(brokers, NamespaceName.get("no/such/namespace"));
         } catch (IllegalArgumentException iae) {
             // OK
         }

@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.client.impl;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.ComparisonChain;
+import org.apache.pulsar.client.api.MessageId;
 
 /**
  */
-public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<MessageIdImpl> {
+public class BatchMessageIdImpl extends MessageIdImpl {
     private final int batchIndex;
 
     public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
@@ -31,21 +31,33 @@ public class BatchMessageIdImpl extends MessageIdImpl implements Comparable<Mess
         this.batchIndex = batchIndex;
     }
 
-    int getBatchIndex() {
+    public BatchMessageIdImpl(MessageIdImpl other) {
+        super(other.ledgerId, other.entryId, other.partitionIndex);
+        if (other instanceof BatchMessageIdImpl) {
+            this.batchIndex = ((BatchMessageIdImpl) other).batchIndex;
+        } else {
+            this.batchIndex = -1;
+        }
+    }
+
+    public int getBatchIndex() {
         return batchIndex;
     }
 
     @Override
-    public int compareTo(MessageIdImpl o) {
+    public int compareTo(MessageId o) {
         if (!(o instanceof BatchMessageIdImpl)) {
             throw new IllegalArgumentException(
                     "expected BatchMessageIdImpl object. Got instance of " + o.getClass().getName());
         }
 
         BatchMessageIdImpl other = (BatchMessageIdImpl) o;
-        return ComparisonChain.start().compare(this.ledgerId, other.ledgerId).compare(this.entryId, other.entryId)
-                .compare(this.batchIndex, other.batchIndex).compare(this.getPartitionIndex(), other.getPartitionIndex())
-                .result();
+        return ComparisonChain.start()
+            .compare(this.ledgerId, other.ledgerId)
+            .compare(this.entryId, other.entryId)
+            .compare(this.batchIndex, other.batchIndex)
+            .compare(this.getPartitionIndex(), other.getPartitionIndex())
+            .result();
     }
 
     @Override

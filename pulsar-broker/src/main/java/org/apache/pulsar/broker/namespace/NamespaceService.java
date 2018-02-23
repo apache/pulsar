@@ -23,7 +23,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
-import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
@@ -37,10 +36,12 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
+
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -49,6 +50,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -130,7 +132,8 @@ public class NamespaceService {
         this.ownershipCache = new OwnershipCache(pulsar, bundleFactory);
     }
 
-    public CompletableFuture<LookupResult> getBrokerServiceUrlAsync(DestinationName topic, boolean authoritative) {
+    public CompletableFuture<Optional<LookupResult>> getBrokerServiceUrlAsync(DestinationName topic,
+            boolean authoritative) {
         return getBundleAsync(topic)
                 .thenCompose(bundle -> findBrokerServiceUrl(bundle, authoritative, false /* read-only */));
     }
@@ -152,7 +155,12 @@ public class NamespaceService {
         return bundleFactory.getFullBundle(fqnn);
     }
 
-	public URL getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
+    /**
+     * Return the URL of the broker who's owning a particular service unit.
+     *
+     * If the service unit is not owned, return an empty optional
+     */
+	public Optional<URL> getWebServiceUrl(ServiceUnitId suName, boolean authoritative, boolean isRequestHttps, boolean readOnly)
 			throws Exception {
         if (suName instanceof DestinationName) {
             DestinationName name = (DestinationName) suName;
@@ -173,23 +181,21 @@ public class NamespaceService {
         throw new IllegalArgumentException("Unrecognized class of NamespaceBundle: " + suName.getClass().getName());
     }
 
-    private CompletableFuture<URL> internalGetWebServiceUrl(NamespaceBundle bundle, boolean authoritative,
+    private CompletableFuture<Optional<URL>> internalGetWebServiceUrl(NamespaceBundle bundle, boolean authoritative,
             boolean isRequestHttps, boolean readOnly) {
 
         return findBrokerServiceUrl(bundle, authoritative, readOnly).thenApply(lookupResult -> {
-            if (lookupResult != null) {
+            if (lookupResult.isPresent()) {
                 try {
-                    LookupData lookupData = lookupResult.getLookupData();
+                    LookupData lookupData = lookupResult.get().getLookupData();
                     final String redirectUrl = isRequestHttps ? lookupData.getHttpUrlTls() : lookupData.getHttpUrl();
-                    return new URL(redirectUrl);
-
+                    return Optional.of(new URL(redirectUrl));
                 } catch (Exception e) {
                     // just log the exception, nothing else to do
                     LOG.warn("internalGetWebServiceUrl [{}]", e.getMessage(), e);
                 }
-
             }
-            return null;
+            return Optional.empty();
         });
     }
 
@@ -229,9 +235,8 @@ public class NamespaceService {
         String myUrl = pulsar.getBrokerServiceUrl();
 
         try {
-            NamespaceName nsname = new NamespaceName(namespace);
+            NamespaceName nsname = NamespaceName.get(namespace);
 
-            // [Bug 6504511] Enable writing with JSON format
             String otherUrl = null;
             NamespaceBundle nsFullBundle = null;
 
@@ -274,13 +279,13 @@ public class NamespaceService {
      * @return
      * @throws PulsarServerException
      */
-    private CompletableFuture<LookupResult> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
+    private CompletableFuture<Optional<LookupResult>> findBrokerServiceUrl(NamespaceBundle bundle, boolean authoritative,
             boolean readOnly) {
         if (LOG.isDebugEnabled()) {
             LOG.debug("findBrokerServiceUrl: {} - read-only: {}", bundle, readOnly);
         }
 
-        CompletableFuture<LookupResult> future = new CompletableFuture<>();
+        CompletableFuture<Optional<LookupResult>> future = new CompletableFuture<>();
 
         // First check if we or someone else already owns the bundle
         ownershipCache.getOwnerAsync(bundle).thenAccept(nsData -> {
@@ -289,8 +294,7 @@ public class NamespaceService {
 
                 if (readOnly) {
                     // Do not attempt to acquire ownership
-                    future.completeExceptionally(
-                            new IllegalStateException(String.format("Can't find owner of ServiceUnit: %s", bundle)));
+                    future.complete(Optional.empty());
                 } else {
                     // Now, no one owns the namespace yet. Hence, we will try to dynamically assign it
                     pulsar.getExecutor().execute(() -> {
@@ -304,7 +308,7 @@ public class NamespaceService {
                 if (LOG.isDebugEnabled()) {
                     LOG.debug("Namespace bundle {} already owned by {} ", bundle, nsData);
                 }
-                future.complete(new LookupResult(nsData.get()));
+                future.complete(Optional.of(new LookupResult(nsData.get())));
             }
         }).exceptionally(exception -> {
             LOG.warn("Failed to check owner for bundle {}: {}", bundle, exception.getMessage(), exception);
@@ -315,8 +319,8 @@ public class NamespaceService {
         return future;
     }
 
-    private void searchForCandidateBroker(NamespaceBundle bundle, CompletableFuture<LookupResult> lookupFuture,
-            boolean authoritative) {
+    private void searchForCandidateBroker(NamespaceBundle bundle,
+            CompletableFuture<Optional<LookupResult>> lookupFuture, boolean authoritative) {
         String candidateBroker = null;
         try {
             // check if this is Heartbeat or SLAMonitor namespace
@@ -331,7 +335,12 @@ public class NamespaceService {
 
             if (candidateBroker == null) {
                 if (!this.loadManager.get().isCentralized() || pulsar.getLeaderElectionService().isLeader()) {
-                    candidateBroker = getLeastLoadedFromLoadManager(bundle);
+                    Optional<String> availableBroker = getLeastLoadedFromLoadManager(bundle);
+                    if (!availableBroker.isPresent()) {
+                        lookupFuture.complete(Optional.empty());
+                        return;
+                    }
+                    candidateBroker = availableBroker.get();
                 } else {
                     if (authoritative) {
                         // leader broker already assigned the current broker as owner
@@ -366,7 +375,7 @@ public class NamespaceService {
                         // Schedule the task to pre-load destinations
                         pulsar.loadNamespaceDestinations(bundle);
 
-                        lookupFuture.complete(new LookupResult(ownerInfo));
+                        lookupFuture.complete(Optional.of(new LookupResult(ownerInfo)));
                     }
                 }).exceptionally(exception -> {
                     LOG.warn("Failed to acquire ownership for namespace bundle {}: ", bundle, exception.getMessage(),
@@ -384,7 +393,8 @@ public class NamespaceService {
                 }
 
                 // Now setting the redirect url
-                createLookupResult(candidateBroker).thenAccept(lookupResult -> lookupFuture.complete(lookupResult))
+                createLookupResult(candidateBroker)
+                        .thenAccept(lookupResult -> lookupFuture.complete(Optional.of(lookupResult)))
                         .exceptionally(ex -> {
                             lookupFuture.completeExceptionally(ex);
                             return null;
@@ -449,22 +459,27 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    private String getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
-        String lookupAddress = loadManager.get().getLeastLoaded(serviceUnit).getResourceId();
+    private Optional<String> getLeastLoadedFromLoadManager(ServiceUnitId serviceUnit) throws Exception {
+        Optional<ResourceUnit> leastLoadedBroker = loadManager.get().getLeastLoaded(serviceUnit);
+        if (!leastLoadedBroker.isPresent()) {
+            LOG.warn("No broker is available for {}", serviceUnit);
+            return Optional.empty();
+        }
+
+        String lookupAddress = leastLoadedBroker.get().getResourceId();
         if (LOG.isDebugEnabled()) {
             LOG.debug("{} : redirecting to the least loaded broker, lookup address={}", pulsar.getWebServiceAddress(),
                     lookupAddress);
         }
-        return lookupAddress;
-    }
-
-    public void unloadNamespace(NamespaceName ns) throws Exception {
-        NamespaceBundle nsFullBundle = getFullBundle(ns);
-        unloadNamespaceBundle(nsFullBundle);
+        return Optional.of(lookupAddress);
     }
 
     public void unloadNamespaceBundle(NamespaceBundle bundle) throws Exception {
-        checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleUnloadRequest(pulsar);
+        unloadNamespaceBundle(bundle, 5, TimeUnit.MINUTES);
+    }
+
+    public void unloadNamespaceBundle(NamespaceBundle bundle, long timeout, TimeUnit timeoutUnit) throws Exception {
+        checkNotNull(ownershipCache.getOwnedBundle(bundle)).handleUnloadRequest(pulsar, timeout, timeoutUnit);
     }
 
     public Map<String, NamespaceOwnershipStatus> getOwnedNameSpacesStatus() throws Exception {
@@ -537,11 +552,11 @@ public class NamespaceService {
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle) throws Exception {
+    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, final boolean unload) throws Exception {
 
-        final CompletableFuture<Void> future = new CompletableFuture<>();
+        final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
 
-        Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
+        final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
                 2 /* by default split into 2 */);
         if (splittedBundles != null) {
             checkNotNull(splittedBundles.getLeft());
@@ -556,43 +571,58 @@ public class NamespaceService {
                 updateNamespaceBundles(nsname, splittedBundles.getLeft(),
                         (rc, path, zkCtx, stat) -> pulsar.getOrderedExecutor().submit(safeRun(() -> {
                             if (rc == KeeperException.Code.OK.intValue()) {
-                                // disable old bundle
                                 try {
-                                    ownershipCache.disableOwnership(bundle);
+                                    // disable old bundle in memory
+                                    getOwnershipCache().updateBundleState(bundle, false);
                                     // invalidate cache as zookeeper has new split
                                     // namespace bundle
                                     bundleFactory.invalidateBundleCache(nsname);
                                     // update bundled_topic cache for load-report-generation
                                     pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
                                     loadManager.get().setLoadReportForceUpdateFlag();
-                                    future.complete(null);
+                                    unloadFuture.complete(null);
                                 } catch (Exception e) {
                                     String msg1 = format(
                                             "failed to disable bundle %s under namespace [%s] with error %s",
                                             nsname.toString(), bundle.toString(), e.getMessage());
                                     LOG.warn(msg1, e);
-                                    future.completeExceptionally(new ServiceUnitNotReadyException(msg1));
+                                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
                                 }
                             } else {
                                 String msg2 = format("failed to update namespace [%s] policies due to %s",
                                         nsname.toString(),
                                         KeeperException.create(KeeperException.Code.get(rc)).getMessage());
                                 LOG.warn(msg2);
-                                future.completeExceptionally(new ServiceUnitNotReadyException(msg2));
+                                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
                             }
                         })));
             } catch (Exception e) {
                 String msg = format("failed to aquire ownership of split bundle for namespace [%s], %s",
                         nsname.toString(), e.getMessage());
                 LOG.warn(msg, e);
-                future.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
             }
 
         } else {
             String msg = format("bundle %s not found under namespace", bundle.toString());
-            future.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
         }
-        return future;
+
+        return unloadFuture.thenApply(res -> {
+            if (!unload) {
+                return null;
+            }
+            // unload new split bundles
+            splittedBundles.getRight().forEach(splitBundle -> {
+                try {
+                    unloadNamespaceBundle(splitBundle);
+                } catch (Exception e) {
+                    LOG.warn("Failed to unload split bundle {}", splitBundle, e);
+                    throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
+                }
+            });
+            return null;
+        });
     }
 
     /**
@@ -619,6 +649,8 @@ public class NamespaceService {
         policies.get().bundles = getBundlesData(nsBundles);
         this.pulsar.getLocalZkCache().getZooKeeper().setData(path,
                 ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies.get()), -1, callback, null);
+        // invalidate namespace's local-policies
+        this.pulsar.getLocalZkCacheService().policiesCache().invalidate(path);
     }
 
     public OwnershipCache getOwnershipCache() {
@@ -694,16 +726,18 @@ public class NamespaceService {
         return getBundle(destinationName);
     }
 
-    public List<String> getListOfDestinations(String property, String cluster, String namespace) throws Exception {
+    public List<String> getListOfDestinations(NamespaceName namespaceName) throws Exception {
         List<String> destinations = Lists.newArrayList();
 
         // For every topic there will be a managed ledger created.
         try {
-            String path = String.format("/managed-ledgers/%s/%s/%s/persistent", property, cluster, namespace);
-            LOG.debug("Getting children from managed-ledgers now: {}", path);
+            String path = String.format("/managed-ledgers/%s/persistent", namespaceName);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Getting children from managed-ledgers now: {}", path);
+            }
+
             for (String destination : pulsar.getLocalZkCacheService().managedLedgerListCache().get(path)) {
-                destinations.add(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace,
-                        Codec.decode(destination)));
+                destinations.add(String.format("persistent://%s/%s", namespaceName, Codec.decode(destination)));
             }
         } catch (KeeperException.NoNodeException e) {
             // NoNode means there are no persistent topics for this namespace
@@ -726,18 +760,19 @@ public class NamespaceService {
         PulsarAdmin adminClient = null;
         String namespaceName = getSLAMonitorNamespace(host, config);
 
-        if (LOG.isDebugEnabled()) {
-            LOG.debug("Trying to unload SLA namespace {}", namespaceName);
-        }
+        LOG.info("Checking owner for SLA namespace {}", namespaceName);
 
-        NamespaceBundle nsFullBundle = getFullBundle(new NamespaceName(namespaceName));
+        NamespaceBundle nsFullBundle = getFullBundle(NamespaceName.get(namespaceName));
         if (!getOwner(nsFullBundle).isPresent()) {
             // No one owns the namespace so no point trying to unload it
+            // Next lookup will assign the bundle to this broker.
             return;
         }
+
+        LOG.info("Trying to unload SLA namespace {}", namespaceName);
         adminClient = pulsar.getAdminClient();
         adminClient.namespaces().unload(namespaceName);
-        LOG.debug("Namespace {} unloaded successfully", namespaceName);
+        LOG.info("Namespace {} unloaded successfully", namespaceName);
     }
 
     public static String getHeartbeatNamespace(String host, ServiceConfiguration config) {

@@ -104,6 +104,33 @@ import _pulsar
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
 
+class MessageId:
+    """
+    Represents a message id
+    """
+
+    'Represents the earliest message stored in a topic'
+    earliest = _pulsar.MessageId.earliest
+
+    'Represents the latest message published on a topic'
+    latest = _pulsar.MessageId.latest
+
+    def serialize(self):
+        """
+        Returns a string representation of the message id.
+        This string can be stored and later deserialized.
+        """
+        return self._msg_id.serialize()
+
+    @staticmethod
+    def deserialize(message_id_str):
+        """
+        Deserialize a message id object from a previously
+        serialized string.
+        """
+        return _pulsar.MessageId.deserialize(message_id_str)
+
+
 class Message:
     """
     Message objects are returned by a consumer, either by calling `receive` or
@@ -112,7 +139,7 @@ class Message:
 
     def data(self):
         """
-        Returns a string with the content of the message.
+        Returns object typed bytes with the content of the message.
         """
         return self._message.data()
 
@@ -158,6 +185,8 @@ class Authentication:
         * `authParamsString`: Comma-separated list of provider-specific
           configuration params
         """
+        _check_type(str, dynamicLibPath, 'dynamicLibPath')
+        _check_type(str, authParamsString, 'authParamsString')
         self.auth = _pulsar.Authentication(dynamicLibPath, authParamsString)
 
 
@@ -175,7 +204,7 @@ class Client:
                  operation_timeout_seconds=30,
                  io_threads=1,
                  message_listener_threads=1,
-                 concurrent_lookup_requests=5000,
+                 concurrent_lookup_requests=50000,
                  log_conf_file_path=None,
                  use_tls=False,
                  tls_trust_certs_file_path=None,
@@ -216,6 +245,17 @@ class Client:
           Configure whether the Pulsar client accepts untrusted TLS certificates
           from the broker.
         """
+        _check_type(str, service_url, 'service_url')
+        _check_type_or_none(Authentication, authentication, 'authentication')
+        _check_type(int, operation_timeout_seconds, 'operation_timeout_seconds')
+        _check_type(int, io_threads, 'io_threads')
+        _check_type(int, message_listener_threads, 'message_listener_threads')
+        _check_type(int, concurrent_lookup_requests, 'concurrent_lookup_requests')
+        _check_type_or_none(str, log_conf_file_path, 'log_conf_file_path')
+        _check_type(bool, use_tls, 'use_tls')
+        _check_type_or_none(str, tls_trust_certs_file_path, 'tls_trust_certs_file_path')
+        _check_type(bool, tls_allow_insecure_connection, 'tls_allow_insecure_connection')
+
         conf = _pulsar.ClientConfiguration()
         if authentication:
             conf.authentication(authentication.auth)
@@ -233,6 +273,8 @@ class Client:
         self._consumers = []
 
     def create_producer(self, topic,
+                        producer_name=None,
+                        initial_sequence_id=None,
                         send_timeout_millis=30000,
                         compression_type=CompressionType.NONE,
                         max_pending_messages=1000,
@@ -251,7 +293,17 @@ class Client:
           The topic name
 
         **Options**
-
+        * `producer_name`:
+           Specify a name for the producer. If not assigned,
+           the system will generate a globally unique name which can be accessed
+           with `Producer.producer_name()`. When specifying a name, it is app to
+           the user to ensure that, for a given topic, the producer name is unique
+           across all Pulsar's clusters.
+        * `initial_sequence_id`:
+           Set the baseline for the sequence ids for messages
+           published by the producer. First message will be using
+           `(initialSequenceId + 1)`` as its sequence id and subsequent messages will
+           be assigned incremental sequence ids, if not otherwise specified.
         * `send_timeout_seconds`:
           If a message is not acknowledged by the server before the
           `send_timeout` expires, an error will be reported.
@@ -267,6 +319,18 @@ class Client:
         * `message_routing_mode`:
           Set the message routing mode for the partitioned producer.
         """
+        _check_type(str, topic, 'topic')
+        _check_type_or_none(str, producer_name, 'producer_name')
+        _check_type_or_none(int, initial_sequence_id, 'initial_sequence_id')
+        _check_type(int, send_timeout_millis, 'send_timeout_millis')
+        _check_type(CompressionType, compression_type, 'compression_type')
+        _check_type(int, max_pending_messages, 'max_pending_messages')
+        _check_type(bool, block_if_queue_full, 'block_if_queue_full')
+        _check_type(bool, batching_enabled, 'batching_enabled')
+        _check_type(int, batching_max_messages, 'batching_max_messages')
+        _check_type(int, batching_max_allowed_size_in_bytes, 'batching_max_allowed_size_in_bytes')
+        _check_type(int, batching_max_publish_delay_ms, 'batching_max_publish_delay_ms')
+
         conf = _pulsar.ProducerConfiguration()
         conf.send_timeout_millis(send_timeout_millis)
         conf.compression_type(compression_type)
@@ -276,6 +340,10 @@ class Client:
         conf.batching_max_messages(batching_max_messages)
         conf.batching_max_allowed_size_in_bytes(batching_max_allowed_size_in_bytes)
         conf.batching_max_publish_delay_ms(batching_max_publish_delay_ms)
+        if producer_name:
+            conf.producer_name(producer_name)
+        if initial_sequence_id:
+            conf.initial_sequence_id(initial_sequence_id)
         p = Producer()
         p._producer = self._client.create_producer(topic, conf)
         return p
@@ -337,6 +405,14 @@ class Client:
           Sets the time duration for which the broker-side consumer stats will
           be cached in the client.
         """
+        _check_type(str, topic, 'topic')
+        _check_type(str, subscription_name, 'subscription_name')
+        _check_type(ConsumerType, consumer_type, 'consumer_type')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type_or_none(str, consumer_name, 'consumer_name')
+        _check_type_or_none(int, unacked_messages_timeout_ms, 'unacked_messages_timeout_ms')
+        _check_type(int, broker_consumer_stats_cache_time_ms, 'broker_consumer_stats_cache_time_ms')
+
         conf = _pulsar.ConsumerConfiguration()
         conf.consumer_type(consumer_type)
         if message_listener:
@@ -353,6 +429,71 @@ class Client:
         self._consumers.append(c)
         return c
 
+    def create_reader(self, topic, start_message_id,
+                      reader_listener=None,
+                      receiver_queue_size=1000,
+                      reader_name=None
+                      ):
+        """
+        Create a reader on a particular topic
+
+        **Args**
+
+        * `topic`: The name of the topic.
+        * `start_message_id`: The initial reader positioning is done by specifying a message id.
+           The options are:
+            * `MessageId.earliest`: Start reading from the earliest message available in the topic
+            * `MessageId.latest`: Start reading from the end topic, only getting messages published
+               after the reader was created
+            * `MessageId`: When passing a particular message id, the reader will position itself on
+               that specific position. The first message to be read will be the message next to the
+               specified messageId. Message id can be serialized into a string and deserialized
+               back into a `MessageId` object:
+
+                   # Serialize to string
+                   s = msg.message_id().serialize()
+
+                   # Deserialize from string
+                   msg_id = MessageId.deserialize(s)
+
+        **Options**
+
+        * `reader_listener`:
+          Sets a message listener for the reader. When the listener is set,
+          the application will receive messages through it. Calls to
+          `reader.read_next()` will not be allowed. The listener function needs
+          to accept (reader, message), for example:
+
+                def my_listener(reader, message):
+                    # process message
+                    pass
+
+        * `receiver_queue_size`:
+          Sets the size of the reader receive queue. The reader receive
+          queue controls how many messages can be accumulated by the reader
+          before the application calls `read_next()`. Using a higher value could
+          potentially increase the reader throughput at the expense of higher
+          memory utilization.
+        * `reader_name`:
+          Sets the reader name.
+        """
+        _check_type(str, topic, 'topic')
+        _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
+        _check_type(int, receiver_queue_size, 'receiver_queue_size')
+        _check_type_or_none(str, reader_name, 'reader_name')
+
+        conf = _pulsar.ReaderConfiguration()
+        if reader_listener:
+            conf.reader_listener(reader_listener)
+        conf.receiver_queue_size(receiver_queue_size)
+        if reader_name:
+            conf.reader_name(reader_name)
+        c = Reader()
+        c._reader = self._client.create_reader(topic, start_message_id, conf)
+        c._client = self
+        self._consumers.append(c)
+        return c
+
     def close(self):
         """
         Close the client and all the associated producers and consumers
@@ -365,9 +506,36 @@ class Producer:
     The Pulsar message producer, used to publish messages on a topic.
     """
 
+    def topic(self):
+        """
+        Return the topic which producer is publishing to
+        """
+        return self._producer.topic()
+
+    def producer_name(self):
+        """
+        Return the producer name which could have been assigned by the
+        system or specified by the client
+        """
+        return self._producer.producer_name()
+
+    def last_sequence_id(self):
+        """
+        Get the last sequence id that was published by this producer.
+
+        This represent either the automatically assigned or custom sequence id
+        (set on the `MessageBuilder`) that was published and acknowledged by the broker.
+
+        After recreating a producer with the same producer name, this will return the
+        last message that was published in the previous producer session, or -1 if
+        there no message was ever published.
+        """
+        return self._producer.last_sequence_id()
+
     def send(self, content,
              properties=None,
              partition_key=None,
+             sequence_id=None,
              replication_clusters=None,
              disable_replication=False
              ):
@@ -386,6 +554,8 @@ class Producer:
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
           to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
@@ -394,13 +564,14 @@ class Producer:
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         return self._producer.send(msg)
 
     def send_async(self, content, callback,
                    properties=None,
                    partition_key=None,
+                   sequence_id=None,
                    replication_clusters=None,
                    disable_replication=False
                    ):
@@ -433,6 +604,8 @@ class Producer:
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
           used to determine the message's destination partition.
+        * `sequence_id`:
+          Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
           and that all clusters have been previously configured as destinations.
@@ -441,7 +614,7 @@ class Producer:
         * `disable_replication`:
           Do not replicate this message.
         """
-        msg = self._build_msg(content, properties, partition_key,
+        msg = self._build_msg(content, properties, partition_key, sequence_id,
                               replication_clusters, disable_replication)
         self._producer.send_async(msg, callback)
 
@@ -449,9 +622,17 @@ class Producer:
         """
         Close the producer.
         """
+        self._producer.close()
 
-    def _build_msg(self, content, properties, partition_key,
+    def _build_msg(self, content, properties, partition_key, sequence_id,
                    replication_clusters, disable_replication):
+        _check_type(bytes, content, 'content')
+        _check_type_or_none(dict, properties, 'properties')
+        _check_type_or_none(str, partition_key, 'partition_key')
+        _check_type_or_none(int, sequence_id, 'sequence_id')
+        _check_type_or_none(list, replication_clusters, 'replication_clusters')
+        _check_type(bool, disable_replication, 'disable_replication')
+
         mb = _pulsar.MessageBuilder()
         mb.content(content)
         if properties:
@@ -459,6 +640,8 @@ class Producer:
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)
+        if sequence_id:
+            mb.sequence_id(sequence_id)
         if replication_clusters:
             mb.replication_clusters(replication_clusters)
         if disable_replication:
@@ -511,6 +694,7 @@ class Consumer:
         if timeout_millis is None:
             return self._consumer.receive()
         else:
+            _check_type(int, timeout_millis, 'timeout_millis')
             return self._consumer.receive(timeout_millis)
 
     def acknowledge(self, message):
@@ -574,3 +758,52 @@ class Consumer:
         """
         self._consumer.close()
         self._client._consumers.remove(self)
+
+
+class Reader:
+    """
+    Pulsar topic reader.
+    """
+
+    def topic(self):
+        """
+        Return the topic this reader is reading from.
+        """
+        return self._reader.topic()
+
+    def read_next(self, timeout_millis=None):
+        """
+        Read a single message.
+
+        If a message is not immediately available, this method will block until
+        a new message is available.
+
+        **Options**
+
+        * `timeout_millis`:
+          If specified, the receive will raise an exception if a message is not
+          available within the timeout.
+        """
+        if timeout_millis is None:
+            return self._reader.read_next()
+        else:
+            _check_type(int, timeout_millis, 'timeout_millis')
+            return self._reader.read_next(timeout_millis)
+
+    def close(self):
+        """
+        Close the reader.
+        """
+        self._reader.close()
+        self._client._consumers.remove(self)
+
+
+def _check_type(var_type, var, name):
+    if not isinstance(var, var_type):
+        raise ValueError("Argument %s is expected to be of type '%s'" % (name, var_type.__name__))
+
+
+def _check_type_or_none(var_type, var, name):
+    if var is not None and not isinstance(var, var_type):
+        raise ValueError("Argument %s is expected to be either None or of type '%s'"
+                         % (name, var_type.__name__))

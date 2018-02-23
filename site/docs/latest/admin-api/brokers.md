@@ -2,6 +2,27 @@
 title: Managing brokers
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Pulsar brokers consist of two components:
 
 1. An HTTP server exposing a [REST interface](../../reference/RestApi) administration and {% popover topic %} lookup.
@@ -11,7 +32,7 @@ Pulsar brokers consist of two components:
 
 * The [`brokers`](../../reference/CliTools#pulsar-admin-brokers) command of the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) tool
 * The `/admin/brokers` endpoint of the admin [REST API](../../reference/RestApi)
-* The `brokers` method of the {% javadoc PulsarAdmin admin com.yahoo.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../clients/Java)
+* The `brokers` method of the {% javadoc PulsarAdmin admin org.apache.pulsar.client.admin.PulsarAdmin %} object in the [Java API](../../clients/Java)
 
 In addition to being configurable when you start them up, brokers can also be [dynamically configured](#dynamic-broker-configuration).
 
@@ -111,7 +132,7 @@ admin.brokers().updateDynamicConfiguration(configName, configValue);
 
 ### List updated values
 
-Fetch a list of all potentially updatable configuraton parameters.
+Fetch a list of all potentially updatable configuration parameters.
 
 #### pulsar-admin
 

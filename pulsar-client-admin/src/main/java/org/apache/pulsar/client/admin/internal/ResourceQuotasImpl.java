@@ -56,7 +56,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     public ResourceQuota getNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
-            NamespaceName ns = new NamespaceName(namespace);
+            NamespaceName ns = NamespaceName.get(namespace);
             return request(
                     quotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
                     .get(ResourceQuota.class);
@@ -68,7 +68,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     public void setNamespaceBundleResourceQuota(String namespace, String bundle, ResourceQuota quota)
             throws PulsarAdminException {
         try {
-            NamespaceName ns = new NamespaceName(namespace);
+            NamespaceName ns = NamespaceName.get(namespace);
             request(
                 quotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
                     .post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
@@ -79,7 +79,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     public void resetNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
-            NamespaceName ns = new NamespaceName(namespace);
+            NamespaceName ns = NamespaceName.get(namespace);
             request(
                 quotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
                     .delete();

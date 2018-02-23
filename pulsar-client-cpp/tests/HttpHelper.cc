@@ -16,21 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
- #include "HttpHelper.h"
+#include "HttpHelper.h"
 
- #include <curl/curl.h>
+#include <curl/curl.h>
 
-
-int makePutRequest(const std::string& url, const std::string& body) {
+static int makeRequest(const std::string& method, const std::string& url, const std::string& body) {
     CURL* curl = curl_easy_init();
 
-    struct curl_slist *list = NULL;
+    struct curl_slist* list = NULL;
 
     list = curl_slist_append(list, "Content-Type: application/json");
 
     curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
     curl_easy_setopt(curl, CURLOPT_URL, url.c_str());
-    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, "PUT");
+    curl_easy_setopt(curl, CURLOPT_CUSTOMREQUEST, method.c_str());
     curl_easy_setopt(curl, CURLOPT_POSTFIELDS, body.c_str());
     int res = curl_easy_perform(curl);
     curl_slist_free_all(list); /* free the list again */
@@ -42,5 +41,11 @@ int makePutRequest(const std::string& url, const std::string& body) {
     long httpResult = 0;
     curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &httpResult);
     curl_easy_cleanup(curl);
-    return (int) httpResult;
+    return (int)httpResult;
+}
+
+int makePutRequest(const std::string& url, const std::string& body) { return makeRequest("PUT", url, body); }
+
+int makePostRequest(const std::string& url, const std::string& body) {
+    return makeRequest("POST", url, body);
 }

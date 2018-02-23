@@ -20,11 +20,19 @@
 
 import argparse
 import traceback
-from google.protobuf.text_format import Merge
-from google.protobuf.text_format import MessageToString
 import sys
-    
-from proto import MLDataFormats_pb2
+try:
+    from google.protobuf.text_format import Merge
+    from google.protobuf.text_format import MessageToString
+except Exception as missingLib:
+    sys.exit("You need python protobuf library. Get it from: pip install protobuf")
+
+try:
+    from proto import MLDataFormats_pb2
+except Exception as missingLib:
+    sys.exit("Incompatible proto/MLDataFormats_pb2.py. Regenerate using: "+ 
+    "protoc -I=${PULSAR_PATH}/managed-ledger/src/main/proto --python_out=${PULSAR_PATH}/bin/proto/ "+
+    "${PULSAR_PATH}/managed-ledger/src/main/proto/MLDataFormats.proto")
 
 try:
     from kazoo.client import KazooClient
@@ -79,7 +87,7 @@ deleteLedgerIds : str
 def deleteLedgerIdsFromManagedLedgerInfo(zk, mlPath, deletLedgerIds):
     try:
         # get managed-ledger info
-        mlData = zk.get(mlPath)[0]
+        (mlData, mlStat) = zk.get(mlPath)
         mlInfo = MLDataFormats_pb2.ManagedLedgerInfo()
         isTextFormat = False
         try:
@@ -98,7 +106,7 @@ def deleteLedgerIdsFromManagedLedgerInfo(zk, mlPath, deletLedgerIds):
                     updatedMlInfo = MessageToString(mlInfo, True)
                 else:
                     updatedMlInfo = mlInfo.SerializeToString(); 
-                zk.set(mlPath, updatedMlInfo, -1)
+                zk.set(mlPath, updatedMlInfo, version=mlStat.version)
                 print 'Updated {} with value\n{}'.format(mlPath, str(mlInfo))
         
     except Exception as e:
@@ -149,7 +157,7 @@ markDeletePosition: str
 ''' 
 def updateCursorMarkDelete(zk, cursorPath, markDeleteLedgerId, markDeleteEntryId):
     try:
-        cursorData = zk.get(cursorPath)[0]
+        (cursorData, cursorStat) = zk.get(cursorPath)
         cursorInfo = MLDataFormats_pb2.ManagedCursorInfo()
         isTextFormat = False
         try:
@@ -164,7 +172,7 @@ def updateCursorMarkDelete(zk, cursorPath, markDeleteLedgerId, markDeleteEntryId
             sData = MessageToString(cursorInfo, True)
         else:
             sData = cursorInfo.SerializeToString()
-        zk.set(cursorPath, sData, -1)
+        zk.set(cursorPath, sData, version=cursorStat.version)
         print 'Updated {} with value \n{}'.format(cursorPath, cursorInfo)
     except Exception as e:
             traceback.print_exc()

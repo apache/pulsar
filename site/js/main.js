@@ -76,8 +76,6 @@ function sidebarExpand() {
   var LS = window.localStorage;
   var selected = LS['pulsar-sidebar-selected'] || null;
 
-  console.log("Initial selected: " + selected);
-
   if (selected != null) {
     openAccordionElement(selected);
   }

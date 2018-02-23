@@ -6,6 +6,27 @@ tags:
 - binary protocol
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Pulsar uses a custom binary protocol for communications between {% popover producers %}/{% popover consumers %} and {% popover brokers %}. This protocol is designed to support required features, such as {% popover acknowledgements %} and flow control, while ensuring maximum transport and implementation efficiency.
 
 Clients and brokers exchange *commands* with each other. Commands are formatted as binary [protocol buffer](https://developers.google.com/protocol-buffers/) (aka *protobuf*) messages. The format of protobuf commands is specified in the [`PulsarApi.proto`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-common/src/main/proto/PulsarApi.proto) file and also documented in the [Protobuf interface](#protobuf-interface) section below.
@@ -22,7 +43,7 @@ Since protobuf doesn't provide any sort of message frame, all messages in the Pu
 The Pulsar protocol allows for two types of commands:
 
 1. *Simple commands* that do not carry a message payload.
-2. *Payload commands* that bear a payload that is used when publishing or delivering messages. In payload commands, the protobuf command data is followed by protobuf [metadata](#metadata-messages) and then the payload, which is passed in raw format outside of protobuf. All sizes are passed as 4-byte unsigned big endian integers.
+2. *Payload commands* that bear a payload that is used when publishing or delivering messages. In payload commands, the protobuf command data is followed by protobuf [metadata](#message-metadata) and then the payload, which is passed in raw format outside of protobuf. All sizes are passed as 4-byte unsigned big endian integers.
 
 {% include admonition.html type='info' content="Message payloads are passed in raw format rather than protobuf format for efficiency reasons." %}
 
@@ -164,7 +185,7 @@ used by broker is 60s).
 
 A valid implementation of a Pulsar client is not required to send the `Ping`
 probe, though it is required to promptly reply after receiving one from the
-broker, in order to prevent the remote side to forcibly close the TCP connection.
+broker in order to prevent the remote side from forcibly closing the TCP connection.
 
 
 ### Producer
@@ -281,7 +302,7 @@ by load balancer to be transferred to a different broker).
 
 When receiving the `CloseProducer`, the client is expected to go through the
 service discovery lookup again and recreate the producer again. The TCP
-connection is not being affected.
+connection is not affected.
 
 ### Consumer
 
@@ -364,7 +385,7 @@ message CommandMessage {
 ```
 
 
-#### Command Ack
+##### Command Ack
 
 An `Ack` is used to signal to the broker that a given message has been
 successfully processed by the application and can be discarded by the broker.
@@ -406,7 +427,7 @@ The protobuf object accepts a list of message ids that the consumer wants to
 be redelivered. If the list is empty, the broker will redeliver all the
 pending messages.
 
-On redelivery, messages an be sent to the same consumer or, in the case of a
+On redelivery, messages can be sent to the same consumer or, in the case of a
 shared subscription, spread across all available consumers.
 
 
@@ -419,6 +440,29 @@ acknowledged.
 The client should use this command to notify the application that no more
 messages are coming from the consumer.
 
+##### Command ConsumerStats
+
+This command is sent by the client to retreive Subscriber and Consumer level 
+stats from the broker.
+Parameters:
+ * `request_id` → Id of the request, used to correlate the request 
+ 		  and the response.
+ * `consumer_id` → Id of an already established consumer.
+
+##### Command ConsumerStatsResponse
+
+This is the broker's response to ConsumerStats request by the client. 
+It contains the Subscriber and Consumer level stats of the `consumer_id` sent in the request.
+If the `error_code` or the `error_message` field is set it indicates that the request has failed.
+
+##### Command Unsubscribe
+
+This command is sent by the client to unsubscribe the `consumer_id` from the associated topic.
+Parameters:
+ * `request_id` → Id of the request.
+ * `consumer_id` → Id of an already established consumer which needs to unsubscribe.
+
+
 ## Service discovery
 
 ### Topic lookup
@@ -428,7 +472,7 @@ reconnect a producer or a consumer. Lookup is used to discover which particular
 broker is serving the topic we are about to use.
 
 Lookup can be done with a REST call as described in the
-[admin API](https://github.com/apache/incubator-pulsar/blob/master/docs/AdminInterface.md#lookup-of-topic)
+[admin API](../admin-api/persistent-topics/#lookup-of-topic)
 docs.
 
 Since Pulsar-1.16 it is also possible to perform the lookup within the binary

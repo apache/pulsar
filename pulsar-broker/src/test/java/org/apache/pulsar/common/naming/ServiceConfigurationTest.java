@@ -29,6 +29,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -36,7 +37,7 @@ import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.testng.annotations.Test;
 
 /**
- * 
+ *
  *
  */
 public class ServiceConfigurationTest {
@@ -45,7 +46,7 @@ public class ServiceConfigurationTest {
 
     /**
      * test {@link ServiceConfiguration} initialization
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -59,9 +60,25 @@ public class ServiceConfigurationTest {
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
     }
 
+    @Test
+    public void testOptionalSettingEmpty() throws Exception {
+        String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=\n";
+        InputStream stream = new ByteArrayInputStream(confFile.getBytes());
+        final ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.empty());
+    }
+
+    @Test
+    public void testOptionalSettingPresent() throws Exception {
+        String confFile = "loadBalancerOverrideBrokerNicSpeedGbps=5\n";
+        InputStream stream = new ByteArrayInputStream(confFile.getBytes());
+        final ServiceConfiguration config = PulsarConfigurationLoader.create(stream, ServiceConfiguration.class);
+        assertEquals(config.getLoadBalancerOverrideBrokerNicSpeedGbps(), Optional.of(5.0));
+    }
+
     /**
      * test {@link ServiceConfiguration} with incorrect values.
-     * 
+     *
      * @throws Exception
      */
     @Test(expectedExceptions = IllegalArgumentException.class)

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkArgument;
+
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +82,20 @@ public class MessageBuilderImpl implements MessageBuilder {
     }
 
     @Override
+    public MessageBuilder setEventTime(long timestamp) {
+        checkArgument(timestamp > 0, "Invalid timestamp : '%s'", timestamp);
+        msgMetadataBuilder.setEventTime(timestamp);
+        return this;
+    }
+
+    @Override
+    public MessageBuilder setSequenceId(long sequenceId) {
+        checkArgument(sequenceId >= 0);
+        msgMetadataBuilder.setSequenceId(sequenceId);
+        return this;
+    }
+
+    @Override
     public MessageBuilder setReplicationClusters(List<String> clusters) {
         Preconditions.checkNotNull(clusters);
         msgMetadataBuilder.clearReplicateTo();
@@ -93,4 +109,6 @@ public class MessageBuilderImpl implements MessageBuilder {
         msgMetadataBuilder.addReplicateTo("__local__");
         return this;
     }
+
+
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker;
 
+import org.apache.pulsar.policies.data.loadbalancer.JSONWritable;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 
 /**
@@ -33,6 +34,9 @@ public class BundleData extends JSONWritable {
     // by the number of long term samples
     // and the bundle update period.
     private TimeAverageMessageData longTermData;
+    
+    // number of topics present under this bundle
+    private int topics;
 
     // For JSON only.
     public BundleData() {
@@ -76,6 +80,7 @@ public class BundleData extends JSONWritable {
     public void update(final NamespaceBundleStats newSample) {
         shortTermData.update(newSample);
         longTermData.update(newSample);
+        this.topics = (int) newSample.topics;
     }
 
     public TimeAverageMessageData getShortTermData() {
@@ -92,5 +97,13 @@ public class BundleData extends JSONWritable {
 
     public void setLongTermData(TimeAverageMessageData longTermData) {
         this.longTermData = longTermData;
+    }
+
+    public int getTopics() {
+        return topics;
+    }
+
+    public void setTopics(int topics) {
+        this.topics = topics;
     }
 }

@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.util.Map;
+
 import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
@@ -52,6 +54,9 @@ public class ConsumerStats {
     
     /** Client library version */
     public String clientVersion;
+
+    /** Metadata (key/value strings) associated with this consumer */
+    public Map<String, String> metadata;
 
     public ConsumerStats add(ConsumerStats stats) {
         checkNotNull(stats);

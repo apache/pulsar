@@ -41,7 +41,7 @@ fi
 
 DOCKER_ORG="${DOCKER_ORG:-apachepulsar}"
 
-docker login -u="$DOCKER_USER" -p="$DOCKER_PASSWORD"
+docker login ${DOCKER_REGISTRY} -u="$DOCKER_USER" -p="$DOCKER_PASSWORD"
 if [ $? -ne 0 ]; then
     echo "Failed to loging to Docker Hub"
     exit 1
@@ -50,23 +50,32 @@ fi
 MVN_VERSION=`./get-version.sh`
 echo "Pulsar version: ${MVN_VERSION}"
 
+if [[ -z ${DOCKER_REGISTRY} ]]; then
+    docker_registry_org=${DOCKER_ORG}
+else
+    docker_registry_org=${DOCKER_REGISTRY}/${DOCKER_ORG}
+    echo "Starting to push images to ${docker_registry_org}..."
+fi
+
 set -x
 
 # Fail if any of the subsequent commands fail
 set -e
 
-docker tag pulsar:latest $DOCKER_ORG/pulsar:latest
-docker tag pulsar-grafana:latest $DOCKER_ORG/pulsar-grafana:latest
-docker tag pulsar-dashboard:latest $DOCKER_ORG/pulsar-dashboard:latest
+docker tag pulsar:latest ${docker_registry_org}/pulsar:latest
+docker tag pulsar-grafana:latest ${docker_registry_org}/pulsar-grafana:latest
+docker tag pulsar-dashboard:latest ${docker_registry_org}/pulsar-dashboard:latest
 
-docker tag pulsar:latest $DOCKER_ORG/pulsar:$MVN_VERSION
-docker tag pulsar-grafana:latest $DOCKER_ORG/pulsar-grafana:$MVN_VERSION
-docker tag pulsar-dashboard:latest $DOCKER_ORG/pulsar-dashboard:$MVN_VERSION
+docker tag pulsar:latest ${docker_registry_org}/pulsar:$MVN_VERSION
+docker tag pulsar-grafana:latest ${docker_registry_org}/pulsar-grafana:$MVN_VERSION
+docker tag pulsar-dashboard:latest ${docker_registry_org}/pulsar-dashboard:$MVN_VERSION
 
 # Push all images and tags
-docker push $DOCKER_ORG/pulsar:latest
-docker push $DOCKER_ORG/pulsar-grafana:latest
-docker push $DOCKER_ORG/pulsar-dashboard:latest
-docker push $DOCKER_ORG/pulsar:$MVN_VERSION
-docker push $DOCKER_ORG/pulsar-grafana:$MVN_VERSION
-docker push $DOCKER_ORG/pulsar-dashboard:$MVN_VERSION
+docker push ${docker_registry_org}/pulsar:latest
+docker push ${docker_registry_org}/pulsar-grafana:latest
+docker push ${docker_registry_org}/pulsar-dashboard:latest
+docker push ${docker_registry_org}/pulsar:$MVN_VERSION
+docker push ${docker_registry_org}/pulsar-grafana:$MVN_VERSION
+docker push ${docker_registry_org}/pulsar-dashboard:$MVN_VERSION
+
+echo "Finished pushing images to ${docker_registry_org}"

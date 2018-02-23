@@ -332,6 +332,9 @@ The Apache Software License, Version 2.0
  * Jetty - org.eclipse.jetty-*.jar
  * SnakeYaml -- org.yaml-snakeyaml-*.jar
  * RocksDB - org.rocksdb.*.jar
+ * HttpClient - org.apache.httpcomponents.httpclient.jar
+ * HttCore - org.apache.httpcomponents.httpcore.jar
+ * CommonsLogging - commons-logging-*.jar
 
 BSD 3-clause "New" or "Revised" License
  * EA Agent Loader -- com.ea.agentloader-*.jar -- licenses/LICENSE-EA-Agent-Loader.txt
@@ -363,3 +366,6 @@ Eclipse Public License 1.0 -- licenses/LICENSE-EPL-1.0.txt
 
 Public Domain (CC0) -- licenses/LICENSE-CC0.txt
  * Reactive Streams -- org.reactivestreams-*.jar
+
+Bouncy Castle License
+ * Bouncy Castle -- org.bouncycastle*.jar -- licenses/LICENSE-bouncycastle.txt

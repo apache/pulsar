@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.commons.collections.CollectionUtils.isEmpty;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -46,6 +47,7 @@ import java.util.concurrent.atomic.LongAdder;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
@@ -61,12 +63,15 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authorization.AuthorizationManager;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
+import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
@@ -79,7 +84,6 @@ import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -87,6 +91,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.PersistentOfflineTopicStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
@@ -94,6 +99,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.FieldParser;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -118,9 +124,8 @@ import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.channel.AdaptiveRecvByteBufAllocator;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
+import io.netty.handler.ssl.SslContext;
 import io.netty.util.concurrent.DefaultThreadFactory;
-import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies> {
     private static final Logger log = LoggerFactory.getLogger(BrokerService.class);
@@ -144,12 +149,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     private final OrderedSafeExecutor topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<DestinationName, PersistentOfflineTopicStats> offlineTopicStatCache;
-    private static final ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = prepareDynamicConfigurationMap();
+    private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = prepareDynamicConfigurationMap();
     private final ConcurrentOpenHashMap<String, Consumer> configRegisteredListeners;
 
     private final ConcurrentLinkedQueue<Pair<String, CompletableFuture<Topic>>> pendingTopicLoadingQueue;
 
-    private AuthorizationManager authorizationManager = null;
+    private AuthorizationService authorizationService = null;
     private final ScheduledExecutorService statsUpdater;
     private final ScheduledExecutorService backlogQuotaChecker;
 
@@ -206,7 +211,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.statsUpdater = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-stats-updater"));
         if (pulsar.getConfiguration().isAuthorizationEnabled()) {
-            this.authorizationManager = new AuthorizationManager(pulsar.getConfiguration(),
+            this.authorizationService = new AuthorizationService(pulsar.getConfiguration(),
                     pulsar.getConfigurationCache());
         }
 
@@ -259,7 +264,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 pulsarStats.recordZkLatencyTimeValue(eventType, latencyMs);
             }
         };
-        PersistentReplicator.setReplicatorQueueSize(pulsar.getConfiguration().getReplicationProducerQueueSize());
     }
 
     public void start() throws Exception {
@@ -287,7 +291,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
             tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort)).sync();
-            log.info("Started Pulsar Broker TLS service on port {}", tlsPort);
+            log.info("Started Pulsar Broker TLS service on port {} - TLS provider: {}", tlsPort,
+                    SslContext.defaultServerProvider());
         }
 
         // start other housekeeping functions
@@ -313,6 +318,12 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             inactivityMonitor.scheduleAtFixedRate(safeRun(() -> checkGC(interval)), interval, interval,
                     TimeUnit.SECONDS);
         }
+
+        // Deduplication info checker
+        long intervalInSeconds = TimeUnit.MINUTES
+                .toSeconds(pulsar().getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes()) / 3;
+        inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkMessageDeduplicationInfo), intervalInSeconds,
+                intervalInSeconds, TimeUnit.SECONDS);
     }
 
     void startMessageExpiryMonitor() {
@@ -390,7 +401,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             serviceUnits.forEach(su -> {
                 if (su instanceof NamespaceBundle) {
                     try {
-                        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) su);
+                        pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) su, 1, TimeUnit.MINUTES);
                     } catch (Exception e) {
                         log.warn("Failed to unload namespace bundle {}", su, e);
                     }
@@ -496,12 +507,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     configuration.setAuthentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                String clusterUrl = configuration.isUseTls()
-                        ? (isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
-                                : data.getServiceUrlTls())
-                        : null;
-                clusterUrl = (isNotBlank(clusterUrl)) ? clusterUrl
-                        : (isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
+                String clusterUrl = null;
+                if (pulsar.getConfiguration().isReplicationTlsEnabled()) {
+                    clusterUrl = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
+                            : data.getServiceUrlTls();
+                    configuration.setUseTls(true);
+                    configuration.setTlsTrustCertsFilePath(pulsar.getConfiguration().getTlsTrustCertsFilePath());
+                    configuration
+                            .setTlsAllowInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                } else {
+                    clusterUrl = isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl()
+                            : data.getServiceUrl();
+                }
                 return new PulsarClientImpl(clusterUrl, configuration, this.workerGroup);
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -561,39 +578,49 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             return;
         }
 
-        getManagedLedgerConfig(destinationName).thenAccept(config -> {
+        getManagedLedgerConfig(destinationName).thenAccept(managedLedgerConfig -> {
             // Once we have the configuration, we can proceed with the async open operation
-
-            managedLedgerFactory.asyncOpen(destinationName.getPersistenceNamingEncoding(), config,
+            managedLedgerFactory.asyncOpen(destinationName.getPersistenceNamingEncoding(), managedLedgerConfig,
                     new OpenLedgerCallback() {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                            PersistentTopic persistentTopic = new PersistentTopic(topic, ledger, BrokerService.this);
+                            try {
+                                PersistentTopic persistentTopic = new PersistentTopic(topic, ledger,
+                                        BrokerService.this);
+                                CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
+                                replicationFuture.thenCompose(v -> {
+                                    // Also check dedup status
+                                    return persistentTopic.checkDeduplicationStatus();
+                                }).thenRun(() -> {
+                                    log.info("Created topic {} - dedup is {}", topic,
+                                            persistentTopic.isDeduplicationEnabled() ? "enabled" : "disabled");
+                                    long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
+                                            - topicCreateTimeMs;
+                                    pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+                                    addTopicToStatsMaps(destinationName, persistentTopic);
+                                    topicFuture.complete(persistentTopic);
+                                }).exceptionally((ex) -> {
+                                    log.warn(
+                                            "Replication or dedup check failed. Removing topic from topics list {}, {}",
+                                            topic, ex);
+                                    persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                        topics.remove(topic, topicFuture);
+                                        topicFuture.completeExceptionally(ex);
+                                    });
 
-                            CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
-                            replicationFuture.thenRun(() -> {
-                                log.info("Created topic {}", topic);
-                                long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
-                                        - topicCreateTimeMs;
-                                pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-                                addTopicToStatsMaps(destinationName, persistentTopic);
-                                topicFuture.complete(persistentTopic);
-                            });
-                            replicationFuture.exceptionally((ex) -> {
-                                log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex);
-                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                    topics.remove(topic, topicFuture);
-                                    topicFuture.completeExceptionally(ex);
+                                    return null;
                                 });
-
-                                return null;
-                            });
+                            } catch (NamingException e) {
+                                log.warn("Failed to create topic {}-{}", topic, e.getMessage());
+                                pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+                                topicFuture.completeExceptionally(e);
+                            }
                         }
 
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Failed to create topic {}", topic, exception);
-                            topics.remove(topic, topicFuture);
+                            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
                             topicFuture.completeExceptionally(new PersistenceException(exception));
                         }
                     }, null);
@@ -616,12 +643,11 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
             // Get persistence policy for this destination
-            Policies policies;
+            Optional<Policies> policies = Optional.empty();
             try {
                 policies = pulsar
                         .getConfigurationCache().policiesCache().get(AdminResource.path(POLICIES,
-                                namespace.getProperty(), namespace.getCluster(), namespace.getLocalName()))
-                        .orElse(null);
+                                namespace.toString()));
             } catch (Throwable t) {
                 // Ignoring since if we don't have policies, we fallback on the default
                 log.warn("Got exception when reading persistence policy for {}: {}", topicName, t.getMessage(), t);
@@ -629,47 +655,44 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 return;
             }
 
-            PersistencePolicies persistencePolicies = policies != null ? policies.persistence : null;
-            RetentionPolicies retentionPolicies = policies != null ? policies.retention_policies : null;
+            PersistencePolicies persistencePolicies = policies.map(p -> p.persistence).orElseGet(
+                    () -> new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
+                            serviceConfig.getManagedLedgerDefaultWriteQuorum(),
+                            serviceConfig.getManagedLedgerDefaultAckQuorum(),
+                            serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit()));
 
-            if (persistencePolicies == null) {
-                // Apply default values
-                persistencePolicies = new PersistencePolicies(serviceConfig.getManagedLedgerDefaultEnsembleSize(),
-                        serviceConfig.getManagedLedgerDefaultWriteQuorum(),
-                        serviceConfig.getManagedLedgerDefaultAckQuorum(),
-                        serviceConfig.getManagedLedgerDefaultMarkDeleteRateLimit());
-            }
+            RetentionPolicies retentionPolicies = policies.map(p -> p.retention_policies).orElseGet(
+                    () -> new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
+                            serviceConfig.getDefaultRetentionSizeInMB())
+            );
 
-            if (retentionPolicies == null) {
-                retentionPolicies = new RetentionPolicies(serviceConfig.getDefaultRetentionTimeInMinutes(),
-                        serviceConfig.getDefaultRetentionSizeInMB());
-            }
+            ManagedLedgerConfig managedLedgerConfig = new ManagedLedgerConfig();
+            managedLedgerConfig.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
+            managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
+            managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
+            managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
+            managedLedgerConfig.setDigestType(DigestType.CRC32);
 
-            ManagedLedgerConfig config = new ManagedLedgerConfig();
-            config.setEnsembleSize(persistencePolicies.getBookkeeperEnsemble());
-            config.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
-            config.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
-            config.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
-            config.setDigestType(DigestType.CRC32);
-
-            config.setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
-            config.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
-            config.setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
+            managedLedgerConfig.setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
+            managedLedgerConfig.setMaxUnackedRangesToPersistInZk(serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInZooKeeper());
+            managedLedgerConfig.setMaxEntriesPerLedger(serviceConfig.getManagedLedgerMaxEntriesPerLedger());
+            managedLedgerConfig.setMinimumRolloverTime(serviceConfig.getManagedLedgerMinLedgerRolloverTimeMinutes(),
                     TimeUnit.MINUTES);
-            config.setMaximumRolloverTime(serviceConfig.getManagedLedgerMaxLedgerRolloverTimeMinutes(),
+            managedLedgerConfig.setMaximumRolloverTime(serviceConfig.getManagedLedgerMaxLedgerRolloverTimeMinutes(),
                     TimeUnit.MINUTES);
-            config.setMaxSizePerLedgerMb(2048);
+            managedLedgerConfig.setMaxSizePerLedgerMb(2048);
 
-            config.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
-            config.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
-            config.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
-            config.setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());
+            managedLedgerConfig.setMetadataEnsembleSize(serviceConfig.getManagedLedgerDefaultEnsembleSize());
+            managedLedgerConfig.setMetadataWriteQuorumSize(serviceConfig.getManagedLedgerDefaultWriteQuorum());
+            managedLedgerConfig.setMetadataAckQuorumSize(serviceConfig.getManagedLedgerDefaultAckQuorum());
+            managedLedgerConfig
+                    .setMetadataMaxEntriesPerLedger(serviceConfig.getManagedLedgerCursorMaxEntriesPerLedger());
 
-            config.setLedgerRolloverTimeout(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds());
-            config.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
-            config.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
+            managedLedgerConfig.setLedgerRolloverTimeout(serviceConfig.getManagedLedgerCursorRolloverTimeInSeconds());
+            managedLedgerConfig.setRetentionTime(retentionPolicies.getRetentionTimeInMinutes(), TimeUnit.MINUTES);
+            managedLedgerConfig.setRetentionSizeInMB(retentionPolicies.getRetentionSizeInMB());
 
-            future.complete(config);
+            future.complete(managedLedgerConfig);
         }, (exception) -> future.completeExceptionally(exception)));
 
         return future;
@@ -708,6 +731,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 // remove old bundle from the map
                 synchronized (multiLayerTopicsMap) {
                     multiLayerTopicsMap.get(oldBundle.getNamespaceObject().toString()).remove(oldBundle.toString());
+                    pulsarStats.invalidBundleStats(oldBundle.toString());
                 }
             }
         } catch (Exception e) {
@@ -763,7 +787,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkGC(int gcIntervalInSeconds) {
         topics.forEach((n, t) -> {
-            Topic topic = t.getNow(null);
+            Topic topic = t.isCompletedExceptionally() ? null : t.getNow(null);
             if (topic != null) {
                 topic.checkGC(gcIntervalInSeconds);
             }
@@ -775,6 +799,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             Topic topic = t.getNow(null);
             if (topic != null) {
                 topic.checkMessageExpiry();
+            }
+        });
+    }
+
+    public void checkMessageDeduplicationInfo() {
+        topics.forEach((n, t) -> {
+            Topic topic = t.getNow(null);
+            if (topic != null) {
+                topic.checkMessageDeduplicationInfo();
             }
         });
     }
@@ -872,8 +905,8 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         return result;
     }
 
-    public AuthorizationManager getAuthorizationManager() {
-        return authorizationManager;
+    public AuthorizationService getAuthorizationService() {
+        return authorizationService;
     }
 
     public void removeTopicFromCache(String topic) {
@@ -924,9 +957,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     @Override
     public void onUpdate(String path, Policies data, Stat stat) {
-        final NamespaceName namespace = new NamespaceName(NamespaceBundleFactory.getNamespaceFromPoliciesPath(path));
+        final NamespaceName namespace = NamespaceName.get(NamespaceBundleFactory.getNamespaceFromPoliciesPath(path));
 
-        log.info("Updated {}", path);
+        log.info("{} updating with {}", path, data);
 
         topics.forEach((name, topicFuture) -> {
             if (namespace.includes(DestinationName.get(name))) {
@@ -959,7 +992,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public boolean isAuthorizationEnabled() {
-        return authorizationManager != null;
+        return authorizationService != null;
     }
 
     public int getKeepAliveIntervalSeconds() {
@@ -998,8 +1031,22 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      * dynamic-ServiceConfiguration field to take appropriate action on change of zk-configuration-map.
      */
     private void updateConfigurationAndRegisterListeners() {
-        // update ServiceConfiguration value by reading zk-configuration-map
+        // (1) Dynamic-config value validation: add validator if updated value required strict check before considering
+        // validate configured load-manager classname present into classpath
+        addDynamicConfigValidator("loadManagerClassName", (className) -> {
+            try {
+                Class.forName(className);
+            } catch (ClassNotFoundException e) {
+                log.warn("Configured load-manager class {} not found {}", className, e.getMessage());
+                return false;
+            }
+            return true;
+        });
+
+        // (2) update ServiceConfiguration value by reading zk-configuration-map
         updateDynamicServiceConfiguration();
+
+        // (3) Listener Registration
         // add listener on "maxConcurrentLookupRequest" value change
         registerConfigurationListener("maxConcurrentLookupRequest",
                 (maxConcurrentLookupRequest) -> lookupRequestSemaphore.set(new Semaphore((int) maxConcurrentLookupRequest, false)));
@@ -1017,9 +1064,64 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 log.warn("Failed to change load manager due to {}", ex);
             }
         });
+        // add listener to update message-dispatch-rate in msg
+        registerConfigurationListener("dispatchThrottlingRatePerTopicInMsg", (dispatchRatePerTopicInMsg) -> {
+            updateTopicMessageDispatchRate();
+        });
+        // add listener to update message-dispatch-rate in byte
+        registerConfigurationListener("dispatchThrottlingRatePerTopicInByte", (dispatchRatePerTopicInByte) -> {
+            updateTopicMessageDispatchRate();
+        });
+        // add listener to update managed-ledger config to skipNonRecoverableLedgers
+        registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
+            updateManagedLedgerConfig();
+        });
         // add more listeners here
     }
 
+    private void updateTopicMessageDispatchRate() {
+        this.pulsar().getExecutor().submit(() -> {
+            // update message-rate for each topic
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    String topicName = null;
+                    try {
+                        if (topicFuture.get() instanceof PersistentTopic) {
+                            PersistentTopic topic = (PersistentTopic) topicFuture.get();
+                            topicName = topicFuture.get().getName();
+                            // it first checks namespace-policy rate and if not present then applies broker-config
+                            topic.getDispatchRateLimiter().updateDispatchRate();
+                        }
+                    } catch (Exception e) {
+                        log.warn("[{}] failed to update message-dispatch rate {}", topicName, e.getMessage());
+                    }
+                }
+            });
+        });
+    }
+
+    private void updateManagedLedgerConfig() {
+        this.pulsar().getExecutor().submit(() -> {
+            // update managed-ledger config of each topic
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    String topicName = null;
+                    try {
+                        if (topicFuture.getNow(null) instanceof PersistentTopic) {
+                            PersistentTopic topic = (PersistentTopic) topicFuture.get();
+                            topicName = topicFuture.get().getName();
+                            // update skipNonRecoverableLedger configuration
+                            topic.getManagedLedger().getConfig().setAutoSkipNonRecoverableData(
+                                    pulsar.getConfiguration().isAutoSkipNonRecoverableData());
+                        }
+                    } catch (Exception e) {
+                        log.warn("[{}] failed to update managed-ledger config", topicName, e);
+                    }
+                }
+            });
+        });
+    }
+    
     /**
      * Allows a listener to listen on update of {@link ServiceConfiguration} change, so listener can take appropriate
      * action if any specific config-field value has been changed.
@@ -1035,11 +1137,33 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
      *            : listener which takes appropriate action on config-value change
      */
     public <T> void registerConfigurationListener(String configKey, Consumer<T> listener) {
+        validateConfigKey(configKey);
         configRegisteredListeners.put(configKey, listener);
     }
 
+    private void addDynamicConfigValidator(String key, Predicate<String> validator) {
+        validateConfigKey(key);
+        if (dynamicConfigurationMap.containsKey(key)) {
+            dynamicConfigurationMap.get(key).validator = validator;
+        }
+    }
+
+    private void validateConfigKey(String key) {
+        try {
+            ServiceConfiguration.class.getDeclaredField(key);
+        } catch (Exception e) {
+            log.error("ServiceConfiguration key {} not found {}", key, e.getMessage());
+            throw new IllegalArgumentException("Invalid service config " + key, e);
+        }
+    }
+
+    /**
+     * Updates pulsar.ServiceConfiguration's dynamic field with value persent into zk-dynamic path. It also validates
+     * dynamic-value before updating it and throws {@code IllegalArgumentException} if validation fails
+     */
     private void updateDynamicServiceConfiguration() {
 
+        Optional<Map<String, String>> configCache = Optional.empty();
         try {
             // create dynamic-config znode if not present
             if (pulsar.getZkClient().exists(BROKER_SERVICE_CONFIGURATION_PATH, false) == null) {
@@ -1051,23 +1175,32 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     // Ok
                 }
             }
-            Optional<Map<String, String>> data = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH);
-            if (data.isPresent() && data.get() != null) {
-                data.get().forEach((key, value) -> {
-                    try {
-                        Field field = ServiceConfiguration.class.getDeclaredField(key);
-                        if (field != null && field.isAnnotationPresent(FieldContext.class)) {
-                            field.setAccessible(true);
-                            field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
-                            log.info("Successfully updated {}/{}", key, value);
-                        }
-                    } catch (Exception e) {
-                        log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
-                    }
-                });
-            }
+            configCache = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH);
         } catch (Exception e) {
             log.warn("Failed to read zookeeper path [{}]:", BROKER_SERVICE_CONFIGURATION_PATH, e);
+        }
+        if (configCache.isPresent()) {
+            configCache.get().forEach((key, value) -> {
+                // validate field
+                if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
+                    if (!dynamicConfigurationMap.get(key).validator.test(value)) {
+                        log.error("Failed to validate dynamic config {} with value {}", key, value);
+                        throw new IllegalArgumentException(
+                                String.format("Failed to validate dynamic-config %s/%s", key, value));
+                    }
+                }
+                // update field value
+                try {
+                    Field field = ServiceConfiguration.class.getDeclaredField(key);
+                    if (field != null && field.isAnnotationPresent(FieldContext.class)) {
+                        field.setAccessible(true);
+                        field.set(pulsar().getConfiguration(), FieldParser.value(value, field));
+                        log.info("Successfully updated {}/{}", key, value);
+                    }
+                } catch (Exception e) {
+                    log.warn("Failed to update service configuration {}/{}, {}", key, value, e.getMessage());
+                }
+            });
         }
         // register a listener: it updates field value and triggers appropriate registered field-listener only if
         // field's value has been changed so, registered doesn't have to update field value in ServiceConfiguration
@@ -1077,7 +1210,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             public void onUpdate(String path, Map<String, String> data, Stat stat) {
                 if (BROKER_SERVICE_CONFIGURATION_PATH.equalsIgnoreCase(path) && data != null) {
                     data.forEach((configKey, value) -> {
-                        Field configField = dynamicConfigurationMap.get(configKey);
+                        Field configField = dynamicConfigurationMap.get(configKey).field;
                         Object newValue = FieldParser.value(data.get(configKey), configField);
                         if (configField != null) {
                             Consumer listener = configRegisteredListeners.get(configKey);
@@ -1102,17 +1235,28 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     }
 
-    public static ConcurrentOpenHashMap<String, Field> getDynamicConfigurationMap() {
-        return dynamicConfigurationMap;
+    public static List<String> getDynamicConfiguration() {
+        return dynamicConfigurationMap.keys();
     }
 
-    private static ConcurrentOpenHashMap<String, Field> prepareDynamicConfigurationMap() {
-        ConcurrentOpenHashMap<String, Field> dynamicConfigurationMap = new ConcurrentOpenHashMap<>();
+    public static boolean isDynamicConfiguration(String key) {
+        return dynamicConfigurationMap.containsKey(key);
+    }
+
+    public static boolean validateDynamicConfiguration(String key, String value) {
+        if (dynamicConfigurationMap.containsKey(key) && dynamicConfigurationMap.get(key).validator != null) {
+            return dynamicConfigurationMap.get(key).validator.test(value);
+        }
+        return true;
+    }
+
+    private static ConcurrentOpenHashMap<String, ConfigField> prepareDynamicConfigurationMap() {
+        ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = new ConcurrentOpenHashMap<>();
         for (Field field : ServiceConfiguration.class.getDeclaredFields()) {
             if (field != null && field.isAnnotationPresent(FieldContext.class)) {
                 field.setAccessible(true);
                 if (((FieldContext) field.getAnnotation(FieldContext.class)).dynamic()) {
-                    dynamicConfigurationMap.put(field.getName(), field);
+                    dynamicConfigurationMap.put(field.getName(), new ConfigField(field));
                 }
             }
         }
@@ -1158,7 +1302,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public OrderedSafeExecutor getTopicOrderedExecutor() {
         return topicOrderedExecutor;
     }
-    
+
     public ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>>> getMultiLayerTopicMap() {
         return multiLayerTopicsMap;
     }
@@ -1273,4 +1417,13 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
     }
 
+    private static class ConfigField {
+        final Field field;
+        Predicate<String> validator;
+
+        public ConfigField(Field field) {
+            super();
+            this.field = field;
+        }
+    }
 }

@@ -50,6 +50,7 @@ import com.github.benmanes.caffeine.cache.Caffeine;
 import com.google.common.base.Charsets;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.hash.HashFunction;
 
@@ -89,6 +90,15 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
             return future;
         });
 
+        // local-policies have been changed which has contains namespace bundles
+        pulsar.getLocalZkCacheService().policiesCache()
+                .registerListener((String path, LocalPolicies data, Stat stat) -> {
+                    String[] paths = path.split(LOCAL_POLICIES_ROOT + "/");
+                    if (paths.length == 2) {
+                        invalidateBundleCache(NamespaceName.get(paths[1]));
+                    }
+                });
+
         if (pulsar != null && pulsar.getConfigurationCache() != null) {
             pulsar.getLocalZkCacheService().policiesCache().registerListener(this);
         }
@@ -98,7 +108,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
 
     @Override
     public void onUpdate(String path, LocalPolicies data, Stat stat) {
-        final NamespaceName namespace = new NamespaceName(getNamespaceFromPoliciesPath(path));
+        final NamespaceName namespace = NamespaceName.get(getNamespaceFromPoliciesPath(path));
 
         try {
             LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
@@ -138,6 +148,16 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return new NamespaceBundle(nsname, hashRange, this);
     }
 
+    public NamespaceBundle getBundle(String namespace, String bundleRange) {
+        checkArgument(bundleRange.contains("_"), "Invalid bundle range");
+        String[] boundaries = bundleRange.split("_");
+        Long lowerEndpoint = Long.decode(boundaries[0]);
+        Long upperEndpoint = Long.decode(boundaries[1]);
+        Range<Long> hashRange = Range.range(lowerEndpoint, BoundType.CLOSED, upperEndpoint,
+                (upperEndpoint.equals(NamespaceBundles.FULL_UPPER_BOUND)) ? BoundType.CLOSED : BoundType.OPEN);
+        return getBundle(NamespaceName.get(namespace), hashRange);
+    }
+    
     public NamespaceBundle getFullBundle(NamespaceName fqnn) throws Exception {
         return bundlesCache.synchronous().get(fqnn).getFullBundle();
     }
@@ -183,6 +203,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
      */
     public Pair<NamespaceBundles, List<NamespaceBundle>> splitBundles(NamespaceBundle targetBundle, int numBundles)
             throws Exception {
+        checkArgument(canSplitBundle(targetBundle), "%s bundle can't be split further", targetBundle);
         checkNotNull(targetBundle, "can't split null bundle");
         checkNotNull(targetBundle.getNamespaceObject(), "namespace must be present");
         NamespaceName nsname = targetBundle.getNamespaceObject();
@@ -193,8 +214,8 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         final long[] partitions = new long[sourceBundle.partitions.length + (numBundles - 1)];
         int pos = 0;
         int splitPartition = -1;
+        final Range<Long> range = targetBundle.getKeyRange();
         for (int i = 0; i < lastIndex; i++) {
-            final Range<Long> range = targetBundle.getKeyRange();
             if (sourceBundle.partitions[i] == range.lowerEndpoint()
                     && (range.upperEndpoint() == sourceBundle.partitions[i + 1])) {
                 splitPartition = i;
@@ -221,12 +242,17 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         return null;
     }
 
+    public boolean canSplitBundle(NamespaceBundle bundle) {
+        Range<Long> range = bundle.getKeyRange();
+        return range.upperEndpoint() - range.lowerEndpoint() > 1;
+    }
+
     public static void validateFullRange(SortedSet<String> partitions) {
         checkArgument(partitions.first().equals(FIRST_BOUNDARY) && partitions.last().equals(LAST_BOUNDARY));
     }
 
-    public static NamespaceBundleFactory createFactory(HashFunction hashFunc) {
-        return new NamespaceBundleFactory(null, hashFunc);
+    public static NamespaceBundleFactory createFactory(PulsarService pulsar, HashFunction hashFunc) {
+        return new NamespaceBundleFactory(pulsar, hashFunc);
     }
 
     public static boolean isFullBundle(String bundleRange) {

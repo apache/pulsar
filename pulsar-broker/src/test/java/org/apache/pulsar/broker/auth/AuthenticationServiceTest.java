@@ -41,7 +41,7 @@ public class AuthenticationServiceTest {
 
     private static final String s_authentication_success = "authenticated";
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthentication() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
@@ -50,9 +50,10 @@ public class AuthenticationServiceTest {
         AuthenticationService service = new AuthenticationService(config);
         String result = service.authenticate(null, "auth");
         assertEquals(result, s_authentication_success);
+        service.close();
     }
 
-    @Test
+    @Test(timeOut = 10000)
     public void testAuthenticationHttp() throws Exception {
         ServiceConfiguration config = new ServiceConfiguration();
         Set<String> providersClassNames = Sets.newHashSet(MockAuthenticationProvider.class.getName());
@@ -65,6 +66,7 @@ public class AuthenticationServiceTest {
         when(request.getHeader(anyString())).thenReturn("data");
         String result = service.authenticateHttpRequest(request);
         assertEquals(result, s_authentication_success);
+        service.close();
     }
 
     public static class MockAuthenticationProvider implements AuthenticationProvider {

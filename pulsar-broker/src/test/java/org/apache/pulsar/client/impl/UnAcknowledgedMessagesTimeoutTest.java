@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -169,6 +170,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 20;
         final int numberOfPartitions = 3;
+        admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 
@@ -258,6 +260,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 10;
         final int numberOfPartitions = 3;
+        admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
         // Special step to create partitioned topic
 

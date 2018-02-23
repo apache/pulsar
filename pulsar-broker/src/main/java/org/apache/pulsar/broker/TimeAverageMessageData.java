@@ -161,4 +161,22 @@ public class TimeAverageMessageData {
     public void setMsgRateOut(double msgRateOut) {
         this.msgRateOut = msgRateOut;
     }
+    
+    /**
+     * Get the total message rate.
+     * 
+     * @return Message rate in + message rate out.
+     */
+    public double totalMsgRate() {
+        return msgRateIn + msgRateOut;
+    }
+
+    /**
+     * Get the total message throughput.
+     * 
+     * @return Message throughput in + message throughput out.
+     */
+    public double totalMsgThroughput() {
+        return msgThroughputIn + msgThroughputOut;
+    }
 }

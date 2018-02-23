@@ -2,6 +2,27 @@
 title: Managing non-persistent topics
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Non-persistent can be used in applications that only want to consume real time published messages and
 do not need persistent guarantee that can also reduce message-publish latency by removing overhead of
 persisting messages.
@@ -206,7 +227,7 @@ Field | Meaning
 #### pulsar-admin
 
 ```shell
-$ pulsar-admin persistent get-partitioned-topic-metadata \
+$ pulsar-admin non-persistent get-partitioned-topic-metadata \
   non-persistent://my-property/my-cluster-my-namespace/my-topic
 {
   "partitions": 4
@@ -223,4 +244,30 @@ $ pulsar-admin persistent get-partitioned-topic-metadata \
 ```java
 String topicName = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
 admin.nonPersistentTopics().getPartitionedTopicMetadata(topicName);
+```
+
+### Unload topic
+
+It unloads a topic.
+
+#### pulsar-admin
+
+Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
+
+```shell
+$ pulsar-admin non-persistent unload \
+  non-persistent://test-property/cl1/ns1/tp1 \
+```
+
+#### REST API
+
+{% endpoint PUT /admin/non-persistent/:property/:cluster/:namespace/:destination/unload %}
+
+[More info](../../reference/RestApi#/admin/non-persistent/:property/:cluster/:namespace/:destination/unload)
+
+#### Java
+
+```java
+String destination = "non-persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.nonPersistentTopics().unload(destination);
 ```

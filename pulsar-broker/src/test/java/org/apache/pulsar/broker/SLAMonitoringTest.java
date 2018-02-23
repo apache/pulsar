@@ -88,9 +88,12 @@ public class SLAMonitoringTest {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setClusterName("my-cluster");
+            config.setAdvertisedAddress("localhost");
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
+            config.setDefaultNumberOfNamespaceBundles(1);
+            config.setLoadBalancerEnabled(false);
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
@@ -114,7 +117,7 @@ public class SLAMonitoringTest {
             throws PulsarClientException, MalformedURLException, PulsarAdminException {
         ClusterData clusterData = new ClusterData();
         clusterData.setServiceUrl(pulsarAdmin.getServiceUrl().toString());
-        pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
+        pulsarAdmins[0].clusters().updateCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add("my-cluster");
         PropertyAdmin adminConfig = new PropertyAdmin();

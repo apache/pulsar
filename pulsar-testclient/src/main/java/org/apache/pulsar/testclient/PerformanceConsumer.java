@@ -18,25 +18,33 @@
  */
 package org.apache.pulsar.testclient;
 
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
 import java.io.FileInputStream;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.text.DecimalFormat;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.HdrHistogram.Histogram;
+import org.HdrHistogram.Recorder;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
@@ -54,6 +62,10 @@ public class PerformanceConsumer {
     private static final LongAdder messagesReceived = new LongAdder();
     private static final LongAdder bytesReceived = new LongAdder();
     private static final DecimalFormat dec = new DecimalFormat("0.000");
+
+    private static Recorder recorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+    private static Recorder cumulativeRecorder = new Recorder(TimeUnit.DAYS.toMillis(10), 5);
+
 
     static class Arguments {
 
@@ -109,6 +121,13 @@ public class PerformanceConsumer {
         @Parameter(names = {
                 "--trust-cert-file" }, description = "Path for the trusted TLS certificate file")
         public String tlsTrustCertsFilePath = "";
+
+        @Parameter(names = { "-k", "--encryption-key-name" }, description = "The private key name to decrypt payload")
+        public String encKeyName = null;
+
+        @Parameter(names = { "-v",
+                "--encryption-key-value-file" }, description = "The file which contains the private key to decrypt payload")
+        public String encKeyFile = null;
     }
 
     public static void main(String[] args) throws Exception {
@@ -187,6 +206,10 @@ public class PerformanceConsumer {
                     limiter.acquire();
                 }
 
+                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+                recorder.recordValue(latencyMillis);
+                cumulativeRecorder.recordValue(latencyMillis);
+
                 consumer.acknowledgeAsync(msg);
             }
         };
@@ -202,11 +225,38 @@ public class PerformanceConsumer {
         clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
+        class EncKeyReader implements CryptoKeyReader {
+
+            EncryptionKeyInfo keyInfo = new EncryptionKeyInfo();
+
+            EncKeyReader(byte[] value) {
+                keyInfo.setKey(value);
+            }
+
+            @Override
+            public EncryptionKeyInfo getPublicKey(String keyName, Map<String, String> keyMeta) {
+                return null;
+            }
+
+            @Override
+            public EncryptionKeyInfo getPrivateKey(String keyName, Map<String, String> keyMeta) {
+                if (keyName.equals(arguments.encKeyName)) {
+                    return keyInfo;
+                }
+                return null;
+            }
+        }
         List<Future<Consumer>> futures = Lists.newArrayList();
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
         consumerConfig.setMessageListener(listener);
         consumerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
         consumerConfig.setSubscriptionType(arguments.subscriptionType);
+
+        if (arguments.encKeyName != null) {
+            byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
+            EncKeyReader keyReader = new EncKeyReader(pKey);
+            consumerConfig.setCryptoKeyReader(keyReader);
+        }
 
         for (int i = 0; i < arguments.numDestinations; i++) {
             final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixDestinationName
@@ -232,7 +282,17 @@ public class PerformanceConsumer {
         log.info("Start receiving from {} consumers on {} destinations", arguments.numConsumers,
                 arguments.numDestinations);
 
+        Runtime.getRuntime().addShutdownHook(new Thread() {
+            public void run() {
+                printAggregatedStats();
+            }
+        });
+
+
         long oldTime = System.nanoTime();
+
+        Histogram reportHistogram = null;
+
 
         while (true) {
             try {
@@ -247,10 +307,39 @@ public class PerformanceConsumer {
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
             log.info("Throughput received: {}  msg/s -- {} Mbit/s", dec.format(rate), dec.format(throughput));
+
+            reportHistogram = recorder.getIntervalHistogram(reportHistogram);
+
+            log.info(
+                    "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
+                    dec.format(rate), dec.format(throughput),
+                    dec.format(reportHistogram.getMean()),
+                    dec.format(reportHistogram.getValueAtPercentile(50)),
+                    dec.format(reportHistogram.getValueAtPercentile(95)),
+                    dec.format(reportHistogram.getValueAtPercentile(99)),
+                    dec.format(reportHistogram.getValueAtPercentile(99.9)),
+                    dec.format(reportHistogram.getValueAtPercentile(99.99)),
+                    dec.format(reportHistogram.getMaxValue()));
+
+            reportHistogram.reset();
             oldTime = now;
         }
 
         pulsarClient.close();
+    }
+    private static void printAggregatedStats() {
+        Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
+
+        log.info(
+                "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
+                dec.format(reportHistogram.getMean() / 1000.0),
+                dec.format(reportHistogram.getValueAtPercentile(50)),
+                dec.format(reportHistogram.getValueAtPercentile(95)),
+                dec.format(reportHistogram.getValueAtPercentile(99)),
+                dec.format(reportHistogram.getValueAtPercentile(99.9)),
+                dec.format(reportHistogram.getValueAtPercentile(99.99)),
+                dec.format(reportHistogram.getValueAtPercentile(99.999)),
+                dec.format(reportHistogram.getMaxValue()));
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);

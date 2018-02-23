@@ -3,6 +3,27 @@ title: Simulation tools
 tags: [simulation]
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 It is sometimes necessary create an test environment and incur artificial load to observe how well load managers
 handle the load. The load simulation controller, the load simulation client, and the broker monitor were created as an
 effort to make create this load and observe the effects on the managers more easily.
@@ -39,7 +60,7 @@ pulsar-perf simulation-controller --cluster <cluster to simulate on> --client-po
 The clients should already be started before the controller is started. You will then be presented with a simple prompt,
 where you can issue commands to simulation clients. Arguments often refer to tenant names, namespace names, and topic
 names. In all cases, the BASE name of the tenants, namespaces, and topics are used. For example, for the topic
-`persistent://my_cluster/my_tenant/my_namespace/my_topic`, the tenant name is `my_tenant`, the namespace name is
+`persistent://my_tenant/my_cluster/my_namespace/my_topic`, the tenant name is `my_tenant`, the namespace name is
 `my_namespace`, and the topic name is `my_topic`. The controller can perform the following actions:
 
 * Create a topic with a producer and a consumer

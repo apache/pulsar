@@ -8,6 +8,26 @@ tags:
 next: ../Clients
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
 
 For the purposes of local development and testing, you can run Pulsar in {% popover standalone %}
 mode on your own machine within a Docker container.
@@ -19,11 +39,11 @@ and follow the instructions for your OS.
 
 ```shell
 $ docker run -it \
-    -p 6650:6650 \
-    -p 8080:8080 \
-    -v $PWD/data:/pulsar/data \
-    apachepulsar/pulsar:{{site.current_version}} \
-    bin/pulsar standalone --advertised-address 127.0.0.1
+  -p 6650:6650 \
+  -p 8080:8080 \
+  -v $PWD/data:/pulsar/data \
+  apachepulsar/pulsar:{{site.current_version}} \
+  bin/pulsar standalone --advertised-address 127.0.0.1
 ```
 
 A few things to note about this command:
@@ -113,50 +133,50 @@ The output will be something like this:
 
 ```json
 {
-    "averageMsgSize": 0.0,
-    "msgRateIn": 0.0,
-    "msgRateOut": 0.0,
-    "msgThroughputIn": 0.0,
-    "msgThroughputOut": 0.0,
-    "publishers": [
-        {
-            "address": "/172.17.0.1:35048",
-            "averageMsgSize": 0.0,
-            "clientVersion": "1.19.0-incubating",
-            "connectedSince": "2017-08-09 20:59:34.621+0000",
-            "msgRateIn": 0.0,
-            "msgThroughputIn": 0.0,
-            "producerId": 0,
-            "producerName": "standalone-0-1"
-        }
-    ],
-    "replication": {},
-    "storageSize": 16,
-    "subscriptions": {
-        "my-sub": {
-            "blockedSubscriptionOnUnackedMsgs": false,
-            "consumers": [
-                {
-                    "address": "/172.17.0.1:35064",
-                    "availablePermits": 996,
-                    "blockedConsumerOnUnackedMsgs": false,
-                    "clientVersion": "1.19.0-incubating",
-                    "connectedSince": "2017-08-09 21:05:39.222+0000",
-                    "consumerName": "166111",
-                    "msgRateOut": 0.0,
-                    "msgRateRedeliver": 0.0,
-                    "msgThroughputOut": 0.0,
-                    "unackedMessages": 0
-                }
-            ],
-            "msgBacklog": 0,
-            "msgRateExpired": 0.0,
-            "msgRateOut": 0.0,
-            "msgRateRedeliver": 0.0,
-            "msgThroughputOut": 0.0,
-            "type": "Exclusive",
-            "unackedMessages": 0
-        }
+  "averageMsgSize": 0.0,
+  "msgRateIn": 0.0,
+  "msgRateOut": 0.0,
+  "msgThroughputIn": 0.0,
+  "msgThroughputOut": 0.0,
+  "publishers": [
+    {
+      "address": "/172.17.0.1:35048",
+      "averageMsgSize": 0.0,
+      "clientVersion": "1.19.0-incubating",
+      "connectedSince": "2017-08-09 20:59:34.621+0000",
+      "msgRateIn": 0.0,
+      "msgThroughputIn": 0.0,
+      "producerId": 0,
+      "producerName": "standalone-0-1"
     }
+  ],
+  "replication": {},
+  "storageSize": 16,
+  "subscriptions": {
+    "my-sub": {
+      "blockedSubscriptionOnUnackedMsgs": false,
+      "consumers": [
+        {
+          "address": "/172.17.0.1:35064",
+          "availablePermits": 996,
+          "blockedConsumerOnUnackedMsgs": false,
+          "clientVersion": "1.19.0-incubating",
+          "connectedSince": "2017-08-09 21:05:39.222+0000",
+          "consumerName": "166111",
+          "msgRateOut": 0.0,
+          "msgRateRedeliver": 0.0,
+          "msgThroughputOut": 0.0,
+          "unackedMessages": 0
+        }
+      ],
+      "msgBacklog": 0,
+      "msgRateExpired": 0.0,
+      "msgRateOut": 0.0,
+      "msgRateRedeliver": 0.0,
+      "msgThroughputOut": 0.0,
+      "type": "Exclusive",
+      "unackedMessages": 0
+    }
+  }
 }
 ```

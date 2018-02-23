@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.client.api.MessageId;
@@ -34,7 +35,6 @@ import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.SendCallback;
 import org.apache.pulsar.common.policies.data.NonPersistentReplicatorStats;
-import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,12 +50,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     private final NonPersistentReplicatorStats stats = new NonPersistentReplicatorStats();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
-            BrokerService brokerService) {
+            BrokerService brokerService) throws NamingException {
         super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
 
-        producerConfiguration
-                .setMaxPendingMessages(brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize());
-        producerConfiguration.setBlockIfQueueFull(false);
+        producerBuilder.blockIfQueueFull(false);
 
         startProducer();
     }
@@ -181,9 +179,9 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
             recycle();
         }
 
-        private final Handle recyclerHandle;
+        private final Handle<ProducerSendCallback> recyclerHandle;
 
-        private ProducerSendCallback(Handle recyclerHandle) {
+        private ProducerSendCallback(Handle<ProducerSendCallback> recyclerHandle) {
             this.recyclerHandle = recyclerHandle;
         }
 
@@ -202,12 +200,12 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
                 msg.recycle();
                 msg = null;
             }
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
 
         private static final Recycler<ProducerSendCallback> RECYCLER = new Recycler<ProducerSendCallback>() {
             @Override
-            protected ProducerSendCallback newObject(Handle handle) {
+            protected ProducerSendCallback newObject(Handle<ProducerSendCallback> handle) {
                 return new ProducerSendCallback(handle);
             }
 

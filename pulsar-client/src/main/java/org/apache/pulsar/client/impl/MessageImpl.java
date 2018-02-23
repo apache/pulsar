@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -58,7 +59,7 @@ public class MessageImpl implements Message {
         msg.messageId = null;
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
-        msg.properties = Collections.emptyMap();
+        msg.properties = null;
         return msg;
     }
 
@@ -75,12 +76,8 @@ public class MessageImpl implements Message {
         this.payload = Unpooled.copiedBuffer(payload);
 
         if (msgMetadata.getPropertiesCount() > 0) {
-            Map<String, String> properties = Maps.newTreeMap();
-            for (KeyValue entry : msgMetadata.getPropertiesList()) {
-                properties.put(entry.getKey(), entry.getValue());
-            }
-
-            this.properties = Collections.unmodifiableMap(properties);
+            this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                    .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
         } else {
             properties = Collections.emptyMap();
         }
@@ -103,6 +100,10 @@ public class MessageImpl implements Message {
         } else {
             properties = Collections.emptyMap();
         }
+
+        if (singleMessageMetadata.hasPartitionKey()) {
+            msgMetadataBuilder.setPartitionKey(singleMessageMetadata.getPartitionKey());
+        }
     }
 
     public MessageImpl(String msgId, Map<String, String> properties, byte[] payload) {
@@ -110,9 +111,14 @@ public class MessageImpl implements Message {
     }
 
     public MessageImpl(String msgId, Map<String, String> properties, ByteBuf payload) {
-        long ledgerId = Long.parseLong(msgId.substring(0, msgId.indexOf(':')));
-        long entryId = Long.parseLong(msgId.substring(msgId.indexOf(':') + 1));
-        this.messageId = new MessageIdImpl(ledgerId, entryId, -1);
+        String[] data = msgId.split(":");
+        long ledgerId = Long.parseLong(data[0]);
+        long entryId = Long.parseLong(data[1]);
+        if (data.length == 3) {
+            this.messageId = new BatchMessageIdImpl(ledgerId, entryId, -1, Integer.parseInt(data[2]));
+        } else {
+            this.messageId = new MessageIdImpl(ledgerId, entryId, -1);
+        }
         this.cnx = null;
         this.payload = payload;
         this.properties = Collections.unmodifiableMap(properties);
@@ -152,6 +158,15 @@ public class MessageImpl implements Message {
         return msgMetadataBuilder.getPublishTime();
     }
 
+    @Override
+    public long getEventTime() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasEventTime()) {
+            return msgMetadataBuilder.getEventTime();
+        }
+        return 0;
+    }
+
     public boolean isExpired(int messageTTLInSeconds) {
         return messageTTLInSeconds != 0
                 && System.currentTimeMillis() > (getPublishTime() + TimeUnit.SECONDS.toMillis(messageTTLInSeconds));
@@ -169,6 +184,24 @@ public class MessageImpl implements Message {
         }
     }
 
+    @Override
+    public long getSequenceId() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasSequenceId()) {
+            return msgMetadataBuilder.getSequenceId();
+        }
+        return -1;
+    }
+
+    @Override
+    public String getProducerName() {
+        checkNotNull(msgMetadataBuilder);
+        if (msgMetadataBuilder.hasProducerName()) {
+            return msgMetadataBuilder.getProducerName();
+        }
+        return null;
+    }
+
     ByteBuf getDataBuffer() {
         return payload;
     }
@@ -180,13 +213,21 @@ public class MessageImpl implements Message {
     }
 
     @Override
-    public Map<String, String> getProperties() {
-        return properties;
+    public synchronized Map<String, String> getProperties() {
+        if (this.properties == null) {
+            if (msgMetadataBuilder.getPropertiesCount() > 0) {
+                this.properties = Collections.unmodifiableMap(msgMetadataBuilder.getPropertiesList().stream()
+                        .collect(Collectors.toMap(KeyValue::getKey, KeyValue::getValue)));
+            } else {
+                this.properties = Collections.emptyMap();
+            }
+        }
+        return this.properties;
     }
 
     @Override
     public boolean hasProperty(String name) {
-        return properties.containsKey(name);
+        return getProperties().containsKey(name);
     }
 
     @Override
@@ -221,19 +262,19 @@ public class MessageImpl implements Message {
         properties = null;
 
         if (recyclerHandle != null) {
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
     }
 
-    private MessageImpl(Handle recyclerHandle) {
+    private MessageImpl(Handle<MessageImpl> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
-    private Handle recyclerHandle;
+    private Handle<MessageImpl> recyclerHandle;
 
     private final static Recycler<MessageImpl> RECYCLER = new Recycler<MessageImpl>() {
         @Override
-        protected MessageImpl newObject(Handle handle) {
+        protected MessageImpl newObject(Handle<MessageImpl> handle) {
             return new MessageImpl(handle);
         }
     };

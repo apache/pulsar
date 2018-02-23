@@ -21,33 +21,34 @@ package org.apache.pulsar.websocket;
 import static com.google.common.base.Preconditions.checkArgument;
 
 import java.io.IOException;
-import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.Base64;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WriteCallback;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Enums;
 import com.google.common.base.Splitter;
 
 /**
@@ -69,7 +70,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();
-    
+
     private final LongAdder numMsgsDelivered;
     private final LongAdder numBytesDelivered;
     private final LongAdder numMsgsAcked;
@@ -77,33 +78,44 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     private static final AtomicLongFieldUpdater<ConsumerHandler> MSG_DELIVERED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ConsumerHandler.class, "msgDeliveredCounter");
 
-    public ConsumerHandler(WebSocketService service, HttpServletRequest request) {
-        super(service, request);
+    public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        super(service, request, response);
         this.subscription = extractSubscription(request);
         this.conf = getConsumerConfiguration();
         this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
-        
-    }
 
-    @Override
-    protected void createClient(Session session) {
+        if (!authResult) {
+            return;
+        }
+
         try {
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
-            this.service.addConsumer(this);
-            receiveMessage();
+            if (!this.service.addConsumer(this)) {
+                log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic);
+            }
         } catch (Exception e) {
-            log.warn("[{}] Failed in creating subscription {} on topic {}", session.getRemoteAddress(), subscription,
-                    topic, e);
-            close(WebSocketError.FailedToSubscribe, e.getMessage());
+            log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
+                    request.getRemotePort(), subscription, topic, e);
+            boolean configError = e instanceof IllegalArgumentException;
+            int errorCode = configError ? HttpServletResponse.SC_BAD_REQUEST
+                    : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+            String errorMsg = configError ? "Invalid query-param " + e.getMessage() : "Failed to subscribe";
+            try {
+                response.sendError(errorCode, errorMsg);
+            } catch (IOException e1) {
+                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                        e1.getMessage(), e1);
+            }
         }
     }
 
     private void receiveMessage() {
         if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] [{}] Receive next message", getSession().getRemoteAddress(), topic, subscription);
+            log.debug("[{}:{}] [{}] [{}] Receive next message", request.getRemoteAddr(), request.getRemotePort(), topic, subscription);
         }
 
         consumer.receiveAsync().thenAccept(msg -> {
@@ -116,7 +128,10 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             dm.messageId = Base64.getEncoder().encodeToString(msg.getMessageId().toByteArray());
             dm.payload = Base64.getEncoder().encodeToString(msg.getData());
             dm.properties = msg.getProperties();
-            dm.publishTime = DATE_FORMAT.format(Instant.ofEpochMilli(msg.getPublishTime()));
+            dm.publishTime = DateFormatter.format(msg.getPublishTime());
+            if (msg.getEventTime() != 0) {
+                dm.eventTime = DateFormatter.format(msg.getEventTime());
+            }
             if (msg.hasKey()) {
                 dm.key = msg.getKey();
             }
@@ -158,6 +173,12 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
+    public void onWebSocketConnect(Session session) {
+        super.onWebSocketConnect(session);
+        receiveMessage();
+    }
+
+    @Override
     public void onWebSocketText(String message) {
         super.onWebSocketText(message);
 
@@ -185,7 +206,9 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     @Override
     public void close() throws IOException {
         if (consumer != null) {
-            this.service.removeConsumer(this);
+            if (!this.service.removeConsumer(this)) {
+                log.warn("[{}] Failed to remove consumer handler", consumer.getTopic());
+            }
             consumer.closeAsync().thenAccept(x -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Closed consumer asynchronously", consumer.getTopic());
@@ -224,7 +247,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
     public long getMsgDeliveredCounter() {
         return MSG_DELIVERED_COUNTER_UPDATER.get(this);
     }
-    
+
     protected void updateDeliverMsgStat(long msgSize) {
         numMsgsDelivered.increment();
         MSG_DELIVERED_COUNTER_UPDATER.incrementAndGet(this);
@@ -239,6 +262,8 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("subscriptionType")) {
+            checkArgument(Enums.getIfPresent(SubscriptionType.class, queryParams.get("subscriptionType")).isPresent(),
+                    "Invalid subscriptionType %s", queryParams.get("subscriptionType"));
             conf.setSubscriptionType(SubscriptionType.valueOf(queryParams.get("subscriptionType")));
         }
 
@@ -250,12 +275,17 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
             conf.setConsumerName(queryParams.get("consumerName"));
         }
 
+        if (queryParams.containsKey("priorityLevel")) {
+            conf.setPriorityLevel(Integer.parseInt(queryParams.get("priorityLevel")));
+        }
+
         return conf;
     }
 
     @Override
-    protected Boolean isAuthorized(String authRole) throws Exception {
-        return service.getAuthorizationManager().canConsume(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canConsume(DestinationName.get(topic), authRole, authenticationData,
+                this.subscription);
     }
 
     private static String extractSubscription(HttpServletRequest request) {
@@ -266,13 +296,11 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
         checkArgument(parts.size() == 9, "Invalid topic name format");
         checkArgument(parts.get(1).equals("ws"));
-        checkArgument(parts.get(3).equals("persistent"));
+        checkArgument(parts.get(3).equals("persistent")|| parts.get(3).equals("non-persistent"));
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
         return parts.get(8);
     }
-
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSSZ").withZone(ZoneId.systemDefault());
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerHandler.class);
 

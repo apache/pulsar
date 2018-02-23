@@ -2,13 +2,34 @@
 title: Modular load manager
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 The *modular load manager*, implemented in {% javadoc ModularLoadManagerImpl broker org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl %}, is a flexible alternative to the previously implemented load manager, {% javadoc SimpleLoadManagerImpl broker org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl %}, which attempts to simplify how load is managed while also providing abstractions so that complex load management strategies may be implemented.
 
 ## Usage
 
 There are two ways that you can enable the modular load manager:
 
-1. Change the value of the `loadManagerClassName` parameter in `conf/broker.con` from `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl` to `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`.
+1. Change the value of the `loadManagerClassName` parameter in `conf/broker.conf` from `org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl` to `org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl`.
 2. Using the `pulsar-admin` tool. Here's an example:
 
    ```shell
@@ -87,7 +108,7 @@ There are a few different ways to determine which load manager is being used:
     }
     ```
 
-3. The command-line [broker monitor](../../reference/CliTools/#monitor-brokers) will have a different output format depending on which load manager implementation is being used.
+3. The command-line [broker monitor](../../reference/CliTools/#pulsar-perf-monitor-brokers) will have a different output format depending on which load manager implementation is being used.
 
     Here is an example from the modular load manager:
 

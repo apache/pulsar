@@ -53,9 +53,6 @@
 package org.apache.pulsar.common.util.protobuf;
 
 import java.io.IOException;
-import java.nio.ByteOrder;
-
-import org.apache.pulsar.common.api.Commands.RecyclableHeapByteBuf;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.WireFormat;
@@ -63,6 +60,7 @@ import com.google.protobuf.WireFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.concurrent.FastThreadLocal;
 
 public class ByteBufCodedOutputStream {
     public static interface ByteBufGeneratedMessage {
@@ -73,7 +71,7 @@ public class ByteBufCodedOutputStream {
 
     private ByteBuf buf;
 
-    private final Handle recyclerHandle;
+    private final Handle<ByteBufCodedOutputStream> recyclerHandle;
 
     public static ByteBufCodedOutputStream get(ByteBuf buf) {
         ByteBufCodedOutputStream stream = RECYCLER.get();
@@ -83,15 +81,15 @@ public class ByteBufCodedOutputStream {
 
     public void recycle() {
         buf = null;
-        RECYCLER.recycle(this, recyclerHandle);
+        recyclerHandle.recycle(this);
     }
 
-    private ByteBufCodedOutputStream(Handle handle) {
+    private ByteBufCodedOutputStream(Handle<ByteBufCodedOutputStream> handle) {
         this.recyclerHandle = handle;
     }
 
     private static final Recycler<ByteBufCodedOutputStream> RECYCLER = new Recycler<ByteBufCodedOutputStream>() {
-        protected ByteBufCodedOutputStream newObject(Recycler.Handle handle) {
+        protected ByteBufCodedOutputStream newObject(Recycler.Handle<ByteBufCodedOutputStream> handle) {
             return new ByteBufCodedOutputStream(handle);
         }
     };
@@ -127,11 +125,16 @@ public class ByteBufCodedOutputStream {
         writeInt32NoTag(value);
     }
 
+    public void writeInt64(final int fieldNumber, final long value) throws IOException {
+        writeTag(fieldNumber, WireFormat.WIRETYPE_VARINT);
+        writeInt64NoTag(value);
+    }
+
     public void writeUInt64(final int fieldNumber, final long value) throws IOException {
         writeTag(fieldNumber, WireFormat.WIRETYPE_VARINT);
         writeUInt64NoTag(value);
     }
-    
+
     /** Write a {@code bool} field, including tag, to the stream. */
     public void writeBool(final int fieldNumber, final boolean value) throws IOException {
         writeTag(fieldNumber, WireFormat.WIRETYPE_VARINT);
@@ -142,7 +145,12 @@ public class ByteBufCodedOutputStream {
     public void writeBoolNoTag(final boolean value) throws IOException {
       writeRawByte(value ? 1 : 0);
     }
-    
+
+    /** Write a {@code uint64} field to the stream. */
+    public void writeInt64NoTag(final long value) throws IOException {
+        writeRawVarint64(value);
+    }
+
     /** Write a {@code uint64} field to the stream. */
     public void writeUInt64NoTag(final long value) throws IOException {
         writeRawVarint64(value);
@@ -173,17 +181,19 @@ public class ByteBufCodedOutputStream {
         writeRawBytes(value);
     }
 
+
+    private static final FastThreadLocal<byte[]> localByteArray = new FastThreadLocal<>();
+
     /** Write a byte string. */
     public void writeRawBytes(final ByteString value) throws IOException {
-        RecyclableHeapByteBuf heapBuf = RecyclableHeapByteBuf.get();
-        if (value.size() > heapBuf.writableBytes()) {
-            heapBuf.capacity(value.size());
+        byte[] localBuf = localByteArray.get();
+        if (localBuf == null || localBuf.length < value.size()) {
+            localBuf = new byte[Math.max(value.size(), 1024)];
+            localByteArray.set(localBuf);
         }
 
-        value.copyTo(heapBuf.array(), 0);
-        heapBuf.writerIndex(value.size());
-        buf.writeBytes(heapBuf);
-        heapBuf.recycle();
+        value.copyTo(localBuf, 0);
+        buf.writeBytes(localBuf, 0, value.size());
     }
 
     public void writeEnum(final int fieldNumber, final int value) throws IOException {
@@ -208,7 +218,7 @@ public class ByteBufCodedOutputStream {
     }
 
     public void writeSFixed64NoTag(long value) throws IOException {
-        buf.order(ByteOrder.LITTLE_ENDIAN).writeLong(value);
+        buf.writeLongLE(value);
     }
 
     /**
@@ -250,7 +260,6 @@ public class ByteBufCodedOutputStream {
     /** Write an double field, including tag, to the stream. */
     public void writeDouble(final int fieldNumber, double value) throws IOException {
         writeTag(fieldNumber, WireFormat.WIRETYPE_FIXED64);
-        buf.order(ByteOrder.LITTLE_ENDIAN).writeDouble(value);
+        buf.writeLongLE(Double.doubleToLongBits(value));
     }
-
 }

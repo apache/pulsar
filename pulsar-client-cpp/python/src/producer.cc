@@ -68,6 +68,10 @@ void export_producer() {
     class_<Producer>("Producer", no_init)
             .def("topic", &Producer::getTopic, "return the topic to which producer is publishing to",
                  return_value_policy<copy_const_reference>())
+            .def("producer_name", &Producer::getProducerName,
+                 "return the producer name which could have been assigned by the system or specified by the client",
+                 return_value_policy<copy_const_reference>())
+            .def("last_sequence_id", &Producer::getLastSequenceId)
             .def("send", &Producer_send,
                  "Publish a message on the topic associated with this Producer.\n"
                          "\n"

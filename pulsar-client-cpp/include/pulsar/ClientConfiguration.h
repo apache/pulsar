@@ -25,8 +25,7 @@ namespace pulsar {
 class PulsarWrapper;
 class ClientConfigurationImpl;
 class ClientConfiguration {
- public:
-
+   public:
     ClientConfiguration();
     ~ClientConfiguration();
     ClientConfiguration(const ClientConfiguration&);
@@ -89,7 +88,8 @@ class ClientConfiguration {
 
     /**
      * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
+     * <i>(default: 50000)</i> It should be configured with higher value only in case of it requires to
+     * produce/subscribe on
      * thousands of topic using created {@link PulsarClient}
      *
      * @param concurrentLookupRequest
@@ -116,7 +116,7 @@ class ClientConfiguration {
     ClientConfiguration& setUseTls(bool useTls);
     bool isUseTls() const;
 
-    ClientConfiguration& setTlsTrustCertsFilePath(const std::string &tlsTrustCertsFilePath);
+    ClientConfiguration& setTlsTrustCertsFilePath(const std::string& tlsTrustCertsFilePath);
     std::string getTlsTrustCertsFilePath() const;
 
     ClientConfiguration& setTlsAllowInsecureConnection(bool allowInsecure);
@@ -136,12 +136,11 @@ class ClientConfiguration {
     friend class ClientImpl;
     friend class PulsarWrapper;
 
- private:
+   private:
     const AuthenticationPtr& getAuthPtr() const;
     boost::shared_ptr<ClientConfigurationImpl> impl_;
 };
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 #endif /* PULSAR_CLIENTCONFIGURATION_H_ */
-

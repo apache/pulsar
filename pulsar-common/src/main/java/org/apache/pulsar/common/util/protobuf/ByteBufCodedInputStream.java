@@ -53,9 +53,6 @@
 package org.apache.pulsar.common.util.protobuf;
 
 import java.io.IOException;
-import java.nio.ByteOrder;
-
-import org.apache.pulsar.common.api.Commands.RecyclableHeapByteBuf;
 
 import com.google.protobuf.ByteString;
 import com.google.protobuf.ExtensionRegistryLite;
@@ -65,6 +62,7 @@ import com.google.protobuf.WireFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.util.Recycler;
 import io.netty.util.Recycler.Handle;
+import io.netty.util.concurrent.FastThreadLocal;
 
 public class ByteBufCodedInputStream {
     public static interface ByteBufMessageBuilder {
@@ -75,7 +73,7 @@ public class ByteBufCodedInputStream {
     private ByteBuf buf;
     private int lastTag;
 
-    private final Handle recyclerHandle;
+    private final Handle<ByteBufCodedInputStream> recyclerHandle;
 
     public static ByteBufCodedInputStream get(ByteBuf buf) {
         ByteBufCodedInputStream stream = RECYCLER.get();
@@ -84,12 +82,12 @@ public class ByteBufCodedInputStream {
         return stream;
     }
 
-    private ByteBufCodedInputStream(Handle handle) {
+    private ByteBufCodedInputStream(Handle<ByteBufCodedInputStream> handle) {
         this.recyclerHandle = handle;
     }
 
     private static final Recycler<ByteBufCodedInputStream> RECYCLER = new Recycler<ByteBufCodedInputStream>() {
-        protected ByteBufCodedInputStream newObject(Recycler.Handle handle) {
+        protected ByteBufCodedInputStream newObject(Recycler.Handle<ByteBufCodedInputStream> handle) {
             return new ByteBufCodedInputStream(handle);
         }
     };
@@ -97,7 +95,7 @@ public class ByteBufCodedInputStream {
     public void recycle() {
         this.buf = null;
         if (recyclerHandle != null) {
-            RECYCLER.recycle(this, recyclerHandle);
+            recyclerHandle.recycle(this);
         }
     }
 
@@ -145,20 +143,22 @@ public class ByteBufCodedInputStream {
         buf.writerIndex(writerIdx);
     }
 
+    private static final FastThreadLocal<byte[]> localByteArray = new FastThreadLocal<>();
+
     /** Read a {@code bytes} field value from the stream. */
     public ByteString readBytes() throws IOException {
         final int size = readRawVarint32();
         if (size == 0) {
             return ByteString.EMPTY;
         } else {
-            RecyclableHeapByteBuf heapBuf = RecyclableHeapByteBuf.get();
-            if (size > heapBuf.writableBytes()) {
-                heapBuf.capacity(size);
+            byte[] localBuf = localByteArray.get();
+            if (localBuf == null || localBuf.length < size) {
+                localBuf = new byte[Math.max(size, 1024)];
+                localByteArray.set(localBuf);
             }
 
-            heapBuf.writeBytes(buf, size);
-            ByteString res = ByteString.copyFrom(heapBuf.array(), heapBuf.arrayOffset(), heapBuf.readableBytes());
-            heapBuf.recycle();
+            buf.readBytes(localBuf, 0, size);
+            ByteString res = ByteString.copyFrom(localBuf, 0, size);
             return res;
         }
     }
@@ -314,13 +314,13 @@ public class ByteBufCodedInputStream {
 
     /** Read a 32-bit little-endian integer from the stream. */
     public int readRawLittleEndian32() throws IOException {
-        return buf.order(ByteOrder.LITTLE_ENDIAN).readInt();
+        return buf.readIntLE();
 
     }
 
     /** Read a 64-bit little-endian integer from the stream. */
     public long readRawLittleEndian64() throws IOException {
-        return buf.order(ByteOrder.LITTLE_ENDIAN).readLong();
+        return buf.readLongLE();
     }
 
     public long readSFixed64() throws IOException {

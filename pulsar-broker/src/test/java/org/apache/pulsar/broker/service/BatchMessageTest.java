@@ -45,7 +45,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -655,13 +655,7 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers) topic
                 .getSubscription(subscriptionName).getDispatcher();
         // check strategically to let ack-message receive by broker
-        for (int i = 0; i < 5; i++) {
-            if (dispatcher.getConsumers().get(0).getUnackedMessages() == 0 || i == 4) {
-                break;
-            } else {
-                Thread.sleep(150);
-            }
-        }
+        retryStrategically((test) -> dispatcher.getConsumers().get(0).getUnackedMessages() == 0, 5, 150);
         assertEquals(dispatcher.getConsumers().get(0).getUnackedMessages(), 0);
 
         executor.shutdown();

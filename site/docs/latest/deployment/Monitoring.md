@@ -2,6 +2,27 @@
 title: Monitoring
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 There are different ways to monitor a Pulsar cluster, exposing both metrics relative to the
 usage of topics and the overall health of the individual components of the cluster.
 
@@ -36,12 +57,16 @@ http://$BROKER_ADDRESS:8080/metrics
 
 ### ZooKeeper stats
 
-The ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
+The local/global ZooKeeper server and clients that are shipped with Pulsar have been instrumented to expose
 detailed stats through Prometheus as well.
 
 ```shell
-http://$ZK_SERVER:8080/metrics
+http://$LOCAL_ZK_SERVER:8000/metrics
+http://$GLOBAL_ZK_SERVER:8001/metrics
 ```
+
+The default port of local ZooKeeper is `8000` and that of global ZooKeeper is `8001`.
+These can be changed by specifying system property `stats_server_port`.
 
 ### BookKeeper stats
 
@@ -74,11 +99,9 @@ attached to the data does not explode.
 
 For that reason we only collect time series of metrics aggregated at the namespace level.
 
-The
-
 ### Pulsar per-topic dashboard
 
-The per-topic dashboard instructions are available at [Dashboard](../Dashboard).
+The per-topic dashboard instructions are available at [Dashboard](../../admin/Dashboard).
 
 ### Grafana
 

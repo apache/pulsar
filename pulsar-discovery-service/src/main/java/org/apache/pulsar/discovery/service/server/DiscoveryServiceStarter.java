@@ -53,7 +53,7 @@ public class DiscoveryServiceStarter {
         checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
         checkArgument(!isEmpty(config.getGlobalZookeeperServers()), "global-zookeeperServers must be provided");
         
-        // create broker service
+        // create Discovery service
         DiscoveryService discoveryService = new DiscoveryService(config);
         // create a web-service
         final ServerManager server = new ServerManager(config);

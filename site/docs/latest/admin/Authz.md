@@ -3,6 +3,27 @@ title: Authentication and authorization in Pulsar
 tags: [admin, authentication, authorization, athenz, tls, java, cpp]
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Pulsar supports a pluggable authentication mechanism that Pulsar clients can use to authenticate with {% popover brokers %}. Pulsar can also be configured to support multiple authentication sources.
 
 ## Role tokens
@@ -216,7 +237,7 @@ serviceUrl=https://broker.example.com:8443/
 
 # Set Athenz auth plugin and its parameters
 authPlugin=org.apache.pulsar.client.impl.auth.AuthenticationAthenz
-authParams=tenantDomain:shopping,tenantService:some_app,providerDomain:pulsar,privateKeyPath:/path/to/private.pem,keyId:v1
+authParams={"tenantDomain":"shopping","tenantService":"some_app","providerDomain":"pulsar","privateKey":"file:///path/to/private.pem","keyId":"v1"}
 
 # Enable TLS
 useTls=true
@@ -275,7 +296,7 @@ needs to be able to publish to other clusters' topics.
 
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
-String authParams = "param1=value1";
+String authParams = "param1:value1";
 boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;
@@ -293,7 +314,7 @@ To use TLS:
 
 ```java
 String authPluginClassName = "com.org.MyAuthPluginClass";
-String authParams = "param1=value1";
+String authParams = "param1:value1";
 boolean useTls = false;
 boolean tlsAllowInsecureConnection = false;
 String tlsTrustCertsFilePath = null;

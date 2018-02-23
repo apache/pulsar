@@ -5,20 +5,51 @@ tags:
 - python
 ---
 
-The Pulsar Python client library is a wrapper over the existing [C++ client library](../CppClient) and exposes all of the [same features](../../../../api/cpp). You can find the code in the [`python` subdirectory]({{ site.pulsar_repo }}/pulsar-client-cpp/python) of the C++ client code.
+<!--
 
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+The Pulsar Python client library is a wrapper over the existing [C++ client library](../Cpp) and exposes all of the [same features](../../../../api/cpp). You can find the code in the [`python` subdirectory]({{ site.pulsar_repo }}/pulsar-client-cpp/python) of the C++ client code.
 
 ## Installation
 
-You can install the `pulsar-client` library either using [pip](https://pip.pypa.io/en/stable/) or by building the library from source.
+You can install the [`pulsar-client`](https://pypi.python.org/pypi/pulsar-client) library either via [PyPi](https://pypi.python.org/pypi), using [pip](#installation-using-pip), or by building the library from source.
 
-To install using pip:
+### Installation using pip
+
+To install the `pulsar-client` library as a pre-built package using the [pip](https://pip.pypa.io/en/stable/) package manager:
 
 ```shell
 $ pip install pulsar-client
 ```
 
-To install by building from source, follow the [instructions](../CppClient#compilation) and compile the Pulsar C++ client library. That will also build the Python binding for the library.
+Installation via PyPi is available for the following Python versions:
+
+Platform | Supported Python versions
+:--------|:-------------------------
+MacOS 10.12 (Sierra) and 10.13 (High Sierra) | 2.7, 3.6
+Linux | 2.7, 3.3, 3.4, 3.5, 3.6
+
+### Installing from source
+
+To install the `pulsar-client` library by building from source, follow [these instructions](../Cpp#compilation) and compile the Pulsar C++ client library. That will also build the Python binding for the library.
 
 To install the built Python bindings:
 
@@ -28,11 +59,9 @@ $ cd pulsar/pulsar-client-cpp/python
 $ sudo python setup.py install
 ```
 
-{% include admonition.html type="info" content="Currently, the only supported Python version is 2.7." %}
-
 ## API Reference
 
-The complete Python API reference is available at [api/python]({{site.baseUrl}}/api/python)
+The complete Python API reference is available at [api/python]({{site.baseUrl}}/api/python).
 
 ## Examples
 
@@ -40,15 +69,17 @@ Below you'll find a variety of Python code examples for the `pulsar-client` libr
 
 ### Producer example
 
-This would create a Python {% popover producer %} for the `persistent://sample/standalone/ns/my-topic` topic and send 10 messages on that topic:
+This creates a Python {% popover producer %} for the `persistent://sample/standalone/ns/my-topic` topic and send 10 messages on that topic:
 
 ```python
 import pulsar
 
-client = pulsar.Client('pulsar://localhost:6650')
+TOPIC = 'persistent://sample/standalone/ns/my-topic'
+PULSAR_SERVICE_URL = 'pulsar://localhost:6650'
 
-producer = client.create_producer(
-                'persistent://sample/standalone/ns/my-topic')
+client = pulsar.Client(PULSAR_SERVICE_URL)
+
+producer = client.create_producer(TOPIC)
 
 for i in range(10):
     producer.send('Hello-%d' % i)
@@ -58,15 +89,12 @@ client.close()
 
 ### Consumer example
 
-This would create a {% popover consumer %} with the `my-sub` {% popover subscription %} on the `persistent://sample/standalone/ns/my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and {% popover acknowledge %} each message to the Pulsar {% popover broker %}:
+This creates a {% popover consumer %} with the `my-sub` {% popover subscription %} on the `persistent://sample/standalone/ns/my-topic` topic, listen for incoming messages, print the content and ID of messages that arrive, and {% popover acknowledge %} each message to the Pulsar {% popover broker %}:
 
 ```python
-import pulsar
+SUBSCRIPTION = 'my-sub'
 
-client = pulsar.Client('pulsar://localhost:6650')
-consumer = client.subscribe(
-        'persistent://sample/standalone/ns/my-topic',
-        'my-sub')
+consumer = client.subscribe(TOPIC, SUBSCRIPTION)
 
 while True:
     msg = consumer.receive()
@@ -76,27 +104,18 @@ while True:
 client.close()
 ```
 
-### Async producer example
+### Reader interface example
 
-This would create a Pulsar {% popover producer %} that sends messages asynchronously and triggers the `send_callback` callback function whenever messages are {% popover acknowledged %} by the {% popover broker %}:
+You can use the Pulsar Python API to use the Pulsar [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface). Here's an example:
 
 ```python
-import pulsar
+# MessageId taken from a previously fetched message
+msg_id = msg.message_id()
 
-client = pulsar.Client('pulsar://localhost:6650')
-
-producer = client.create_producer(
-                'persistent://sample/standalone/ns/my-topic',
-                block_if_queue_full=True,
-                batching_enabled=True,
-                batching_max_publish_delay_ms=10
-            )
-
-def send_callback(res, msg):
-    print('Message published res=%s', res)
+reader = client.create_reader(TOPIC, msg_id)
 
 while True:
-    producer.send_async('Hello-%d' % i, send_callback)
-
-client.close()
+    msg = reader.receive()
+    print("Received message '%s' id='%s'", msg.data(), msg.message_id())
+    # No acknowledgment
 ```

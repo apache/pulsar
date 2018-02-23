@@ -21,7 +21,6 @@
 #include <pulsar/Client.h>
 #include <boost/lexical_cast.hpp>
 #include <boost/asio.hpp>
-#include <boost/range/algorithm/for_each.hpp>
 #include <boost/algorithm/string.hpp>
 #include <boost/thread.hpp>
 #include <lib/LogUtils.h>
@@ -59,12 +58,14 @@ TEST(AuthPluginTest, testTls) {
     ClientConfiguration config = ClientConfiguration();
     config.setUseTls(true);
     std::string certfile = "../../pulsar-broker/src/test/resources/authentication/tls/cacert.pem";
-    std::string params =  "tlsCertFile:../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem,tlsKeyFile:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
+    std::string params =
+        "tlsCertFile:../../pulsar-broker/src/test/resources/authentication/tls/client-cert.pem,tlsKeyFile:../"
+        "../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
     config.setTlsTrustCertsFilePath(certfile);
     config.setTlsAllowInsecureConnection(false);
     AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthtls.so", params);
     config.setAuth(auth);
-    Client client(lookupUrlTls,config);
+    Client client(lookupUrlTls, config);
 
     std::string topicName = "persistent://property/cluster/namespace/test-tls";
     std::string subName = "subscription-name";
@@ -96,9 +97,12 @@ TEST(AuthPluginTest, testTls) {
 
     // Send Asynchronously
     std::string prefix = "test-tls-message-";
-    for (int i = 0; i<numOfMessages; i++) {
+    for (int i = 0; i < numOfMessages; i++) {
         std::string messageContent = prefix + boost::lexical_cast<std::string>(i);
-        Message msg = MessageBuilder().setContent(messageContent).setProperty("msgIndex", boost::lexical_cast<std::string>(i)).build();
+        Message msg = MessageBuilder()
+                          .setContent(messageContent)
+                          .setProperty("msgIndex", boost::lexical_cast<std::string>(i))
+                          .build();
         producer.sendAsync(msg, &sendCallBackTls);
         LOG_INFO("sending message " << messageContent);
     }
@@ -107,7 +111,8 @@ TEST(AuthPluginTest, testTls) {
     int i = 0;
     while (consumer.receive(receivedMsg, 5000) == ResultOk) {
         std::string expectedMessageContent = prefix + boost::lexical_cast<std::string>(i);
-        LOG_INFO("Received Message with [ content - " << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
+        LOG_INFO("Received Message with [ content - "
+                 << receivedMsg.getDataAsString() << "] [ messageID = " << receivedMsg.getMessageId() << "]");
         ASSERT_EQ(receivedMsg.getProperty("msgIndex"), boost::lexical_cast<std::string>(i++));
         ASSERT_EQ(expectedMessageContent, receivedMsg.getDataAsString());
         ASSERT_EQ(ResultOk, consumer.acknowledge(receivedMsg));
@@ -120,43 +125,45 @@ TEST(AuthPluginTest, testTls) {
 }
 
 namespace testAthenz {
-    std::string principalToken;
-    void mockZTS() {
-        boost::asio::io_service io;
-        boost::asio::ip::tcp::iostream stream;
-        boost::asio::ip::tcp::acceptor acceptor(io, boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 9999));
-        acceptor.accept(*stream.rdbuf());
-        std::string headerLine;
-        while(getline(stream, headerLine)){
-            std::vector<std::string> kv;
-            boost::algorithm::split(kv, headerLine, boost::is_any_of(" "));
-            if (kv[0]=="Athenz-Principal-Auth:") {
-                principalToken = kv[1];
-            }
-            
-            if (headerLine == "\r" || headerLine == "\n" || headerLine == "\r\n") {
-                std::string mockToken = "{\"token\":\"mockToken\",\"expiryTime\":4133980800}";
-                stream << "HTTP/1.1 200 OK" << std::endl;
-                stream << "Host: localhost" << std::endl;
-                stream << "Content-Type: application/json" << std::endl;
-                stream << "Content-Length: " << mockToken.size() << std::endl;
-                stream << std::endl;
-                stream << mockToken << std::endl;
-                break;
-            }
+std::string principalToken;
+void mockZTS() {
+    boost::asio::io_service io;
+    boost::asio::ip::tcp::iostream stream;
+    boost::asio::ip::tcp::acceptor acceptor(io,
+                                            boost::asio::ip::tcp::endpoint(boost::asio::ip::tcp::v4(), 9999));
+    acceptor.accept(*stream.rdbuf());
+    std::string headerLine;
+    while (getline(stream, headerLine)) {
+        std::vector<std::string> kv;
+        boost::algorithm::split(kv, headerLine, boost::is_any_of(" "));
+        if (kv[0] == "Athenz-Principal-Auth:") {
+            principalToken = kv[1];
+        }
+
+        if (headerLine == "\r" || headerLine == "\n" || headerLine == "\r\n") {
+            std::string mockToken = "{\"token\":\"mockToken\",\"expiryTime\":4133980800}";
+            stream << "HTTP/1.1 200 OK" << std::endl;
+            stream << "Host: localhost" << std::endl;
+            stream << "Content-Type: application/json" << std::endl;
+            stream << "Content-Length: " << mockToken.size() << std::endl;
+            stream << std::endl;
+            stream << mockToken << std::endl;
+            break;
         }
     }
 }
+}  // namespace testAthenz
 
 TEST(AuthPluginTest, testAthenz) {
     boost::thread zts(&testAthenz::mockZTS);
     pulsar::AuthenticationDataPtr data;
-    ParamMap params;
-    params["tenantDomain"] = "pulsar.test.tenant";
-    params["tenantService"] = "service";
-    params["providerDomain"] = "pulsar.test.provider";
-    params["privateKeyPath"] = "../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem";
-    params["ztsUrl"] = "http://localhost:9999";
+    std::string params = R"({
+        "tenantDomain": "pulsar.test.tenant",
+        "tenantService": "service",
+        "providerDomain": "pulsar.test.provider",
+        "privateKey": "file:../../pulsar-broker/src/test/resources/authentication/tls/client-key.pem",
+        "ztsUrl": "http://localhost:9999"
+    })";
     pulsar::AuthenticationPtr auth = pulsar::AuthFactory::create("../lib/auth/libauthathenz.so", params);
     ASSERT_EQ(auth->getAuthMethodName(), "athenz");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
@@ -167,7 +174,7 @@ TEST(AuthPluginTest, testAthenz) {
     zts.join();
     std::vector<std::string> kvs;
     boost::algorithm::split(kvs, testAthenz::principalToken, boost::is_any_of(";"));
-    for(std::vector<std::string>::iterator itr = kvs.begin(); itr != kvs.end(); itr++) {
+    for (std::vector<std::string>::iterator itr = kvs.begin(); itr != kvs.end(); itr++) {
         std::vector<std::string> kv;
         boost::algorithm::split(kv, *itr, boost::is_any_of("="));
         if (kv[0] == "d") {
@@ -186,5 +193,5 @@ TEST(AuthPluginTest, testDisable) {
     ASSERT_EQ(auth->getAuthMethodName(), "none");
     ASSERT_EQ(auth->getAuthData(data), pulsar::ResultOk);
     ASSERT_EQ(data->getCommandData(), "none");
-	ASSERT_EQ(auth.use_count(), 1);
+    ASSERT_EQ(auth.use_count(), 1);
 }

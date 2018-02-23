@@ -21,11 +21,13 @@ package org.apache.pulsar.proxy.server;
 import java.net.URI;
 import java.security.GeneralSecurityException;
 import java.util.List;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import javax.net.ssl.SSLContext;
 
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
@@ -39,9 +41,12 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
 import com.google.common.collect.Lists;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -98,6 +103,21 @@ public class WebServer {
         handlers.add(context);
     }
 
+    public void addRestResources(String basePath, String javaPackages, String attribute, Object attributeValue) {
+        JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
+        provider.setMapper(ObjectMapperFactory.create());
+        ResourceConfig config = new ResourceConfig();
+        config.packages("jersey.config.server.provider.packages", javaPackages);
+        config.register(provider);
+        ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
+        servletHolder.setAsyncSupported(true);
+        ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
+        context.setContextPath(basePath);
+        context.addServlet(servletHolder, "/*");
+        context.setAttribute(attribute, attributeValue);
+        handlers.add(context);
+    }
+    
     public int getExternalServicePort() {
         return externalServicePort;
     }
@@ -106,7 +126,7 @@ public class WebServer {
         RequestLogHandler requestLogHandler = new RequestLogHandler();
         Slf4jRequestLog requestLog = new Slf4jRequestLog();
         requestLog.setExtended(true);
-        requestLog.setLogTimeZone("GMT");
+        requestLog.setLogTimeZone(TimeZone.getDefault().getID());
         requestLog.setLogLatency(true);
         requestLogHandler.setRequestLog(requestLog);
         handlers.add(0, new ContextHandlerCollection());

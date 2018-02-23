@@ -21,6 +21,7 @@ package org.apache.pulsar.storm;
 import java.util.Map;
 import java.util.concurrent.ConcurrentMap;
 
+import org.apache.storm.utils.TupleUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,13 +33,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 
-import backtype.storm.Constants;
-import backtype.storm.metric.api.IMetric;
-import backtype.storm.task.OutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.topology.base.BaseRichBolt;
-import backtype.storm.tuple.Tuple;
+import org.apache.storm.metric.api.IMetric;
+import org.apache.storm.task.OutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.topology.base.BaseRichBolt;
+import org.apache.storm.tuple.Tuple;
+import static java.lang.String.format;
 
 public class PulsarBolt extends BaseRichBolt implements IMetric {
     /**
@@ -90,6 +91,8 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
             LOG.info("[{}] Created a pulsar producer on topic {} to send messages", boltId, pulsarBoltConf.getTopic());
         } catch (PulsarClientException e) {
             LOG.error("[{}] Error initializing pulsar producer on topic {}", boltId, pulsarBoltConf.getTopic(), e);
+            throw new IllegalStateException(
+                    format("Failed to initialize producer for %s : %s", pulsarBoltConf.getTopic(), e.getMessage()), e);
         }
         context.registerMetric(String.format("PulsarBoltMetrics-%s-%s", componentId, context.getThisTaskIndex()), this,
                 pulsarBoltConf.getMetricsTimeIntervalInSecs());
@@ -97,8 +100,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
 
     @Override
     public void execute(Tuple input) {
-        // do not send tick tuples since they are used to execute periodic tasks
-        if (isTickTuple(input)) {
+        if (TupleUtils.isTick(input)) {
             collector.ack(input);
             return;
         }
@@ -160,11 +162,6 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     @Override
     public void declareOutputFields(OutputFieldsDeclarer declarer) {
         pulsarBoltConf.getTupleToMessageMapper().declareOutputFields(declarer);
-    }
-
-    protected static boolean isTickTuple(Tuple tuple) {
-        return tuple != null && Constants.SYSTEM_COMPONENT_ID.equals(tuple.getSourceComponent())
-                && Constants.SYSTEM_TICK_STREAM_ID.equals(tuple.getSourceStreamId());
     }
 
     /**

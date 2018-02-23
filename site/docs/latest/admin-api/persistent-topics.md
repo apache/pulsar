@@ -2,6 +2,27 @@
 title: Managing persistent topics
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 Persistent helps to access topic which is a logical endpoint for publishing and consuming messages. Producers publish messages to the topic and consumers subscribe to the topic, to consume messages published to the topic.
 
 In all of the instructions and commands below, the topic name structure is:
@@ -133,6 +154,58 @@ $ pulsar-admin persistent revoke-permission \
 String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
 String role = "test-role";
 admin.persistentTopics().revokePermissions(destination, role);
+```
+
+### Delete topic
+
+It deletes a topic. The topic cannot be deleted if there's any active subscription or producers connected to it.
+
+#### pulsar-admin
+
+Topic can be deleted using [`delete`](../../reference/CliTools#delete) command.
+
+```shell
+$ pulsar-admin persistent delete \
+  persistent://test-property/cl1/ns1/tp1 \
+```
+
+#### REST API
+
+{% endpoint DELETE /admin/persistent/:property/:cluster/:namespace/:destination %}
+
+[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination)
+
+#### Java
+
+```java
+String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.persistentTopics().delete(destination);
+```
+
+### Unload topic
+
+It unloads a topic.
+
+#### pulsar-admin
+
+Topic can be unloaded using [`unload`](../../reference/CliTools#unload) command.
+
+```shell
+$ pulsar-admin persistent unload \
+  persistent://test-property/cl1/ns1/tp1 \
+```
+
+#### REST API
+
+{% endpoint PUT /admin/persistent/:property/:cluster/:namespace/:destination/unload %}
+
+[More info](../../reference/RestApi#/admin/persistent/:property/:cluster/:namespace/:destination/unload)
+
+#### Java
+
+```java
+String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.persistentTopics().unload(destination);
 ```
 
 ### Get stats
@@ -495,6 +568,32 @@ $ pulsar-admin persistent lookup \
 String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
 admin.lookup().lookupDestination(destination);
 ```
+
+### Get bundle 
+
+It gives range of the bundle which contains given topic
+
+#### pulsar-admin
+
+
+```shell
+$ pulsar-admin persistent bundle-range \
+  persistent://test-property/cl1/ns1/tp1 \
+
+ "0x00000000_0xffffffff"
+```
+
+#### REST API
+
+{% endpoint GET /lookup/v2/destination/:destination_domain/:property/:cluster/:namespace/:destination/bundle %}
+
+#### Java
+
+```java
+String destination = "persistent://my-property/my-cluster-my-namespace/my-topic";
+admin.lookup().getBundleRange(destination);
+```
+
 
 ### Get subscriptions
 

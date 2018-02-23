@@ -20,6 +20,7 @@ package org.apache.pulsar.broker.loadbalance.impl;
 
 import static org.apache.commons.lang3.StringUtils.isNotEmpty;
 import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
+import static org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared.LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
@@ -30,6 +31,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.Executors;
@@ -172,10 +174,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private ZooKeeperChildrenCache availableActiveBrokers;
 
     private static final long MBytes = 1024 * 1024;
-    // update LoadReport at most every 5 seconds
-    public static final long LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL = TimeUnit.SECONDS.toMillis(5);
     // last LoadReport stored in ZK
-    private LoadReport lastLoadReport;
+    private volatile LoadReport lastLoadReport;
     // last timestamp resource usage was checked
     private long lastResourceUsageTimestamp = -1;
     // flag to force update load report
@@ -229,7 +229,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
         lastLoadReport.setPersistentTopicsEnabled(pulsar.getConfiguration().isEnablePersistentTopics());
         lastLoadReport.setNonPersistentTopicsEnabled(pulsar.getConfiguration().isEnableNonPersistentTopics());
-        
+
         loadReportCacheZk = new ZooKeeperDataCache<LoadReport>(pulsar.getLocalZkCache()) {
             @Override
             public LoadReport deserialize(String key, byte[] content) throws Exception {
@@ -300,6 +300,12 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 ZkUtils.createFullPathOptimistic(pulsar.getZkClient(), brokerZnodePath,
                         loadReportJson.getBytes(Charsets.UTF_8), Ids.OPEN_ACL_UNSAFE, CreateMode.EPHEMERAL);
             } catch (KeeperException.NodeExistsException e) {
+                long ownerZkSessionId = getBrokerZnodeOwner();
+                if (ownerZkSessionId != 0 && ownerZkSessionId != pulsar.getZkClient().getSessionId()) {
+                    log.error("Broker znode - [{}] is own by different zookeeper-ssession {} ", brokerZnodePath,
+                            ownerZkSessionId);
+                    throw new PulsarServerException("Broker-znode owned by different zk-session " + ownerZkSessionId);
+                }
                 // Node may already be created by another load manager: in this case update the data.
                 if (loadReport != null) {
                     pulsar.getZkClient().setData(brokerZnodePath, loadReportJson.getBytes(Charsets.UTF_8), -1);
@@ -409,16 +415,6 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         return strategy;
     }
 
-    private double getCpuLoadFactorFromZK(double defaultValue) {
-        return getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_CPU_ZPATH,
-                SETTING_NAME_LOAD_FACTOR_CPU, defaultValue);
-    }
-
-    private double getMemoryLoadFactorFromZK(double defaultValue) {
-        return getDynamicConfigurationDouble(LOADBALANCER_DYNAMIC_SETTING_LOAD_FACTOR_MEM_ZPATH,
-                SETTING_NAME_LOAD_FACTOR_MEM, defaultValue);
-    }
-
     @Override
     public boolean isCentralized() {
         String strategy = this.getLoadBalancerPlacementStrategy();
@@ -449,7 +445,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
     private boolean getLoadBalancerAutoBundleSplitEnabled() {
         return this.getDynamicConfigurationBoolean(LOADBALANCER_DYNAMIC_SETTING_AUTO_BUNDLE_SPLIT_ENABLED,
                 SETTING_NAME_AUTO_BUNDLE_SPLIT_ENABLED,
-                pulsar.getConfiguration().getLoadBalancerAutoBundleSplitEnabled());
+                pulsar.getConfiguration().isLoadBalancerAutoBundleSplitEnabled());
     }
 
     /*
@@ -918,7 +914,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             }
             brokerCandidateCache.clear();
             try {
-                LoadManagerShared.applyPolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
+                LoadManagerShared.applyNamespacePolicies(serviceUnit, policies, brokerCandidateCache, availableBrokersCache,
                         brokerTopicLoadingPredicate);
             } catch (Exception e) {
                 log.warn("Error when trying to apply policies: {}", e);
@@ -945,8 +941,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
-    public ResourceUnit getLeastLoaded(ServiceUnitId serviceUnit) throws Exception {
-        return getLeastLoadedBroker(serviceUnit, getAvailableBrokers(serviceUnit));
+    public Optional<ResourceUnit> getLeastLoaded(ServiceUnitId serviceUnit) throws Exception {
+        return Optional.ofNullable(getLeastLoadedBroker(serviceUnit, getAvailableBrokers(serviceUnit)));
     }
 
     public Multimap<Long, ResourceUnit> getResourceAvailabilityFor(ServiceUnitId serviceUnitId) throws Exception {
@@ -1098,11 +1094,14 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
 
     @Override
     public LoadReport generateLoadReport() throws Exception {
+        if (!isLoadReportGenerationIntervalPassed()) {
+            return lastLoadReport;
+        }
+        return generateLoadReportForcefully();
+    }
+
+    private LoadReport generateLoadReportForcefully() throws Exception {
         synchronized (bundleGainsCache) {
-            long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
-            if (timeSinceLastGenMillis <= LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL) {
-                return lastLoadReport;
-            }
             try {
                 LoadReport loadReport = new LoadReport(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls(),
                         pulsar.getBrokerServiceUrl(), pulsar.getBrokerServiceUrlTls());
@@ -1262,7 +1261,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
 
         if (needUpdate) {
-            LoadReport lr = generateLoadReport();
+            LoadReport lr = generateLoadReportForcefully();
             pulsar.getZkClient().setData(brokerZnodePath, ObjectMapperFactory.getThreadLocal().writeValueAsBytes(lr),
                     -1);
             this.lastLoadReport = lr;
@@ -1272,9 +1271,20 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         }
     }
 
+    /**
+     * Check if last generated load-report time passed the minimum time for load-report update.
+     *
+     * @return true: if last load-report generation passed the minimum interval and load-report can be generated false:
+     *         if load-report generation has not passed minimum interval to update load-report again
+     */
+    private boolean isLoadReportGenerationIntervalPassed() {
+        long timeSinceLastGenMillis = System.currentTimeMillis() - lastLoadReport.getTimestamp();
+        return timeSinceLastGenMillis > LOAD_REPORT_UPDATE_MIMIMUM_INTERVAL;
+    }
+
     // todo: changeme: this can be optimized, we don't have to iterate through everytime
     private boolean isBrokerAvailableForRebalancing(String bundleName, long maxLoadLevel) {
-        NamespaceName namespaceName = new NamespaceName(LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
+        NamespaceName namespaceName = NamespaceName.get(LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
         Map<Long, Set<ResourceUnit>> availableBrokers = sortedRankings.get();
         // this does not have "http://" in front, hacky but no time to pretty up
         Multimap<Long, ResourceUnit> brokers = getFinalCandidates(namespaceName, availableBrokers);
@@ -1309,7 +1319,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
             String bundleName = bundle.getValue();
             try {
                 if (unloadedHotNamespaceCache.getIfPresent(bundleName) == null) {
-                    if (!LoadManagerShared.isUnloadDisabledInLoadShedding(pulsar)) {
+                    if (LoadManagerShared.isLoadSheddingEnabled(pulsar)) {
                         log.info("Unloading namespace {} from overloaded broker {}", bundleName, brokerName);
                         pulsar.getAdminClient().namespaces().unloadNamespaceBundle(
                                 LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
@@ -1418,7 +1428,7 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 if (stats.topics <= 1) {
                     log.info("Unable to split hot namespace bundle {} since there is only one topic.", bundleName);
                 } else {
-                    NamespaceName namespaceName = new NamespaceName(
+                    NamespaceName namespaceName = NamespaceName.get(
                             LoadManagerShared.getNamespaceNameFromBundleName(bundleName));
                     int numBundles = pulsar.getNamespaceService().getBundleCount(namespaceName);
                     if (numBundles >= maxBundleCount) {
@@ -1449,7 +1459,8 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
                 try {
                     pulsar.getAdminClient().namespaces().splitNamespaceBundle(
                             LoadManagerShared.getNamespaceNameFromBundleName(bundleName),
-                            LoadManagerShared.getBundleRangeFromBundleName(bundleName));
+                            LoadManagerShared.getBundleRangeFromBundleName(bundleName),
+                            pulsar.getConfiguration().isLoadBalancerAutoUnloadSplitBundlesEnabled());
                     log.info("Successfully split namespace bundle {}", bundleName);
                 } catch (Exception e) {
                     log.error("Failed to split namespace bundle {}", bundleName, e);
@@ -1465,5 +1476,16 @@ public class SimpleLoadManagerImpl implements LoadManager, ZooKeeperCacheListene
         loadReportCacheZk.clear();
         availableActiveBrokers.close();
         scheduler.shutdown();
+    }
+
+    private long getBrokerZnodeOwner() {
+        try {
+            Stat stat = new Stat();
+            pulsar.getZkClient().getData(brokerZnodePath, false, stat);
+            return stat.getEphemeralOwner();
+        } catch (Exception e) {
+            log.warn("Failed to get stat of {}", brokerZnodePath, e);
+        }
+        return 0;
     }
 }

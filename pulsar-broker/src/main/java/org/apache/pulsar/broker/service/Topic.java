@@ -18,8 +18,10 @@
  */
 package org.apache.pulsar.broker.service;
 
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -37,19 +39,49 @@ import io.netty.buffer.ByteBuf;
 
 public interface Topic {
 
-    public interface PublishCallback {
+    public interface PublishContext {
+
+        default String getProducerName() {
+            return null;
+        }
+
+        default long getSequenceId() {
+            return -1;
+        }
+
+        default void setOriginalProducerName(String originalProducerName) {
+        }
+
+        default void setOriginalSequenceId(long originalSequenceId) {
+        }
+
+        /**
+         * Return the producer name for the original producer.
+         *
+         * For messages published locally, this will return the same local producer name, though in case of replicated
+         * messages, the original producer name will differ
+         */
+        default String getOriginalProducerName() {
+            return null;
+        }
+
+        default long getOriginalSequenceId() {
+            return -1;
+        }
+
         void completed(Exception e, long ledgerId, long entryId);
     }
 
-    void publishMessage(ByteBuf headersAndPayload, PublishCallback callback);
+    void publishMessage(ByteBuf headersAndPayload, PublishContext callback);
 
     void addProducer(Producer producer) throws BrokerServiceException;
 
     void removeProducer(Producer producer);
 
     CompletableFuture<Consumer> subscribe(ServerCnx cnx, String subscriptionName, long consumerId, SubType subType,
-            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId);
-    
+            int priorityLevel, String consumerName, boolean isDurable, MessageId startMessageId,
+            Map<String, String> metadata, boolean readCompacted);
+
     CompletableFuture<Subscription> createSubscription(String subscriptionName);
 
     CompletableFuture<Void> unsubscribe(String subName);
@@ -70,10 +102,14 @@ public interface Topic {
 
     void checkMessageExpiry();
 
+    void checkMessageDeduplicationInfo();
+
     CompletableFuture<Void> onPoliciesUpdate(Policies data);
 
     boolean isBacklogQuotaExceeded(String producerName);
-    
+
+    boolean isEncryptionRequired();
+
     BacklogQuota getBacklogQuota();
 
     void updateRates(NamespaceStats nsStats, NamespaceBundleStats currentBundleStats,
@@ -87,4 +123,6 @@ public interface Topic {
     PersistentTopicStats getStats();
 
     PersistentTopicInternalStats getInternalStats();
+
+    Position getLastMessageId();
 }

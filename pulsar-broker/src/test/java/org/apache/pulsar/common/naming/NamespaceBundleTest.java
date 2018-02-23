@@ -18,16 +18,24 @@
  */
 package org.apache.pulsar.common.naming;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.BoundType;
@@ -35,7 +43,7 @@ import com.google.common.collect.Range;
 import com.google.common.hash.Hashing;
 
 public class NamespaceBundleTest {
-    private final NamespaceBundleFactory factory = NamespaceBundleFactory.createFactory(Hashing.crc32());
+    private final NamespaceBundleFactory factory = getNamespaceBundleFactory();
 
     @Test
     public void testConstructor() {
@@ -47,14 +55,14 @@ public class NamespaceBundleTest {
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar.old.ns"), null, null);
+            new NamespaceBundle(NamespaceName.get("pulsar.old.ns"), null, null);
             fail("Should have failed w/ illegal argument exception");
         } catch (IllegalArgumentException iae) {
             // OK, expected
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar/use/ns"),
+            new NamespaceBundle(NamespaceName.get("pulsar/use/ns"),
                     Range.range(0L, BoundType.CLOSED, 0L, BoundType.OPEN), null);
             fail("Should have failed w/ illegal argument exception");
         } catch (IllegalArgumentException iae) {
@@ -62,7 +70,7 @@ public class NamespaceBundleTest {
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar/use/ns"), Range.range(0L, BoundType.OPEN, 1L, BoundType.OPEN),
+            new NamespaceBundle(NamespaceName.get("pulsar/use/ns"), Range.range(0L, BoundType.OPEN, 1L, BoundType.OPEN),
                     null);
             fail("Should have failed w/ illegal argument exception");
         } catch (IllegalArgumentException iae) {
@@ -70,7 +78,7 @@ public class NamespaceBundleTest {
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar/use/ns"),
+            new NamespaceBundle(NamespaceName.get("pulsar/use/ns"),
                     Range.range(1L, BoundType.CLOSED, 1L, BoundType.OPEN), null);
             fail("Should have failed w/ illegal argument exception");
         } catch (IllegalArgumentException iae) {
@@ -78,7 +86,7 @@ public class NamespaceBundleTest {
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar/use/ns"),
+            new NamespaceBundle(NamespaceName.get("pulsar/use/ns"),
                     Range.range(0L, BoundType.CLOSED, 1L, BoundType.CLOSED), null);
             fail("Should have failed w/ illegal argument exception");
         } catch (IllegalArgumentException iae) {
@@ -86,7 +94,7 @@ public class NamespaceBundleTest {
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar/use/ns"),
+            new NamespaceBundle(NamespaceName.get("pulsar/use/ns"),
                     Range.range(0L, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND, BoundType.OPEN), null);
             fail("Should have failed w/ illegal argument exception");
         } catch (IllegalArgumentException iae) {
@@ -94,14 +102,14 @@ public class NamespaceBundleTest {
         }
 
         try {
-            new NamespaceBundle(new NamespaceName("pulsar/use/ns"),
+            new NamespaceBundle(NamespaceName.get("pulsar/use/ns"),
                     Range.range(0L, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND, BoundType.CLOSED), null);
             fail("Should have failed w/ null pointer exception");
         } catch (NullPointerException npe) {
             // OK, expected
         }
 
-        NamespaceBundle bundle = new NamespaceBundle(new NamespaceName("pulsar/use/ns"),
+        NamespaceBundle bundle = new NamespaceBundle(NamespaceName.get("pulsar/use/ns"),
                 Range.range(0L, BoundType.CLOSED, 1L, BoundType.OPEN), factory);
         assertTrue(bundle.getKeyRange().lowerEndpoint().equals(0L));
         assertEquals(bundle.getKeyRange().lowerBoundType(), BoundType.CLOSED);
@@ -110,12 +118,22 @@ public class NamespaceBundleTest {
         assertEquals(bundle.getNamespaceObject().toString(), "pulsar/use/ns");
     }
 
+    private NamespaceBundleFactory getNamespaceBundleFactory() {
+        PulsarService pulsar = mock(PulsarService.class);
+        LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
+        ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
+        when(pulsar.getLocalZkCacheService()).thenReturn(localZkCache);
+        when(localZkCache.policiesCache()).thenReturn(poilciesCache);
+        doNothing().when(poilciesCache).registerListener(any());
+        return NamespaceBundleFactory.createFactory(pulsar, Hashing.crc32());
+    }
+
     @Test
     public void testGetBundle() throws Exception {
-        NamespaceBundle bundle = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         assertNotNull(bundle);
-        NamespaceBundle bundle2 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle2 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0L, BoundType.CLOSED, 0xffffffffL, BoundType.CLOSED));
         // Don't call equals and make sure those two are the same instance
         assertEquals(bundle, bundle2);
@@ -124,9 +142,9 @@ public class NamespaceBundleTest {
 
     @Test
     public void testCompareTo() throws Exception {
-        NamespaceBundle bundle = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
-        NamespaceBundle bundle2 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle2 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0x20000000l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         try {
             bundle.compareTo(bundle2);
@@ -135,36 +153,36 @@ public class NamespaceBundleTest {
             // OK, expected
         }
 
-        NamespaceBundle bundle0 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle0 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x10000000L, BoundType.OPEN));
         assertTrue(bundle0.compareTo(bundle2) < 0);
         assertTrue(bundle2.compareTo(bundle0) > 0);
-        NamespaceBundle bundle1 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle1 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x20000000L, BoundType.OPEN));
         assertTrue(bundle1.compareTo(bundle2) < 0);
 
-        NamespaceBundle bundle3 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle3 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         assertTrue(bundle.compareTo(bundle3) == 0);
 
-        NamespaceBundle otherBundle = factory.getBundle(new NamespaceName("pulsar/use/ns2"),
+        NamespaceBundle otherBundle = factory.getBundle(NamespaceName.get("pulsar/use/ns2"),
                 Range.range(0x10000000l, BoundType.CLOSED, 0x30000000L, BoundType.OPEN));
         assertTrue(otherBundle.compareTo(bundle0) > 0);
     }
 
     @Test
     public void testEquals() throws Exception {
-        NamespaceBundle bundle = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
-        NamespaceBundle bundle2 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle2 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0x20000000l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         assertTrue(!bundle.equals(bundle2));
 
-        NamespaceBundle bundle0 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle0 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         assertTrue(bundle0.equals(bundle));
 
-        NamespaceBundle otherBundle = factory.getBundle(new NamespaceName("pulsar/use/ns2"),
+        NamespaceBundle otherBundle = factory.getBundle(NamespaceName.get("pulsar/use/ns2"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         assertTrue(!otherBundle.equals(bundle));
     }
@@ -178,21 +196,21 @@ public class NamespaceBundleTest {
         NamespaceBundle bundle = factory.getBundle(dn.getNamespaceObject(),
                 Range.range(hashKey / 2, BoundType.CLOSED, upper, upperType));
         assertTrue(bundle.includes(dn));
-        bundle = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        bundle = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(upper, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND, BoundType.CLOSED));
         assertTrue(!bundle.includes(dn));
 
-        NamespaceBundle otherBundle = factory.getBundle(new NamespaceName("pulsar/use/ns2"),
+        NamespaceBundle otherBundle = factory.getBundle(NamespaceName.get("pulsar/use/ns2"),
                 Range.range(0l, BoundType.CLOSED, 0x40000000L, BoundType.OPEN));
         assertTrue(!otherBundle.includes(dn));
     }
 
     @Test
     public void testToString() throws Exception {
-        NamespaceBundle bundle0 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        NamespaceBundle bundle0 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0l, BoundType.CLOSED, 0x10000000L, BoundType.OPEN));
         assertEquals(bundle0.toString(), "pulsar/use/ns1/0x00000000_0x10000000");
-        bundle0 = factory.getBundle(new NamespaceName("pulsar/use/ns1"),
+        bundle0 = factory.getBundle(NamespaceName.get("pulsar/use/ns1"),
                 Range.range(0x10000000l, BoundType.CLOSED, NamespaceBundles.FULL_UPPER_BOUND, BoundType.CLOSED));
         assertEquals(bundle0.toString(), "pulsar/use/ns1/0x10000000_0xffffffff");
     }

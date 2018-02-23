@@ -23,11 +23,11 @@ import java.util.Map;
 
 import org.apache.pulsar.broker.BrokerData;
 import org.apache.pulsar.broker.BundleData;
-import org.apache.pulsar.broker.LocalBrokerData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
+import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +45,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
     /**
      * Create an OverloadShedder with the service configuration.
-     * 
+     *
      * @param conf
      *            Service configuration to create from.
      */
@@ -55,7 +55,7 @@ public class OverloadShedder implements LoadSheddingStrategy {
 
     /**
      * Attempt to shed one bundle off every broker which is overloaded.
-     * 
+     *
      * @param loadData
      *            The load data to used to make the unloading decision.
      * @param conf
@@ -78,6 +78,10 @@ public class OverloadShedder implements LoadSheddingStrategy {
                 if (localData.getBundles().size() > 1) {
                     for (final String bundle : localData.getBundles()) {
                         final BundleData bundleData = loadData.getBundleData().get(bundle);
+                        if (bundleData == null) {
+                            continue;
+                        }
+
                         // Consider short-term message rate to address system resource burden
                         final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
                         final double messageRate = shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut();

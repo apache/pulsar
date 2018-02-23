@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.PartitionedConsumerImpl;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -347,7 +348,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
     }
 
     private static long getUnackedMessagesCountInPartitionedConsumer(Consumer c) {
-        return ((PartitionedConsumerImpl) c).getConsumers().stream()
+        PartitionedConsumerImpl pc = (PartitionedConsumerImpl) c;
+        return pc.getUnAckedMessageTracker().size() + pc.getConsumers().stream()
                 .mapToLong(consumer -> consumer.getUnAckedMessageTracker().size()).sum();
     }
 
@@ -359,6 +361,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final String messagePredicate = "my-message-" + key + "-";
         final int totalMessages = 15;
         final int numberOfPartitions = 3;
+        admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
@@ -415,6 +418,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
+        ((PartitionedConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
         ((PartitionedConsumerImpl) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 8. producer publish more messages

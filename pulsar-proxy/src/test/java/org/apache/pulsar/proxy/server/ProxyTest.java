@@ -32,12 +32,15 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 public class ProxyTest extends MockedPulsarServiceBaseTest {
+
+    private final String DUMMY_VALUE = "DUMMY_VALUE";
 
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -48,6 +51,9 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         internalSetup();
 
         proxyConfig.setServicePort(PortManager.nextFreePort());
+        proxyConfig.setZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
 
@@ -101,6 +107,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testPartitions() throws Exception {
+        admin.properties().createProperty("sample", new PropertyAdmin());
         PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePort());
         admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 

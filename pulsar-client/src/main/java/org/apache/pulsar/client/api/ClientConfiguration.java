@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -30,14 +31,14 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 /**
  * Class used to specify client side configuration like authentication, etc..
  *
- *
+ * @deprecated Use {@link PulsarClient#builder()} to construct and configure a new {@link PulsarClient} instance
  */
+@Deprecated
 public class ClientConfiguration implements Serializable {
 
-    /**
-     *
-     */
     private static final long serialVersionUID = 1L;
+
+    @JsonIgnore
     private Authentication authentication = new AuthenticationDisabled();
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
@@ -51,7 +52,8 @@ public class ClientConfiguration implements Serializable {
     private boolean useTls = false;
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
-    private int concurrentLookupRequest = 5000;
+    private boolean tlsHostnameVerificationEnable = false;
+    private int concurrentLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
 
     /**
@@ -144,6 +146,7 @@ public class ClientConfiguration implements Serializable {
         this.authentication = AuthenticationFactory.create(authPluginClassName, authParams);
     }
 
+    
     /**
      * @return the operation timeout in ms
      */
@@ -219,8 +222,7 @@ public class ClientConfiguration implements Serializable {
      *            max number of connections per broker (needs to be greater than 0)
      */
     public void setConnectionsPerBroker(int connectionsPerBroker) {
-        checkArgument(connectionsPerBroker > 0,
-                "Connections per broker need to be greater than 0");
+        checkArgument(connectionsPerBroker > 0, "Connections per broker need to be greater than 0");
         this.connectionsPerBroker = connectionsPerBroker;
     }
 
@@ -296,7 +298,7 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Stats will be activated with positive statsIntervalSeconds
-     * 
+     *
      * @return the interval between each stat info <i>(default: 60 seconds)</i>
      */
     public long getStatsIntervalSeconds() {
@@ -306,7 +308,7 @@ public class ClientConfiguration implements Serializable {
     /**
      * Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
      * statsIntervalSeconds It should be set to at least 1 second
-     * 
+     *
      * @param statsIntervalSeconds
      *            the interval between each stat info
      * @param unit
@@ -318,7 +320,7 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Get configured total allowed concurrent lookup-request.
-     * 
+     *
      * @return
      */
     public int getConcurrentLookupRequest() {
@@ -327,9 +329,9 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Number of concurrent lookup-requests allowed on each broker-connection to prevent overload on broker.
-     * <i>(default: 5000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
+     * <i>(default: 50000)</i> It should be configured with higher value only in case of it requires to produce/subscribe on
      * thousands of topic using created {@link PulsarClient}
-     * 
+     *
      * @param concurrentLookupRequest
      */
     public void setConcurrentLookupRequest(int concurrentLookupRequest) {
@@ -338,7 +340,7 @@ public class ClientConfiguration implements Serializable {
 
     /**
      * Get configured max number of reject-request in a time-frame (30 seconds) after which connection will be closed
-     * 
+     *
      * @return
      */
     public int getMaxNumberOfRejectedRequestPerConnection() {
@@ -349,11 +351,28 @@ public class ClientConfiguration implements Serializable {
      * Set max number of broker-rejected requests in a certain time-frame (30 seconds) after which current connection
      * will be closed and client creates a new connection that give chance to connect a different broker <i>(default:
      * 50)</i>
-     * 
+     *
      * @param maxNumberOfRejectedRequestPerConnection
      */
     public void setMaxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
         this.maxNumberOfRejectedRequestPerConnection = maxNumberOfRejectedRequestPerConnection;
     }
 
+    public boolean isTlsHostnameVerificationEnable() {
+        return tlsHostnameVerificationEnable;
+    }
+
+    /**
+     * It allows to validate hostname verification when client connects to broker over tls. It validates incoming x509
+     * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1. Server
+     * Identity hostname verification.
+     * 
+     * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
+     * 
+     * @param tlsHostnameVerificationEnable
+     */
+    public void setTlsHostnameVerificationEnable(boolean tlsHostnameVerificationEnable) {
+        this.tlsHostnameVerificationEnable = tlsHostnameVerificationEnable;
+    }
+    
 }

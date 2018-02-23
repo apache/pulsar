@@ -33,14 +33,20 @@ groups:
 - title: Deployment
   dir: deployment
   docs:
-  - title: Deploying on bare metal
-    endpoint: InstanceSetup
+  - title: Deploy on Amazon Web Services
+    endpoint: aws-cluster
+  - title: Single cluster on bare metal
+    endpoint: cluster
+  - title: Multi-cluster instance on bare metal
+    endpoint: instance
   - title: Pulsar on Kubernetes
     endpoint: Kubernetes
-  - title: Pulsar on Google Container Engine
-    endpoint: Kubernetes/#pulsar-on-google-container-engine
+  - title: Pulsar on Google Kubernetes Engine
+    endpoint: Kubernetes/#pulsar-on-google-kubernetes-engine
   - title: Pulsar on AWS
     endpoint: Kubernetes/#pulsar-on-amazon-web-services
+  - title: Pulsar on DC/OS
+    endpoint: dcos
   - title: Monitoring
     endpoint: Monitoring
 
@@ -59,6 +65,8 @@ groups:
     endpoint: Stats
   - title: Modular load manager
     endpoint: ModularLoadManager
+  - title: Pulsar proxy
+    endpoint: Proxy
 
 - title: Client libraries
   dir: clients
@@ -97,6 +105,8 @@ groups:
 - title: Adaptors
   dir: adaptors
   docs:
+  - title: Apache Kafka client wrapper
+    endpoint: KafkaWrapper
   - title: Spark Streaming
     endpoint: PulsarSpark
   - title: Apache Storm
@@ -109,6 +119,8 @@ groups:
     endpoint: PartitionedTopics
   - title: Retention and expiry
     endpoint: RetentionExpiry
+  - title: Encryption
+    endpoint: Encryption
 
 - title: Developing Pulsar
   dir: project

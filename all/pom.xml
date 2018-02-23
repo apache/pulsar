@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.20.0-incubating-SNAPSHOT</version>
+    <version>2.0.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -120,7 +120,6 @@
     <plugins>
       <plugin>
         <artifactId>maven-assembly-plugin</artifactId>
-        <version>2.6</version>
         <executions>
           <execution>
             <id>distro-assembly</id>
@@ -129,6 +128,7 @@
               <goal>single</goal>
             </goals>
             <configuration>
+              <attach>false</attach>
               <tarLongFileMode>posix</tarLongFileMode>
               <finalName>apache-pulsar-${project.version}</finalName>
               <descriptors>

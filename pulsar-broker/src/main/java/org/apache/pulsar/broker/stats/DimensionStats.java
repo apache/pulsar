@@ -102,6 +102,10 @@ public class DimensionStats {
         return defaultRegistry.getSampleValue(dimensionCountLabel).doubleValue();
     }
 
+    public void reset() {
+        summary.clear();
+    }
+
     private double getQuantile(double q) {
         return defaultRegistry.getSampleValue(name, QUANTILE_LABEL, new String[] { Collector.doubleToGoString(q) })
                 .doubleValue();

@@ -18,10 +18,9 @@
  */
 package org.apache.bookkeeper.mledger;
 
+import com.google.common.annotations.Beta;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
-
-import com.google.common.annotations.Beta;
 
 /**
  * A factory to open/create managed ledgers and delete them.
@@ -39,7 +38,7 @@ public interface ManagedLedgerFactory {
      * @return the managed ledger
      * @throws ManagedLedgerException
      */
-    public ManagedLedger open(String name) throws InterruptedException, ManagedLedgerException;
+    ManagedLedger open(String name) throws InterruptedException, ManagedLedgerException;
 
     /**
      * Open a managed ledger. If the managed ledger does not exist, a new one will be automatically created.
@@ -51,7 +50,7 @@ public interface ManagedLedgerFactory {
      * @return the managed ledger
      * @throws ManagedLedgerException
      */
-    public ManagedLedger open(String name, ManagedLedgerConfig config)
+    ManagedLedger open(String name, ManagedLedgerConfig config)
             throws InterruptedException, ManagedLedgerException;
 
     /**
@@ -65,7 +64,7 @@ public interface ManagedLedgerFactory {
      * @param ctx
      *            opaque context
      */
-    public void asyncOpen(String name, OpenLedgerCallback callback, Object ctx);
+    void asyncOpen(String name, OpenLedgerCallback callback, Object ctx);
 
     /**
      * Asynchronous open method.
@@ -80,10 +79,18 @@ public interface ManagedLedgerFactory {
      * @param ctx
      *            opaque context
      */
-    public void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback, Object ctx);
+    void asyncOpen(String name, ManagedLedgerConfig config, OpenLedgerCallback callback, Object ctx);
 
     /**
-     * Get the current metadata info for a managed ledger
+     * Get the current metadata info for a managed ledger.
+     *
+     * @param name
+     *            the unique name that identifies the managed ledger
+     */
+    ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Asynchronously get the current metadata info for a managed ledger.
      *
      * @param name
      *            the unique name that identifies the managed ledger
@@ -92,25 +99,13 @@ public interface ManagedLedgerFactory {
      * @param ctx
      *            opaque context
      */
-    public ManagedLedgerInfo getManagedLedgerInfo(String name) throws InterruptedException, ManagedLedgerException;
+    void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx);
 
     /**
-     * Asynchronously get the current metadata info for a managed ledger
-     *
-     * @param name
-     *            the unique name that identifies the managed ledger
-     * @param callback
-     *            callback object
-     * @param ctx
-     *            opaque context
-     */
-    public void asyncGetManagedLedgerInfo(String name, ManagedLedgerInfoCallback callback, Object ctx);
-
-    /**
-     * Releases all the resources maintained by the ManagedLedgerFactory
+     * Releases all the resources maintained by the ManagedLedgerFactory.
      *
      * @throws ManagedLedgerException
      */
-    public void shutdown() throws InterruptedException, ManagedLedgerException;
+    void shutdown() throws InterruptedException, ManagedLedgerException;
 
 }

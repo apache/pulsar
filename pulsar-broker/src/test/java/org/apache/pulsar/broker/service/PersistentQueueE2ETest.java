@@ -24,7 +24,9 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -41,8 +43,13 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.client.impl.ConsumerImpl;
+import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.policies.data.PersistentTopicStats;
+import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -515,4 +522,58 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertEquals(receivedConsumer1, totalMessages);
     }
 
+    @Test
+    public void testUnackedCountWithRedeliveries() throws Exception {
+        final String topicName = "persistent://prop/use/ns-abc/testUnackedCountWithRedeliveries";
+        final String subName = "sub3";
+        final int numMsgs = 10;
+
+        Producer producer = pulsarClient.createProducer(topicName);
+
+        ConsumerConfiguration conf = new ConsumerConfiguration();
+        conf.setSubscriptionType(SubscriptionType.Shared);
+        conf.setReceiverQueueSize(0);
+        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subName, conf);
+
+        for (int i = 0; i < numMsgs; i++) {
+            producer.send(("hello-" + i).getBytes());
+        }
+
+        Set<MessageId> c1_receivedMessages = new HashSet<>();
+
+        // C-1 gets all messages but doesn't ack
+        for (int i = 0; i < numMsgs; i++) {
+            c1_receivedMessages.add(consumer1.receive().getMessageId());
+        }
+
+        // C-2 will not get any message initially, since everything went to C-1 already
+        Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf);
+
+        // Trigger C-1 to redeliver everything, half will go C-1 again and the other half to C-2
+        consumer1.redeliverUnacknowledgedMessages(c1_receivedMessages);
+
+        // Consumer 2 will also receive all message but not ack
+        for (int i = 0; i < numMsgs; i++) {
+            consumer2.receive();
+        }
+
+        for (MessageId msgId : c1_receivedMessages) {
+            consumer1.acknowledge(msgId);
+        }
+
+        PersistentTopicStats stats = admin.persistentTopics().getStats(topicName);
+
+        // Unacked messages count should be 0 for both consumers at this point
+        SubscriptionStats subStats = stats.subscriptions.get(subName);
+        assertEquals(subStats.msgBacklog, 0);
+
+        for (ConsumerStats cs : subStats.consumers) {
+            assertEquals(cs.unackedMessages, 0);
+        }
+
+        producer.close();
+        consumer1.close();
+        consumer2.close();
+        admin.persistentTopics().delete(topicName);
+    }
 }

@@ -32,21 +32,17 @@ DECLARE_LOG_OBJECT()
 
 namespace pulsar {
 
-Client::Client(const boost::shared_ptr<ClientImpl> impl) : impl_(impl) {
-}
+Client::Client(const boost::shared_ptr<ClientImpl> impl) : impl_(impl) {}
 
 Client::Client(const std::string& serviceUrl)
-        : impl_(boost::make_shared<ClientImpl>(serviceUrl, ClientConfiguration(), true)) {
-}
+    : impl_(boost::make_shared<ClientImpl>(serviceUrl, ClientConfiguration(), true)) {}
 
 Client::Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration)
-        : impl_(boost::make_shared<ClientImpl>(serviceUrl, clientConfiguration, true)) {
-}
+    : impl_(boost::make_shared<ClientImpl>(serviceUrl, clientConfiguration, true)) {}
 
 Client::Client(const std::string& serviceUrl, const ClientConfiguration& clientConfiguration,
                bool poolConnections)
-        : impl_(boost::make_shared<ClientImpl>(serviceUrl, clientConfiguration, poolConnections)) {
-}
+    : impl_(boost::make_shared<ClientImpl>(serviceUrl, clientConfiguration, poolConnections)) {}
 
 Result Client::createProducer(const std::string& topic, Producer& producer) {
     return createProducer(topic, ProducerConfiguration(), producer);
@@ -70,8 +66,7 @@ void Client::createProducerAsync(const std::string& topic, ProducerConfiguration
     impl_->createProducerAsync(topic, conf, callback);
 }
 
-Result Client::subscribe(const std::string& topic, const std::string& consumerName,
-                         Consumer& consumer) {
+Result Client::subscribe(const std::string& topic, const std::string& consumerName, Consumer& consumer) {
     return subscribe(topic, consumerName, ConsumerConfiguration(), consumer);
 }
 
@@ -95,6 +90,20 @@ void Client::subscribeAsync(const std::string& topic, const std::string& consume
     impl_->subscribeAsync(topic, consumerName, conf, callback);
 }
 
+Result Client::createReader(const std::string& topic, const MessageId& startMessageId,
+                            const ReaderConfiguration& conf, Reader& reader) {
+    Promise<Result, Reader> promise;
+    createReaderAsync(topic, startMessageId, conf, WaitForCallbackValue<Reader>(promise));
+    Future<Result, Reader> future = promise.getFuture();
+
+    return future.get(reader);
+}
+
+void Client::createReaderAsync(const std::string& topic, const MessageId& startMessageId,
+                               const ReaderConfiguration& conf, ReaderCallback callback) {
+    impl_->createReaderAsync(topic, startMessageId, conf, callback);
+}
+
 Result Client::close() {
     Promise<bool, Result> promise;
     closeAsync(WaitForCallback(promise));
@@ -104,12 +113,7 @@ Result Client::close() {
     return result;
 }
 
-void Client::closeAsync(CloseCallback callback) {
-    impl_->closeAsync(callback);
-}
+void Client::closeAsync(CloseCallback callback) { impl_->closeAsync(callback); }
 
-void Client::shutdown() {
-    impl_->shutdown();
-}
-
-}
+void Client::shutdown() { impl_->shutdown(); }
+}  // namespace pulsar

@@ -21,19 +21,25 @@ package org.apache.pulsar.client.impl;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
+// All variables are in TimeUnit millis by default
 public class Backoff {
     private static final long DEFAULT_INTERVAL_IN_NANOSECONDS = TimeUnit.MILLISECONDS.toNanos(100);
     private static final long MAX_BACKOFF_INTERVAL_NANOSECONDS = TimeUnit.SECONDS.toNanos(30);
     private final long initial;
     private final long max;
     private long next;
+    private long mandatoryStop;
+    long firstBackoffTimeInMillis;
+    private boolean mandatoryStopMade = false;
 
     private static final Random random = new Random();
 
-    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax) {
+    public Backoff(long initial, TimeUnit unitInitial, long max, TimeUnit unitMax, long mandatoryStop,
+            TimeUnit unitMandatoryStop) {
         this.initial = unitInitial.toMillis(initial);
         this.max = unitMax.toMillis(max);
         this.next = this.initial;
+        this.mandatoryStop = unitMandatoryStop.toMillis(mandatoryStop);
     }
 
     public long next() {
@@ -41,10 +47,29 @@ public class Backoff {
         if (current < max) {
             this.next = Math.min(this.next * 2, this.max);
         }
-
-        // Randomly increase the timeout up to 25% to avoid simultaneous retries
-        current += random.nextInt((int) current / 4);
-        return current;
+        
+        // Check for mandatory stop
+        if (!mandatoryStopMade) {
+            long now = System.currentTimeMillis();
+            long timeElapsedSinceFirstBackoff = 0;
+            if (initial == current) {
+                firstBackoffTimeInMillis = now;
+            } else {
+                timeElapsedSinceFirstBackoff = now - firstBackoffTimeInMillis;
+            }
+    
+            if (timeElapsedSinceFirstBackoff + current > mandatoryStop) {
+                current = Math.max(initial, mandatoryStop - timeElapsedSinceFirstBackoff);
+                mandatoryStopMade = true;
+            }
+        }
+        
+        // Randomly decrease the timeout up to 10% to avoid simultaneous retries        
+        // If current < 10 then current/10 < 1 and we get an exception from Random saying "Bound must be positive"
+        if (current > 10) {
+            current -= random.nextInt((int) current / 10);
+        }
+        return Math.max(initial, current);
     }
 
     public void reduceToHalf() {
@@ -55,6 +80,7 @@ public class Backoff {
 
     public void reset() {
         this.next = this.initial;
+        this.mandatoryStopMade = false;
     }
 
     public static boolean shouldBackoff(long initialTimestamp, TimeUnit unitInitial, int failedAttempts) {

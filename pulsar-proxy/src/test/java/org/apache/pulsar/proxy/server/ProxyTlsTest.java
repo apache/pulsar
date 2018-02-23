@@ -32,6 +32,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -39,10 +40,11 @@ import org.testng.annotations.Test;
 
 public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
 
-    private static final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/cacert.pem";
-    private static final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/proxy-cert.pem";
-    private static final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/proxy-key.pem";
-
+    private final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    private final String TLS_PROXY_CERT_FILE_PATH = "./src/test/resources/authentication/tls/server-cert.pem";
+    private final String TLS_PROXY_KEY_FILE_PATH = "./src/test/resources/authentication/tls/server-key.pem";
+    private final String DUMMY_VALUE = "DUMMY_VALUE";
+    
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -59,6 +61,9 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setTlsEnabledWithBroker(false);
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);
+        proxyConfig.setZookeeperServers(DUMMY_VALUE);
+        proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
+        
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
 
@@ -97,6 +102,7 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
 
         PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePortTls(), conf);
+        admin.properties().createProperty("sample", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();

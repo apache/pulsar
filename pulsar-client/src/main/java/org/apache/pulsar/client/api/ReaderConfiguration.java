@@ -23,6 +23,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 
+/**
+ *
+ * @deprecated Use {@link PulsarClient#newReader()} to construct and configure a {@link Reader} instance
+ */
+@Deprecated
 public class ReaderConfiguration implements Serializable {
 
     private int receiverQueueSize = 1000;
@@ -30,6 +35,9 @@ public class ReaderConfiguration implements Serializable {
     private ReaderListener readerListener;
 
     private String readerName = null;
+
+    private CryptoKeyReader cryptoKeyReader = null;
+    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
     /**
      * @return the configured {@link ReaderListener} for the reader
@@ -58,6 +66,42 @@ public class ReaderConfiguration implements Serializable {
      */
     public int getReceiverQueueSize() {
         return this.receiverQueueSize;
+    }
+
+    /**
+     * @return the CryptoKeyReader
+     */
+    public CryptoKeyReader getCryptoKeyReader() {
+        return this.cryptoKeyReader;
+    }
+
+    /**
+     * Sets a {@link CryptoKeyReader}
+     *
+     * @param cryptoKeyReader
+     *            CryptoKeyReader object
+     */
+    public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+        checkNotNull(cryptoKeyReader);
+        this.cryptoKeyReader = cryptoKeyReader;
+        return this;
+    }
+
+    /**
+     * Sets the ConsumerCryptoFailureAction to the value specified
+     *
+     * @param action
+     *            The action to take when the decoding fails
+     */
+    public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
+        cryptoFailureAction = action;
+    }
+
+    /**
+     * @return The ConsumerCryptoFailureAction
+     */
+    public ConsumerCryptoFailureAction getCryptoFailureAction() {
+        return this.cryptoFailureAction;
     }
 
     /**

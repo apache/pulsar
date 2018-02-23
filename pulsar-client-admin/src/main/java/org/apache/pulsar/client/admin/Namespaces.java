@@ -29,9 +29,11 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BundlesData;
+import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 /**
  * Admin interface for namespaces management
@@ -397,7 +399,7 @@ public interface Namespaces {
     int getNamespaceMessageTTL(String namespace) throws PulsarAdminException;
 
     /**
-     * Set the replication clusters for a namespace.
+     * Set the messages Time to Live for all the topics within a namespace.
      * <p>
      * Request example:
      *
@@ -418,6 +420,103 @@ public interface Namespaces {
      *             Unexpected error
      */
     void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException;
+    
+    
+    /**
+     * Set anti-affinity group name for a namespace
+     * <p>
+     * Request example:
+     *
+     * @param namespace
+     *            Namespace name
+     * @param namespaceAntiAffinityGroup
+     *            anti-affinity group name for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setNamespaceAntiAffinityGroup(String namespace, String namespaceAntiAffinityGroup) throws PulsarAdminException;
+    
+    /**
+     * Get all namespaces that grouped with given anti-affinity group
+     * 
+     * @param property
+     *            property is only used for authorization. Client has to be admin of any of the property to access this
+     *            api api.
+     * @param cluster
+     *            cluster name
+     * @param namespaceAntiAffinityGroup
+     *            Anti-affinity group name
+     * @return list of namespace grouped under a given anti-affinity group
+     * @throws PulsarAdminException
+     */
+    List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
+            throws PulsarAdminException;
+
+    /**
+     * Get anti-affinity group name for a namespace
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>60</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    String getNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Delete anti-affinity group name for a namespace.
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             You don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void deleteNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set the deduplication status for all topics within a namespace.
+     * <p>
+     * When deduplication is enabled, the broker will prevent to store the same message multiple times.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param enableDeduplication
+     *            wether to enable or disable deduplication feature
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException;
 
     /**
      * Get the bundles split data.
@@ -602,7 +701,7 @@ public interface Namespaces {
      * <p/>
      * Request parameter example:
      * <p/>
-     * 
+     *
      * <pre>
      * <code>
      * {
@@ -633,7 +732,7 @@ public interface Namespaces {
      * <p/>
      * Response example:
      * <p/>
-     * 
+     *
      * <pre>
      * <code>
      * {
@@ -697,11 +796,33 @@ public interface Namespaces {
      * Split namespace bundle
      *
      * @param namespace
-     * @bundle range of bundle to split
+     * @param range of bundle to split
+     * @param unload newly split bundles from the broker
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void splitNamespaceBundle(String namespace, String bundle) throws PulsarAdminException;
+    void splitNamespaceBundle(String namespace, String bundle, boolean unloadSplitBundles) throws PulsarAdminException;
+
+    /**
+     * Set message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @param messageRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /** Get message-dispatch-rate (topics under this namespace can dispatch this many messages per second)
+    *
+    * @param namespace
+    * @returns messageRate
+    *            number of messages per second
+    * @throws PulsarAdminException
+    *             Unexpected error
+    */
+    DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
      * Clear backlog for all destinations on a namespace
@@ -762,4 +883,38 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void unsubscribeNamespaceBundle(String namespace, String bundle, String subscription) throws PulsarAdminException;
+
+    /**
+     * Set the encryption required status for all topics within a namespace.
+     * <p>
+     * When encryption required is true, the broker will prevent to store unencrypted messages.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>true</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param encryptionRequired
+     *            whether message encryption is required or not
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException;
+
+     /**
+     * Set the given subscription auth mode on all destinations on a namespace
+     *
+     * @param namespace
+     * @param subscriptionAuthMode
+     * @throws PulsarAdminException
+     */
+    void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException;
 }

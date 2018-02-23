@@ -18,12 +18,15 @@
  */
 package org.apache.pulsar.broker.lookup;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupResponse;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 
 import javax.ws.rs.DefaultValue;
 import javax.ws.rs.Encoded;
@@ -37,46 +40,50 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.web.NoSwaggerDocumentation;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
+import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
+import org.apache.pulsar.common.naming.DestinationDomain;
 import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import javax.ws.rs.core.Response.Status;
 
 import io.netty.buffer.ByteBuf;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 
 @Path("/v2/destination/")
 @NoSwaggerDocumentation
 public class DestinationLookup extends PulsarWebResource {
 
     @GET
-    @Path("non-persistent/{property}/{cluster}/{namespace}/{dest}")
+    @Path("{destination-domain}/{property}/{cluster}/{namespace}/{dest}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void lookupNonPersistentDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
-            @Suspended AsyncResponse asyncResponse) {
-        lookupDestinationAsync(property, cluster, namespace, dest, authoritative, asyncResponse);
-    }
-    @GET
-    @Path("persistent/{property}/{cluster}/{namespace}/{dest}")
-    @Produces(MediaType.APPLICATION_JSON)
-    public void lookupDestinationAsync(@PathParam("property") String property, @PathParam("cluster") String cluster,
+    public void lookupDestinationAsync(@PathParam("destination-domain") String destinationDomain,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
             @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended AsyncResponse asyncResponse) {
         dest = Codec.decode(dest);
-        DestinationName topic = DestinationName.get("persistent", property, cluster, namespace, dest);
+        DestinationDomain domain = null;
+        try {
+            domain = DestinationDomain.getEnum(destinationDomain);
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Invalid destination-domain {}", clientAppId(), destinationDomain, e);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Unsupported destination domain " + destinationDomain);
+        }
+        DestinationName topic = DestinationName.get(domain.value(), property, cluster, namespace, dest);
 
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topic);
@@ -87,7 +94,7 @@ public class DestinationLookup extends PulsarWebResource {
         try {
             validateClusterOwnership(topic.getCluster());
             checkConnect(topic);
-            validateReplicationSettingsOnNamespace(pulsar(), topic.getNamespaceObject());
+            validateGlobalNamespaceOwnership(topic.getNamespaceObject());
         } catch (WebApplicationException we) {
             // Validation checks failed
             log.error("Validation check failed: {}", we.getMessage());
@@ -100,16 +107,17 @@ public class DestinationLookup extends PulsarWebResource {
             return;
         }
 
-        CompletableFuture<LookupResult> lookupFuture = pulsar().getNamespaceService().getBrokerServiceUrlAsync(topic,
+        CompletableFuture<Optional<LookupResult>> lookupFuture = pulsar().getNamespaceService().getBrokerServiceUrlAsync(topic,
                 authoritative);
 
-        lookupFuture.thenAccept(result -> {
-            if (result == null) {
+        lookupFuture.thenAccept(optionalResult -> {
+            if (optionalResult == null || !optionalResult.isPresent()) {
                 log.warn("No broker was found available for topic {}", topic);
                 completeLookupResponseExceptionally(asyncResponse, new WebApplicationException(Response.Status.SERVICE_UNAVAILABLE));
                 return;
             }
 
+            LookupResult result = optionalResult.get();
             // We have found either a broker that owns the topic, or a broker to which we should redirect the client to
             if (result.isRedirect()) {
                 boolean newAuthoritative = this.isLeaderBroker();
@@ -144,6 +152,33 @@ public class DestinationLookup extends PulsarWebResource {
 
     }
 
+    @GET
+    @Path("{destination-domain}/{property}/{cluster}/{namespace}/{dest}/bundle")
+    @Produces(MediaType.APPLICATION_JSON)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 405, message = "Invalid destination domain type") })
+    public String getNamespaceBundle(@PathParam("destination-domain") String destinationDomain,
+            @PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest) {
+        dest = Codec.decode(dest);
+        DestinationDomain domain = null;
+        try {
+            domain = DestinationDomain.getEnum(destinationDomain);
+        } catch (IllegalArgumentException e) {
+            log.error("[{}] Invalid destination-domain {}", clientAppId(), destinationDomain, e);
+            throw new RestException(Status.METHOD_NOT_ALLOWED,
+                    "Bundle lookup can not be done on destination domain " + destinationDomain);
+        }
+        DestinationName topic = DestinationName.get(domain.value(), property, cluster, namespace, dest);
+        validateSuperUserAccess();
+        try {
+            NamespaceBundle bundle = pulsar().getNamespaceService().getBundle(topic);
+            return bundle.getBundleRange();
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace bundle for {}", clientAppId(), topic, e);
+            throw new RestException(e);
+        }
+    }
 
     /**
      *
@@ -165,7 +200,7 @@ public class DestinationLookup extends PulsarWebResource {
      * @return
      */
     public static CompletableFuture<ByteBuf> lookupDestinationAsync(PulsarService pulsarService, DestinationName fqdn, boolean authoritative,
-            String clientAppId, long requestId) {
+            String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
 
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
@@ -177,14 +212,15 @@ public class DestinationLookup extends PulsarWebResource {
             if (differentClusterData != null) {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Redirecting the lookup call to {}/{} cluster={}", clientAppId,
-                            differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(), cluster);
+                            differentClusterData.getBrokerServiceUrl(), differentClusterData.getBrokerServiceUrlTls(),
+                            cluster);
                 }
                 validationFuture.complete(newLookupResponse(differentClusterData.getBrokerServiceUrl(),
                         differentClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId, false));
             } else {
                 // (2) authorize client
                 try {
-                    checkAuthorization(pulsarService, fqdn, clientAppId);
+                    checkAuthorization(pulsarService, fqdn, clientAppId, authenticationData);
                 } catch (RestException authException) {
                     log.warn("Failed to authorized {} on cluster {}", clientAppId, fqdn.toString());
                     validationFuture.complete(
@@ -196,10 +232,19 @@ public class DestinationLookup extends PulsarWebResource {
                     return;
                 }
                 // (3) validate global namespace
-                validateReplicationSettingsOnNamespaceAsync(pulsarService, fqdn.getNamespaceObject())
-                        .thenAccept(success -> {
-                            // (4) all validation passed: initiate lookup
-                            validationFuture.complete(null);
+                checkLocalOrGetPeerReplicationCluster(pulsarService, fqdn.getNamespaceObject())
+                        .thenAccept(peerClusterData -> {
+                            if (peerClusterData == null) {
+                                // (4) all validation passed: initiate lookup
+                                validationFuture.complete(null);
+                                return;
+                            }
+                            // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
+                            // request should be redirect to the peer-cluster
+                            validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
+                                    peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
+                                    false));
+
                         }).exceptionally(ex -> {
                             validationFuture
                                     .complete(newLookupErrorResponse(ServerError.MetadataError, ex.getMessage(), requestId));
@@ -223,8 +268,14 @@ public class DestinationLookup extends PulsarWebResource {
                                 log.debug("[{}] Lookup result {}", fqdn.toString(), lookupResult);
                             }
 
-                            LookupData lookupData = lookupResult.getLookupData();
-                            if (lookupResult.isRedirect()) {
+                            if (!lookupResult.isPresent()) {
+                                lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
+                                        "No broker was available to own " + fqdn, requestId));
+                                return;
+                            }
+
+                            LookupData lookupData = lookupResult.get().getLookupData();
+                            if (lookupResult.get().isRedirect()) {
                                 boolean newAuthoritative = isLeaderBroker(pulsarService);
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
@@ -234,18 +285,29 @@ public class DestinationLookup extends PulsarWebResource {
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 true /* authoritative */, LookupType.Connect, requestId, false));
                             }
-                        }).exceptionally(e -> {
-                            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
-                                    e.getMessage(), e);
+                        }).exceptionally(ex -> {
+                            if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+                                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                                        ex.getCause().getMessage());
+                            } else {
+                                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                                        ex.getMessage(), ex);
+                            }
                             lookupfuture.complete(
-                                    newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), requestId));
+                                    newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
                             return null;
                         });
             }
 
         }).exceptionally(ex -> {
-            log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(), ex.getMessage(),
-                    ex);
+            if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
+                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                        ex.getCause().getMessage());
+            } else {
+                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                        ex.getMessage(), ex);
+            }
+
             lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
             return null;
         });

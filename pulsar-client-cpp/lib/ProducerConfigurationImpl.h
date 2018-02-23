@@ -22,33 +22,44 @@
 #include <pulsar/ProducerConfiguration.h>
 #include <boost/make_shared.hpp>
 
+#include "Utils.h"
+
 namespace pulsar {
 
 struct ProducerConfigurationImpl {
+    Optional<std::string> producerName;
+    Optional<int64_t> initialSequenceId;
     int sendTimeoutMs;
     CompressionType compressionType;
     int maxPendingMessages;
+    int maxPendingMessagesAcrossPartitions;
     ProducerConfiguration::PartitionsRoutingMode routingMode;
     MessageRoutingPolicyPtr messageRouter;
+    ProducerConfiguration::HashingScheme hashingScheme;
     bool blockIfQueueFull;
     bool batchingEnabled;
     unsigned int batchingMaxMessages;
     unsigned long batchingMaxAllowedSizeInBytes;
     unsigned long batchingMaxPublishDelayMs;
+    CryptoKeyReaderPtr cryptoKeyReader;
+    std::set<std::string> encryptionKeys;
+    ProducerCryptoFailureAction cryptoFailureAction;
     ProducerConfigurationImpl()
-            : sendTimeoutMs(30000),
-              compressionType(CompressionNone),
-              maxPendingMessages(1000),
-              routingMode(ProducerConfiguration::UseSinglePartition),
-              blockIfQueueFull(false),
-              batchingEnabled(false),
-              batchingMaxMessages(1000),
-              batchingMaxAllowedSizeInBytes(128 * 1024), // 128 KB
-              batchingMaxPublishDelayMs(10) { // 10 milli seconds
-    }
+        : sendTimeoutMs(30000),
+          compressionType(CompressionNone),
+          maxPendingMessages(1000),
+          maxPendingMessagesAcrossPartitions(50000),
+          routingMode(ProducerConfiguration::UseSinglePartition),
+          hashingScheme(ProducerConfiguration::BoostHash),
+          blockIfQueueFull(false),
+          batchingEnabled(false),
+          batchingMaxMessages(1000),
+          batchingMaxAllowedSizeInBytes(128 * 1024),  // 128 KB
+          batchingMaxPublishDelayMs(10),              // 10 milli seconds
+          cryptoKeyReader(),
+          encryptionKeys(),
+          cryptoFailureAction(ProducerCryptoFailureAction::FAIL) {}
 };
-}
-
-
+}  // namespace pulsar
 
 #endif /* LIB_PRODUCERCONFIGURATIONIMPL_H_ */

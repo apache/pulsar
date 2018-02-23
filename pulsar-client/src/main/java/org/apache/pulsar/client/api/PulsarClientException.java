@@ -131,6 +131,12 @@ public class PulsarClientException extends IOException {
         }
     }
 
+    public static class ProducerBusyException extends PulsarClientException {
+        public ProducerBusyException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class ConsumerBusyException extends PulsarClientException {
         public ConsumerBusyException(String msg) {
             super(msg);
@@ -181,6 +187,12 @@ public class PulsarClientException extends IOException {
 
     public static class ChecksumException extends PulsarClientException {
         public ChecksumException(String msg) {
+            super(msg);
+        }
+    }
+
+    public static class CryptoException extends PulsarClientException {
+        public CryptoException(String msg) {
             super(msg);
         }
     }

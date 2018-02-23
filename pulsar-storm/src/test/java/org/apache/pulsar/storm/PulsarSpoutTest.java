@@ -29,6 +29,7 @@ import org.apache.pulsar.storm.MessageToValuesMapper;
 import org.apache.pulsar.storm.PulsarSpout;
 import org.apache.pulsar.storm.PulsarSpoutConfiguration;
 import org.testng.Assert;
+import static org.testng.Assert.fail;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -42,10 +43,10 @@ import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 
-import backtype.storm.spout.SpoutOutputCollector;
-import backtype.storm.task.TopologyContext;
-import backtype.storm.topology.OutputFieldsDeclarer;
-import backtype.storm.tuple.Values;
+import org.apache.storm.spout.SpoutOutputCollector;
+import org.apache.storm.task.TopologyContext;
+import org.apache.storm.topology.OutputFieldsDeclarer;
+import org.apache.storm.tuple.Values;
 
 public class PulsarSpoutTest extends ProducerConsumerBase {
 
@@ -321,5 +322,32 @@ public class PulsarSpoutTest extends ProducerConsumerBase {
         // test serializability with no auth
         PulsarSpout spoutWithNoAuth = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration());
         TestUtil.testSerializability(spoutWithNoAuth);
+    }
+    
+    @Test
+    public void testFailedConsumer() throws Exception {
+        PulsarSpoutConfiguration pulsarSpoutConf = new PulsarSpoutConfiguration();
+        pulsarSpoutConf.setServiceUrl(serviceUrl);
+        pulsarSpoutConf.setTopic("persistent://invalidTopic");
+        pulsarSpoutConf.setSubscriptionName(subscriptionName);
+        pulsarSpoutConf.setMessageToValuesMapper(messageToValuesMapper);
+        pulsarSpoutConf.setFailedRetriesTimeout(1, TimeUnit.SECONDS);
+        pulsarSpoutConf.setMaxFailedRetries(2);
+        pulsarSpoutConf.setSharedConsumerEnabled(false);
+        pulsarSpoutConf.setMetricsTimeIntervalInSecs(60);
+        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
+        consumerConf.setSubscriptionType(SubscriptionType.Shared);
+        PulsarSpout spout = new PulsarSpout(pulsarSpoutConf, new ClientConfiguration(), consumerConf);
+        MockSpoutOutputCollector mockCollector = new MockSpoutOutputCollector();
+        SpoutOutputCollector collector = new SpoutOutputCollector(mockCollector);
+        TopologyContext context = mock(TopologyContext.class);
+        when(context.getThisComponentId()).thenReturn("new-test" + methodName);
+        when(context.getThisTaskId()).thenReturn(0);
+        try {
+            spout.open(Maps.newHashMap(), context, collector);
+            fail("should have failed as consumer creation failed");
+        } catch (IllegalStateException e) {
+            // Ok
+        }
     }
 }

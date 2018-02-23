@@ -22,10 +22,10 @@ import java.security.GeneralSecurityException;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import javax.servlet.DispatcherType;
 
@@ -55,7 +55,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.jaxrs.json.JacksonJaxbJsonProvider;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
@@ -65,19 +64,12 @@ import io.netty.util.concurrent.DefaultThreadFactory;
  */
 public class WebService implements AutoCloseable {
 
-    /**
-     * The set of path regexes on which the ApiVersionFilter is installed if needed
-     */
-    private static final List<Pattern> API_VERSION_FILTER_PATTERNS = ImmutableList.of(
-            Pattern.compile("^/lookup.*") // V2 lookups
-    );
     private static final String MATCH_ALL = "/*";
 
     public static final String ATTRIBUTE_PULSAR_NAME = "pulsar";
     public static final String HANDLER_CACHE_CONTROL = "max-age=3600";
-    public static final String HANDLER_REQUEST_LOG_TZ = "GMT";
     public static final int NUM_ACCEPTORS = 32; // make it configurable?
-    public static final int MAX_CONCURRENT_REQUESTES = 1024; // make it configurable?
+    public static final int MAX_CONCURRENT_REQUESTS = 1024; // make it configurable?
 
     private final PulsarService pulsar;
     private final Server server;
@@ -118,11 +110,11 @@ public class WebService implements AutoCloseable {
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors
-        connectors.forEach(c -> c.setAcceptQueueSize(WebService.MAX_CONCURRENT_REQUESTES / connectors.size()));
+        connectors.forEach(c -> c.setAcceptQueueSize(WebService.MAX_CONCURRENT_REQUESTS / connectors.size()));
         server.setConnectors(connectors.toArray(new ServerConnector[connectors.size()]));
     }
 
-    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication) {
+    public void addRestResources(String basePath, String javaPackages, boolean requiresAuthentication, Map<String,Object> attributeMap) {
         JacksonJaxbJsonProvider provider = new JacksonJaxbJsonProvider();
         provider.setMapper(ObjectMapperFactory.create());
         ResourceConfig config = new ResourceConfig();
@@ -130,32 +122,24 @@ public class WebService implements AutoCloseable {
         config.register(provider);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
-        addServlet(basePath, servletHolder, requiresAuthentication);
+        addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
     }
 
-    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication) {
+    public void addServlet(String path, ServletHolder servletHolder, boolean requiresAuthentication, Map<String,Object> attributeMap) {
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath(path);
         context.addServlet(servletHolder, MATCH_ALL);
-        context.setAttribute(WebService.ATTRIBUTE_PULSAR_NAME, pulsar);
+        if (attributeMap != null) {
+            attributeMap.forEach((key, value) -> {
+                context.setAttribute(key, value);
+            });
+        }
 
         if (requiresAuthentication && pulsar.getConfiguration().isAuthenticationEnabled()) {
             FilterHolder filter = new FilterHolder(new AuthenticationFilter(pulsar));
             context.addFilter(filter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
         }
 
-        log.info("Servlet path: '{}' -- Enable client version check: {} -- shouldCheckApiVersionOnPath: {}", path,
-                pulsar.getConfiguration().isClientLibraryVersionCheckEnabled(),
-                shouldCheckApiVersionOnPath(path));
-        if (pulsar.getConfiguration().isClientLibraryVersionCheckEnabled() && shouldCheckApiVersionOnPath(path)) {
-            // Add the ApiVersionFilter to reject request from deprecated
-            // clients.
-            FilterHolder holder = new FilterHolder(
-                    new ApiVersionFilter(pulsar, pulsar.getConfiguration().isClientLibraryVersionCheckAllowUnversioned()));
-            context.addFilter(holder, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
-            log.info("Enabling ApiVersionFilter");
-        }
-        
         FilterHolder responseFilter = new FilterHolder(new ResponseHandlerFilter(pulsar));
         context.addFilter(responseFilter, MATCH_ALL, EnumSet.allOf(DispatcherType.class));
 
@@ -173,29 +157,12 @@ public class WebService implements AutoCloseable {
         handlers.add(capHandler);
     }
 
-    /**
-     * Checks to see if the given path matches any of the api version filter paths.
-     *
-     * @param path
-     *            the path to check
-     * @return true if the ApiVersionFilter can be installed on the path
-     */
-    private boolean shouldCheckApiVersionOnPath(String path) {
-        for (Pattern filterPattern : API_VERSION_FILTER_PATTERNS) {
-            Matcher matcher = filterPattern.matcher(path);
-            if (matcher.matches()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public void start() throws PulsarServerException {
         try {
             RequestLogHandler requestLogHandler = new RequestLogHandler();
             Slf4jRequestLog requestLog = new Slf4jRequestLog();
             requestLog.setExtended(true);
-            requestLog.setLogTimeZone(WebService.HANDLER_REQUEST_LOG_TZ);
+            requestLog.setLogTimeZone(TimeZone.getDefault().getID());
             requestLog.setLogLatency(true);
             requestLogHandler.setRequestLog(requestLog);
             handlers.add(0, new ContextHandlerCollection());

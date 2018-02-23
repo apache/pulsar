@@ -3,6 +3,27 @@ title: The Pulsar Java client
 tags: [client, java]
 ---
 
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
 The Pulsar Java client can be used both to create Java {% popover producers %} and {% popover consumers %} of messages but also to perform [administrative tasks](../../admin-api/overview).
 
 The current version of the Java client is **{{ site.current_version }}**.
@@ -192,7 +213,29 @@ Here's an example:
 CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 ```
 
-Async send operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
+
+## Reader interface
+
+With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
+
+Here's an example:
+
+```java
+ReaderConfiguration conf = new ReaderConfiguration();
+byte[] msgIdBytes = // Some message ID byte array
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.createReader(topic, id, conf);
+
+while (true) {
+    Message message = reader.readNext();
+    // Process message
+}
+```
+
+In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by `msgIdBytes` (how that value is obtained depends on the application).
+
+The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
 
 ## Authentication
 
@@ -214,8 +257,7 @@ authParams.put("tlsCertFile", "/path/to/client-cert.pem");
 authParams.put("tlsKeyFile", "/path/to/client-key.pem");
 conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.create(
-                        "pulsar+ssl://my-broker.com:6651", conf);
+PulsarClient client = PulsarClient.create("pulsar+ssl://my-broker.com:6651", conf);
 ```
 
 ### Athenz
@@ -225,7 +267,7 @@ To use [Athenz](../../admin/Authz#athenz) as an authentication provider, you nee
 * `tenantDomain`
 * `tenantService`
 * `providerDomain`
-* `privateKeyPath`
+* `privateKey`
 
 You can also set an optional `keyId`. Here's an example configuration:
 
@@ -241,10 +283,19 @@ Map<String, String> authParams = new HashMap<>();
 authParams.put("tenantDomain", "shopping"); // Tenant domain name
 authParams.put("tenantService", "some_app"); // Tenant service name
 authParams.put("providerDomain", "pulsar"); // Provider domain name
-authParams.put("privateKeyPath", "/path/to/private.pem"); // Tenant private key path
+authParams.put("privateKey", "file:///path/to/private.pem"); // Tenant private key path
 authParams.put("keyId", "v1"); // Key id for the tenant private key (optional, default: "0")
 conf.setAuthentication(AuthenticationAthenz.class.getName(), authParams);
 
 PulsarClient client = PulsarClient.create(
         "pulsar+ssl://my-broker.com:6651", conf);
 ```
+
+{% include admonition.html type="info" title="Supported pattern formats"
+content='
+The `privateKey` parameter supports the following three pattern formats:
+
+* `file:///path/to/file`
+* `file:/path/to/file`
+* `data:application/x-pem-file;base64,<base64-encoded value>`' %}
+

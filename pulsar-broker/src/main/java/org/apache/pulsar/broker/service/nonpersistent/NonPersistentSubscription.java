@@ -19,10 +19,12 @@
 package org.apache.pulsar.broker.service.nonpersistent;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -31,17 +33,17 @@ import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFence
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentSubscriptionStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class NonPersistentSubscription implements Subscription {
     private final NonPersistentTopic topic;
@@ -53,8 +55,9 @@ public class NonPersistentSubscription implements Subscription {
     private static final int TRUE = 1;
     private static final AtomicIntegerFieldUpdater<NonPersistentSubscription> IS_FENCED_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(NonPersistentSubscription.class, "isFenced");
+    @SuppressWarnings("unused")
     private volatile int isFenced = FALSE;
-    
+
     public NonPersistentSubscription(NonPersistentTopic topic, String subscriptionName) {
         this.topic = topic;
         this.topicName = topic.getName();
@@ -68,6 +71,11 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
+    public Topic getTopic() {
+        return topic;
+    }
+
+    @Override
     public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_FENCED_UPDATER.get(this) == TRUE) {
             log.warn("Attempting to add consumer {} on a fenced subscription", consumer);
@@ -78,12 +86,12 @@ public class NonPersistentSubscription implements Subscription {
             switch (consumer.subType()) {
             case Exclusive:
                 if (dispatcher == null || dispatcher.getType() != SubType.Exclusive) {
-                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this.subName);
+                    dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Exclusive, 0, topic, this);
                 }
                 break;
             case Shared:
                 if (dispatcher == null || dispatcher.getType() != SubType.Shared) {
-                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this.subName);
+                    dispatcher = new NonPersistentDispatcherMultipleConsumers(topic, this);
                 }
                 break;
             case Failover:
@@ -95,7 +103,7 @@ public class NonPersistentSubscription implements Subscription {
 
                 if (dispatcher == null || dispatcher.getType() != SubType.Failover) {
                     dispatcher = new NonPersistentDispatcherSingleActiveConsumer(SubType.Failover, partitionIndex,
-                            topic, this.subName);
+                            topic, this);
                 }
                 break;
             default:
@@ -131,13 +139,13 @@ public class NonPersistentSubscription implements Subscription {
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType) {
+    public void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties) {
         // No-op
     }
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
     }
 
     @Override
@@ -341,10 +349,15 @@ public class NonPersistentSubscription implements Subscription {
         // No-op
         return 0;
     }
-    
+
     @Override
     public void markTopicWithBatchMessagePublished() {
         topic.markBatchMessagePublished();
+    }
+
+    @Override
+    public CompletableFuture<Void> resetCursor(Position position) {
+        return CompletableFuture.completedFuture(null);
     }
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentSubscription.class);

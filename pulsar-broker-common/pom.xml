@@ -26,19 +26,13 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.20.0-incubating-SNAPSHOT</version>
+    <version>2.0.0-incubating-SNAPSHOT</version>
   </parent>
 
   <artifactId>pulsar-broker-common</artifactId>
   <description>Common classes used in multiple broker modules</description>
 
   <dependencies>
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-    
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-zookeeper-utils</artifactId>
@@ -54,5 +48,11 @@
       <groupId>javax.servlet</groupId>
       <artifactId>javax.servlet-api</artifactId>
     </dependency>
+    
+    <dependency>
+      <groupId>javax.ws.rs</groupId>
+      <artifactId>javax.ws.rs-api</artifactId>
+    </dependency>
+    
   </dependencies>
 </project>

@@ -42,6 +42,8 @@ import io.netty.buffer.PoolArenaMetric;
 import io.netty.buffer.PoolChunkListMetric;
 import io.netty.buffer.PoolChunkMetric;
 import io.netty.buffer.PooledByteBufAllocator;
+import io.netty.buffer.PooledByteBufAllocatorMetric;
+import io.netty.util.internal.PlatformDependent;
 
 public class JvmMetrics {
 
@@ -61,9 +63,7 @@ public class JvmMetrics {
         service.getExecutor().scheduleAtFixedRate(this::updateGcStats, 0, 1, TimeUnit.MINUTES);
     }
 
-    @SuppressWarnings("restriction")
     public Metrics generate() {
-
         Map<String, String> dimensionMap = Maps.newHashMap();
         dimensionMap.put("system", "jvm");
         Metrics m = create(dimensionMap);
@@ -74,7 +74,7 @@ public class JvmMetrics {
         m.put("jvm_max_memory", r.maxMemory());
         m.put("jvm_total_memory", r.totalMemory());
 
-        m.put("jvm_max_direct_memory", sun.misc.VM.maxDirectMemory());
+        m.put("jvm_max_direct_memory", PlatformDependent.maxDirectMemory());
         m.put("jvm_thread_cnt", getThreadCount());
 
         m.put("jvm_gc_young_pause", currentYoungGcTime);
@@ -85,7 +85,7 @@ public class JvmMetrics {
         long totalAllocated = 0;
         long totalUsed = 0;
 
-        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.directArenas()) {
+        for (PoolArenaMetric arena : PooledByteBufAllocator.DEFAULT.metric().directArenas()) {
             for (PoolChunkListMetric list : arena.chunkLists()) {
                 for (PoolChunkMetric chunk : list) {
                     int size = chunk.chunkSize();

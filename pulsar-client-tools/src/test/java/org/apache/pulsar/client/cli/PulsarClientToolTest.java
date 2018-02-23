@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.cli;
 
 import java.net.MalformedURLException;
+import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -26,7 +27,10 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.cli.PulsarClientTool;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -48,11 +52,12 @@ public class PulsarClientToolTest extends BrokerTestBase {
     }
 
     @Test(timeOut = 10000)
-    public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException {
+    public void testInitialzation() throws MalformedURLException, InterruptedException, ExecutionException, PulsarAdminException {
         Properties properties = new Properties();
         properties.setProperty("serviceUrl", brokerUrl.toString());
         properties.setProperty("useTls", "false");
 
+        admin.properties().createProperty("property", new PropertyAdmin());
         String topicName = "persistent://property/ns/topic-scale-ns-0/topic";
 
         int numberOfMessages = 10;
@@ -72,6 +77,18 @@ public class PulsarClientToolTest extends BrokerTestBase {
                 future.completeExceptionally(t);
             }
         });
+
+        // Make sure subscription has been created
+        while (true) {
+            try {
+                List<String> subscriptions = admin.persistentTopics().getSubscriptions(topicName);
+                if(subscriptions.size() == 1){
+                    break;
+                }
+            } catch (Exception e){
+            }
+            Thread.sleep(200);
+        }
 
         PulsarClientTool pulsarClientToolProducer = new PulsarClientTool(properties);
 

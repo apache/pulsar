@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin;
 
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAuthorizedException;
@@ -197,5 +198,70 @@ public interface NonPersistentTopics {
      * @return a future that can be used to track when the partitioned topic is created
      */
     CompletableFuture<Void> createPartitionedTopicAsync(String destination, int numPartitions);
+    
+    /**
+     * Unload a topic.
+     * <p>
+     *
+     * @param destination
+     *            Destination name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Destination does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void unload(String destination) throws PulsarAdminException;
+
+    /**
+     * Unload a topic asynchronously.
+     * <p>
+     *
+     * @param destination
+     *            Destination name
+     *
+     * @return a future that can be used to track when the topic is unloaded
+     */
+    CompletableFuture<Void> unloadAsync(String destination);
+
+    /**
+     * Get list of topics exist into given bundle
+     * 
+     * @param namespace
+     * @param bundleRange
+     * @return
+     * @throws PulsarAdminException
+     */
+    List<String> getListInBundle(String namespace, String bundleRange)
+            throws PulsarAdminException;
+
+    /**
+     * Get list of topics exist into given bundle asynchronously.
+     * 
+     * @param namespace
+     * @param bundleRange
+     * @return
+     */
+    CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange);
+
+    /**
+     * Get list of topics exist into given namespace
+     * 
+     * @param namespace
+     * @return
+     * @throws PulsarAdminException
+     */
+    List<String> getList(String namespace) throws PulsarAdminException;
+
+    /**
+     * Get list of topics exist into given namespace asynchronously.
+     * 
+     * @param namespace
+     * @param bundleRange
+     * @return
+     */
+    CompletableFuture<List<String>> getListAsync(String namespace);
 
 }

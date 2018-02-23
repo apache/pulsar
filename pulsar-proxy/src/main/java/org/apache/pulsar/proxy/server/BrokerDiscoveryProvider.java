@@ -19,6 +19,7 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.apache.bookkeeper.util.MathUtils.signSafeMod;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 
 import java.io.Closeable;
@@ -31,11 +32,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
-import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
+import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.proxy.server.util.ZookeeperCacheLoader;
 import org.apache.pulsar.zookeeper.GlobalZooKeeperCache;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
@@ -46,7 +47,6 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Joiner;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 /**
  * Maintains available active broker list and returns next active broker in round-robin for discovery service.
@@ -79,13 +79,13 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     /**
-     * Find next broke {@link LoadReport} in round-robin fashion.
+     * Find next broker {@link LoadManagerReport} in round-robin fashion.
      *
      * @return
      * @throws PulsarServerException
      */
-    ServiceLookupData nextBroker() throws PulsarServerException {
-        List<ServiceLookupData> availableBrokers = localZkCache.getAvailableBrokers();
+    LoadManagerReport nextBroker() throws PulsarServerException {
+        List<LoadManagerReport> availableBrokers = localZkCache.getAvailableBrokers();
 
         if (availableBrokers.isEmpty()) {
             throw new PulsarServerException("No active broker is available");
@@ -97,13 +97,13 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(ProxyService service,
-            DestinationName destination, String role) {
+            DestinationName destination, String role, AuthenticationDataSource authenticationData) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
-            checkAuthorization(service, destination, role);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE, destination.getProperty(), destination.getCluster(),
-                    destination.getNamespacePortion(), "persistent", destination.getEncodedLocalName());
+            checkAuthorization(service, destination, role, authenticationData);
+            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
+                    destination.getNamespaceObject().toString(), "persistent", destination.getEncodedLocalName());
             // gets the number of partitions from the zk cache
             globalZkCache
                     .getDataAsync(path,
@@ -126,15 +126,15 @@ public class BrokerDiscoveryProvider implements Closeable {
         return metadataFuture;
     }
 
-    protected static void checkAuthorization(ProxyService service, DestinationName destination, String role)
-            throws Exception {
+    protected static void checkAuthorization(ProxyService service, DestinationName destination, String role,
+            AuthenticationDataSource authenticationData) throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
             // No enforcing of authorization policies
             return;
         }
         // get zk policy manager
-        if (!service.getAuthorizationManager().canLookup(destination, role)) {
+        if (!service.getAuthorizationService().canLookup(destination, role, authenticationData)) {
             LOG.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
             // check namespace authorization
             PropertyAdmin propertyAdmin;

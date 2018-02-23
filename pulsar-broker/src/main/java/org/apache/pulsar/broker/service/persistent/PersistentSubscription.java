@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
@@ -37,14 +38,15 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositio
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
+import org.apache.pulsar.broker.service.Consumer;
+import org.apache.pulsar.broker.service.Dispatcher;
+import org.apache.pulsar.broker.service.Subscription;
+import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -54,14 +56,14 @@ import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Objects;
+import com.google.common.base.MoreObjects;
 
 public class PersistentSubscription implements Subscription {
-    private final PersistentTopic topic;
-    private final ManagedCursor cursor;
-    private volatile Dispatcher dispatcher;
-    private final String topicName;
-    private final String subName;
+    protected final PersistentTopic topic;
+    protected final ManagedCursor cursor;
+    protected volatile Dispatcher dispatcher;
+    protected final String topicName;
+    protected final String subName;
 
     private static final int FALSE = 0;
     private static final int TRUE = 1;
@@ -85,6 +87,11 @@ public class PersistentSubscription implements Subscription {
     @Override
     public String getName() {
         return this.subName;
+    }
+
+    @Override
+    public Topic getTopic() {
+        return topic;
     }
 
     @Override
@@ -133,7 +140,6 @@ public class PersistentSubscription implements Subscription {
         }
 
         dispatcher.addConsumer(consumer);
-        activateCursor();
     }
 
     @Override
@@ -164,22 +170,18 @@ public class PersistentSubscription implements Subscription {
         this.cursor.setInactive();
     }
 
-    public void activateCursor() {
-        this.cursor.setActive();
-    }
-
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType) {
+    public void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties) {
         if (ackType == AckType.Cumulative) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Cumulative ack on {}", topicName, subName, position);
             }
-            cursor.asyncMarkDelete(position, markDeleteCallback, position);
+            cursor.asyncMarkDelete(position, properties, markDeleteCallback, position);
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Individual ack on {}", topicName, subName, position);
@@ -228,7 +230,7 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public String toString() {
-        return Objects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
+        return MoreObjects.toStringHelper(this).add("topic", topicName).add("name", subName).toString();
     }
 
     @Override
@@ -348,62 +350,7 @@ public class PersistentSubscription implements Subscription {
                 } else {
                     finalPosition = position;
                 }
-
-                if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
-                    future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
-                    return;
-                }
-
-                final CompletableFuture<Void> disconnectFuture;
-                if (dispatcher != null && dispatcher.isConsumerConnected()) {
-                    disconnectFuture = dispatcher.disconnectAllConsumers();
-                } else {
-                    disconnectFuture = CompletableFuture.completedFuture(null);
-                }
-
-                disconnectFuture.whenComplete((aVoid, throwable) -> {
-                    if (throwable != null) {
-                        log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        future.completeExceptionally(new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
-                        return;
-                    }
-                    log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset", topicName, subName);
-
-                    try {
-                        cursor.asyncResetCursor(finalPosition, new AsyncCallbacks.ResetCursorCallback() {
-                            @Override
-                            public void resetComplete(Object ctx) {
-                                if (log.isDebugEnabled()) {
-                                    log.debug("[{}][{}] Successfully reset subscription to timestamp {}", topicName, subName,
-                                            timestamp);
-                                }
-                                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                                future.complete(null);
-                            }
-
-                            @Override
-                            public void resetFailed(ManagedLedgerException exception, Object ctx) {
-                                log.error("[{}][{}] Failed to reset subscription to timestamp {}", topicName, subName, timestamp,
-                                        exception);
-                                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                                // todo - retry on InvalidCursorPositionException
-                                // or should we just ask user to retry one more time?
-                                if (exception instanceof InvalidCursorPositionException) {
-                                    future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
-                                } else if (exception instanceof ConcurrentFindCursorPositionException) {
-                                    future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
-                                } else {
-                                    future.completeExceptionally(new BrokerServiceException(exception));
-                                }
-                            }
-                        });
-                    } catch (Exception e) {
-                        log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
-                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
-                        future.completeExceptionally(new BrokerServiceException(e));
-                    }
-                });
+                resetCursor(finalPosition, future);
             }
 
             @Override
@@ -418,6 +365,73 @@ public class PersistentSubscription implements Subscription {
         });
 
         return future;
+    }
+
+    @Override
+    public CompletableFuture<Void> resetCursor(Position position) {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        resetCursor(position, future);
+        return future;
+    }
+
+    private void resetCursor(Position finalPosition, CompletableFuture<Void> future) {
+        if (!IS_FENCED_UPDATER.compareAndSet(PersistentSubscription.this, FALSE, TRUE)) {
+            future.completeExceptionally(new SubscriptionBusyException("Failed to fence subscription"));
+            return;
+        }
+
+        final CompletableFuture<Void> disconnectFuture;
+        if (dispatcher != null && dispatcher.isConsumerConnected()) {
+            disconnectFuture = dispatcher.disconnectAllConsumers();
+        } else {
+            disconnectFuture = CompletableFuture.completedFuture(null);
+        }
+
+        disconnectFuture.whenComplete((aVoid, throwable) -> {
+            if (throwable != null) {
+                log.error("[{}][{}] Failed to disconnect consumer from subscription", topicName, subName, throwable);
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                future.completeExceptionally(
+                        new SubscriptionBusyException("Failed to disconnect consumers from subscription"));
+                return;
+            }
+            log.info("[{}][{}] Successfully disconnected consumers from subscription, proceeding with cursor reset",
+                    topicName, subName);
+
+            try {
+                cursor.asyncResetCursor(finalPosition, new AsyncCallbacks.ResetCursorCallback() {
+                    @Override
+                    public void resetComplete(Object ctx) {
+                        if (log.isDebugEnabled()) {
+                            log.debug("[{}][{}] Successfully reset subscription to position {}", topicName, subName,
+                                    finalPosition);
+                        }
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        future.complete(null);
+                    }
+
+                    @Override
+                    public void resetFailed(ManagedLedgerException exception, Object ctx) {
+                        log.error("[{}][{}] Failed to reset subscription to position {}", topicName, subName,
+                                finalPosition, exception);
+                        IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                        // todo - retry on InvalidCursorPositionException
+                        // or should we just ask user to retry one more time?
+                        if (exception instanceof InvalidCursorPositionException) {
+                            future.completeExceptionally(new SubscriptionInvalidCursorPosition(exception.getMessage()));
+                        } else if (exception instanceof ConcurrentFindCursorPositionException) {
+                            future.completeExceptionally(new SubscriptionBusyException(exception.getMessage()));
+                        } else {
+                            future.completeExceptionally(new BrokerServiceException(exception));
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                log.error("[{}][{}] Error while resetting cursor", topicName, subName, e);
+                IS_FENCED_UPDATER.set(PersistentSubscription.this, FALSE);
+                future.completeExceptionally(new BrokerServiceException(e));
+            }
+        });
     }
 
     @Override
@@ -452,6 +466,14 @@ public class PersistentSubscription implements Subscription {
     @Override
     public synchronized Dispatcher getDispatcher() {
         return this.dispatcher;
+    }
+
+    public long getNumberOfEntriesSinceFirstNotAckedMessage() {
+        return cursor.getNumberOfEntriesSinceFirstNotAckedMessage();
+    }
+
+    public int getTotalNonContiguousDeletedMessagesRange() {
+        return cursor.getTotalNonContiguousDeletedMessagesRange();
     }
 
     /**

@@ -102,6 +102,9 @@ commands:
     argument: cluster-name
   - name: list
     description: List the existing clusters
+  - name: update-peer-clusters
+    description: Update peer cluster names
+    argument: peer-cluster-names
 - name: namespaces
   description: Operations about namespaces
   subcommands:
@@ -210,9 +213,9 @@ commands:
     argument: property/cluster/namespace
     options:
     - flags: -s, --size
-      description: The retention size limits (for example `10M` or `16G`)
+      description: The retention size limits (for example `10M`, `16G` or `3T`). 0 means no retention and -1 means infinite size retention
     - flags: -t, --time
-      description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`."
+      description: "The retention time in minutes, hours, days, or weeks. Examples: `100m`, `13h`, `2d`, `5w`. 0 means no retention and -1 means infinite time retention"
   - name: unload
     description: Unload a namespace or namespace bundle from the current serving broker.
     argument: property/cluster/namespace
@@ -291,8 +294,14 @@ commands:
   - name: lookup
     description: Look up a topic from the current serving broker
     argument: persistent://property/cluster/namespace/topic
+  - name: bundle-range
+    description: Get the namespace bundle which contains the given topic
+    argument: persistent://property/cluster/namespace/topic
   - name: delete
     description: Delete a topic. The topic cannot be deleted if there are any active subscriptions or producers connected to the topic.
+    argument: persistent://property/cluster/namespace/topic
+  - name: unload
+    description: Unload a topic
     argument: persistent://property/cluster/namespace/topic
   - name: subscriptions
     description: Get the list of subscriptions on the topic
@@ -380,6 +389,21 @@ commands:
       description: Subscription to reset position on
     - flags: -t, --time
       description: "The time, in minutes, to reset back to (or minutes, hours, days, weeks, etc.). Examples: `100m`, `3h`, `2d`, `5w`."
+- name: non-persistent
+  description: Operations on persistent topics
+  subcommands:
+  - name: stats
+    description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
+    argument: non-persistent://property/cluster/namespace/topic
+  - name: stats-internal
+    description: Get the internal stats for the topic
+    argument: non-persistent://property/cluster/namespace/topic
+  - name: get-partitioned-topic-metadata
+    description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
+    argument: non-persistent://property/cluster/namespace/topic
+  - name: unload
+    description: Unload a topic
+    argument: non-persistent://property/cluster/namespace/topic
 - name: properties
   description: Operations about properties
   subcommands:

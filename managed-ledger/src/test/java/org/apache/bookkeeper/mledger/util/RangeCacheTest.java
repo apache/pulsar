@@ -21,12 +21,10 @@ package org.apache.bookkeeper.mledger.util;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-import org.testng.annotations.Test;
-
 import com.google.common.collect.Lists;
-
 import io.netty.util.AbstractReferenceCounted;
 import io.netty.util.ReferenceCounted;
+import org.testng.annotations.Test;
 
 @Test
 public class RangeCacheTest {
@@ -43,6 +41,11 @@ public class RangeCacheTest {
         @Override
         protected void deallocate() {
             // no-op
+        }
+
+        @Override
+        public ReferenceCounted touch(Object hint) {
+            return this;
         }
 
         @Override

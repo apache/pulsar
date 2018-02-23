@@ -22,16 +22,19 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import org.apache.pulsar.client.admin.PersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.CommaParameterSplitter;
+import static com.google.common.base.Preconditions.checkArgument;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -54,9 +57,12 @@ public class CmdPersistentTopics extends CmdBase {
         jcommander.addCommand("grant-permission", new GrantPermissions());
         jcommander.addCommand("revoke-permission", new RevokePermissions());
         jcommander.addCommand("lookup", new Lookup());
+        jcommander.addCommand("bundle-range", new GetBundleRange());
         jcommander.addCommand("delete", new DeleteCmd());
+        jcommander.addCommand("unload", new UnloadCmd());
         jcommander.addCommand("subscriptions", new ListSubscriptions());
         jcommander.addCommand("unsubscribe", new DeleteSubscription());
+        jcommander.addCommand("create-subscription", new CreateSubscription());
         jcommander.addCommand("stats", new GetStats());
         jcommander.addCommand("stats-internal", new GetInternalStats());
         jcommander.addCommand("info-internal", new GetInternalInfo());
@@ -161,6 +167,18 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get Namespace bundle range of a topic")
+    private class GetBundleRange extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/topic\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String destination = validateDestination(params);
+            print(admin.lookups().getBundleRange(destination));
+        }
+    }
+
     @Parameters(commandDescription = "Create a partitioned topic. \n"
             + "\t\tThe partitioned topic has to be created before creating a producer on it.")
     private class CreatePartitionedCmd extends CliCommand {
@@ -235,6 +253,18 @@ public class CmdPersistentTopics extends CmdBase {
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
             persistentTopics.delete(persistentTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Unload a topic. \n")
+    private class UnloadCmd extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            persistentTopics.unload(persistentTopic);
         }
     }
 
@@ -389,7 +419,36 @@ public class CmdPersistentTopics extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Reset position for subscription to position closest to timestamp")
+    @Parameters(commandDescription = "Create a new subscription on a topic")
+    private class CreateSubscription extends CliCommand {
+        @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-s",
+                "--subscription" }, description = "Subscription to reset position on", required = true)
+        private String subscriptionName;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId where to create the subscription. It can be either 'latest', 'earliest' or (ledgerId:entryId)", required = false)
+        private String messageIdStr = "latest";
+
+        @Override
+        void run() throws PulsarAdminException {
+            String persistentTopic = validatePersistentTopic(params);
+            MessageId messageId;
+            if (messageIdStr.equals("latest")) {
+                messageId = MessageId.latest;
+            } else if (messageIdStr.equals("earliest")) {
+                messageId = MessageId.earliest;
+            } else {
+                messageId = validateMessageIdString(messageIdStr);
+            }
+
+            persistentTopics.createSubscription(persistentTopic, subscriptionName, messageId);
+        }
+    }
+
+    @Parameters(commandDescription = "Reset position for subscription to position closest to timestamp or messageId")
     private class ResetCursor extends CliCommand {
         @Parameter(description = "persistent://property/cluster/namespace/destination", required = true)
         private java.util.List<String> params;
@@ -399,17 +458,29 @@ public class CmdPersistentTopics extends CmdBase {
         private String subName;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "time in minutes to reset back to (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = true)
+                "-t" }, description = "time in minutes to reset back to (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = false)
         private String resetTimeStr;
+
+        @Parameter(names = { "--messageId",
+                "-m" }, description = "messageId to reset back to (ledgerId:entryId)", required = false)
+        private String resetMessageIdStr;
 
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            int resetBackTimeInMin = validateTimeString(resetTimeStr);
-            long resetTimeInMillis = TimeUnit.MILLISECONDS.convert(resetBackTimeInMin, TimeUnit.MINUTES);
-            // now - go back time
-            long timestamp = System.currentTimeMillis() - resetTimeInMillis;
-            persistentTopics.resetCursor(persistentTopic, subName, timestamp);
+            if (isNotBlank(resetMessageIdStr)) {
+                MessageId messageId = validateMessageIdString(resetMessageIdStr);
+                persistentTopics.resetCursor(persistentTopic, subName, messageId);
+            } else if (isNotBlank(resetTimeStr)) {
+                int resetBackTimeInMin = validateTimeString(resetTimeStr);
+                long resetTimeInMillis = TimeUnit.MILLISECONDS.convert(resetBackTimeInMin, TimeUnit.MINUTES);
+                // now - go back time
+                long timestamp = System.currentTimeMillis() - resetTimeInMillis;
+                persistentTopics.resetCursor(persistentTopic, subName, timestamp);
+            } else {
+                throw new PulsarAdminException(
+                        "Either Timestamp (--time) or Position (--position) has to be provided to reset cursor");
+            }
         }
     }
 
@@ -452,8 +523,13 @@ public class CmdPersistentTopics extends CmdBase {
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }
-                MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
-                System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                if (msg.getMessageId() instanceof BatchMessageIdImpl) {
+                    BatchMessageIdImpl msgId = (BatchMessageIdImpl) msg.getMessageId();
+                    System.out.println("Batch Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId() + ":" + msgId.getBatchIndex());
+                } else {
+                    MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
+                    System.out.println("Message ID: " + msgId.getLedgerId() + ":" + msgId.getEntryId());
+                }
                 if (msg.getProperties().size() > 0) {
                     System.out.println("Properties:");
                     print(msg.getProperties());
@@ -486,6 +562,17 @@ public class CmdPersistentTopics extends CmdBase {
 
         default:
             return Integer.parseInt(s);
+        }
+    }
+
+    private MessageId validateMessageIdString(String resetMessageIdStr) throws PulsarAdminException {
+        String[] messageId = resetMessageIdStr.split(":");
+        try {
+            checkArgument(messageId.length == 2);
+            return new MessageIdImpl(Long.parseLong(messageId[0]), Long.parseLong(messageId[1]), -1);
+        } catch (Exception e) {
+            throw new PulsarAdminException(
+                    "Invalid reset-position (must be in format: ledgerId:entryId) value " + resetMessageIdStr);
         }
     }
 }

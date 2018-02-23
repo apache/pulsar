@@ -35,7 +35,7 @@ class ClientConnection;
 class BatchMessageContainer;
 
 class MessageImpl {
- public:
+   public:
     MessageImpl();
 
     const Message::StringMap& properties();
@@ -49,17 +49,19 @@ class MessageImpl {
     bool hasPartitionKey() const;
 
     uint64_t getPublishTimestamp() const;
+    uint64_t getEventTimestamp() const;
 
     friend class PulsarWrapper;
     friend class MessageBuilder;
-private:
+
+   private:
     void setReplicationClusters(const std::vector<std::string>& clusters);
     void setProperty(const std::string& name, const std::string& value);
     void disableReplication(bool flag);
     void setPartitionKey(const std::string& partitionKey);
+    void setEventTimestamp(uint64_t eventTimestamp);
     Message::StringMap properties_;
 };
-
-}
+}  // namespace pulsar
 
 #endif /* LIB_MESSAGEIMPL_H_ */

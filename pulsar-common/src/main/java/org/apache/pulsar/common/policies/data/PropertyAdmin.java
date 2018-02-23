@@ -19,11 +19,11 @@
 package org.apache.pulsar.common.policies.data;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 import javax.xml.bind.annotation.XmlRootElement;
 
-import com.google.common.base.Objects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -69,7 +69,8 @@ public class PropertyAdmin {
     public boolean equals(Object obj) {
         if (obj instanceof PropertyAdmin) {
             PropertyAdmin other = (PropertyAdmin) obj;
-            return Objects.equal(adminRoles, other.adminRoles) && Objects.equal(allowedClusters, other.allowedClusters);
+            return Objects.equals(adminRoles, other.adminRoles)
+                    && Objects.equals(allowedClusters, other.allowedClusters);
         }
 
         return false;

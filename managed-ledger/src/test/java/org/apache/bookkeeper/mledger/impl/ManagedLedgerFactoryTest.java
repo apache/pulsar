@@ -19,32 +19,16 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
-
-import java.nio.charset.Charset;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.CursorInfo;
 import org.apache.bookkeeper.mledger.ManagedLedgerInfo.MessageRangeInfo;
-import org.apache.bookkeeper.mledger.impl.MetaStoreImplZookeeper.ZNodeProtobufFormat;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
-import org.testng.annotations.Factory;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Charsets;
-
 public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
-
-    private static final Charset Encoding = Charsets.UTF_8;
-
-    @Factory(dataProvider = "protobufFormat")
-    public ManagedLedgerFactoryTest(ZNodeProtobufFormat protobufFormat) {
-        super();
-        this.protobufFormat = protobufFormat;
-    }
 
     @Test(timeOut = 20000)
     public void testGetManagedLedgerInfoWithClose() throws Exception {
@@ -78,17 +62,13 @@ public class ManagedLedgerFactoryTest extends MockedBookKeeperTestCase {
         assertEquals(cursorInfo.markDelete.ledgerId, 3);
         assertEquals(cursorInfo.markDelete.entryId, -1);
 
-        if (protobufFormat == ZNodeProtobufFormat.Binary) {
-            assertEquals(cursorInfo.individualDeletedMessages.size(), 1);
+        assertEquals(cursorInfo.individualDeletedMessages.size(), 1);
 
-            MessageRangeInfo mri = cursorInfo.individualDeletedMessages.get(0);
-            assertEquals(mri.from.ledgerId, p1.getLedgerId());
-            assertEquals(mri.from.entryId, p1.getEntryId());
-            assertEquals(mri.to.ledgerId, p3.getLedgerId());
-            assertEquals(mri.to.entryId, p3.getEntryId());
-        } else {
-            assertNull(cursorInfo.individualDeletedMessages);
-        }
+        MessageRangeInfo mri = cursorInfo.individualDeletedMessages.get(0);
+        assertEquals(mri.from.ledgerId, p1.getLedgerId());
+        assertEquals(mri.from.entryId, p1.getEntryId());
+        assertEquals(mri.to.ledgerId, p3.getLedgerId());
+        assertEquals(mri.to.entryId, p3.getEntryId());
     }
 
 }

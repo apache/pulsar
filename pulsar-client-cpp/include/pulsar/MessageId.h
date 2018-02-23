@@ -21,6 +21,7 @@
 
 #include <iosfwd>
 #include <stdint.h>
+#include <boost/shared_ptr.hpp>
 
 #pragma GCC visibility push(default)
 
@@ -31,16 +32,42 @@ class UnAckedMessageTrackerEnabled;
 class PulsarWrapper;
 
 class MessageId {
- public:
+   public:
     MessageId& operator=(const MessageId&);
     MessageId();
+    virtual ~MessageId() {}
+
+    /**
+     * MessageId representing the "earliest" or "oldest available" message stored in the topic
+     */
+    static const MessageId& earliest();
+
+    /**
+     * MessageId representing the "latest" or "last published" message in the topic
+     */
+    static const MessageId& latest();
+
+    /**
+     * Serialize the message id into a binary string for storing
+     */
+    virtual void serialize(std::string& result) const;
+
+    /**
+     * Deserialize a message id from a binary string
+     */
+    static boost::shared_ptr<MessageId> deserialize(const std::string& serializedMessageId);
+
     // These functions compare the message order as stored in bookkeeper
-    inline bool operator<(const MessageId& mID) const;
-    inline bool operator==(const MessageId& mID) const;
- protected:
+    bool operator<(const MessageId& other) const;
+    bool operator==(const MessageId& other) const;
+
+   protected:
+    virtual int64_t getBatchIndex() const;
     friend class ConsumerImpl;
     friend class Message;
     friend class MessageImpl;
+    friend class Commands;
+    friend class BatchMessageId;
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
@@ -49,20 +76,11 @@ class MessageId {
     MessageId(int64_t, int64_t);
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
     int64_t ledgerId_;
-    int64_t entryId_ :48;
-    short partition_ :16;
+    int64_t entryId_ : 48;
+    short partition_ : 16;
 };
-
-bool MessageId::operator<(const MessageId& mID) const {
-    return (ledgerId_ < mID.ledgerId_) || (ledgerId_ == mID.ledgerId_ && entryId_ < mID.entryId_);
-}
-
-bool MessageId::operator==(const MessageId& mID) const {
-    return (ledgerId_ == mID.ledgerId_ && entryId_ == mID.entryId_);
-}
-
-}
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif //MESSAGE_ID_H
+#endif  // MESSAGE_ID_H

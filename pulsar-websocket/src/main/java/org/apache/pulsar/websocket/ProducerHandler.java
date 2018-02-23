@@ -18,37 +18,41 @@
  */
 package org.apache.pulsar.websocket;
 
+import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.String.format;
-import static org.apache.pulsar.websocket.WebSocketError.FailedToCreateProducer;
 import static org.apache.pulsar.websocket.WebSocketError.FailedToDeserializeFromJSON;
 import static org.apache.pulsar.websocket.WebSocketError.PayloadEncodingError;
 import static org.apache.pulsar.websocket.WebSocketError.UnknownError;
 
 import java.io.IOException;
 import java.util.Base64;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
 import org.apache.pulsar.websocket.stats.StatsBuckets;
-import org.eclipse.jetty.websocket.api.Session;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Enums;
 
 
 /**
@@ -70,22 +74,65 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     private volatile long msgPublishedCounter = 0;
     private static final AtomicLongFieldUpdater<ProducerHandler> MSG_PUBLISHED_COUNTER_UPDATER =
             AtomicLongFieldUpdater.newUpdater(ProducerHandler.class, "msgPublishedCounter");
-    
+
     public static final long[] ENTRY_LATENCY_BUCKETS_USEC = { 500, 1_000, 5_000, 10_000, 20_000, 50_000, 100_000,
             200_000, 1000_000 };
 
-    public ProducerHandler(WebSocketService service, HttpServletRequest request) {
-        super(service, request);
+    public ProducerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
+        super(service, request, response);
         this.numMsgsSent = new LongAdder();
         this.numBytesSent = new LongAdder();
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
+
+        if (!authResult) {
+            return;
+        }
+
+        try {
+            ProducerConfiguration conf = getProducerConfiguration();
+            this.producer = service.getPulsarClient().createProducer(topic, conf);
+            if (!this.service.addProducer(this)) {
+                log.warn("[{}:{}] Failed to add producer handler for topic {}", request.getRemoteAddr(),
+                        request.getRemotePort(), topic);
+            }
+        } catch (Exception e) {
+            log.warn("[{}:{}] Failed in creating producer on topic {}: {}", request.getRemoteAddr(),
+                    request.getRemotePort(), topic, e.getMessage());
+
+            try {
+                response.sendError(getErrorCode(e), getErrorMessage(e));
+            } catch (IOException e1) {
+                log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
+                        e1.getMessage(), e1);
+            }
+        }
+    }
+
+    private static int getErrorCode(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return HttpServletResponse.SC_BAD_REQUEST;
+        } else if (e instanceof ProducerBusyException) {
+            return HttpServletResponse.SC_CONFLICT;
+        } else {
+            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    private static String getErrorMessage(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return "Invalid query params: " + e.getMessage();
+        } else {
+            return "Failed to create producer: " + e.getMessage();
+        }
     }
 
     @Override
     public void close() throws IOException {
         if (producer != null) {
-            this.service.removeProducer(this);
+            if (!this.service.removeProducer(this)) {
+                log.warn("[{}] Failed to remove producer handler", producer.getTopic());
+            }
             producer.closeAsync().thenAccept(x -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Closed producer asynchronously", producer.getTopic());
@@ -94,19 +141,6 @@ public class ProducerHandler extends AbstractWebSocketHandler {
                 log.warn("[{}] Failed to close producer", producer.getTopic(), exception);
                 return null;
             });
-        }
-    }
-
-    @Override
-    protected void createClient(Session session) {
-        try {
-            ProducerConfiguration conf = getProducerConfiguration();
-            this.producer = service.getPulsarClient().createProducer(topic, conf);
-            this.service.addProducer(this);
-        } catch (Exception e) {
-            log.warn("[{}] Failed in creating producer on topic {}", session.getRemoteAddress(),
-                    topic, e);
-            close(FailedToCreateProducer, e.getMessage());
         }
     }
 
@@ -187,8 +221,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
     }
 
     @Override
-    protected Boolean isAuthorized(String authRole) throws Exception {
-        return service.getAuthorizationManager().canProduce(DestinationName.get(topic), authRole);
+    protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
+        return service.getAuthorizationService().canProduce(DestinationName.get(topic), authRole, authenticationData);
     }
 
     private void sendAckResponse(ProducerAck response) {
@@ -201,7 +235,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             log.warn("[{}] Failed to send ack {}", producer.getTopic(), e.getMessage(), e);
         }
     }
-  
+
     private void updateSentMsgStats(long msgSize, long latencyUsec) {
         this.publishLatencyStatsUSec.addValue(latencyUsec);
         this.numBytesSent.add(msgSize);
@@ -214,7 +248,19 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
         // Set to false to prevent the server thread from being blocked if a lot of messages are pending.
         conf.setBlockIfQueueFull(false);
-        
+
+        if (queryParams.containsKey("producerName")) {
+            conf.setProducerName(queryParams.get("producerName"));
+        }
+
+        if (queryParams.containsKey("initialSequenceId")) {
+            conf.setInitialSequenceId(Long.parseLong("initialSequenceId"));
+        }
+
+        if (queryParams.containsKey("hashingScheme")) {
+            conf.setHashingScheme(HashingScheme.valueOf(queryParams.get("hashingScheme")));
+        }
+
         if (queryParams.containsKey("sendTimeoutMillis")) {
             conf.setSendTimeout(Integer.parseInt(queryParams.get("sendTimeoutMillis")), TimeUnit.MILLISECONDS);
         }
@@ -237,10 +283,18 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         }
 
         if (queryParams.containsKey("messageRoutingMode")) {
-            conf.setMessageRoutingMode(MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode")));
+            checkArgument(
+                    Enums.getIfPresent(MessageRoutingMode.class, queryParams.get("messageRoutingMode")).isPresent(),
+                    "Invalid messageRoutingMode %s", queryParams.get("messageRoutingMode"));
+            MessageRoutingMode routingMode = MessageRoutingMode.valueOf(queryParams.get("messageRoutingMode"));
+            if (!MessageRoutingMode.CustomPartition.equals(routingMode)) {
+                conf.setMessageRoutingMode(routingMode);
+            }
         }
 
         if (queryParams.containsKey("compressionType")) {
+            checkArgument(Enums.getIfPresent(CompressionType.class, queryParams.get("compressionType")).isPresent(),
+                    "Invalid compressionType %s", queryParams.get("compressionType"));
             conf.setCompressionType(CompressionType.valueOf(queryParams.get("compressionType")));
         }
 

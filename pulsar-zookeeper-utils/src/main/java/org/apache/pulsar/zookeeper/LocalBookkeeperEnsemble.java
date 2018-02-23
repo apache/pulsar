@@ -38,6 +38,7 @@ import java.nio.file.Paths;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
@@ -68,6 +69,11 @@ public class LocalBookkeeperEnsemble {
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
+        this(numberOfBookies, zkPort, bkBasePort, zkDataDirName, bkDataDirName, clearOldData, null);
+    }
+
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+            String bkDataDirName, boolean clearOldData, String advertisedAddress) {
         this.numberOfBookies = numberOfBookies;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
@@ -75,10 +81,12 @@ public class LocalBookkeeperEnsemble {
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
         this.clearOldData = clearOldData;
-        LOG.info("Running " + this.numberOfBookies + " bookie(s).");
+        this.advertisedAddress = null == advertisedAddress ? "127.0.0.1" : advertisedAddress;
+        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, advertisedAddress);
     }
 
     private final String HOSTPORT;
+    private final String advertisedAddress;
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
     ZooKeeper zkc;
@@ -174,7 +182,22 @@ public class LocalBookkeeperEnsemble {
             bsConfs[i].setAllowLoopback(true);
             bsConfs[i].setGcWaitTime(60000);
 
-            bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            try {
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            } catch (InvalidCookieException e) {
+                // InvalidCookieException can happen if the machine IP has changed
+                // Since we are running here a local bookie that is always accessed
+                // from localhost, we can ignore the error
+                for (String path : zkc.getChildren("/ledgers/cookies", false)) {
+                    zkc.delete("/ledgers/cookies/" + path, -1);
+                }
+
+                // Also clean the on-disk cookie
+                new File(new File(bkDataDir, "current"), "VERSION").delete();
+
+                // Retry to start the bookie after cleaning the old left cookie
+                bs[i] = new BookieServer(bsConfs[i], NullStatsLogger.INSTANCE);
+            }
             bs[i].start();
             LOG.debug("Local BK[{}] started (port: {}, data_directory: {})", i, initialPort + i,
                     bkDataDir.getAbsolutePath());
@@ -208,6 +231,7 @@ public class LocalBookkeeperEnsemble {
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 64);
         conf.setFlushInterval(60000);
         conf.setProperty("journalMaxGroupWaitMSec", 1L);
+        conf.setAdvertisedAddress(advertisedAddress);
 
         runZookeeper(1000);
         initializeZookeper();

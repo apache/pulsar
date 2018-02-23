@@ -18,17 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.DestinationName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,30 +46,37 @@ public abstract class AbstractReplicator {
 
     protected volatile ProducerImpl producer;
 
-    protected static final ProducerConfiguration producerConfiguration = new ProducerConfiguration()
-            .setSendTimeout(0, TimeUnit.SECONDS).setBlockIfQueueFull(true);
+    protected final int producerQueueSize;
+    protected final ProducerBuilder producerBuilder;
 
-    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES);
+    protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
 
     protected final String replicatorPrefix;
-    
+
     protected static final AtomicReferenceFieldUpdater<AbstractReplicator, State> STATE_UPDATER = AtomicReferenceFieldUpdater
             .newUpdater(AbstractReplicator.class, State.class, "state");
     private volatile State state = State.Stopped;
-    
+
     protected enum State {
         Stopped, Starting, Started, Stopping
     }
 
-    public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster,
-            String remoteCluster, BrokerService brokerService) {
+    public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
+            BrokerService brokerService) throws NamingException {
+        validatePartitionedTopic(topicName, brokerService);
         this.brokerService = brokerService;
         this.topicName = topicName;
         this.replicatorPrefix = replicatorPrefix;
-        this.localCluster = localCluster;
-        this.remoteCluster = remoteCluster;
+        this.localCluster = localCluster.intern();
+        this.remoteCluster = remoteCluster.intern();
         this.client = (PulsarClientImpl) brokerService.getReplicationClient(remoteCluster);
         this.producer = null;
+        this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
+
+        this.producerBuilder = client.newProducer() //
+                .topic(topicName).sendTimeout(0, TimeUnit.SECONDS) //
+                .maxPendingMessages(producerQueueSize) //
+                .producerName(getReplicatorName(replicatorPrefix, localCluster));
         STATE_UPDATER.set(this, State.Stopped);
     }
 
@@ -74,9 +85,9 @@ public abstract class AbstractReplicator {
     protected abstract Position getReplicatorReadPosition();
 
     protected abstract long getNumberOfEntriesInBacklog();
-    
+
     protected abstract void disableReplicatorRead();
-    
+
     public String getRemoteCluster() {
         return remoteCluster;
     }
@@ -111,23 +122,22 @@ public abstract class AbstractReplicator {
         }
 
         log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        client.createProducerAsync(topicName, producerConfiguration, getReplicatorName(replicatorPrefix, localCluster))
-                .thenAccept(producer -> {
-                    readEntries(producer);
-                }).exceptionally(ex -> {
-                    if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
-                        long waitTimeMs = backOff.next();
-                        log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
-                                localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
+        producerBuilder.createAsync().thenAccept(producer -> {
+            readEntries(producer);
+        }).exceptionally(ex -> {
+            if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
+                long waitTimeMs = backOff.next();
+                log.warn("[{}][{} -> {}] Failed to create remote producer ({}), retrying in {} s", topicName,
+                        localCluster, remoteCluster, ex.getMessage(), waitTimeMs / 1000.0);
 
-                        // BackOff before retrying
-                        brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
-                    } else {
-                        log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
-                                localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
-                    }
-                    return null;
-                });
+                // BackOff before retrying
+                brokerService.executor().schedule(this::startProducer, waitTimeMs, TimeUnit.MILLISECONDS);
+            } else {
+                log.warn("[{}][{} -> {}] Failed to create remote producer. Replicator state: {}", topicName,
+                        localCluster, remoteCluster, STATE_UPDATER.get(this), ex);
+            }
+            return null;
+        });
 
     }
 
@@ -196,17 +206,50 @@ public abstract class AbstractReplicator {
         return producer != null && producer.isWritable();
     }
 
-    public static void setReplicatorQueueSize(int queueSize) {
-        producerConfiguration.setMaxPendingMessages(queueSize);
-    }
-
     public static String getRemoteCluster(String remoteCursor) {
         String[] split = remoteCursor.split("\\.");
         return split[split.length - 1];
     }
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {
-        return String.format("%s.%s", replicatorPrefix, cluster);
+        return (replicatorPrefix + "." + cluster).intern();
+    }
+
+    /**
+     * Replication can't be started on root-partitioned-topic to avoid producer startup conflict.
+     * 
+     * <pre>
+     * eg:
+     * if topic : persistent://prop/cluster/ns/my-topic is a partitioned topic with 2 partitions then
+     * broker explicitly creates replicator producer for: "my-topic-partition-1" and "my-topic-partition-2".
+     * 
+     * However, if broker tries to start producer with root topic "my-topic" then client-lib internally creates individual 
+     * producers for "my-topic-partition-1" and "my-topic-partition-2" which creates conflict with existing 
+     * replicator producers.
+     * </pre>
+     * 
+     * Therefore, replicator can't be started on root-partition topic which can internally create multiple partitioned
+     * producers.
+     * 
+     * @param topicName
+     * @param brokerService
+     */
+    private void validatePartitionedTopic(String topicName, BrokerService brokerService) throws NamingException {
+        DestinationName destination = DestinationName.get(topicName);
+        String partitionedTopicPath = path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE,
+                destination.getNamespace().toString(), destination.getDomain().toString(),
+                destination.getEncodedLocalName());
+        boolean isPartitionedTopic = false;
+        try {
+            isPartitionedTopic = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(partitionedTopicPath).isPresent();
+        } catch (Exception e) {
+            log.warn("Failed to verify partitioned topic {}-{}", topicName, e.getMessage());
+        }
+        if (isPartitionedTopic) {
+            throw new NamingException(
+                    topicName + " is a partitioned-topic and replication can't be started for partitioned-producer ");
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);

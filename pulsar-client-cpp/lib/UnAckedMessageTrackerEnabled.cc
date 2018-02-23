@@ -24,7 +24,7 @@ namespace pulsar {
 
 void UnAckedMessageTrackerEnabled::timeoutHandler(const boost::system::error_code& ec) {
     if (ec) {
-        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec <<"]");
+        LOG_DEBUG("Ignoring timer cancelled event, code[" << ec << "]");
     } else {
         timeoutHandler();
     }
@@ -35,18 +35,17 @@ void UnAckedMessageTrackerEnabled::timeoutHandler() {
     ExecutorServicePtr executorService = client_->getIOExecutorProvider()->get();
     timer_ = executorService->createDeadlineTimer();
     timer_->expires_from_now(boost::posix_time::milliseconds(timeoutMs_));
-    timer_->async_wait(
-            boost::bind(&pulsar::UnAckedMessageTrackerEnabled::timeoutHandler, this,
-                        boost::asio::placeholders::error));
+    timer_->async_wait(boost::bind(&pulsar::UnAckedMessageTrackerEnabled::timeoutHandler, this,
+                                   boost::asio::placeholders::error));
 }
 
 void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
     boost::unique_lock<boost::mutex> acquire(lock_);
-    LOG_DEBUG(
-            "UnAckedMessageTrackerEnabled::timeoutHandlerHelper invoked for consumerPtr_ " << consumerReference_.getName().c_str());
+    LOG_DEBUG("UnAckedMessageTrackerEnabled::timeoutHandlerHelper invoked for consumerPtr_ "
+              << consumerReference_.getName().c_str());
     if (!oldSet_.empty()) {
-        LOG_INFO(
-                consumerReference_.getName().c_str() << ": " << oldSet_.size() << " Messages were not acked within "<< timeoutMs_ <<" time");
+        LOG_INFO(consumerReference_.getName().c_str()
+                 << ": " << oldSet_.size() << " Messages were not acked within " << timeoutMs_ << " time");
         oldSet_.clear();
         currentSet_.clear();
         consumerReference_.redeliverUnacknowledgedMessages();
@@ -54,10 +53,9 @@ void UnAckedMessageTrackerEnabled::timeoutHandlerHelper() {
     oldSet_.swap(currentSet_);
 }
 
-UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs,
-                                                           const ClientImplPtr client,
+UnAckedMessageTrackerEnabled::UnAckedMessageTrackerEnabled(long timeoutMs, const ClientImplPtr client,
                                                            ConsumerImplBase& consumer)
-        : consumerReference_(consumer) {
+    : consumerReference_(consumer) {
     timeoutMs_ = timeoutMs;
     client_ = client;
     timeoutHandler();
@@ -100,6 +98,11 @@ void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
             it++;
         }
     }
+}
+
+void UnAckedMessageTrackerEnabled::clear() {
+    currentSet_.clear();
+    oldSet_.clear();
 }
 
 UnAckedMessageTrackerEnabled::~UnAckedMessageTrackerEnabled() {

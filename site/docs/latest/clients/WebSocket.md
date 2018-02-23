@@ -3,7 +3,28 @@ title: Pulsar's WebSocket API
 tags: [websocket, nodejs, python]
 ---
 
-Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](../../getting-started/Clients). Through WebSockets you can publish and consume messages and use all the features available in the [Java](../JavaClient), [Python](../PythonClient), and [C++](../CppClient) client libraries.
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+Pulsar's [WebSocket](https://developer.mozilla.org/en-US/docs/Web/API/WebSockets_API) API is meant to provide a simple way to interact with Pulsar using languages that do not have an official [client library](../../getting-started/Clients). Through WebSockets you can publish and consume messages and use all the features available in the [Java](../Java), [Python](../Python), and [C++](../Cpp) client libraries.
 
 {% include admonition.html type="success" content="You can use Pulsar's WebSocket API with any WebSocket client library. See examples for Python and Node.js [below](#client-examples)." %}
 
@@ -50,7 +71,7 @@ $ bin/pulsar-daemon start websocket
 
 ## API Reference
 
-Pulsar's WebSocket API offers two endpoints, one for [producing](#producer-endpoint) messages and one for [consuming](#consumer-endpoint) messages.
+Pulsar's WebSocket API offers three endpoints for [producing](#producer-endpoint) messages, [consuming](#consumer-endpoint) messages and [reading](#reader-endpoint) messages.
 
 All exchanges via the WebSocket API use JSON.
 
@@ -59,6 +80,22 @@ All exchanges via the WebSocket API use JSON.
 The producer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %} in the URL:
 
 {% endpoint ws://broker-service-url:8080/ws/producer/persistent/:property/:cluster/:namespace/:topic %}
+
+##### Query param
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`sendTimeoutMillis` | long | no | Send timeout (default: 30 secs)
+`batchingEnabled` | boolean | no | Enable batching of messages (default: false)
+`batchingMaxMessages` | int | no | Maximum number of messages permitted in a batch (default: 1000)
+`maxPendingMessages` | int | no | Set the max size of the internal-queue holding the messages (default: 1000)
+`batchingMaxPublishDelay` | long | no | Time period within which the messages will be batched (default: 10ms)
+`messageRoutingMode` | string | no | Message [routing mode](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/ProducerConfiguration.MessageRoutingMode.html) for the partitioned producer: `SinglePartition`, `RoundRobinPartition`
+`compressionType` | string | no | Compression [type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/CompressionType.html): `LZ4`, `ZLIB`
+`producerName` | string | no | Specify the name for the producer. Pulsar will enforce only one producer with same name can be publishing on a topic
+`initialSequenceId` | long | no | Set the baseline for the sequence ids for messages published by the producer.
+`hashingScheme` | string | no | [Hashing function](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ProducerConfiguration.HashingScheme.html) to use when publishing on a partitioned topic: `JavaStringHash`, `Murmur3_32Hash`
+
 
 #### Publishing a message
 
@@ -107,9 +144,19 @@ Key | Type | Required? | Explanation
 
 ### Consumer endpoint
 
-The producer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
+The consumer endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %}, as well as a {% popover subscription %}, in the URL:
 
 {% endpoint ws://broker-service-url:8080/ws/consumer/persistent/:property/:cluster/:namespace/:topic/:subscription %}
+
+##### Query param
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`ackTimeoutMillis` | long | no | Set the timeout for unacked messages (default: 0)
+`subscriptionType` | string | no | [Subscription type](https://pulsar.incubator.apache.org/api/client/index.html?org/apache/pulsar/client/api/SubscriptionType.html): `Exclusive`, `Failover`, `Shared`
+`receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
+`consumerName` | string | no | Consumer name
+`priorityLevel` | int | no | Define a [priority](http://pulsar.apache.org/api/client/org/apache/pulsar/client/api/ConsumerConfiguration.html#setPriorityLevel-int-) for the consumer
 
 ##### Receiving messages
 
@@ -120,8 +167,7 @@ Server will push messages on the WebSocket session:
   "messageId": "CAAQAw==",
   "payload": "SGVsbG8gV29ybGQ=",
   "properties": {"key1": "value1", "key2": "value2"},
-  "publishTime": "2016-08-30 16:45:57.785",
-  "context": "1"
+  "publishTime": "2016-08-30 16:45:57.785"
 }
 ```
 
@@ -131,13 +177,63 @@ Key | Type | Required? | Explanation
 `payload` | string | yes | Base-64 encoded payload
 `publishTime` | string | yes | Publish timestamp
 `properties` | key-value pairs | no | Application-defined properties
-`context` | string | no | Application-defined request identifier
 `key` | string | no |  Original routing key set by producer
 
 #### Acknowledging the message
 
 Consumer needs to acknowledge the successful processing of the message to
 have the Pulsar broker delete it.
+
+```json
+{
+  "messageId": "CAAQAw=="
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`messageId`| string | yes | Message ID of the processed message
+
+
+### Reader endpoint
+
+The reader endpoint requires you to specify a {% popover property %}, {% popover cluster %}, {% popover namespace %}, and {% popover topic %} in the URL:
+
+{% endpoint ws://broker-service-url:8080/ws/reader/persistent/:property/:cluster/:namespace/:topic %}
+
+##### Query param
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`readerName` | string | no | Reader name
+`receiverQueueSize` | int | no | Size of the consumer receive queue (default: 1000)
+
+##### Receiving messages
+
+Server will push messages on the WebSocket session:
+
+```json
+{
+  "messageId": "CAAQAw==",
+  "payload": "SGVsbG8gV29ybGQ=",
+  "properties": {"key1": "value1", "key2": "value2"},
+  "publishTime": "2016-08-30 16:45:57.785"
+}
+```
+
+Key | Type | Required? | Explanation
+:---|:-----|:----------|:-----------
+`messageId` | string | yes | Message ID
+`payload` | string | yes | Base-64 encoded payload
+`publishTime` | string | yes | Publish timestamp
+`properties` | key-value pairs | no | Application-defined properties
+`key` | string | no |  Original routing key set by producer
+
+#### Acknowledging the message
+
+**In WebSocket**, Reader needs to acknowledge the successful processing of the message to
+have the Pulsar WebSocket service update the number of pending messages.
+If you don't send acknowledgements, Pulsar WebSocket service will stop sending messages after reaching the pendingMessages limit.
 
 ```json
 {
@@ -170,7 +266,7 @@ Error Code | Error Message
 
 ## Client examples
 
-Below you'll find code examples for the Pulsar WebSocket API in [Python](#python) and [Node.js](#node.js).
+Below you'll find code examples for the Pulsar WebSocket API in [Python](#python) and [Node.js](#nodejs).
 
 ### Python
 
@@ -218,7 +314,7 @@ Here's an example Python {% popover consumer %} that listens on a Pulsar {% popo
 ```python
 import websocket, base64, json
 
-TOPIC = 'ws://localhost:8080/ws/producer/persistent/sample/standalone/ns1/my-topic'
+TOPIC = 'ws://localhost:8080/ws/consumer/persistent/sample/standalone/ns1/my-topic/my-sub'
 
 ws = websocket.create_connection(TOPIC)
 
@@ -226,7 +322,30 @@ while True:
     msg = json.loads(ws.recv())
     if not msg: break
 
-    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload'])
+    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
+
+    # Acknowledge successful processing
+    ws.send(json.dumps({'messageId' : msg['messageId']}))
+
+ws.close()
+```
+
+#### Python reader
+
+Here's an example Python reader that listens on a Pulsar {% popover topic %} and prints the message ID whenever a message arrives:
+
+```python
+import websocket, base64, json
+
+TOPIC = 'ws://localhost:8080/ws/reader/persistent/sample/standalone/ns1/my-topic'
+
+ws = websocket.create_connection(TOPIC)
+
+while True:
+    msg = json.loads(ws.recv())
+    if not msg: break
+
+    print "Received: {} - payload: {}".format(msg, base64.b64decode(msg['payload']))
 
     # Acknowledge successful processing
     ws.send(json.dumps({'messageId' : msg['messageId']}))
@@ -268,18 +387,35 @@ ws.on('open', function() {
 ws.on('message', function(message) {
   console.log('received ack: %s', message);
 });
-
 ```
 
-#### NodeJS consumer
+#### Node.js consumer
+
+Here's an example Node.js {% popover consumer %} that listens on the same topic used by the producer above:
+
 ```javascript
 var WebSocket = require('ws'),
-    topic = "ws://localhost:8080/ws/producer/persistent/my-property/us-west/my-ns/my-topic1",
+    topic = "ws://localhost:8080/ws/consumer/persistent/my-property/us-west/my-ns/my-topic1/my-sub",
     ws = new WebSocket(topic);
 
-socket.onmessage = function(packet) {
-	var receiveMsg = JSON.parse(packet.data);
-	var ackMsg = {"messageId" : receiveMsg.messageId};
-	socket.send(JSON.stringify(ackMsg));      
-};
+ws.on('message', function(message) {
+    var receiveMsg = JSON.parse(message);
+    console.log('Received: %s - payload: %s', message, new Buffer(receiveMsg.payload, 'base64').toString());
+    var ackMsg = {"messageId" : receiveMsg.messageId};
+    ws.send(JSON.stringify(ackMsg));
+});
+```
+
+#### NodeJS reader
+```javascript
+var WebSocket = require('ws'),
+    topic = "ws://localhost:8080/ws/reader/persistent/my-property/us-west/my-ns/my-topic1",
+    ws = new WebSocket(topic);
+
+ws.on('message', function(message) {
+    var receiveMsg = JSON.parse(message);
+    console.log('Received: %s - payload: %s', message, new Buffer(receiveMsg.payload, 'base64').toString());
+    var ackMsg = {"messageId" : receiveMsg.messageId};
+    ws.send(JSON.stringify(ackMsg));
+});
 ```
