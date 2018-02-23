@@ -21,13 +21,11 @@ package org.apache.pulsar.functions.worker;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.util.JsonFormat;
-import com.sun.corba.se.impl.javax.rmi.CORBA.Util;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
@@ -36,7 +34,6 @@ import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFac
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -92,10 +89,11 @@ public class FunctionRuntimeManager implements AutoCloseable{
                                   MembershipManager membershipManager) throws Exception {
         this.workerConfig = workerConfig;
 
-        Reader reader = pulsarClient.createReader(
-                this.workerConfig.getFunctionAssignmentTopic(),
-                MessageId.latest,
-                new ReaderConfiguration());
+        Reader reader = pulsarClient.newReader()
+                .topic(this.workerConfig.getFunctionAssignmentTopic())
+                .startMessageId(MessageId.earliest)
+                .create();
+
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
         if (workerConfig.getThreadContainerFactory() != null) {

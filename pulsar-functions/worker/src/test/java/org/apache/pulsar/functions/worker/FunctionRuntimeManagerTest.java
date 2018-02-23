@@ -21,6 +21,8 @@ package org.apache.pulsar.functions.worker;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Reader;
+import org.apache.pulsar.client.api.ReaderBuilder;
 import org.apache.pulsar.functions.fs.MetricsConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
@@ -35,12 +37,15 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.argThat;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class FunctionRuntimeManagerTest {
 
@@ -75,12 +80,20 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
+        workerConfig.setFunctionAssignmentTopicName("assignments");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
+
+        PulsarClient pulsarClient = mock(PulsarClient.class);
+        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(pulsarClient).newReader();
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(mock(Reader.class)).when(readerBuilder).create();
 
         // test new assignment add functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                mock(PulsarClient.class),
+                pulsarClient,
                 mock(Namespace.class),
                 mock(MembershipManager.class)
         ));
@@ -164,10 +177,17 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
 
+        PulsarClient pulsarClient = mock(PulsarClient.class);
+        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(pulsarClient).newReader();
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(mock(Reader.class)).when(readerBuilder).create();
+
         // test new assignment delete functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                mock(PulsarClient.class),
+                pulsarClient,
                 mock(Namespace.class),
                 mock(MembershipManager.class)
         ));
@@ -255,10 +275,17 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
 
+        PulsarClient pulsarClient = mock(PulsarClient.class);
+        ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
+        doReturn(readerBuilder).when(pulsarClient).newReader();
+        doReturn(readerBuilder).when(readerBuilder).topic(anyString());
+        doReturn(readerBuilder).when(readerBuilder).startMessageId(any());
+        doReturn(mock(Reader.class)).when(readerBuilder).create();
+
         // test new assignment update functions
         FunctionRuntimeManager functionRuntimeManager = spy(new FunctionRuntimeManager(
                 workerConfig,
-                mock(PulsarClient.class),
+                pulsarClient,
                 mock(Namespace.class),
                 mock(MembershipManager.class)
         ));
