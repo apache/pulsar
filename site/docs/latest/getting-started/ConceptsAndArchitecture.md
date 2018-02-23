@@ -294,7 +294,7 @@ Pulsar enables messages to be produced and consumed in different geo-locations. 
 
 ## Multi-tenancy
 
-Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](../../advanced/RetentionExpiry#time-to-live-ttl), and [isolation policies](TODO) can be managed.
+Pulsar was created from the ground up as a {% popover multi-tenant %} system. To support multi-tenancy, Pulsar has a concept of {% popover properties %}. Properties can be spread across {% popover clusters %} and can each have their own [authentication and authorization](../../admin/Authz) scheme applied to them. They are also the administrative unit at which [storage quotas](TODO), [message TTL](../../advanced/RetentionExpiry#time-to-live-ttl), and isolation policies can be managed.
 
 The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:
 
