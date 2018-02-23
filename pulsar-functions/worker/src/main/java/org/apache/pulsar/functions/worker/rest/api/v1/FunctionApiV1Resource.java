@@ -37,7 +37,7 @@ import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
 import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
-import org.apache.pulsar.functions.worker.rest.BaseApiResource;
+import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
@@ -63,7 +63,7 @@ import java.util.concurrent.ExecutionException;
 
 @Slf4j
 @Path("/admin/functions")
-public class ApiV1Resource extends BaseApiResource {
+public class FunctionApiV1Resource extends FunctionApiResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
@@ -88,7 +88,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         if (functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
@@ -103,7 +103,7 @@ public class ApiV1Resource extends BaseApiResource {
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
-        WorkerConfig workerConfig = getWorkerConfig();
+        WorkerConfig workerConfig = worker().getWorkerConfig();
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
                 .setPackagePath(String.format(
             // TODO: dlog 0.5.0 doesn't support filesystem path
@@ -140,7 +140,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             return Response.status(Response.Status.BAD_REQUEST)
@@ -185,7 +185,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function to deregister does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
@@ -242,7 +242,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function in getFunction does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
@@ -274,7 +274,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
@@ -283,7 +283,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         InstanceCommunication.FunctionStatus functionStatus = null;
         try {
             functionStatus = functionRuntimeManager.getFunctionInstanceStatus(
@@ -317,7 +317,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
         if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
             log.error("Function in getFunctionStatus does not exist @ /{}/{}/{}",
                     tenant, namespace, functionName);
@@ -326,7 +326,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
         }
 
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         InstanceCommunication.FunctionStatusList functionStatusList = null;
         try {
             functionStatusList = functionRuntimeManager.getAllFunctionStatus(tenant, namespace, functionName);
@@ -358,7 +358,7 @@ public class ApiV1Resource extends BaseApiResource {
                     .entity(new ErrorData(e.getMessage())).build();
         }
 
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         Collection<String> functionStateList = functionMetaDataManager.listFunctions(tenant, namespace);
 
@@ -372,7 +372,7 @@ public class ApiV1Resource extends BaseApiResource {
             log.info("Uploading function package to {}", functionMetaData.getPackageLocation());
 
             Utils.uploadToBookeeper(
-                getDlogNamespace(),
+                worker().getDlogNamespace(),
                 uploadedInputStream,
                 functionMetaData.getPackageLocation().getPackagePath());
         } catch (IOException e) {
@@ -384,7 +384,7 @@ public class ApiV1Resource extends BaseApiResource {
         }
 
         // Submit to FMT
-        FunctionMetaDataManager functionMetaDataManager = getWorkerFunctionStateManager();
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
 
         CompletableFuture<RequestResult> completableFuture
                 = functionMetaDataManager.updateFunction(functionMetaData);
@@ -416,7 +416,7 @@ public class ApiV1Resource extends BaseApiResource {
     @GET
     @Path("/cluster")
     public Response getCluster() {
-        MembershipManager membershipManager = getMembershipManager();
+        MembershipManager membershipManager = worker().getMembershipManager();
         List<MembershipManager.WorkerInfo> members = membershipManager.getCurrentMembership();
         return Response.status(Response.Status.OK).entity(new Gson().toJson(members)).build();
     }
@@ -424,7 +424,7 @@ public class ApiV1Resource extends BaseApiResource {
     @GET
     @Path("/assignments")
     public Response getAssignments() {
-        FunctionRuntimeManager functionRuntimeManager = getWorkerFunctionRuntimeManager();
+        FunctionRuntimeManager functionRuntimeManager = worker().getFunctionRuntimeManager();
         Map<String, Map<String, Function.Assignment>> assignments = functionRuntimeManager.getCurrentAssignments();
         Map<String, Collection<String>> ret = new HashMap<>();
         for (Map.Entry<String, Map<String, Function.Assignment>> entry : assignments.entrySet()) {

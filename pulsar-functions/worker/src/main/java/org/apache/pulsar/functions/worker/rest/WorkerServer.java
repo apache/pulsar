@@ -49,7 +49,7 @@ public class WorkerServer implements Runnable {
     @Override
     public void run() {
         final Server server = new Server(this.workerConfig.getWorkerPort());
-        server.setHandler(workerService.newServletContextHandler("/"));
+        server.setHandler(WorkerService.newServletContextHandler("/", workerService));
 
         try {
             server.start();

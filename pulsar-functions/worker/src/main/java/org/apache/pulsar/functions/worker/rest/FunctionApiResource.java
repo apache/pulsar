@@ -18,28 +18,24 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import org.apache.pulsar.functions.worker.rest.api.v1.FunctionApiV1Resource;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
+import javax.servlet.ServletContext;
+import javax.ws.rs.core.Context;
+import org.apache.pulsar.functions.worker.WorkerService;
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+public class FunctionApiResource {
 
-public final class Resources {
+    public static final String ATTRIBUTE_FUNCTION_WORKER = "function-worker";
 
-    private Resources() {
+    private WorkerService workerService;
+
+    @Context
+    protected ServletContext servletContext;
+
+    public synchronized WorkerService worker() {
+        if (this.workerService == null) {
+            this.workerService = (WorkerService) servletContext.getAttribute(ATTRIBUTE_FUNCTION_WORKER);
+        }
+        return this.workerService;
     }
 
-    public static Set<Class<?>> get() {
-        return new HashSet<>(getClasses());
-    }
-
-    private static List<Class<?>> getClasses() {
-        return Arrays.asList(
-                ConfigurationResource.class,
-                FunctionApiV1Resource.class,
-                MultiPartFeature.class
-        );
-    }
 }

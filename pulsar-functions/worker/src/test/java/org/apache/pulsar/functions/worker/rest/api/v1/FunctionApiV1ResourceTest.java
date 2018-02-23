@@ -55,6 +55,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
@@ -66,11 +67,11 @@ import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link ApiV1Resource}.
+ * Unit test of {@link FunctionApiV1Resource}.
  */
 @PrepareForTest(Utils.class)
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*" })
-public class ApiV1ResourceTest {
+public class FunctionApiV1ResourceTest {
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
@@ -94,21 +95,24 @@ public class ApiV1ResourceTest {
     private static final String className = TestFunction.class.getName();
     private static final int parallelism = 1;
 
+    private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
     private Namespace mockedNamespace;
-    private ApiV1Resource resource;
+    private FunctionApiV1Resource resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
 
     @BeforeMethod
     public void setup() {
-        this.resource = spy(new ApiV1Resource());
+        this.resource = spy(new FunctionApiV1Resource());
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
         this.mockedNamespace = mock(Namespace.class);
-        doReturn(mockedManager).when(resource).getWorkerFunctionStateManager();
-        doReturn(mockedNamespace).when(resource).getDlogNamespace();
+
+        this.mockedWorkerService = mock(WorkerService.class);
+        when(mockedWorkerService.getFunctionMetaDataManager()).thenReturn(mockedManager);
+        when(mockedWorkerService.getDlogNamespace()).thenReturn(mockedNamespace);
 
         // worker config
         WorkerConfig workerConfig = new WorkerConfig()
@@ -118,7 +122,9 @@ public class ApiV1ResourceTest {
             .setFunctionMetadataTopicName("pulsar/functions")
             .setNumFunctionPackageReplicas(3)
             .setPulsarServiceUrl("pulsar://localhost:6650/");
-        doReturn(workerConfig).when(resource).getWorkerConfig();
+        when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
+
+        doReturn(mockedWorkerService).when(resource).worker();
     }
 
     //

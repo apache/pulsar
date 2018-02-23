@@ -34,7 +34,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
-import org.apache.pulsar.functions.worker.rest.BaseApiResource;
+import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.rest.Resources;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
@@ -62,16 +62,12 @@ public class WorkerService {
         this.workerConfig = workerConfig;
     }
 
-    public ServletContextHandler newServletContextHandler(String contextPath) {
+    public static ServletContextHandler newServletContextHandler(String contextPath, WorkerService workerService) {
         final ResourceConfig config = new ResourceConfig(Resources.get());
         final ServletContextHandler contextHandler =
                 new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
 
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_CONFIG, this.workerConfig);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionMetaDataManager);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER, this.functionRuntimeManager);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_MEMBERSHIP_MANAGER, this.membershipManager);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_DLOG_NAMESPACE, this.dlogNamespace);
+        contextHandler.setAttribute(FunctionApiResource.ATTRIBUTE_FUNCTION_WORKER, workerService);
         contextHandler.setContextPath(contextPath);
 
         final ServletHolder apiServlet =
