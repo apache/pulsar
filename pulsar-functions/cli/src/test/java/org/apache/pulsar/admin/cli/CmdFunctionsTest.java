@@ -71,7 +71,7 @@ import org.testng.annotations.Test;
  * Unit test of {@link CmdFunctions}.
  */
 @PrepareForTest({ CmdFunctions.class, Reflections.class, StorageClientBuilder.class })
-@PowerMockIgnore("javax.management.*")
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 public class CmdFunctionsTest {
 
     @ObjectFactory

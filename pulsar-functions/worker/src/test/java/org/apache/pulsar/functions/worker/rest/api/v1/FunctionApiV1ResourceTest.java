@@ -70,7 +70,7 @@ import org.testng.annotations.Test;
  * Unit test of {@link FunctionApiV1Resource}.
  */
 @PrepareForTest(Utils.class)
-@PowerMockIgnore({ "javax.management.*", "javax.ws.*" })
+@PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
 public class FunctionApiV1ResourceTest {
 
     @ObjectFactory
