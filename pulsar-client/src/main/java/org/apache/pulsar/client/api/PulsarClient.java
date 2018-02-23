@@ -21,14 +21,27 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 /**
- * Class that provides a client interface to Pulsar
- *
- *
+ * Class that provides a client interface to Pulsar.
+ * <p>
+ * Client instances are thread-safe and can be reused for managing multiple {@link Producer}, {@link Consumer} and
+ * {@link Reader} instances.
  */
 public interface PulsarClient extends Closeable {
+
+    /**
+     * Get a new builder instance that can used to configure and build a {@link PulsarClient} instance.
+     *
+     * @return the {@link ClientBuilder}
+     *
+     * @since 2.0.0
+     */
+    public static ClientBuilder builder() {
+        return new ClientBuilderImpl();
+    }
 
     /**
      * Create a new PulsarClient object using default client configuration
@@ -38,7 +51,9 @@ public interface PulsarClient extends Closeable {
      * @return a new pulsar client object
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
+     * @deprecated use {@link #builder()} to construct a client instance
      */
+    @Deprecated
     public static PulsarClient create(String serviceUrl) throws PulsarClientException {
         return create(serviceUrl, new ClientConfiguration());
     }
@@ -53,10 +68,49 @@ public interface PulsarClient extends Closeable {
      * @return a new pulsar client object
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
+     * @deprecated use {@link #builder()} to construct a client instance
      */
+    @Deprecated
     public static PulsarClient create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
         return new PulsarClientImpl(serviceUrl, conf);
     }
+
+    /**
+     * Create a producer with default for publishing on a specific topic
+     * <p>
+     * Example:
+     *
+     * <code>
+     * Producer producer = client.newProducer().topic(myTopic).create();
+     * </code>
+     *
+     *
+     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
+     */
+    ProducerBuilder newProducer();
+
+    /**
+     * Create a producer with default for publishing on a specific topic
+     *
+     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
+     */
+    ConsumerBuilder newConsumer();
+
+    /**
+     * Create a topic reader for reading messages from the specified topic.
+     * <p>
+     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
+     * subscription. Reader can only work on non-partitioned topics.
+     *
+     * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
+     *
+     * @since 2.0.0
+     */
+    ReaderBuilder newReader();
 
     /**
      * Create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -72,7 +126,9 @@ public interface PulsarClient extends Closeable {
      *             if there was an error with the supplied credentials
      * @throws PulsarClientException.AuthorizationException
      *             if the authorization to publish on topic was denied
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     Producer createProducer(String topic) throws PulsarClientException;
 
     /**
@@ -81,7 +137,9 @@ public interface PulsarClient extends Closeable {
      * @param topic
      *            The name of the topic where to produce
      * @return Future of the asynchronously created producer object
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     CompletableFuture<Producer> createProducerAsync(String topic);
 
     /**
@@ -95,7 +153,9 @@ public interface PulsarClient extends Closeable {
      * @throws PulsarClientException
      *             if it was not possible to create the producer
      * @throws InterruptedException
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     Producer createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
@@ -106,7 +166,9 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ProducerConfiguration} object
      * @return Future of the asynchronously created producer object
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     CompletableFuture<Producer> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
@@ -119,7 +181,10 @@ public interface PulsarClient extends Closeable {
      * @return The {@code Consumer} object
      * @throws PulsarClientException
      * @throws InterruptedException
+     *
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
+    @Deprecated
     Consumer subscribe(String topic, String subscription) throws PulsarClientException;
 
     /**
@@ -131,7 +196,9 @@ public interface PulsarClient extends Closeable {
      * @param subscription
      *            The subscription name
      * @return Future of the {@code Consumer} object
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
+    @Deprecated
     CompletableFuture<Consumer> subscribeAsync(String topic, String subscription);
 
     /**
@@ -145,7 +212,9 @@ public interface PulsarClient extends Closeable {
      *            The {@code ConsumerConfiguration} object
      * @return The {@code Consumer} object
      * @throws PulsarClientException
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
+    @Deprecated
     Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
     /**
@@ -159,7 +228,9 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ConsumerConfiguration} object
      * @return Future of the {@code Consumer} object
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
+    @Deprecated
     CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
 
     /**
@@ -185,7 +256,9 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ReaderConfiguration} object
      * @return The {@code Reader} object
+     * @deprecated Use {@link #newReader()} to build a new reader
      */
+    @Deprecated
     Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException;
 
     /**
@@ -212,7 +285,9 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ReaderConfiguration} object
      * @return Future of the asynchronously created producer object
+     * @deprecated Use {@link #newReader()} to build a new reader
      */
+    @Deprecated
     CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
 
     /**

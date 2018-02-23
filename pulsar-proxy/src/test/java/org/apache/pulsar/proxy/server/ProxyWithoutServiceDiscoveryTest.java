@@ -116,6 +116,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+        proxyConfig.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+
         proxyConfig.setAuthenticationProviders(providers);
  
         proxyService = Mockito.spy(new ProxyService(proxyConfig));

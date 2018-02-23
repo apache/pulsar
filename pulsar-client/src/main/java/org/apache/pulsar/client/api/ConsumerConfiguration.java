@@ -21,6 +21,7 @@ package org.apache.pulsar.client.api;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
@@ -31,8 +32,9 @@ import java.util.concurrent.TimeUnit;
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
  * will be able to use the same subscription name and the messages will be dispatched in a round robin fashion.
  *
- *
+ * @deprecated Use {@link PulsarClient#newConsumer} to build and configure a {@link Consumer} instance
  */
+@Deprecated
 public class ConsumerConfiguration implements Serializable {
 
     /**
@@ -44,7 +46,11 @@ public class ConsumerConfiguration implements Serializable {
 
     private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
+    @JsonIgnore
     private MessageListener messageListener;
+
+    @JsonIgnore
+    private ConsumerEventListener consumerEventListener;
 
     private int receiverQueueSize = 1000;
 
@@ -56,6 +62,7 @@ public class ConsumerConfiguration implements Serializable {
 
     private int priorityLevel = 0;
 
+    @JsonIgnore
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
@@ -128,6 +135,33 @@ public class ConsumerConfiguration implements Serializable {
     public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
         checkNotNull(messageListener);
         this.messageListener = messageListener;
+        return this;
+    }
+
+    /**
+     * @return this configured {@link ConsumerEventListener} for the consumer.
+     * @see #setConsumerEventListener(ConsumerEventListener)
+     * @since 2.0
+     */
+    public ConsumerEventListener getConsumerEventListener() {
+        return this.consumerEventListener;
+    }
+
+    /**
+     * Sets a {@link ConsumerEventListener} for the consumer.
+     *
+     * <p>The consumer group listener is used for receiving consumer state change in a consumer group for failover
+     * subscription. Application can then react to the consumer state changes.
+     *
+     * <p>This change is experimental. It is subject to changes coming in release 2.0.
+     *
+     * @param listener the consumer group listener object
+     * @return consumer configuration
+     * @since 2.0
+     */
+    public ConsumerConfiguration setConsumerEventListener(ConsumerEventListener listener) {
+        checkNotNull(listener);
+        this.consumerEventListener = listener;
         return this;
     }
 

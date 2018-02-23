@@ -18,31 +18,25 @@
  */
 package org.apache.pulsar.client.api;
 
-import org.testng.annotations.Test;
-
-import com.google.common.base.Objects;
-
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
-import org.apache.pulsar.client.impl.ConsumerId;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.testng.Assert;
+import org.testng.annotations.Test;
 
 public class MessageIdTest {
-    
+
     @Test
     public void messageIdTest() {
         MessageId mId = new MessageIdImpl(1, 2, 3);
         assertEquals(mId.toString(), "1:2:3");
-        
+
         mId = new BatchMessageIdImpl(0, 2, 3, 4);
         assertEquals(mId.toString(), "0:2:3:4");
-        
+
         mId = new BatchMessageIdImpl(-1, 2, -3, 4);
         assertEquals(mId.toString(), "-1:2:-3:4");
-        
+
         mId = new MessageIdImpl(0, -23, 3);
         assertEquals(mId.toString(), "0:-23:3");
     }

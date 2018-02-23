@@ -31,10 +31,8 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
-
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.SafeRun;
@@ -59,6 +57,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
@@ -110,7 +109,7 @@ public class ServerCnx extends PulsarHandler {
     private String originalPrincipal = null;
     private Set<String> proxyRoles;
     private boolean authenticateOriginalAuthData;
-    
+
     enum State {
         Start, Connected, Failed
     }
@@ -192,8 +191,8 @@ public class ServerCnx extends PulsarHandler {
     }
 
     /*
-     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce 
-     * - the originalPrincipal is given while connecting 
+     * If authentication and authorization is enabled and if the authRole is one of proxyRoles we want to enforce
+     * - the originalPrincipal is given while connecting
      * - originalPrincipal is not blank
      * - originalPrincipal is not a proxy principal
      */
@@ -209,7 +208,7 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleLookup(CommandLookupTopic lookup) {
         final long requestId = lookup.getRequestId();
-
+        final boolean authoritative = lookup.getAuthoritative();
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
@@ -218,7 +217,7 @@ public class ServerCnx extends PulsarHandler {
         if (topicName == null) {
             return;
         }
-        
+
         String originalPrincipal = null;
         if (authenticateOriginalAuthData && lookup.hasOriginalAuthData()) {
             originalPrincipal = validateOriginalPrincipal(
@@ -233,9 +232,9 @@ public class ServerCnx extends PulsarHandler {
         } else {
             originalPrincipal = lookup.hasOriginalPrincipal() ? lookup.getOriginalPrincipal() : this.originalPrincipal;
         }
-        
+
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
-        if (lookupSemaphore.tryAcquire()) {            
+        if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
                 final String msg = "Valid Proxy Client role should be provided for lookup ";
                 log.warn("[{}] {} with role {} and proxyClientAuthRole {} on topic {}", remoteAddress, msg, authRole,
@@ -254,9 +253,9 @@ public class ServerCnx extends PulsarHandler {
             String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
-                    lookupDestinationAsync(getBrokerService().pulsar(), topicName, lookup.getAuthoritative(),
+                    lookupDestinationAsync(getBrokerService().pulsar(), topicName, authoritative,
                             finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
-                            lookup.getRequestId()).handle((lookupResponse, ex) -> {
+                            requestId).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
                                     ctx.writeAndFlush(lookupResponse);
                                 } else {
@@ -319,7 +318,7 @@ public class ServerCnx extends PulsarHandler {
         } else {
             originalPrincipal = partitionMetadata.hasOriginalPrincipal() ? partitionMetadata.getOriginalPrincipal() : this.originalPrincipal;
         }
-        
+
         final Semaphore lookupSemaphore = service.getLookupRequestSemaphore();
         if (lookupSemaphore.tryAcquire()) {
             if (invalidOriginalPrincipal(originalPrincipal)) {
@@ -441,7 +440,7 @@ public class ServerCnx extends PulsarHandler {
 
         return commandConsumerStatsResponseBuilder;
     }
-    
+
     private String validateOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal, Long requestId, GeneratedMessageLite request) {
         ChannelHandler sslHandler = ctx.channel().pipeline().get(PulsarChannelInitializer.TLS_HANDLER);
         SSLSession sslSession = null;
@@ -461,7 +460,7 @@ public class ServerCnx extends PulsarHandler {
             return null;
         }
     }
-    
+
     private String getOriginalPrincipal(String originalAuthData, String originalAuthMethod, String originalPrincipal,
             SSLSession sslSession) throws AuthenticationException {
         if (authenticateOriginalAuthData) {
@@ -532,7 +531,7 @@ public class ServerCnx extends PulsarHandler {
         DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
         if (topicName == null) {
             return;
-        }  
+        }
 
         if (invalidOriginalPrincipal(originalPrincipal)) {
             final String msg = "Valid Proxy Client role should be provided while subscribing ";
@@ -550,7 +549,7 @@ public class ServerCnx extends PulsarHandler {
                 subscribe.getStartMessageId().getLedgerId(), subscribe.getStartMessageId().getEntryId(),
                 subscribe.getStartMessageId().getPartition(), subscribe.getStartMessageId().getBatchIndex())
                 : null;
-
+        final String subscription = subscribe.getSubscription();
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
@@ -568,7 +567,7 @@ public class ServerCnx extends PulsarHandler {
                 if (service.isAuthorizationEnabled()) {
                     authorizationFuture = service.getAuthorizationService().canConsumeAsync(topicName,
                             originalPrincipal != null ? originalPrincipal : authRole, authenticationData,
-                            subscribe.getSubscription());
+                            subscription);
                 } else {
                     authorizationFuture = CompletableFuture.completedFuture(true);
                 }
@@ -669,6 +668,11 @@ public class ServerCnx extends PulsarHandler {
                         log.warn("[{}] {} with role {}", remoteAddress, msg, authRole);
                         ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
                     }
+                    return null;
+                }).exceptionally(e -> {
+                    String msg = String.format("[%s] %s with role %s", remoteAddress, e.getMessage(), authRole);
+                    log.warn(msg);
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, e.getMessage()));
                     return null;
                 });
             } else {
@@ -856,6 +860,11 @@ public class ServerCnx extends PulsarHandler {
                         ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, msg));
                     }
                     return null;
+                }).exceptionally(e -> {
+                    String msg = String.format("[%s] %s with role %s", remoteAddress, e.getMessage(), authRole);
+                    log.warn(msg);
+                    ctx.writeAndFlush(Commands.newError(requestId, ServerError.AuthorizationError, e.getMessage()));
+                    return null;
                 });
             } else {
                 final String msg = "Proxy Client is not authorized to Produce";
@@ -985,13 +994,13 @@ public class ServerCnx extends PulsarHandler {
     @Override
     protected void handleSeek(CommandSeek seek) {
         checkArgument(state == State.Connected);
-
+        final long requestId = seek.getRequestId();
         CompletableFuture<Consumer> consumerFuture = consumers.get(seek.getConsumerId());
 
         // Currently only seeking on a message id is supported
         if (!seek.hasMessageId()) {
             ctx.writeAndFlush(
-                    Commands.newError(seek.getRequestId(), ServerError.MetadataError, "Message id was not present"));
+                    Commands.newError(requestId, ServerError.MetadataError, "Message id was not present"));
             return;
         }
 
@@ -1001,7 +1010,7 @@ public class ServerCnx extends PulsarHandler {
             MessageIdData msgIdData = seek.getMessageId();
 
             Position position = new PositionImpl(msgIdData.getLedgerId(), msgIdData.getEntryId());
-            long requestId = seek.getRequestId();
+            
 
             subscription.resetCursor(position).thenRun(() -> {
                 log.info("[{}] [{}][{}] Reset subscription to message id {}", remoteAddress,
@@ -1009,12 +1018,12 @@ public class ServerCnx extends PulsarHandler {
                 ctx.writeAndFlush(Commands.newSuccess(requestId));
             }).exceptionally(ex -> {
                 log.warn("[{}][{}] Failed to reset subscription: {}", remoteAddress, subscription, ex.getMessage(), ex);
-                ctx.writeAndFlush(Commands.newError(seek.getRequestId(), ServerError.UnknownError,
+                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError,
                         "Error when resetting subscription: " + ex.getCause().getMessage()));
                 return null;
             });
         } else {
-            ctx.writeAndFlush(Commands.newError(seek.getRequestId(), ServerError.MetadataError, "Consumer not found"));
+            ctx.writeAndFlush(Commands.newError(requestId, ServerError.MetadataError, "Consumer not found"));
         }
     }
 
@@ -1101,6 +1110,35 @@ public class ServerCnx extends PulsarHandler {
             log.warn("[{]] Error closing consumer: ", remoteAddress, consumer, e);
             ctx.writeAndFlush(
                     Commands.newError(requestId, BrokerServiceException.getClientErrorCode(e), e.getMessage()));
+        }
+    }
+
+    @Override
+    protected void handleGetLastMessageId(CommandGetLastMessageId getLastMessageId) {
+        checkArgument(state == State.Connected);
+
+        CompletableFuture<Consumer> consumerFuture = consumers.get(getLastMessageId.getConsumerId());
+
+        if (consumerFuture != null && consumerFuture.isDone() && !consumerFuture.isCompletedExceptionally()) {
+            Consumer consumer = consumerFuture.getNow(null);
+            long requestId = getLastMessageId.getRequestId();
+
+            Topic topic = consumer.getSubscription().getTopic();
+            Position position = topic.getLastMessageId();
+            int partitionIndex = DestinationName.getPartitionIndex(topic.getName());
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
+                    topic.getName(), consumer.getSubscription().getName(), position, partitionIndex);
+            }
+            MessageIdData messageId = MessageIdData.newBuilder()
+                .setLedgerId(((PositionImpl)position).getLedgerId())
+                .setEntryId(((PositionImpl)position).getEntryId())
+                .setPartition(partitionIndex)
+                .build();
+
+            ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
+        } else {
+            ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(), ServerError.MetadataError, "Consumer not found"));
         }
     }
 
