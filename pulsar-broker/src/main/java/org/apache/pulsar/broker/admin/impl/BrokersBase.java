@@ -30,12 +30,14 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.Response.Status;
 
+import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.web.RestException;
+import org.apache.pulsar.common.conf.InternalConfigurationData;
 import org.apache.pulsar.common.policies.data.NamespaceOwnershipStatus;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -181,6 +183,17 @@ public class BrokersBase extends AdminResource {
                     ie.getMessage(), ie);
             throw new RestException(ie);
         }
+    }
+
+    @GET
+    @Path("/internal-configuration")
+    @ApiOperation(value = "Get the internal configuration data", response = InternalConfigurationData.class)
+    public InternalConfigurationData getInternalConfigurationData() {
+        ClientConfiguration conf = new ClientConfiguration();
+        return new InternalConfigurationData(
+            pulsar().getConfiguration().getZookeeperServers(),
+            pulsar().getConfiguration().getGlobalZookeeperServers(),
+            conf.getZkLedgersRootPath());
     }
 
 }

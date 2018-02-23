@@ -65,6 +65,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
@@ -511,7 +512,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     clusterUrl = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
                             : data.getServiceUrlTls();
                     configuration.setUseTls(true);
-                    configuration.setTlsTrustCertsFilePath(pulsar.getConfiguration().getTlsTrustCertsFilePath());
+                    configuration.setTlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
                     configuration
                             .setTlsAllowInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
                 } else {
@@ -583,29 +584,37 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                     new OpenLedgerCallback() {
                         @Override
                         public void openLedgerComplete(ManagedLedger ledger, Object ctx) {
-                            PersistentTopic persistentTopic = new PersistentTopic(topic, ledger, BrokerService.this);
+                            try {
+                                PersistentTopic persistentTopic = new PersistentTopic(topic, ledger,
+                                        BrokerService.this);
+                                CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
+                                replicationFuture.thenCompose(v -> {
+                                    // Also check dedup status
+                                    return persistentTopic.checkDeduplicationStatus();
+                                }).thenRun(() -> {
+                                    log.info("Created topic {} - dedup is {}", topic,
+                                            persistentTopic.isDeduplicationEnabled() ? "enabled" : "disabled");
+                                    long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
+                                            - topicCreateTimeMs;
+                                    pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
+                                    addTopicToStatsMaps(destinationName, persistentTopic);
+                                    topicFuture.complete(persistentTopic);
+                                }).exceptionally((ex) -> {
+                                    log.warn(
+                                            "Replication or dedup check failed. Removing topic from topics list {}, {}",
+                                            topic, ex);
+                                    persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
+                                        topics.remove(topic, topicFuture);
+                                        topicFuture.completeExceptionally(ex);
+                                    });
 
-                            CompletableFuture<Void> replicationFuture = persistentTopic.checkReplication();
-                            replicationFuture.thenCompose(v -> {
-                                // Also check dedup status
-                                return persistentTopic.checkDeduplicationStatus();
-                            }).thenRun(() -> {
-                                log.info("Created topic {} - dedup is {}", topic,
-                                        persistentTopic.isDeduplicationEnabled() ? "enabled" : "disabled");
-                                long topicLoadLatencyMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime())
-                                        - topicCreateTimeMs;
-                                pulsarStats.recordTopicLoadTimeValue(topic, topicLoadLatencyMs);
-                                addTopicToStatsMaps(destinationName, persistentTopic);
-                                topicFuture.complete(persistentTopic);
-                            }).exceptionally((ex) -> {
-                                log.warn("Replication or dedup check failed. Removing topic from topics list {}, {}", topic, ex);
-                                persistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                                    topics.remove(topic, topicFuture);
-                                    topicFuture.completeExceptionally(ex);
+                                    return null;
                                 });
-
-                                return null;
-                            });
+                            } catch (NamingException e) {
+                                log.warn("Failed to create topic {}-{}", topic, e.getMessage());
+                                pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+                                topicFuture.completeExceptionally(e);
+                            }
                         }
 
                         @Override

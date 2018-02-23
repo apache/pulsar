@@ -23,7 +23,7 @@ import java.io.Serializable;
 public interface MessageRouter extends Serializable {
 
     /**
-     * 
+     *
      * @param msg
      *            Message object
      * @return The index of the partition to use for the message
@@ -42,7 +42,6 @@ public interface MessageRouter extends Serializable {
      * @return the partition to route the message.
      * @since 1.22.0
      */
-    @SuppressWarnings("deprecation")
     default int choosePartition(Message msg, TopicMetadata metadata) {
         return choosePartition(msg);
     }
