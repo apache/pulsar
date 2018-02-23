@@ -18,31 +18,19 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.distributedlog.api.namespace.Namespace;
-import org.apache.pulsar.functions.worker.FunctionMetaDataManager;
-import org.apache.pulsar.functions.worker.FunctionRuntimeManager;
-import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.eclipse.jetty.server.Server;
-import org.eclipse.jetty.servlet.ServletContextHandler;
-import org.eclipse.jetty.servlet.ServletHolder;
-import org.glassfish.jersey.server.ResourceConfig;
-import org.glassfish.jersey.servlet.ServletContainer;
 
 import java.net.BindException;
 import java.net.URI;
 
 @Slf4j
-@RequiredArgsConstructor
 public class WorkerServer implements Runnable {
 
     private final WorkerConfig workerConfig;
-    private final FunctionMetaDataManager functionMetaDataManager;
-    private final FunctionRuntimeManager functionRuntimeManager;
-    private final MembershipManager membershipManager;
-    private final Namespace dlogNamespace;
+    private final WorkerService workerService;
 
     private static String getErrorMessage(Server server, int port, Exception ex) {
         if (ex instanceof BindException) {
@@ -53,28 +41,16 @@ public class WorkerServer implements Runnable {
         return ex.getMessage();
     }
 
+    public WorkerServer(WorkerService workerService) {
+        this.workerConfig = workerService.getWorkerConfig();
+        this.workerService = workerService;
+    }
+
     @Override
     public void run() {
         final Server server = new Server(this.workerConfig.getWorkerPort());
+        server.setHandler(workerService.newServletContextHandler("/"));
 
-        final ResourceConfig config = new ResourceConfig(Resources.get());
-
-        final ServletContextHandler contextHandler =
-                new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_CONFIG, this.workerConfig);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_STATE_MANAGER, this.functionMetaDataManager);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_FUNCTION_RUNTIME_MANAGER, this.functionRuntimeManager);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_MEMBERSHIP_MANAGER, this.membershipManager);
-        contextHandler.setAttribute(BaseApiResource.ATTRIBUTE_WORKER_DLOG_NAMESPACE, this.dlogNamespace);
-        contextHandler.setContextPath("/");
-
-        server.setHandler(contextHandler);
-
-        final ServletHolder apiServlet =
-                new ServletHolder(new ServletContainer(config));
-
-        contextHandler.addServlet(apiServlet, "/*");
         try {
             server.start();
 
