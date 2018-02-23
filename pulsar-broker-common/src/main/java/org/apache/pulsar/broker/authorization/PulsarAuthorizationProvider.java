@@ -109,7 +109,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         log.debug("Policies node couldn't be found for destination : {}", destination);
                     }
                 } else {
-                    if (isNotBlank(subscription)) {
+                    if (isNotBlank(subscription) && !isSuperUser(role)) {
                         switch (policies.get().subscription_auth_mode) {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
