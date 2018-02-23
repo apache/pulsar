@@ -26,8 +26,10 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
@@ -40,6 +42,9 @@ import org.slf4j.LoggerFactory;
 public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcherMultipleConsumers
         implements NonPersistentDispatcher {
 
+    private final NonPersistentTopic topic;
+    private final Subscription subscription;
+
     private CompletableFuture<Void> closeFuture = null;
     private final String name;
     private final Rate msgDrop;
@@ -48,24 +53,52 @@ public class NonPersistentDispatcherMultipleConsumers extends AbstractDispatcher
     @SuppressWarnings("unused")
     private volatile int totalAvailablePermits = 0;
 
-    private final Subscription subscription;
+    private final ServiceConfiguration serviceConfig;
 
     public NonPersistentDispatcherMultipleConsumers(NonPersistentTopic topic, Subscription subscription) {
+        this.topic = topic;
+        this.subscription = subscription;
         this.name = topic.getName() + " / " + subscription.getName();
         this.msgDrop = new Rate();
-        this.subscription = subscription;
+        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
     }
 
     @Override
-    public synchronized void addConsumer(Consumer consumer) {
+    public synchronized void addConsumer(Consumer consumer) throws BrokerServiceException {
         if (IS_CLOSED_UPDATER.get(this) == TRUE) {
             log.warn("[{}] Dispatcher is already closed. Closing consumer ", name, consumer);
             consumer.disconnect();
             return;
         }
 
+        if (isConsumersExceededOnTopic()) {
+            log.warn("[{}] Attempting to add consumer to topic which reached max consumers limit", name);
+            throw new ConsumerBusyException("Topic reached max consumers limit");
+        }
+
+        if (isConsumersExceededOnSubscription()) {
+            log.warn("[{}] Attempting to add consumer to subscription which reached max consumers limit", name);
+            throw new ConsumerBusyException("Subscription reached max consumers limit");
+        }
+
         consumerList.add(consumer);
         consumerSet.add(consumer);
+    }
+
+    private boolean isConsumersExceededOnTopic() {
+        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    private boolean isConsumersExceededOnSubscription() {
+        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
+            return true;
+        }
+        return false;
     }
 
     @Override

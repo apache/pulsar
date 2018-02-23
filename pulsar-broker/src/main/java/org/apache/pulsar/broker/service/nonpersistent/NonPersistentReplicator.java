@@ -26,6 +26,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.client.api.MessageId;
@@ -49,10 +50,10 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     private final NonPersistentReplicatorStats stats = new NonPersistentReplicatorStats();
 
     public NonPersistentReplicator(NonPersistentTopic topic, String localCluster, String remoteCluster,
-            BrokerService brokerService) {
+            BrokerService brokerService) throws NamingException {
         super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
 
-        producerConfiguration.setBlockIfQueueFull(false);
+        producerBuilder.blockIfQueueFull(false);
 
         startProducer();
     }

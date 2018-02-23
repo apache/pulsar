@@ -16,33 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.web;
+package org.apache.pulsar.client.api;
 
-import java.io.File;
-
-import javax.ws.rs.GET;
-import javax.ws.rs.Path;
-import javax.ws.rs.WebApplicationException;
-import javax.ws.rs.core.Context;
-import javax.ws.rs.core.Response.Status;
-
-/**
- * Web resource used by the VIP service to check to availability of the Pulsar broker instance.
- */
-@Path("/status.html")
-@NoSwaggerDocumentation
-public class VipStatus extends PulsarWebResource {
-
-    @GET
-    @Context
-    public String checkStatus() {
-        String statusFilePath = pulsar().getStatusFilePath();
-
-        File statusFile = new File(statusFilePath);
-        if (statusFile.exists()) {
-            return "OK";
-        } else {
-            throw new WebApplicationException(Status.NOT_FOUND);
-        }
-    }
+public enum MessageRoutingMode {
+    SinglePartition, RoundRobinPartition, CustomPartition
 }

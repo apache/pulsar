@@ -18,13 +18,16 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
+import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
@@ -151,6 +154,22 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
     }
 
+	@Test
+	public void testGetPeerClusters() throws Exception {
+		final String mainClusterName = "r1";
+		assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), null);
+		LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
+		admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
+		retryStrategically((test) -> {
+			try {
+				return admin1.clusters().getPeerClusterNames(mainClusterName).size() == 1;
+			} catch (PulsarAdminException e) {
+				return false;
+			}
+		}, 5, 100);
+		assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), peerClusters);
+	}
+    
     private static final Logger log = LoggerFactory.getLogger(PeerReplicatorTest.class);
 
 }

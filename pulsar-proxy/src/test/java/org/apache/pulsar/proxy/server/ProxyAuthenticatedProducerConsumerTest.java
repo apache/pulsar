@@ -89,7 +89,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SERVER_KEY_FILE_PATH);
-
+        conf.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -113,10 +113,11 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         proxyConfig.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-
+        
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+        proxyConfig.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         proxyConfig.setAuthenticationProviders(providers);
         
         proxyConfig.setZookeeperServers(DUMMY_VALUE);

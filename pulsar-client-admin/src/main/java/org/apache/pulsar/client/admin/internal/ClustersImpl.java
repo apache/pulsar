@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin.internal;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.ws.rs.client.Entity;
 import javax.ws.rs.client.WebTarget;
@@ -94,6 +95,15 @@ public class ClustersImpl extends BaseResource implements Clusters {
         
     }
 
+	@Override
+	public Set<String> getPeerClusterNames(String cluster) throws PulsarAdminException {
+		try {
+			return request(clusters.path(cluster).path("peers")).get(LinkedHashSet.class);
+		} catch (Exception e) {
+			throw getApiException(e);
+		}
+	}
+    
     @Override
     public void deleteCluster(String cluster) throws PulsarAdminException {
         try {
