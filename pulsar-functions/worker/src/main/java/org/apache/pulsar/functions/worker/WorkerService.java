@@ -127,11 +127,6 @@ public class WorkerService {
             this.clusterServiceCoordinator = new ClusterServiceCoordinator(
                     this.workerConfig.getWorkerId(),
                     membershipManager);
-            // start periodic snapshot routine
-            this.clusterServiceCoordinator.addTask(
-                    "snapshot",
-                    this.workerConfig.getSnapshotFreqMs(),
-                    () -> functionMetaDataManager.snapshot());
 
             this.clusterServiceCoordinator.addTask("membership-monitor",
                     this.workerConfig.getFailureCheckFreqMs(),
