@@ -1259,6 +1259,9 @@ public class ConsumerImpl extends ConsumerBase {
 
         long requestId = client.newRequestId();
         MessageIdImpl msgId = (MessageIdImpl) messageId;
+        if (msgId.getEntryId() == -1) {
+            msgId = (MessageIdImpl) MessageId.earliest;
+        }
         ByteBuf seek = Commands.newSeek(consumerId, requestId, msgId.getLedgerId(), msgId.getEntryId());
         ClientCnx cnx = cnx();
 
