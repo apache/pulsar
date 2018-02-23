@@ -211,7 +211,6 @@ public class FunctionMetaDataManagerTest {
                         mock(SchedulerManager.class),
                         mock(PulsarClient.class)));
 
-        Mockito.doNothing().when(functionMetaDataManager).processInitializeMarker(any(Request.ServiceRequest.class));
         Mockito.doNothing().when(functionMetaDataManager).processUpdate(any(Request.ServiceRequest.class));
         Mockito.doNothing().when(functionMetaDataManager).proccessDeregister(any(Request.ServiceRequest.class));
 
@@ -220,7 +219,6 @@ public class FunctionMetaDataManagerTest {
                         Request.ServiceRequest.ServiceRequestType.UPDATE).build();
         functionMetaDataManager.processRequest(MessageId.earliest, serviceRequest);
 
-        Assert.assertEquals(MessageId.earliest, functionMetaDataManager.lastProcessedMessageId);
         verify(functionMetaDataManager, times(1)).processUpdate
                 (any(Request.ServiceRequest.class));
         verify(functionMetaDataManager).processUpdate(serviceRequest);
@@ -230,17 +228,11 @@ public class FunctionMetaDataManagerTest {
                 Request.ServiceRequest.ServiceRequestType.INITIALIZE).build();
         functionMetaDataManager.processRequest(MessageId.earliest, serviceRequest);
 
-        Assert.assertEquals(MessageId.earliest, functionMetaDataManager.lastProcessedMessageId);
-        verify(functionMetaDataManager, times(1)).processInitializeMarker(
-                any(Request.ServiceRequest.class));
-        verify(functionMetaDataManager).processInitializeMarker(serviceRequest);
-
         serviceRequest
                 = Request.ServiceRequest.newBuilder().setServiceRequestType(
                 Request.ServiceRequest.ServiceRequestType.DELETE).build();
         functionMetaDataManager.processRequest(MessageId.earliest, serviceRequest);
 
-        Assert.assertEquals(MessageId.earliest, functionMetaDataManager.lastProcessedMessageId);
         verify(functionMetaDataManager, times(1)).proccessDeregister(
                 any(Request.ServiceRequest.class));
         verify(functionMetaDataManager).proccessDeregister(serviceRequest);

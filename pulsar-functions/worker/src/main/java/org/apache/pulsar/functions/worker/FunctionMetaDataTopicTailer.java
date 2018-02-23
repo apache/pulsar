@@ -63,9 +63,7 @@ public class FunctionMetaDataTopicTailer
         log.info("Stopped function state consumer");
     }
 
-    @Override
-    public void accept(Message msg) {
-
+    public void processRequest(Message msg) {
         ServiceRequest serviceRequest;
 
         try {
@@ -80,7 +78,12 @@ public class FunctionMetaDataTopicTailer
         }
 
         this.functionMetaDataManager.processRequest(msg.getMessageId(), serviceRequest);
+    }
 
+    @Override
+    public void accept(Message msg) {
+
+        processRequest(msg);
         // receive next request
         receiveOne();
     }
