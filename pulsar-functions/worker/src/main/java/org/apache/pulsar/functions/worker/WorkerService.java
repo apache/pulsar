@@ -20,20 +20,14 @@ package org.apache.pulsar.functions.worker;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
 import java.net.URI;
-import javax.ws.rs.core.Response;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.distributedlog.api.namespace.NamespaceBuilder;
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.common.conf.InternalConfigurationData;
-import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.apache.pulsar.functions.worker.rest.Resources;
 import org.eclipse.jetty.servlet.ServletContextHandler;
@@ -77,91 +71,13 @@ public class WorkerService {
         return contextHandler;
     }
 
-    public void start() throws InterruptedException {
+    public void start(URI dlogUri) throws InterruptedException {
         log.info("Starting worker {}...", workerConfig.getWorkerId());
         try {
             log.info("Worker Configs: {}", new ObjectMapper().writerWithDefaultPrettyPrinter()
                     .writeValueAsString(workerConfig));
         } catch (JsonProcessingException e) {
             log.warn("Failed to print worker configs with error {}", e.getMessage(), e);
-        }
-
-        // initializing pulsar functions namespace
-        PulsarAdmin admin = Utils.getPulsarAdminClient(this.workerConfig.getPulsarWebServiceUrl());
-        InternalConfigurationData internalConf;
-        // make sure pulsar broker is up
-        log.info("Checking if broker at {} is up...", this.workerConfig.getPulsarWebServiceUrl());
-        int maxRetries = workerConfig.getInitialBrokerReconnectMaxRetries();
-        int retries = 0;
-        while (true) {
-            try {
-                admin.clusters().getClusters();
-                break;
-            } catch (PulsarAdminException e) {
-                log.warn("Retry to connect to Pulsar broker at {}", this.workerConfig.getPulsarWebServiceUrl());
-                if (retries >= maxRetries) {
-                    log.error("Failed to connect to Pulsar broker at {} after {} attempts",
-                            this.workerConfig.getPulsarFunctionsNamespace(), maxRetries);
-                    throw new RuntimeException("Failed to connect to Pulsar broker");
-                }
-                retries ++;
-                Thread.sleep(1000);
-            }
-        }
-
-        // getting namespace policy
-        log.info("Initializing Pulsar Functions namespace...");
-        try {
-            try {
-                admin.namespaces().getPolicies(this.workerConfig.getPulsarFunctionsNamespace());
-            } catch (PulsarAdminException e) {
-                if (e.getStatusCode() == Response.Status.NOT_FOUND.getStatusCode()) {
-                    // if not found than create
-                    try {
-                        admin.namespaces().createNamespace(this.workerConfig.getPulsarFunctionsNamespace());
-                    } catch (PulsarAdminException e1) {
-                        // prevent race condition with other workers starting up
-                        if (e1.getStatusCode() != Response.Status.CONFLICT.getStatusCode()) {
-                            log.error("Failed to create namespace {} for pulsar functions", this.workerConfig
-                                .getPulsarFunctionsNamespace(), e1);
-                            throw new RuntimeException(e1);
-                        }
-                    }
-                    try {
-                        admin.namespaces().setRetention(
-                            this.workerConfig.getPulsarFunctionsNamespace(),
-                            new RetentionPolicies(Integer.MAX_VALUE, Integer.MAX_VALUE));
-                    } catch (PulsarAdminException e1) {
-                        log.error("Failed to set retention policy for pulsar functions namespace", e);
-                        throw new RuntimeException(e1);
-                    }
-                } else {
-                    log.error("Failed to get retention policy for pulsar function namespace {}",
-                        this.workerConfig.getPulsarFunctionsNamespace(), e);
-                    throw new RuntimeException(e);
-                }
-            }
-            try {
-                internalConf = admin.brokers().getInternalConfigurationData();
-            } catch (PulsarAdminException e) {
-                log.error("Failed to retrieve broker internal configuration", e);
-                throw new RuntimeException(e);
-            }
-        } finally {
-            admin.close();
-        }
-
-        // initialize the dlog namespace
-        // TODO: move this as part of pulsar cluster initialization later
-        URI dlogUri;
-        try {
-            dlogUri = Utils.initializeDlogNamespace(
-                internalConf.getZookeeperServers(),
-                internalConf.getLedgersRootPath());
-        } catch (IOException ioe) {
-            log.error("Failed to initialize dlog namespace at zookeeper {} for storing function packages",
-                    internalConf.getZookeeperServers(), ioe);
-            throw new RuntimeException(ioe);
         }
 
         // create the dlog namespace for storing function packages
