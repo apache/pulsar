@@ -52,6 +52,10 @@ public class ManagedLedgerClientFactory implements Closeable {
         return managedLedgerFactory;
     }
 
+    public BookKeeper getBookKeeperClient() {
+        return bkClient;
+    }
+
     public void close() throws IOException {
         try {
             managedLedgerFactory.shutdown();

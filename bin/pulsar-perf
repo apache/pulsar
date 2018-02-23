@@ -7,9 +7,9 @@
 # to you under the Apache License, Version 2.0 (the
 # "License"); you may not use this file except in compliance
 # with the License.  You may obtain a copy of the License at
-# 
+#
 #   http://www.apache.org/licenses/LICENSE-2.0
-# 
+#
 # Unless required by applicable law or agreed to in writing,
 # software distributed under the License is distributed on an
 # "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -22,7 +22,7 @@ BINDIR=$(dirname "$0")
 PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
-DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.properties
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
 if [ -f "$PULSAR_HOME/conf/pulsar_env.sh" ]
 then
@@ -79,10 +79,13 @@ where command is one of:
     produce                 Run a producer
     consume                 Run a consumer
     read                    Run a topic reader
+
+    websocket-producer      Run a websocket producer
+
+    managed-ledger          Write directly on managed-ledgers
     monitor-brokers         Continuously receive broker data and/or load reports
     simulation-client       Run a simulation server acting as a Pulsar client
     simulation-controller   Run a simulation controller to give commands to servers
-    websocket-producer      Run a websocket producer
 
     help                           This help message
 
@@ -114,18 +117,18 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF` -Djava.net.preferIPv4Stack=true"
+OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF` -Djava.net.preferIPv4Stack=true"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
-PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
+PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
 PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"pulsar-perftest.log"}
 
 #Configure log configuration system properties
-OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
+OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
 OPTS="$OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE"
 
@@ -156,8 +159,8 @@ elif [ "$COMMAND" == "simulation-controller" ]; then
     exec $JAVA $OPTS org.apache.pulsar.testclient.LoadSimulationController "$@"
 elif [ "$COMMAND" == "websocket-producer" ]; then
     exec $JAVA $OPTS org.apache.pulsar.proxy.socket.client.PerformanceClient "$@"
-elif [ "$COMMAND" == "help" ]; then
-    pulsar_help;
+elif [ "$COMMAND" == "managed-ledger" ]; then
+    exec $JAVA $OPTS org.apache.pulsar.testclient.ManagedLedgerWriter "$@"
 else
-    exec $JAVA $OPTS $COMMAND $PULSAR_PERFTEST_CONF "$@"
+    pulsar_help;
 fi

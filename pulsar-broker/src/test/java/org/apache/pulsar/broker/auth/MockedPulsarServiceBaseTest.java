@@ -98,6 +98,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
+        this.conf.setGlobalZookeeperServers("localhost:3181");
     }
 
     protected final void internalSetup() throws Exception {
@@ -124,7 +125,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected final void init() throws Exception {
         mockZookKeeper = createMockZooKeeper();
-        mockBookKeeper = new NonClosableMockBookKeeper(new ClientConfiguration(), mockZookKeeper);
+        mockBookKeeper = createMockBookKeeper(mockZookKeeper);
 
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
 
@@ -205,6 +206,10 @@ public abstract class MockedPulsarServiceBaseTest {
         zk.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(ZookeeperClientFactoryImpl.ENCODING_SCHEME), dummyAclList,
                 CreateMode.PERSISTENT);
         return zk;
+    }
+
+    public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper) throws Exception {
+        return new NonClosableMockBookKeeper(new ClientConfiguration(), zookeeper);
     }
 
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test

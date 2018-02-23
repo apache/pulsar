@@ -24,6 +24,7 @@ import java.util.List;
 
 import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
@@ -31,14 +32,18 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 
 public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
 
+    private final NonPersistentTopic topic;
     private final Rate msgDrop;
     private final Subscription subscription;
+    private final ServiceConfiguration serviceConfig;
 
     public NonPersistentDispatcherSingleActiveConsumer(SubType subscriptionType, int partitionIndex,
             NonPersistentTopic topic, Subscription subscription) {
         super(subscriptionType, partitionIndex, topic.getName());
+        this.topic = topic;
         this.subscription = subscription;
         this.msgDrop = new Rate();
+        this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
     }
 
     @Override
@@ -55,6 +60,22 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
                 entry.release();
             });
         }
+    }
+
+    protected boolean isConsumersExceededOnTopic() {
+        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    protected boolean isConsumersExceededOnSubscription() {
+        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -86,5 +107,4 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
     protected void cancelPendingRead() {
         // No-op
     }
-
 }

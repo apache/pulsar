@@ -23,6 +23,10 @@ import static com.google.protobuf.ByteString.copyFromUtf8;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 
+<<<<<<< HEAD
+=======
+import com.google.protobuf.ByteString;
+>>>>>>> schema-registry-1
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -41,9 +45,11 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
@@ -123,7 +129,7 @@ public class Commands {
         if (originalAuthData != null) {
             connectBuilder.setOriginalAuthData(originalAuthData);
         }
-        
+
         if (originalAuthMethod != null) {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
@@ -408,6 +414,19 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newActiveConsumerChange(long consumerId, boolean isActive) {
+        CommandActiveConsumerChange.Builder changeBuilder = CommandActiveConsumerChange.newBuilder()
+            .setConsumerId(consumerId)
+            .setIsActive(isActive);
+
+        CommandActiveConsumerChange change = changeBuilder.build();
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.ACTIVE_CONSUMER_CHANGE).setActiveConsumerChange(change));
+        changeBuilder.recycle();
+        change.recycle();
+        return res;
+    }
+
     public static ByteBuf newSeek(long consumerId, long requestId, long ledgerId, long entryId) {
         CommandSeek.Builder seekBuilder = CommandSeek.newBuilder();
         seekBuilder.setConsumerId(consumerId);
@@ -681,6 +700,29 @@ public class Commands {
 
     static ByteBuf newPong() {
         return cmdPong.retainedDuplicate();
+    }
+
+    public static ByteBuf newGetLastMessageId(long consumerId, long requestId) {
+        CommandGetLastMessageId.Builder cmdBuilder = CommandGetLastMessageId.newBuilder();
+        cmdBuilder.setConsumerId(consumerId).setRequestId(requestId);
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_LAST_MESSAGE_ID)
+            .setGetLastMessageId(cmdBuilder.build()));
+        cmdBuilder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetLastMessageIdResponse(long requestId, MessageIdData messageIdData) {
+        PulsarApi.CommandGetLastMessageIdResponse.Builder response = PulsarApi.CommandGetLastMessageIdResponse.newBuilder()
+            .setLastMessageId(messageIdData)
+            .setRequestId(requestId);
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_LAST_MESSAGE_ID_RESPONSE)
+            .setGetLastMessageIdResponse(response.build()));
+        response.recycle();
+        return res;
     }
 
     private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
@@ -976,6 +1018,14 @@ public class Commands {
         lookupTopicBuilder.recycle();
         lookupBroker.recycle();
         return res;
+    }
+
+    public static boolean peerSupportsGetLastMessageId(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
+    }
+
+    public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 
     public static class SchemaInfo {

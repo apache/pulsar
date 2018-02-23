@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
@@ -121,6 +122,8 @@ public interface Topic {
     PersistentTopicStats getStats();
 
     PersistentTopicInternalStats getInternalStats();
+
+    Position getLastMessageId();
 
     CompletableFuture<SchemaAndMetadata> getSchema();
 }

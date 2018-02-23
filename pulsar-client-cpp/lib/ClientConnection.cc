@@ -921,6 +921,13 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::ACTIVE_CONSUMER_CHANGE: {
+                    LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
+                    // ignore this message for now.
+                    // TODO: @link{https://github.com/apache/incubator-pulsar/issues/1240}
+                    break;
+                }
+
                 default: {
                     LOG_WARN(cnxString_ << "Received invalid message from server");
                     close();

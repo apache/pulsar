@@ -102,8 +102,8 @@ public class BrokerDiscoveryProvider implements Closeable {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
             checkAuthorization(service, destination, role, authenticationData);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE, destination.getProperty(), destination.getCluster(),
-                    destination.getNamespacePortion(), "persistent", destination.getEncodedLocalName());
+            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
+                    destination.getNamespaceObject().toString(), "persistent", destination.getEncodedLocalName());
             // gets the number of partitions from the zk cache
             globalZkCache
                     .getDataAsync(path,
