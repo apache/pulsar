@@ -33,7 +33,7 @@ import javax.ws.rs.core.MediaType;
 import org.apache.pulsar.client.admin.NonPersistentTopics;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
@@ -49,9 +49,9 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public void createPartitionedTopic(String destination, int numPartitions) throws PulsarAdminException {
+    public void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException {
         try {
-            createPartitionedTopicAsync(destination, numPartitions).get();
+            createPartitionedTopicAsync(topic, numPartitions).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -61,18 +61,18 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public CompletableFuture<Void> createPartitionedTopicAsync(String destination, int numPartitions) {
+    public CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions) {
         checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
-        DestinationName ds = validateTopic(destination);
+        TopicName ds = validateTopic(topic);
         return asyncPutRequest(
                 nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
     @Override
-    public PartitionedTopicMetadata getPartitionedTopicMetadata(String destination) throws PulsarAdminException {
+    public PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException {
         try {
-            return getPartitionedTopicMetadataAsync(destination).get();
+            return getPartitionedTopicMetadataAsync(topic).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -82,8 +82,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String destination) {
-        DestinationName ds = validateTopic(destination);
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
+        TopicName ds = validateTopic(topic);
         final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
         asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 new InvocationCallback<PartitionedTopicMetadata>() {
@@ -102,9 +102,9 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public NonPersistentTopicStats getStats(String destination) throws PulsarAdminException {
+    public NonPersistentTopicStats getStats(String topic) throws PulsarAdminException {
         try {
-            return getStatsAsync(destination).get();
+            return getStatsAsync(topic).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -114,8 +114,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String destination) {
-        DestinationName ds = validateTopic(destination);
+    public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String topic) {
+        TopicName ds = validateTopic(topic);
         final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
         asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("stats"),
                 new InvocationCallback<NonPersistentTopicStats>() {
@@ -134,9 +134,9 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public PersistentTopicInternalStats getInternalStats(String destination) throws PulsarAdminException {
+    public PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException {
         try {
-            return getInternalStatsAsync(destination).get();
+            return getInternalStatsAsync(topic).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -146,8 +146,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String destination) {
-        DestinationName ds = validateTopic(destination);
+    public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
+        TopicName ds = validateTopic(topic);
         final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
         asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("internalStats"),
                 new InvocationCallback<PersistentTopicInternalStats>() {
@@ -166,9 +166,9 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public void unload(String destination) throws PulsarAdminException {
+    public void unload(String topic) throws PulsarAdminException {
         try {
-            unloadAsync(destination).get();
+            unloadAsync(topic).get();
         } catch (ExecutionException e) {
             throw (PulsarAdminException) e.getCause();
         } catch (InterruptedException e) {
@@ -178,8 +178,8 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     @Override
-    public CompletableFuture<Void> unloadAsync(String destination) {
-        DestinationName ds = validateTopic(destination);
+    public CompletableFuture<Void> unloadAsync(String topic) {
+        TopicName ds = validateTopic(topic);
         return asyncPutRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("unload"),
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
@@ -246,11 +246,11 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     }
 
     /*
-     * returns destination name with encoded Local Name
+     * returns topic name with encoded Local Name
      */
-    private DestinationName validateTopic(String destination) {
+    private TopicName validateTopic(String topic) {
         // Parsing will throw exception if name is not valid
-        return DestinationName.get(destination);
+        return TopicName.get(topic);
     }
 
 }

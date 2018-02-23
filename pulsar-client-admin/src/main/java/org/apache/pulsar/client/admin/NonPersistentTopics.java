@@ -37,12 +37,12 @@ public interface NonPersistentTopics {
      * Get metadata of a partitioned topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return Partitioned topic metadata
      * @throws PulsarAdminException
      */
-    PartitionedTopicMetadata getPartitionedTopicMetadata(String destination) throws PulsarAdminException;
+    PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException;
 
     /**
      * Get metadata of a partitioned topic asynchronously.
@@ -50,11 +50,11 @@ public interface NonPersistentTopics {
      * Get metadata of a partitioned topic asynchronously.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return a future that can be used to track when the partitioned topic metadata is returned
      */
-    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String destination);
+    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
      * Get the stats for the topic.
@@ -117,8 +117,8 @@ public interface NonPersistentTopics {
      *
      * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -128,27 +128,27 @@ public interface NonPersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    NonPersistentTopicStats getStats(String destination) throws PulsarAdminException;
+    NonPersistentTopicStats getStats(String topic) throws PulsarAdminException;
 
     /**
      * Get the stats for the topic asynchronously. All the rates are computed over a 1 minute window and are relative
      * the last completed 1 minute period.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      *
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<NonPersistentTopicStats> getStatsAsync(String destination);
+    CompletableFuture<NonPersistentTopicStats> getStatsAsync(String topic);
 
     /**
      * Get the internal stats for the topic.
      * <p>
      * Access the internal state of the topic
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -158,17 +158,17 @@ public interface NonPersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    PersistentTopicInternalStats getInternalStats(String destination) throws PulsarAdminException;
+    PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException;
 
     /**
      * Get the internal stats for the topic asynchronously.
      *
-     * @param destination
-     *            Destination Name
+     * @param topic
+     *            Topic Name
      *
      * @return a future that can be used to track when the internal topic statistics are returned
      */
-    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String destination);
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
 
     /**
      * Create a partitioned topic.
@@ -176,13 +176,13 @@ public interface NonPersistentTopics {
      * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @param numPartitions
      *            Number of partitions to create of the topic
      * @throws PulsarAdminException
      */
-    void createPartitionedTopic(String destination, int numPartitions) throws PulsarAdminException;
+    void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
      * Create a partitioned topic asynchronously.
@@ -191,44 +191,44 @@ public interface NonPersistentTopics {
      * topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @param numPartitions
      *            Number of partitions to create of the topic
      * @return a future that can be used to track when the partitioned topic is created
      */
-    CompletableFuture<Void> createPartitionedTopicAsync(String destination, int numPartitions);
-    
+    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
+
     /**
      * Unload a topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Destination does not exist
+     *             Topic does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void unload(String destination) throws PulsarAdminException;
+    void unload(String topic) throws PulsarAdminException;
 
     /**
      * Unload a topic asynchronously.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      *
      * @return a future that can be used to track when the topic is unloaded
      */
-    CompletableFuture<Void> unloadAsync(String destination);
+    CompletableFuture<Void> unloadAsync(String topic);
 
     /**
      * Get list of topics exist into given bundle
-     * 
+     *
      * @param namespace
      * @param bundleRange
      * @return
@@ -239,7 +239,7 @@ public interface NonPersistentTopics {
 
     /**
      * Get list of topics exist into given bundle asynchronously.
-     * 
+     *
      * @param namespace
      * @param bundleRange
      * @return
@@ -248,7 +248,7 @@ public interface NonPersistentTopics {
 
     /**
      * Get list of topics exist into given namespace
-     * 
+     *
      * @param namespace
      * @return
      * @throws PulsarAdminException
@@ -257,7 +257,7 @@ public interface NonPersistentTopics {
 
     /**
      * Get list of topics exist into given namespace asynchronously.
-     * 
+     *
      * @param namespace
      * @param bundleRange
      * @return

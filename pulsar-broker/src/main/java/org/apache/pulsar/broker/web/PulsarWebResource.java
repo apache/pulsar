@@ -128,7 +128,7 @@ public abstract class PulsarWebResource {
     public AuthenticationDataHttps clientAuthData() {
         return (AuthenticationDataHttps) httpRequest.getAttribute(AuthenticationFilter.AuthenticatedDataAttributeName);
     }
-    
+
     public boolean isRequestHttps() {
     	return "https".equalsIgnoreCase(httpRequest.getScheme());
     }
@@ -180,7 +180,7 @@ public abstract class PulsarWebResource {
         if (pulsar.getConfiguration().isAuthenticationEnabled() && pulsar.getConfiguration().isAuthorizationEnabled()) {
             log.debug("check admin access on property: {} - Authenticated: {} -- role: {}", property,
                     (isClientAuthenticated(clientAppId)), clientAppId);
-            
+
             PropertyAdmin propertyAdmin;
 
             try {
@@ -242,7 +242,7 @@ public abstract class PulsarWebResource {
         try {
             ClusterData differentClusterData = getClusterDataIfDifferentCluster(pulsar(), cluster, clientAppId()).get();
             if (differentClusterData != null) {
-                URI redirect = getRedirectionUrl(differentClusterData); 
+                URI redirect = getRedirectionUrl(differentClusterData);
                 // redirect to the cluster requested
                 if (log.isDebugEnabled()) {
                     log.debug("[{}] Redirecting the rest call to {}: cluster={}", clientAppId(), redirect, cluster);
@@ -478,19 +478,19 @@ public abstract class PulsarWebResource {
      * @param cluster
      * @param namespace
      */
-    protected void validateDestinationOwnership(DestinationName fqdn, boolean authoritative) {
+    protected void validateTopicOwnership(TopicName topicName, boolean authoritative) {
         NamespaceService nsService = pulsar().getNamespaceService();
 
         try {
             // per function name, this is trying to acquire the whole namespace ownership
-            Optional<URL> webUrl = nsService.getWebServiceUrl(fqdn, authoritative, isRequestHttps(), false);
+            Optional<URL> webUrl = nsService.getWebServiceUrl(topicName, authoritative, isRequestHttps(), false);
             // Ensure we get a url
             if (webUrl == null || !webUrl.isPresent()) {
                 log.info("Unable to get web service url");
-                throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for destination:" + fqdn);
+                throw new RestException(Status.PRECONDITION_FAILED, "Failed to find ownership for topic:" + topicName);
             }
 
-            if (!nsService.isServiceUnitOwned(fqdn)) {
+            if (!nsService.isServiceUnitOwned(topicName)) {
                 boolean newAuthoritative = isLeaderBroker(pulsar());
                 // Replace the host and port of the current request and redirect
                 URI redirect = UriBuilder.fromUri(uri.getRequestUri()).host(webUrl.get().getHost())
@@ -501,15 +501,15 @@ public abstract class PulsarWebResource {
             }
         } catch (IllegalArgumentException iae) {
             // namespace format is not valid
-            log.debug(String.format("Failed to find owner for destination:%s", fqdn), iae);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for destination " + fqdn);
+            log.debug(String.format("Failed to find owner for topic :%s", topicName), iae);
+            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (IllegalStateException ise) {
-            log.debug(String.format("Failed to find owner for destination:%s", fqdn), ise);
-            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for destination " + fqdn);
+            log.debug(String.format("Failed to find owner for topic:%s", topicName), ise);
+            throw new RestException(Status.PRECONDITION_FAILED, "Can't find owner for topic " + topicName);
         } catch (WebApplicationException wae) {
             throw wae;
         } catch (Exception oe) {
-            log.debug(String.format("Failed to find owner for destination:%s", fqdn), oe);
+            log.debug(String.format("Failed to find owner for topic:%s", topicName), oe);
             throw new RestException(oe);
         }
     }
@@ -636,19 +636,19 @@ public abstract class PulsarWebResource {
         return null;
     }
 
-    protected void checkConnect(DestinationName destination) throws RestException, Exception {
-        checkAuthorization(pulsar(), destination, clientAppId(), clientAuthData());
+    protected void checkConnect(TopicName topicName) throws RestException, Exception {
+        checkAuthorization(pulsar(), topicName, clientAppId(), clientAuthData());
     }
 
-    protected static void checkAuthorization(PulsarService pulsarService, DestinationName destination, String role,
+    protected static void checkAuthorization(PulsarService pulsarService, TopicName topicName, String role,
             AuthenticationDataSource authenticationData) throws RestException, Exception {
         if (!pulsarService.getConfiguration().isAuthorizationEnabled()) {
             // No enforcing of authorization policies
             return;
         }
         // get zk policy manager
-        if (!pulsarService.getBrokerService().getAuthorizationService().canLookup(destination, role, authenticationData)) {
-            log.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
+        if (!pulsarService.getBrokerService().getAuthorizationService().canLookup(topicName, role, authenticationData)) {
+            log.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             throw new RestException(Status.UNAUTHORIZED, "Don't have permission to connect to this namespace");
         }
     }

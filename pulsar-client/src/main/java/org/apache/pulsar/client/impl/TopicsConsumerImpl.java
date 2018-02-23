@@ -47,7 +47,7 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -114,7 +114,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
 
         checkArgument(conf.getTopicNames().isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics should have same namespace.");
         this.namespaceName = conf.getTopicNames().stream().findFirst()
-                .flatMap(s -> Optional.of(DestinationName.get(s).getNamespaceObject())).get();
+                .flatMap(s -> Optional.of(TopicName.get(s).getNamespaceObject())).get();
 
         List<CompletableFuture<Void>> futures = conf.getTopicNames().stream().map(t -> subscribeAsync(t))
                 .collect(Collectors.toList());
@@ -149,16 +149,16 @@ public class TopicsConsumerImpl extends ConsumerBase {
         checkState(topics != null && topics.size() > 1,
             "topics should should contain more than 1 topics");
 
-        final String namespace = DestinationName.get(topics.stream().findFirst().get()).getNamespace();
+        final String namespace = TopicName.get(topics.stream().findFirst().get()).getNamespace();
 
         Optional<String> result = topics.stream()
             .filter(topic -> {
-                boolean topicInvalid = !DestinationName.isValid(topic);
+                boolean topicInvalid = !TopicName.isValid(topic);
                 if (topicInvalid) {
                     return true;
                 }
 
-                String newNamespace =  DestinationName.get(topic).getNamespace();
+                String newNamespace =  TopicName.get(topic).getNamespace();
                 if (!namespace.equals(newNamespace)) {
                     return true;
                 } else {
@@ -610,11 +610,11 @@ public class TopicsConsumerImpl extends ConsumerBase {
     }
 
     private boolean topicNameValid(String topicName) {
-        checkArgument(DestinationName.isValid(topicName), "Invalid topic name:" + topicName);
+        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
         checkArgument(!topics.containsKey(topicName), "Topics already contains topic:" + topicName);
 
         if (this.namespaceName != null) {
-            checkArgument(DestinationName.get(topicName).getNamespace().toString().equals(this.namespaceName.toString()),
+            checkArgument(TopicName.get(topicName).getNamespace().toString().equals(this.namespaceName.toString()),
                 "Topic " + topicName + " not in same namespace with Topics");
         }
 
@@ -652,7 +652,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
                     .range(0, partitionNumber.get())
                     .mapToObj(
                         partitionIndex -> {
-                            String partitionName = DestinationName.get(topicName).getPartition(partitionIndex).toString();
+                            String partitionName = TopicName.get(topicName).getPartition(partitionIndex).toString();
                             CompletableFuture<Consumer> subFuture = new CompletableFuture<Consumer>();
                             ConsumerImpl newConsumer = new ConsumerImpl(client, partitionName, internalConfig,
                                     client.externalExecutorProvider().getExecutor(), partitionIndex, subFuture);
@@ -689,7 +689,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
                             consumers.values().stream()
                                 .filter(consumer1 -> {
                                     String consumerTopicName = consumer1.getTopic();
-                                    if (DestinationName.get(consumerTopicName)
+                                    if (TopicName.get(consumerTopicName)
                                         .getPartitionedTopicName().equals(topicName)) {
                                         return true;
                                     } else {
@@ -702,7 +702,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
                         log.info("[{}] [{}] Success subscribe new topic {} in topics consumer, numberTopicPartitions {}",
                             topic, subscription, topicName, numberTopicPartitions.get());
                         if (this.namespaceName == null) {
-                            this.namespaceName = DestinationName.get(topicName).getNamespaceObject();
+                            this.namespaceName = TopicName.get(topicName).getNamespaceObject();
                         }
                         return;
                     } catch (PulsarClientException e) {
@@ -730,7 +730,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
 
         consumers.values().stream().filter(consumer1 -> {
             String consumerTopicName = consumer1.getTopic();
-            if (DestinationName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
+            if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
                 return true;
             } else {
                 return false;
@@ -749,7 +749,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
 
     // un-subscribe a given topic
     public CompletableFuture<Void> unsubscribeAsync(String topicName) {
-        checkArgument(DestinationName.isValid(topicName), "Invalid topic name:" + topicName);
+        checkArgument(TopicName.isValid(topicName), "Invalid topic name:" + topicName);
 
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil.failedFuture(
@@ -757,12 +757,12 @@ public class TopicsConsumerImpl extends ConsumerBase {
         }
 
         CompletableFuture<Void> unsubscribeFuture = new CompletableFuture<>();
-        String topicPartName = DestinationName.get(topicName).getPartitionedTopicName();
+        String topicPartName = TopicName.get(topicName).getPartitionedTopicName();
 
         List<ConsumerImpl> consumersToUnsub = consumers.values().stream()
             .filter(consumer -> {
                 String consumerTopicName = consumer.getTopic();
-                if (DestinationName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName)) {
+                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicPartName)) {
                     return true;
                 } else {
                     return false;

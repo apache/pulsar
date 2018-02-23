@@ -49,8 +49,8 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
-import org.apache.pulsar.common.naming.DestinationDomain;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -223,7 +223,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         String topic = conf.getTopicName();
 
-        if (!DestinationName.isValid(topic)) {
+        if (!TopicName.isValid(topic)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
 
@@ -309,7 +309,7 @@ public class PulsarClientImpl implements PulsarClient {
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        if (!conf.getTopicNames().stream().allMatch(topic -> DestinationName.isValid(topic))) {
+        if (!conf.getTopicNames().stream().allMatch(topic -> TopicName.isValid(topic))) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
 
@@ -319,7 +319,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         if (conf.isReadCompacted() && (!conf.getTopicNames().stream()
-                .allMatch(topic -> DestinationName.get(topic).getDomain() == DestinationDomain.persistent)
+                .allMatch(topic -> TopicName.get(topic).getDomain() == TopicDomain.persistent)
                 || (conf.getSubscriptionType() != SubscriptionType.Exclusive
                         && conf.getSubscriptionType() != SubscriptionType.Failover))) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -423,7 +423,7 @@ public class PulsarClientImpl implements PulsarClient {
 
         String topic = conf.getTopicName();
 
-        if (!DestinationName.isValid(topic)) {
+        if (!TopicName.isValid(topic)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
 
@@ -540,8 +540,8 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     protected CompletableFuture<ClientCnx> getConnection(final String topic) {
-        DestinationName destinationName = DestinationName.get(topic);
-        return lookup.getBroker(destinationName)
+        TopicName topicName = TopicName.get(topic);
+        return lookup.getBroker(topicName)
                 .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
     }
 
@@ -582,8 +582,8 @@ public class PulsarClientImpl implements PulsarClient {
         CompletableFuture<PartitionedTopicMetadata> metadataFuture;
 
         try {
-            DestinationName destinationName = DestinationName.get(topic);
-            metadataFuture = lookup.getPartitionedTopicMetadata(destinationName);
+            TopicName topicName = TopicName.get(topic);
+            metadataFuture = lookup.getPartitionedTopicMetadata(topicName);
         } catch (IllegalArgumentException e) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(e.getMessage()));
         }

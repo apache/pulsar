@@ -72,7 +72,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
@@ -175,7 +175,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(DestinationName.class));
+        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
 
         setupMLAsyncCallbackMocks();
 

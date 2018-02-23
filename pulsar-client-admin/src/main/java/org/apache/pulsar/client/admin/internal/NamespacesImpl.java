@@ -72,7 +72,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public List<String> getDestinations(String namespace) throws PulsarAdminException {
+    public List<String> getTopics(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(namespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
