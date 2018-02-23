@@ -234,7 +234,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // to other brokers, either in same or other clusters. Default uses plugin which disables authentication
     private String brokerClientAuthenticationPlugin = "org.apache.pulsar.client.impl.auth.AuthenticationDisabled";
     private String brokerClientAuthenticationParameters = "";
-
+    // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
+    private String brokerClientTrustCertsFilePath = "";
+    
     // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
     private String anonymousUserRole = null;
 
@@ -894,6 +896,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.brokerClientAuthenticationParameters = brokerClientAuthenticationParameters;
     }
 
+    public String getBrokerClientTrustCertsFilePath() {
+        return brokerClientTrustCertsFilePath;
+    }
+
+    public void setBrokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
+        this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
+    }
+    
     public String getAnonymousUserRole() {
         return anonymousUserRole;
     }
