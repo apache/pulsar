@@ -43,6 +43,7 @@ public class FunctionAssignmentTailer
         }
 
     public void start() {
+
         receiveOne();
     }
 
@@ -66,21 +67,28 @@ public class FunctionAssignmentTailer
     @Override
     public void accept(Message msg) {
 
-        Request.AssignmentsUpdate assignmentsUpdate;
-
+        // check if latest
+        boolean hasMessageAvailable;
         try {
-            assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
-        } catch (InvalidProtocolBufferException e) {
-            log.error("Received bad assignment update at message {}", msg.getMessageId(), e);
-            // TODO: find a better way to handle bad request
+            hasMessageAvailable = this.reader.hasMessageAvailable();
+        } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
-        if (log.isDebugEnabled()) {
-            log.debug("Received assignment update: {}", assignmentsUpdate);
+        if (!hasMessageAvailable) {
+            Request.AssignmentsUpdate assignmentsUpdate;
+            try {
+                assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
+            } catch (InvalidProtocolBufferException e) {
+                log.error("Received bad assignment update at message {}", msg.getMessageId(), e);
+                // TODO: find a better way to handle bad request
+                throw new RuntimeException(e);
+            }
+            if (log.isDebugEnabled()) {
+                log.debug("Received assignment update: {}", assignmentsUpdate);
+            }
+
+            this.functionRuntimeManager.processAssignmentUpdate(msg.getMessageId(), assignmentsUpdate);
         }
-
-        this.functionRuntimeManager.processAssignmentUpdate(msg.getMessageId(), assignmentsUpdate);
-
         // receive next request
         receiveOne();
     }
