@@ -30,6 +30,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 
 import org.apache.bookkeeper.mledger.util.Rate;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicTerminatedException;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
@@ -64,6 +65,7 @@ public class Producer {
     private Rate msgIn;
     // it records msg-drop rate only for non-persistent topic
     private final Rate msgDrop;
+    private AuthenticationDataSource authenticationData;
 
     private volatile long pendingPublishAcks = 0;
     private static final AtomicLongFieldUpdater<Producer> pendingPublishAcksUpdater = AtomicLongFieldUpdater
@@ -88,6 +90,7 @@ public class Producer {
         this.producerName = checkNotNull(producerName);
         this.closeFuture = new CompletableFuture<>();
         this.appId = appId;
+        this.authenticationData = cnx.authenticationData;
         this.msgIn = new Rate();
         this.isNonPersistentTopic = topic instanceof NonPersistentTopic;
         this.msgDrop = this.isNonPersistentTopic ? new Rate() : null;
@@ -168,11 +171,11 @@ public class Producer {
     }
 
     private boolean verifyChecksum(ByteBuf headersAndPayload) {
-
         if (hasChecksum(headersAndPayload)) {
-            int checksum = readChecksum(headersAndPayload).intValue();
             int readerIndex = headersAndPayload.readerIndex();
+
             try {
+                int checksum = readChecksum(headersAndPayload).intValue();
                 long computedChecksum = computeChecksum(headersAndPayload);
                 if (checksum == computedChecksum) {
                     return true;
@@ -466,9 +469,10 @@ public class Producer {
 
     public void checkPermissions() {
         DestinationName destination = DestinationName.get(topic.getName());
-        if (cnx.getBrokerService().getAuthorizationManager() != null) {
+        if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationManager().canProduce(destination, appId)) {
+                if (cnx.getBrokerService().getAuthorizationService().canProduce(destination, appId,
+                        authenticationData)) {
                     return;
                 }
             } catch (Exception e) {

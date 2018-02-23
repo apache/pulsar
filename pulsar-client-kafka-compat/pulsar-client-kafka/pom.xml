@@ -27,7 +27,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar-client-kafka-compat</artifactId>
-    <version>1.22.0-incubating-SNAPSHOT</version>
+    <version>2.0.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -125,8 +125,19 @@
                   <include>org.apache.pulsar:pulsar-checksum</include>
                   <include>net.jpountz.lz4:lz4</include>
                   <include>com.yahoo.datasketches:sketches-core</include>
+                  <include>org.apache.httpcomponents:httpclient</include>
+                  <include>commons-logging:commons-logging</include>
+                  <include>org.apache.httpcomponents:httpcore</include>
                 </includes>
               </artifactSet>
+               <filters>
+                <filter>
+                   <artifact>commons-logging:commons-logging</artifact>
+                   <includes>
+                       <include>**</include>
+                   </includes>
+                </filter>
+              </filters>
               <relocations>
                 <relocation>
                   <pattern>org.apache.kafka.clients.producer.KafkaProducer</pattern>
@@ -194,6 +205,10 @@
                 <relocation>
                   <pattern>com.yahoo.sketches</pattern>
                   <shadedPattern>org.apache.pulsar.shade.com.yahoo.sketches</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>org.apache.http</pattern>
+                  <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
               </relocations>
               <filters>

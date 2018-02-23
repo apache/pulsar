@@ -21,6 +21,7 @@ package org.apache.pulsar.broker.service;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -122,4 +123,6 @@ public interface Topic {
     PersistentTopicStats getStats();
 
     PersistentTopicInternalStats getInternalStats();
+
+    Position getLastMessageId();
 }

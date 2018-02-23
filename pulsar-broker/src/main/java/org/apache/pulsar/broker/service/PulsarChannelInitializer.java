@@ -18,19 +18,15 @@
  */
 package org.apache.pulsar.broker.service;
 
-import java.io.File;
-
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.util.SecurityUtility;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> {
 
@@ -54,21 +50,10 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         if (enableTLS) {
-            File tlsCert = new File(serviceConfig.getTlsCertificateFilePath());
-            File tlsKey = new File(serviceConfig.getTlsKeyFilePath());
-            SslContextBuilder builder = SslContextBuilder.forServer(tlsCert, tlsKey);
-            if (serviceConfig.isTlsAllowInsecureConnection()) {
-                builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-            } else {
-                if (serviceConfig.getTlsTrustCertsFilePath().isEmpty()) {
-                    // Use system default
-                    builder.trustManager((File) null);
-                } else {
-                    File trustCertCollection = new File(serviceConfig.getTlsTrustCertsFilePath());
-                    builder.trustManager(trustCertCollection);
-                }
-            }
-            SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
+            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
+                    serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
+                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
+                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
 

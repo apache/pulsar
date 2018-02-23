@@ -47,7 +47,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import com.google.common.collect.Lists;
+import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -63,12 +63,12 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.HandlerBase.State;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
@@ -81,6 +81,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Maps;
 
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class BrokerClientIntegrationTest extends ProducerConsumerBase {
@@ -580,10 +581,10 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         int concurrentTopic = pulsar.getConfiguration().getMaxConcurrentTopicLoadRequest();
 
         try {
+            pulsar.getConfiguration().setAuthorizationEnabled(false);
             final int concurrentLookupRequests = 20;
             ClientConfiguration clientConf = new ClientConfiguration();
             clientConf.setMaxNumberOfRejectedRequestPerConnection(0);
-            clientConf.setOperationTimeout(1, TimeUnit.MILLISECONDS);
             clientConf.setStatsInterval(0, TimeUnit.SECONDS);
             stopBroker();
             pulsar.getConfiguration().setMaxConcurrentTopicLoadRequest(1);
@@ -595,7 +596,6 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             clientConf2.setStatsInterval(0, TimeUnit.SECONDS);
             clientConf2.setIoThreads(concurrentLookupRequests);
             clientConf2.setConnectionsPerBroker(20);
-            clientConf2.setOperationTimeout(1, TimeUnit.MILLISECONDS);
             pulsarClient2 = (PulsarClientImpl) PulsarClient.create(lookupUrl, clientConf2);
 
             ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
@@ -634,78 +634,72 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test(timeOut = 5000)
     public void testCloseConnectionOnInternalServerError() throws Exception {
 
+        final PulsarClient pulsarClient;
+
+        final String topicName = "persistent://prop/usw/my-ns/newTopic";
+
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
+        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+
+        ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
+        ClientCnx cnx = producer.cnx();
+        assertTrue(cnx.channel().isActive());
+        
+        // Need broker to throw InternalServerError. so, make global-zk unavailable
+        Field globalZkCacheField = PulsarService.class.getDeclaredField("globalZkCache");
+        globalZkCacheField.setAccessible(true);
+        globalZkCacheField.set(pulsar, null);
+        
         try {
-            final PulsarClient pulsarClient;
-
-            final String topicName = "persistent://prop/usw/my-ns/newTopic";
-
-            ClientConfiguration clientConf = new ClientConfiguration();
-            clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-            String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
-            pulsarClient = PulsarClient.create(lookupUrl, clientConf);
-
-            ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName);
-            ClientCnx cnx = producer.cnx();
-            assertTrue(cnx.channel().isActive());
-            // this will throw NPE at broker while authorizing and it will throw InternalServerError
-            pulsar.getConfiguration().setAuthorizationEnabled(true);
-            try {
-                pulsarClient.createProducer(topicName);
-                fail("it should have fail with lookup-exception:");
-            } catch (Exception e) {
-                // ok
-            }
-            // connection must be closed
-            assertFalse(cnx.channel().isActive());
-            pulsarClient.close();
-        } finally {
-            pulsar.getConfiguration().setAuthorizationEnabled(false);
+            pulsarClient.createProducer(topicName);
+            fail("it should have fail with lookup-exception:");
+        } catch (Exception e) {
+            // ok
         }
+        // connection must be closed
+        assertFalse(cnx.channel().isActive());
+        pulsarClient.close();
     }
 
     @Test
     public void testInvalidDynamicConfiguration() throws Exception {
 
+        // (1) try to update invalid loadManagerClass name
         try {
-            // (1) try to update invalid loadManagerClass name
-            try {
-                admin.brokers().updateDynamicConfiguration("loadManagerClassName",
-                        "org.apache.pulsar.invalid.loadmanager");
-                fail("it should have failed due to invalid argument");
-            } catch (PulsarAdminException e) {
-                // Ok: should have failed due to invalid config value
-            }
+            admin.brokers().updateDynamicConfiguration("loadManagerClassName",
+                    "org.apache.pulsar.invalid.loadmanager");
+            fail("it should have failed due to invalid argument");
+        } catch (PulsarAdminException e) {
+            // Ok: should have failed due to invalid config value
+        }
 
-            // (2) try to update with valid loadManagerClass name
-            try {
-                admin.brokers().updateDynamicConfiguration("loadManagerClassName",
-                        "org.apache.pulsar.broker.loadbalance.ModularLoadManager");
-            } catch (PulsarAdminException e) {
-                fail("it should have failed due to invalid argument", e);
-            }
+        // (2) try to update with valid loadManagerClass name
+        try {
+            admin.brokers().updateDynamicConfiguration("loadManagerClassName",
+                    "org.apache.pulsar.broker.loadbalance.ModularLoadManager");
+        } catch (PulsarAdminException e) {
+            fail("it should have failed due to invalid argument", e);
+        }
 
-            // (3) restart broker with invalid config value
+        // (3) restart broker with invalid config value
 
-            ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
-                    .getDynamicConfigurationCache();
-            Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
-                    .get();
-            configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
-            dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
-            mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
+        ZooKeeperDataCache<Map<String, String>> dynamicConfigurationCache = pulsar.getBrokerService()
+                .getDynamicConfigurationCache();
+        Map<String, String> configurationMap = dynamicConfigurationCache.get(BROKER_SERVICE_CONFIGURATION_PATH)
+                .get();
+        configurationMap.put("loadManagerClassName", "org.apache.pulsar.invalid.loadmanager");
+        byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(configurationMap);
+        dynamicConfigurationCache.invalidate(BROKER_SERVICE_CONFIGURATION_PATH);
+        mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
 
-            try {
-                stopBroker();
-                startBroker();
-                fail("it should have failed due to invalid argument");
-            } catch (Exception e) {
-                // Ok: should have failed due to invalid config value
-            }
-        } finally {
-            byte[] content = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(Maps.newHashMap());
-            mockZookKeeper.setData(BROKER_SERVICE_CONFIGURATION_PATH, content, -1);
+        try {
+            stopBroker();
             startBroker();
+            fail("it should have failed due to invalid argument");
+        } catch (Exception e) {
+            // Ok: should have failed due to invalid config value
         }
     }
 

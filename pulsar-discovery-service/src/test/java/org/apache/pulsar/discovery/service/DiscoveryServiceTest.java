@@ -101,7 +101,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
     public void testGetPartitionsMetadata() throws Exception {
         DestinationName topic1 = DestinationName.get("persistent://test/local/ns/my-topic-1");
 
-        PartitionedTopicMetadata m = service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topic1, "role")
+        PartitionedTopicMetadata m = service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topic1, "role", null)
                 .get();
         assertEquals(m.partitions, 0);
 
@@ -109,7 +109,7 @@ public class DiscoveryServiceTest extends BaseDiscoveryTestSetup {
         mockZookKeeper.failNow(Code.SESSIONEXPIRED);
         DestinationName topic2 = DestinationName.get("persistent://test/local/ns/my-topic-2");
         CompletableFuture<PartitionedTopicMetadata> future = service.getDiscoveryProvider()
-                .getPartitionedTopicMetadata(service, topic2, "role");
+                .getPartitionedTopicMetadata(service, topic2, "role", null);
         try {
             future.get();
             fail("Partition metadata lookup should have failed");

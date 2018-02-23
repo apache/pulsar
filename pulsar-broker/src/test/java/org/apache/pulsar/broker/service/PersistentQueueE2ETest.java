@@ -45,11 +45,11 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.eclipse.jetty.util.BlockingArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -539,11 +539,11 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             producer.send(("hello-" + i).getBytes());
         }
 
-        Set<MessageIdImpl> c1_receivedMessages = new HashSet<>();
+        Set<MessageId> c1_receivedMessages = new HashSet<>();
 
         // C-1 gets all messages but doesn't ack
         for (int i = 0; i < numMsgs; i++) {
-            c1_receivedMessages.add((MessageIdImpl) consumer1.receive().getMessageId());
+            c1_receivedMessages.add(consumer1.receive().getMessageId());
         }
 
         // C-2 will not get any message initially, since everything went to C-1 already

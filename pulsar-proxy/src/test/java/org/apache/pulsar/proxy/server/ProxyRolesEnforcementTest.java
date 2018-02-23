@@ -43,7 +43,6 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.common.policies.data.AuthAction;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -153,7 +152,6 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     protected void setup() throws Exception {
         webServicePort = PortManager.nextFreePort();
         servicePort = PortManager.nextFreePort();
-        // enable tls and auth&auth at broker 
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
         conf.setTlsEnabled(false);
@@ -205,7 +203,6 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         // Step 2: Try to use proxy Client as a normal Client - expect exception
         PulsarClient proxyClient = createPulsarClient("pulsar://localhost:" + BROKER_PORT, proxyAuthParams);
         ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-        consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
         Consumer consumer;
         boolean exceptionOccured = false;
         try {
@@ -216,7 +213,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         }         
         Assert.assertTrue(exceptionOccured);
         
-        // Step 4: Run Pulsar Proxy and pass proxy params as client params - expect exception
+        // Step 3: Run Pulsar Proxy and pass proxy params as client params - expect exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
         proxyConfig.setAuthenticationEnabled(true);
 
@@ -234,6 +231,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
         proxyService.start();
         proxyClient = createPulsarClient(proxyServiceUrl, proxyAuthParams);
+        exceptionOccured = false;
         try {
             consumer = proxyClient.subscribe(topicName, subscriptionName,
                 consumerConf);

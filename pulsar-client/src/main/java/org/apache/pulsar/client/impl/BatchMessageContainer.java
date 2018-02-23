@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import java.util.List;
 
 import org.apache.pulsar.common.api.Commands;
@@ -59,7 +57,12 @@ class BatchMessageContainer {
     // keep track of callbacks for individual messages being published in a batch
     SendCallback firstCallback;
 
-    protected static final long MAX_MESSAGE_BATCH_SIZE_BYTES = 128 * 1024;
+    private static final int INITIAL_BATCH_BUFFER_SIZE = 1024;
+    protected static final int MAX_MESSAGE_BATCH_SIZE_BYTES = 128 * 1024;
+
+    // This will be the largest size for a batch sent from this particular producer. This is used as a baseline to
+    // allocate a new buffer that can hold the entire batch without needing costly reallocations
+    private int maxBatchSize = INITIAL_BATCH_BUFFER_SIZE;
 
     BatchMessageContainer(int maxNumMessagesInBatch, PulsarApi.CompressionType compressionType, String topicName,
             String producerName) {
@@ -88,8 +91,8 @@ class BatchMessageContainer {
             // the first message
             sequenceId = Commands.initBatchMessageMetadata(messageMetadata, msg.getMessageBuilder());
             this.firstCallback = callback;
-            batchedMessageMetadataAndPayload = PooledByteBufAllocator.DEFAULT.buffer((int) MAX_MESSAGE_BATCH_SIZE_BYTES,
-                    (int) (PulsarDecoder.MaxMessageSize));
+            batchedMessageMetadataAndPayload = PooledByteBufAllocator.DEFAULT
+                    .buffer(Math.min(maxBatchSize, MAX_MESSAGE_BATCH_SIZE_BYTES), PulsarDecoder.MaxMessageSize);
         }
 
         if (previousCallback != null) {
@@ -113,6 +116,10 @@ class BatchMessageContainer {
             messageMetadata.setCompression(compressionType);
             messageMetadata.setUncompressedSize(uncompressedSize);
         }
+
+        // Update the current max batch size using the uncompressed size, which is what we need in any case to
+        // accumulate the batch content
+        maxBatchSize = Math.max(maxBatchSize, uncompressedSize);
         return compressedPayload;
     }
 
@@ -137,6 +144,7 @@ class BatchMessageContainer {
         numMessagesInBatch = 0;
         currentBatchSizeBytes = 0;
         sequenceId = -1;
+        batchedMessageMetadataAndPayload = null;
     }
 
     boolean isEmpty() {

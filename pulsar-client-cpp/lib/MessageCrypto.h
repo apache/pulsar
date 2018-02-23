@@ -135,6 +135,7 @@ class MessageCrypto {
                      SharedBuffer& payload, SharedBuffer& decPayload);
     bool getKeyAndDecryptData(const proto::MessageMetadata& msgMetadata, SharedBuffer& payload,
                               SharedBuffer& decryptedPayload);
+    std::string stringToHex(const std::string& inputStr, size_t len);
 };
 
 } /* namespace pulsar */

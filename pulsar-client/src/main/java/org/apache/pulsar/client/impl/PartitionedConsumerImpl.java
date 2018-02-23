@@ -40,9 +40,9 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -439,7 +439,9 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
-
+        if (null != conf.getConsumerEventListener()) {
+            internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
+        }
         int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
                 conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
         internalConsumerConfig.setReceiverQueueSize(receiverQueueSize);
@@ -468,7 +470,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds) {
+    public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
@@ -476,9 +479,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
         removeExpiredMessagesFromQueue(messageIds);
         messageIds.stream()
-                .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
-                .forEach((partitionIndex, messageIds1) ->
-                        consumers.get(partitionIndex).redeliverUnacknowledgedMessages(messageIds1));
+            .map(messageId -> (MessageIdImpl)messageId)
+            .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
+            .forEach((partitionIndex, messageIds1) ->
+                consumers.get(partitionIndex).redeliverUnacknowledgedMessages(
+                    messageIds1.stream().map(mid -> (MessageId)mid).collect(Collectors.toSet())));
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
@@ -546,10 +551,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return unAckedMessageTracker;
     }
 
-    private void removeExpiredMessagesFromQueue(Set<MessageIdImpl> messageIds) {
+    private void removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
         Message peek = incomingMessages.peek();
         if (peek != null) {
-            if (!messageIds.contains((MessageIdImpl) peek.getMessageId())) {
+            if (!messageIds.contains(peek.getMessageId())) {
                 // first message is not expired, then no message is expired in queue.
                 return;
             }

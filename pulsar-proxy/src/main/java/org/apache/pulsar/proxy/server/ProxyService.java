@@ -28,7 +28,7 @@ import java.net.UnknownHostException;
 
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authorization.AuthorizationManager;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.ClientConfiguration;
@@ -60,7 +60,7 @@ public class ProxyService implements Closeable {
     private final String serviceUrlTls;
     private ConfigurationCacheService configurationCacheService;
     private AuthenticationService authenticationService;
-    private AuthorizationManager authorizationManager;
+    private AuthorizationService authorizationService;
     private ZooKeeperClientFactory zkClientFactory = null;
 
     private final EventLoopGroup acceptorGroup;
@@ -102,7 +102,7 @@ public class ProxyService implements Closeable {
         }
         if (proxyConfig.isTlsEnabledWithBroker()) {
             clientConfiguration.setUseTls(true);
-            clientConfiguration.setTlsTrustCertsFilePath(proxyConfig.getTlsTrustCertsFilePath());
+            clientConfiguration.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
             clientConfiguration.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
         }
 
@@ -126,7 +126,7 @@ public class ProxyService implements Closeable {
             });
             discoveryProvider = new BrokerDiscoveryProvider(this.proxyConfig, getZooKeeperClientFactory());
             this.configurationCacheService = new ConfigurationCacheService(discoveryProvider.globalZkCache);
-            authorizationManager = new AuthorizationManager(serviceConfiguration, configurationCacheService);
+            authorizationService = new AuthorizationService(serviceConfiguration, configurationCacheService);
         }
 
         ServerBootstrap bootstrap = new ServerBootstrap();
@@ -200,8 +200,8 @@ public class ProxyService implements Closeable {
         return authenticationService;
     }
 
-    public AuthorizationManager getAuthorizationManager() {
-        return authorizationManager;
+    public AuthorizationService getAuthorizationService() {
+        return authorizationService;
     }
 
     public Authentication getClientAuthentication() {

@@ -85,7 +85,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 log.debug("[{}] Rewind cursor and read more entries without delay", name);
             }
             cursor.rewind();
-            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+
+            Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            notifyActiveConsumerChanged(activeConsumer);
+            readMoreEntries(activeConsumer);
             return;
         }
 
@@ -102,9 +105,28 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                         serviceConfig.getActiveConsumerFailoverDelayTimeMillis());
             }
             cursor.rewind();
-            readMoreEntries(ACTIVE_CONSUMER_UPDATER.get(this));
+
+            Consumer activeConsumer = ACTIVE_CONSUMER_UPDATER.get(this);
+            notifyActiveConsumerChanged(activeConsumer);
+            readMoreEntries(activeConsumer);
             readOnActiveConsumerTask = null;
         }, serviceConfig.getActiveConsumerFailoverDelayTimeMillis(), TimeUnit.MILLISECONDS);
+    }
+
+    protected boolean isConsumersExceededOnTopic() {
+        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
+            return true;
+        }
+        return false;
+    }
+
+    protected boolean isConsumersExceededOnSubscription() {
+        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumers.size()) {
+            return true;
+        }
+        return false;
     }
 
     protected void cancelPendingRead() {
@@ -297,7 +319,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                 log.debug("[{}-{}] Schedule read of {} messages", name, consumer, messagesToRead);
             }
             havePendingRead = true;
-            cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
+            if (consumer.readCompacted()) {
+                topic.compactedTopic.asyncReadEntriesOrWait(cursor, messagesToRead, this, consumer);
+            } else {
+                cursor.asyncReadEntriesOrWait(messagesToRead, this, consumer);
+            }
         } else {
             if (log.isDebugEnabled()) {
                 log.debug("[{}-{}] Consumer buffer is full, pause reading", name, consumer);

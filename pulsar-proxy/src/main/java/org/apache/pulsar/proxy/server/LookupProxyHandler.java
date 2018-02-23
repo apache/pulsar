@@ -116,19 +116,18 @@ public class LookupProxyHandler {
             long requestId = service.newRequestId();
             ByteBuf command;
             if (service.getConfiguration().isAuthenticationEnabled()) {
-                command = Commands.newLookup(topic, authoritative, proxyConnection.clientAuthRole, requestId);
+                command = Commands.newLookup(topic, authoritative, proxyConnection.clientAuthRole,
+                        proxyConnection.clientAuthData, proxyConnection.clientAuthMethod, requestId);
             } else {
                 command = Commands.newLookup(topic, authoritative, requestId);
             }
             clientCnx.newLookup(command,
                     requestId).thenAccept(result -> {
+                        String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
                         if (result.redirect) {
                             // Need to try the lookup again on a different broker
-                            performLookup(clientRequestId, topic, result.brokerUrl, authoritative, numberOfRetries - 1);
+                            performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
                         } else {
-                            // We have the result immediately
-                            String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
-
                             // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
                             // between proxy
                             // and broker is independent of whether the client itself uses TLS, but we need to force the
@@ -160,7 +159,8 @@ public class LookupProxyHandler {
         final long clientRequestId = partitionMetadata.getRequestId();
         DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
         if (isBlank(brokerServiceURL)) {
-            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, proxyConnection.clientAuthRole)
+            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, proxyConnection.clientAuthRole,
+                    proxyConnection.authenticationData)
                     .thenAccept(metadata -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Total number of partitions for topic {} is {}",
@@ -196,7 +196,9 @@ public class LookupProxyHandler {
                 long requestId = service.newRequestId();
                 ByteBuf command;
                 if (service.getConfiguration().isAuthenticationEnabled()) {
-                    command = Commands.newPartitionMetadataRequest(dn.toString(), requestId, proxyConnection.clientAuthRole);
+                    command = Commands.newPartitionMetadataRequest(dn.toString(), requestId,
+                            proxyConnection.clientAuthRole, proxyConnection.clientAuthData,
+                            proxyConnection.clientAuthMethod);
                 } else {
                     command = Commands.newPartitionMetadataRequest(dn.toString(), requestId);
                 }

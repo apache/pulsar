@@ -107,19 +107,22 @@ public class PulsarStandaloneStarter {
 
         this.config = PulsarConfigurationLoader.create((new FileInputStream(configFile)), ServiceConfiguration.class);
 
-        // Set ZK server's host to localhost
-        config.setZookeeperServers("127.0.0.1:" + zkPort);
-        config.setGlobalZookeeperServers("127.0.0.1:" + zkPort);
+        String zkServers = "127.0.0.1";
 
         if (advertisedAddress != null) {
             // Use advertised address from command line
             config.setAdvertisedAddress(advertisedAddress);
+            zkServers = advertisedAddress;
         } else if (isBlank(config.getAdvertisedAddress())) {
             // Use advertised address as local hostname
             config.setAdvertisedAddress(ServiceConfigurationUtils.unsafeLocalhostResolve());
         } else {
             // Use advertised address from config file
         }
+
+        // Set ZK server's host to localhost
+        config.setZookeeperServers(zkServers + ":" + zkPort);
+        config.setGlobalZookeeperServers(zkServers + ":" + zkPort);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
@@ -148,7 +151,7 @@ public class PulsarStandaloneStarter {
 
         if (!onlyBroker) {
             // Start LocalBookKeeper
-            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData);
+            bkEnsemble = new LocalBookkeeperEnsemble(numOfBk, zkPort, bkPort, zkDir, bkDir, wipeData, config.getAdvertisedAddress());
             bkEnsemble.startStandalone();
         }
 

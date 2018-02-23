@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockBookKeeper;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.createMockZooKeeper;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.mockito.Matchers.any;
@@ -38,6 +39,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -61,14 +63,14 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
-import org.apache.pulsar.broker.authorization.AuthorizationManager;
+import org.apache.pulsar.broker.authorization.AuthorizationService;
+import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.ServerCnx.State;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.service.utils.ClientChannelHelper;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
@@ -152,6 +154,7 @@ public class ServerCnxTest {
 
         ZooKeeper mockZk = createMockZooKeeper();
         doReturn(mockZk).when(pulsar).getZkClient();
+        doReturn(createMockBookKeeper(mockZk)).when(pulsar).getBookKeeperClient();
 
         configCacheService = mock(ConfigurationCacheService.class);
         @SuppressWarnings("unchecked")
@@ -271,7 +274,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         // test server response to CONNECT
-        ByteBuf clientCommand = Commands.newConnect("none", "", ProtocolVersion.v0.getNumber(), null, null, null);
+        ByteBuf clientCommand = Commands.newConnect("none", "", ProtocolVersion.v0.getNumber(), null, null, null, null, null);
         channel.writeInbound(clientCommand);
 
         assertEquals(serverCnx.getState(), State.Connected);
@@ -428,9 +431,10 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testProducerCommandWithAuthorizationPositive() throws Exception {
-        AuthorizationManager authorizationManager = mock(AuthorizationManager.class);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationManager).canProduceAsync(Mockito.any(), Mockito.any());
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).canProduceAsync(Mockito.any(),
+                Mockito.any(), Mockito.any());
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         resetChannel();
         setChannelConnected();
@@ -459,10 +463,15 @@ public class ServerCnxTest {
         doReturn(zkDataCache).when(configCacheService).policiesCache();
         doReturn(CompletableFuture.completedFuture(Optional.empty())).when(zkDataCache).getAsync(matches(".*nonexistent.*"));
 
-        AuthorizationManager authorizationManager = spy(new AuthorizationManager(svcConfig, configCacheService));
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        doReturn(false).when(authorizationManager).isSuperUser(Mockito.anyString());
+        svcConfig.setAuthorizationEnabled(true);
+        Field providerField = AuthorizationService.class.getDeclaredField("provider");
+        providerField.setAccessible(true);
+        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
+        providerField.set(authorizationService, authorizationProvider);
+        doReturn(false).when(authorizationProvider).isSuperUser(Mockito.anyString());
 
         // Test producer creation
         resetChannel();
@@ -484,11 +493,16 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testClusterAccess() throws Exception {
-        AuthorizationManager authorizationManager = spy(new AuthorizationManager(svcConfig, configCacheService));
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        svcConfig.setAuthorizationEnabled(true);
+        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
+        Field providerField = AuthorizationService.class.getDeclaredField("provider");
+        providerField.setAccessible(true);
+        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
+        providerField.set(authorizationService, authorizationProvider);
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        doReturn(false).when(authorizationManager).isSuperUser(Mockito.anyString());
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationManager).checkPermission(any(DestinationName.class), Mockito.anyString(),
+        doReturn(false).when(authorizationProvider).isSuperUser(Mockito.anyString());
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationProvider).checkPermission(any(DestinationName.class), Mockito.anyString(),
                 any(AuthAction.class));
 
         resetChannel();
@@ -508,10 +522,14 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testNonExistentTopicSuperUserAccess() throws Exception {
-        AuthorizationManager authorizationManager = spy(new AuthorizationManager(svcConfig, configCacheService));
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        AuthorizationService authorizationService = spy(new AuthorizationService(svcConfig, configCacheService));
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
-        doReturn(true).when(authorizationManager).isSuperUser(Mockito.anyString());
+        Field providerField = AuthorizationService.class.getDeclaredField("provider");
+        providerField.setAccessible(true);
+        PulsarAuthorizationProvider authorizationProvider = spy(new PulsarAuthorizationProvider(svcConfig, configCacheService));
+        providerField.set(authorizationService, authorizationProvider);
+        doReturn(true).when(authorizationProvider).isSuperUser(Mockito.anyString());
 
         // Test producer creation
         resetChannel();
@@ -540,9 +558,10 @@ public class ServerCnxTest {
     }
 
     public void testProducerCommandWithAuthorizationNegative() throws Exception {
-        AuthorizationManager authorizationManager = mock(AuthorizationManager.class);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationManager).canProduceAsync(Mockito.any(), Mockito.any());
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).canProduceAsync(Mockito.any(),
+                Mockito.any(), Mockito.any());
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         doReturn("prod1").when(brokerService).generateUniqueProducerName();
@@ -1127,9 +1146,10 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationPositive() throws Exception {
-        AuthorizationManager authorizationManager = mock(AuthorizationManager.class);
-        doReturn(CompletableFuture.completedFuture(true)).when(authorizationManager).canConsumeAsync(Mockito.any(), Mockito.any(), Mockito.any());
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(true)).when(authorizationService).canConsumeAsync(Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
         resetChannel();
@@ -1147,9 +1167,10 @@ public class ServerCnxTest {
 
     @Test(timeOut = 30000)
     public void testSubscribeCommandWithAuthorizationNegative() throws Exception {
-        AuthorizationManager authorizationManager = mock(AuthorizationManager.class);
-        doReturn(CompletableFuture.completedFuture(false)).when(authorizationManager).canConsumeAsync(Mockito.any(), Mockito.any(), Mockito.any());
-        doReturn(authorizationManager).when(brokerService).getAuthorizationManager();
+        AuthorizationService authorizationService = mock(AuthorizationService.class);
+        doReturn(CompletableFuture.completedFuture(false)).when(authorizationService).canConsumeAsync(Mockito.any(),
+                Mockito.any(), Mockito.any(), Mockito.any());
+        doReturn(authorizationService).when(brokerService).getAuthorizationService();
         doReturn(true).when(brokerService).isAuthenticationEnabled();
         doReturn(true).when(brokerService).isAuthorizationEnabled();
 

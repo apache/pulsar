@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
@@ -58,6 +59,7 @@ import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyExcep
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -78,7 +80,6 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -93,8 +94,12 @@ import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.compaction.CompactedTopic;
+import org.apache.pulsar.compaction.CompactedTopicImpl;
+import org.apache.pulsar.compaction.Compactor;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
 import org.apache.pulsar.utils.StatsOutputStream;
 import org.apache.zookeeper.KeeperException;
@@ -154,6 +159,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
+    final CompactedTopic compactedTopic;
 
     // Whether messages published must be encrypted or not in this topic
     private volatile boolean isEncryptionRequired = false;
@@ -188,7 +194,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }
     }
 
-    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) {
+    public PersistentTopic(String topic, ManagedLedger ledger, BrokerService brokerService) throws NamingException {
         this.topic = topic;
         this.ledger = ledger;
         this.brokerService = brokerService;
@@ -201,18 +207,23 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         this.dispatchRateLimiter = new DispatchRateLimiter(this);
 
+        this.compactedTopic = new CompactedTopicImpl(brokerService.pulsar().getBookKeeperClient());
+
         for (ManagedCursor cursor : ledger.getCursors()) {
             if (cursor.getName().startsWith(replicatorPrefix)) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
                 String remoteCluster = PersistentReplicator.getRemoteCluster(cursor.getName());
-                replicators.put(remoteCluster,
-                        new PersistentReplicator(this, cursor, localCluster, remoteCluster, brokerService));
+                boolean isReplicatorStarted = addReplicationCluster(remoteCluster, this, cursor, localCluster);
+                if (!isReplicatorStarted) {
+                    throw new NamingException(
+                            PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster);
+                }
             } else if (cursor.getName().equals(DEDUPLICATION_CURSOR_NAME)) {
                 // This is not a regular subscription, we are going to ignore it for now and let the message dedup logic
                 // to take care of it
             } else {
                 final String subscriptionName = Codec.decode(cursor.getName());
-                subscriptions.put(subscriptionName, new PersistentSubscription(this, subscriptionName, cursor));
+                subscriptions.put(subscriptionName, createPersistentSubscription(subscriptionName, cursor));
                 // subscription-cursor gets activated by default: deactivate as there is no active subscription right
                 // now
                 subscriptions.get(subscriptionName).deactivateCursor();
@@ -230,6 +241,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } catch (Exception e) {
             log.warn("[{}] Error getting policies {} and isEncryptionRequired will be set to false", topic, e.getMessage());
             isEncryptionRequired = false;
+        }
+    }
+
+    private PersistentSubscription createPersistentSubscription(String subscriptionName, ManagedCursor cursor) {
+        checkNotNull(compactedTopic);
+        if (subscriptionName.equals(Compactor.COMPACTION_SUBSCRIPTION)) {
+            return new CompactorSubscription(this, compactedTopic, subscriptionName, cursor);
+        } else {
+            return new PersistentSubscription(this, subscriptionName, cursor);
         }
     }
 
@@ -299,6 +319,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 throw new TopicTerminatedException("Topic was already terminated");
             }
 
+            if (isProducersExceeded()) {
+                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+                throw new ProducerBusyException("Topic reached max producers limit");
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
@@ -320,6 +345,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private boolean isProducersExceeded() {
+        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        if (maxProducers > 0 && maxProducers <= producers.size()) {
+            return true;
+        }
+        return false;
     }
 
     private boolean hasLocalProducers() {
@@ -498,7 +531,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 }
 
                 subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
-                        name -> new PersistentSubscription(PersistentTopic.this, subscriptionName, cursor)));
+                        name -> createPersistentSubscription(subscriptionName, cursor)));
             }
 
             @Override
@@ -866,9 +899,13 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-                replicators.computeIfAbsent(remoteCluster, r -> new PersistentReplicator(PersistentTopic.this, cursor, localCluster,
-                        remoteCluster, brokerService));
-                future.complete(null);
+                boolean isReplicatorStarted = addReplicationCluster(remoteCluster, PersistentTopic.this, cursor, localCluster);
+                if (isReplicatorStarted) {
+                    future.complete(null);    
+                } else {
+                    future.completeExceptionally(new NamingException(
+                            PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster));
+                }
             }
 
             @Override
@@ -879,6 +916,26 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         }, null);
 
         return future;
+    }
+
+    protected boolean addReplicationCluster(String remoteCluster, PersistentTopic persistentTopic, ManagedCursor cursor,
+            String localCluster) {
+        AtomicBoolean isReplicatorStarted = new AtomicBoolean(true);
+        replicators.computeIfAbsent(remoteCluster, r -> {
+            try {
+                return new PersistentReplicator(PersistentTopic.this, cursor, localCluster, remoteCluster,
+                        brokerService);
+            } catch (NamingException e) {
+                isReplicatorStarted.set(false);
+                log.error("[{}] Replicator startup failed due to partitioned-topic {}", topic, remoteCluster);
+            }
+            return null;
+        });
+        // clean up replicator if startup is failed
+        if (!isReplicatorStarted.get()) {
+            replicators.remove(remoteCluster);
+        }
+        return isReplicatorStarted.get();
     }
 
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
@@ -924,6 +981,14 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public ConcurrentOpenHashSet<Producer> getProducers() {
         return producers;
+    }
+
+    public int getNumberOfConsumers() {
+        int count = 0;
+        for (PersistentSubscription subscription : subscriptions.values()) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
     }
 
     @Override
@@ -1518,6 +1583,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     public long getLastPublishedSequenceId(String producerName) {
         return messageDeduplication.getLastPublishedSequenceId(producerName);
+    }
+
+    @Override
+    public Position getLastMessageId() {
+        return ledger.getLastConfirmedEntry();
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);

@@ -20,6 +20,7 @@ package org.apache.pulsar.client.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -30,14 +31,14 @@ import org.apache.pulsar.client.impl.auth.AuthenticationDisabled;
 /**
  * Class used to specify client side configuration like authentication, etc..
  *
- *
+ * @deprecated Use {@link PulsarClient#builder()} to construct and configure a new {@link PulsarClient} instance
  */
+@Deprecated
 public class ClientConfiguration implements Serializable {
 
-    /**
-     *
-     */
     private static final long serialVersionUID = 1L;
+
+    @JsonIgnore
     private Authentication authentication = new AuthenticationDisabled();
     private long operationTimeoutMs = 30000;
     private long statsIntervalSeconds = 60;
@@ -51,6 +52,7 @@ public class ClientConfiguration implements Serializable {
     private boolean useTls = false;
     private String tlsTrustCertsFilePath = "";
     private boolean tlsAllowInsecureConnection = false;
+    private boolean tlsHostnameVerificationEnable = false;
     private int concurrentLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
 
@@ -144,6 +146,7 @@ public class ClientConfiguration implements Serializable {
         this.authentication = AuthenticationFactory.create(authPluginClassName, authParams);
     }
 
+    
     /**
      * @return the operation timeout in ms
      */
@@ -219,8 +222,7 @@ public class ClientConfiguration implements Serializable {
      *            max number of connections per broker (needs to be greater than 0)
      */
     public void setConnectionsPerBroker(int connectionsPerBroker) {
-        checkArgument(connectionsPerBroker > 0,
-                "Connections per broker need to be greater than 0");
+        checkArgument(connectionsPerBroker > 0, "Connections per broker need to be greater than 0");
         this.connectionsPerBroker = connectionsPerBroker;
     }
 
@@ -356,4 +358,21 @@ public class ClientConfiguration implements Serializable {
         this.maxNumberOfRejectedRequestPerConnection = maxNumberOfRejectedRequestPerConnection;
     }
 
+    public boolean isTlsHostnameVerificationEnable() {
+        return tlsHostnameVerificationEnable;
+    }
+
+    /**
+     * It allows to validate hostname verification when client connects to broker over tls. It validates incoming x509
+     * certificate and matches provided hostname(CN/SAN) with expected broker's host name. It follows RFC 2818, 3.1. Server
+     * Identity hostname verification.
+     * 
+     * @see <a href="https://tools.ietf.org/html/rfc2818">rfc2818</a>
+     * 
+     * @param tlsHostnameVerificationEnable
+     */
+    public void setTlsHostnameVerificationEnable(boolean tlsHostnameVerificationEnable) {
+        this.tlsHostnameVerificationEnable = tlsHostnameVerificationEnable;
+    }
+    
 }

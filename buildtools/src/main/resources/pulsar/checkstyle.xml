@@ -29,6 +29,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
 <module name="Checker">
 
+    <module name="SuppressWarningsFilter" />
+
     <module name="FileTabCharacter">
         <!-- Checks that there are no tab characters in the file. -->
     </module>
@@ -72,6 +74,8 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
     <!-- All Java AST specific tests live under TreeWalker module. -->
     <module name="TreeWalker">
+
+        <module name="SuppressWarningsHolder" />
 
         <module name="TodoComment">
             <!-- Checks that disallowed strings are not used in comments.  -->
@@ -351,22 +355,6 @@ page at http://checkstyle.sourceforge.net/config.html -->
 
         <!-- Detects empty statements (standalone ";" semicolon). -->
         <module name="EmptyStatement"/>
-
-        <!--
-
-        MODIFIERS CHECKS
-
-        -->
-
-        <module name="ModifierOrder">
-            <!-- Warn if modifier order is inconsistent with JLS3 8.1.1, 8.3.1, and
-                 8.4.3.  The prescribed order is:
-                 public, protected, private, abstract, static, final, transient, volatile,
-                 synchronized, native, strictfp
-              -->
-            <property name="severity" value="error"/>
-        </module>
-
 
         <!--
 

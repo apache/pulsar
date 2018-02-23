@@ -36,6 +36,7 @@ import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -65,6 +66,7 @@ public class Consumer {
     private final SubType subType;
     private final ServerCnx cnx;
     private final String appId;
+    private AuthenticationDataSource authenticationData;
     private final String topicName;
 
     private final long consumerId;
@@ -116,6 +118,7 @@ public class Consumer {
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
         this.appId = appId;
+        this.authenticationData = cnx.authenticationData;
         PERMITS_RECEIVED_WHILE_CONSUMER_BLOCKED_UPDATER.set(this, 0);
         MESSAGE_PERMITS_UPDATER.set(this, 0);
         UNACKED_MESSAGES_UPDATER.set(this, 0);
@@ -147,6 +150,21 @@ public class Consumer {
 
     public String consumerName() {
         return consumerName;
+    }
+
+    void notifyActiveConsumerChange(Consumer activeConsumer) {
+        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
+            // if the client is older than `v12`, we don't need to send consumer group changes.
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
+                consumerId, topicName, subscription.getName(), activeConsumer);
+        }
+        cnx.ctx().writeAndFlush(
+            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
+            cnx.ctx().voidPromise());
     }
 
     public boolean readCompacted() {
@@ -202,7 +220,7 @@ public class Consumer {
                 // increment ref-count of data and release at the end of process: so, we can get chance to call entry.release
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
-                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v6.getNumber()) {
+                if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
                     readChecksum(metadataAndPayload);
                 }
 
@@ -464,9 +482,10 @@ public class Consumer {
 
     public void checkPermissions() {
         DestinationName destination = DestinationName.get(subscription.getDestination());
-        if (cnx.getBrokerService().getAuthorizationManager() != null) {
+        if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationManager().canConsume(destination, appId, subscription.getName())) {
+                if (cnx.getBrokerService().getAuthorizationService().canConsume(destination, appId, authenticationData,
+                        subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {
