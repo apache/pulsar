@@ -1037,11 +1037,17 @@ public class PersistentTopics extends AdminResource {
             @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination,
             @PathParam("subscriptionName") String subscriptionName,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, MessageIdImpl messageId,
-            @QueryParam("initialPosition") @DefaultValue("latest") InitialPosition initialPosition) throws PulsarServerException {
+            @QueryParam("initialPosition") @DefaultValue("latest") String position) throws PulsarServerException {
         destination = decode(destination);
         DestinationName dn = DestinationName.get(domain(), property, cluster, namespace, destination);
         if (cluster.equals(Namespaces.GLOBAL_CLUSTER)) {
             validateGlobalNamespaceOwnership(NamespaceName.get(property, cluster, namespace));
+        }
+        InitialPosition initialPosition;
+        if (position.equals("earliest")){
+            initialPosition = InitialPosition.Earliest;
+        } else {
+            initialPosition = InitialPosition.Latest;
         }
         log.info("[{}][{}] Creating subscription {} at message id {}", clientAppId(), destination,
                 subscriptionName, messageId);

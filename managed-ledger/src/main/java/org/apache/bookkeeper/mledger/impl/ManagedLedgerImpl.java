@@ -633,7 +633,6 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
                 // Update the ack position (ignoring entries that were written while the cursor was being created)
-                // if(initialPosition == InitialPosition.Latest)
                 cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest? getLastPositionAndCounter() : getFirstPositionAndCounter());
                 
                 synchronized (this) {
