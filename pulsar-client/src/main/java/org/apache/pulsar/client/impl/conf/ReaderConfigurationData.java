@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.impl.conf;
 
+import java.io.Serializable;
+
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageId;
@@ -26,7 +28,7 @@ import org.apache.pulsar.client.api.ReaderListener;
 import lombok.Data;
 
 @Data
-public class ReaderConfigurationData {
+public class ReaderConfigurationData implements Serializable, Cloneable {
 
     private String topicName;
     private MessageId startMessageId;
@@ -40,4 +42,11 @@ public class ReaderConfigurationData {
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
+    public ReaderConfigurationData clone() {
+        try {
+            return (ReaderConfigurationData) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException("Failed to clone ReaderConfigurationData");
+        }
+    }
 }

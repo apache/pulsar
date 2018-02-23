@@ -37,10 +37,15 @@ public class ReaderBuilderImpl implements ReaderBuilder {
 
     private final PulsarClientImpl client;
 
-    private final ReaderConfigurationData conf = new ReaderConfigurationData();
+    private final ReaderConfigurationData conf;
 
     ReaderBuilderImpl(PulsarClientImpl client) {
+        this(client, new ReaderConfigurationData());
+    }
+
+    private ReaderBuilderImpl(PulsarClientImpl client, ReaderConfigurationData conf) {
         this.client = client;
+        this.conf = conf;
     }
 
     @Override

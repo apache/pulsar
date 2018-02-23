@@ -31,7 +31,7 @@ import lombok.Data;
  * This is a simple holder of the client configuration values.
  */
 @Data
-public class ClientConfigurationData implements Serializable {
+public class ClientConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private String serviceUrl;
@@ -53,4 +53,12 @@ public class ClientConfigurationData implements Serializable {
     private boolean tlsHostnameVerificationEnable = false;
     private int concurrentLookupRequest = 50000;
     private int maxNumberOfRejectedRequestPerConnection = 50;
+
+    public ClientConfigurationData clone() {
+        try {
+            return (ClientConfigurationData) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException("Failed to clone ClientConfigurationData");
+        }
+    }
 }

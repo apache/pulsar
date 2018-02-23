@@ -43,21 +43,22 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private final ConsumerConfigurationData conf = new ConsumerConfigurationData();
+    private final ConsumerConfigurationData conf;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
 
     ConsumerBuilderImpl(PulsarClientImpl client) {
+        this(client, new ConsumerConfigurationData());
+    }
+
+    private ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData conf) {
         this.client = client;
+        this.conf = conf;
     }
 
     @Override
     public ConsumerBuilder clone() {
-        try {
-            return (ConsumerBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ConsumerBuilderImpl");
-        }
+        return new ConsumerBuilderImpl(client, conf.clone());
     }
 
     @Override

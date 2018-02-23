@@ -40,19 +40,20 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private final ProducerConfigurationData conf = new ProducerConfigurationData();
+    private final ProducerConfigurationData conf;
 
     ProducerBuilderImpl(PulsarClientImpl client) {
+        this(client, new ProducerConfigurationData());
+    }
+
+    private ProducerBuilderImpl(PulsarClientImpl client, ProducerConfigurationData conf) {
         this.client = client;
+        this.conf = conf;
     }
 
     @Override
     public ProducerBuilder clone() {
-        try {
-            return (ProducerBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ProducerBuilderImpl");
-        }
+        return new ProducerBuilderImpl(client, conf.clone());
     }
 
     @Override

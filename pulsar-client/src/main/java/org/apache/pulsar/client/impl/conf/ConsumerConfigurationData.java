@@ -37,7 +37,7 @@ import com.google.common.collect.Sets;
 import lombok.Data;
 
 @Data
-public class ConsumerConfigurationData implements Serializable {
+public class ConsumerConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private final Set<String> topicNames = Sets.newTreeSet();
@@ -77,4 +77,11 @@ public class ConsumerConfigurationData implements Serializable {
         return topicNames.iterator().next();
     }
 
+    public ConsumerConfigurationData clone() {
+        try {
+            return (ConsumerConfigurationData) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException("Failed to clone ConsumerConfigurationData");
+        }
+    }
 }

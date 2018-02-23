@@ -33,7 +33,15 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     private static final long serialVersionUID = 1L;
 
-    final ClientConfigurationData conf = new ClientConfigurationData();
+    final ClientConfigurationData conf;
+
+    public ClientBuilderImpl() {
+        this(new ClientConfigurationData());
+    }
+
+    private ClientBuilderImpl(ClientConfigurationData conf) {
+        this.conf = conf;
+    }
 
     @Override
     public PulsarClient build() throws PulsarClientException {
@@ -46,11 +54,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder clone() {
-        try {
-            return (ClientBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ClientBuilderImpl");
-        }
+        return new ClientBuilderImpl(conf.clone());
     }
 
     @Override

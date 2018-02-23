@@ -82,4 +82,11 @@ public class ProducerConfigurationData implements Serializable {
         return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty() && (this.cryptoKeyReader != null);
     }
 
+    public ProducerConfigurationData clone() {
+        try {
+            return (ProducerConfigurationData) super.clone();
+        } catch (CloneNotSupportedException e) {
+            throw new RuntimeException("Failed to clone ProducerConfigurationData");
+        }
+    }
 }
