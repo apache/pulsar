@@ -38,6 +38,7 @@ public class ReaderConfigurationData implements Serializable, Cloneable {
     private ReaderListener readerListener;
 
     private String readerName = null;
+    private String subscriptionRolePrefix = null;
 
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
