@@ -9736,6 +9736,8 @@ p code {
     color: #cf9c00; }
   .highlight .no, li .highlight .no {
     color: #cf9c00; }
+  .highlight .nv, li .highlight .nv {
+    color: #e25418; }
   .highlight .na, li .highlight .na {
     color: #3797db; }
   .highlight .m, .highlight .il, .highlight .mo, .highlight .mb, .highlight .mx, li .highlight .m, li .highlight .il, li .highlight .mo, li .highlight .mb, li .highlight .mx {

@@ -800,9 +800,9 @@
           
           
           
-          
-          
           <li><a href="/docs/latest/getting-started/ConceptsAndArchitecture/">Pulsar concepts and architecture</a></li>
+          
+          
           
           
           
@@ -1650,13 +1650,65 @@ enableNonPersistentTopics=true
 
 <p>A future version of BookKeeper will support <em>non-persistent messaging</em> and thus multiple durability modes at the topic level. This will enable you to set the durability mode at the topic level, replacing the <code class="highlighter-rouge">persistent</code> in topic names with a <code class="highlighter-rouge">non-persistent</code> indicator.</p>
 
+<h2 id="message-retention-and-expiry">Message retention and expiry</h2>
+
+<p>By default, Pulsar message <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span>:</p>
+
+<ul>
+  <li>immediately delete <em>all</em> messages that have been <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledged</span> by a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span>, and</li>
+  <li><a href="#persistent-storage">persistently store</a> all unacknowledged messages in a message backlog.</li>
+</ul>
+
+<p>Pulsar has two features, however, that enable you to override this default behavior:</p>
+
+<ul>
+  <li>Message <strong>retention</strong> enables you to store messages that have been acknowledged by a consumer</li>
+  <li>Message <strong>expiry</strong> enables you to set a time to live (TTL) for messages that have not yet been acknowledged</li>
+</ul>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>All message retention and expiry is managed at the <a href="#namespaces">namespace</a> level. For a how-to, see the <a href="../../advanced/RetentionExpiry">Message retention and expiry</a> admin documentation.</p>
+
+  </div>
+</div>
+
+<p>The diagram below illustrates both concepts:</p>
+
+<p><img src="/img/retention-expiry.png" width="80%" /></p>
+
+<p>With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> dicates that some messages are durably stored in Pulsar even though they’ve already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, <em>all</em> of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.</p>
+
+<p>With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven’t been acknowledged</span>, because they’ve expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven’t been acknowledged but are 10 minutes old).</p>
+
 <h2 id="replication">Replication</h2>
 
 <p>Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. <a href="../../admin/GeoReplication">Geo-replication</a> in Pulsar enables you to do that.</p>
 
 <h2 id="multi-tenancy">Multi-tenancy</h2>
 
-<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../admin/Authz">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which <a href="TODO">storage quotas</a>, <a href="TODO">message TTL</a>, and <a href="TODO">isolation policies</a> can be managed.</p>
+<p>Pulsar was created from the ground up as a <span class="popover-term" tabindex="0" title="What is multi-tenancy?" data-placement="top" data-content="The ability to isolate namespaces, specify quotas, and configure authentication and authorization on a per-property basis." data-toggle="popover" data-trigger="focus">multi-tenant</span> system. To support multi-tenancy, Pulsar has a concept of <span class="popover-term" tabindex="0" title="What is a property?" data-placement="top" data-content="A Pulsar tenant." data-toggle="popover" data-trigger="focus">properties</span>. Properties can be spread across <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">clusters</span> and can each have their own <a href="../../admin/Authz">authentication and authorization</a> scheme applied to them. They are also the administrative unit at which <a href="TODO">storage quotas</a>, <a href="../../advanced/RetentionExpiry#time-to-live-ttl">message TTL</a>, and isolation policies can be managed.</p>
 
 <p>The multi-tenant nature of Pulsar is reflected mostly visibly in topic URLs, which have this structure:</p>
 
