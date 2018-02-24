@@ -105,14 +105,14 @@ public class TopicsConsumerImpl extends ConsumerBase {
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
 
-        if (topics.isEmpty()) {
+        if (conf.getTopicNames().isEmpty()) {
             this.namespaceName = null;
             setState(State.Ready);
             subscribeFuture().complete(TopicsConsumerImpl.this);
             return;
         }
 
-        checkArgument(topics.isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics should have same namespace.");
+        checkArgument(conf.getTopicNames().isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics should have same namespace.");
         this.namespaceName = conf.getTopicNames().stream().findFirst()
                 .flatMap(s -> Optional.of(DestinationName.get(s).getNamespaceObject())).get();
 
