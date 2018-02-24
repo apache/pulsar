@@ -206,5 +206,4 @@ public class NamespaceName implements ServiceUnitId {
     public boolean includes(TopicName topicName) {
         return this.equals(topicName.getNamespaceObject());
     }
-
 }

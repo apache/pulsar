@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -30,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -331,7 +334,14 @@ public class PulsarClientImpl implements PulsarClient {
                     "Active consumer listener is only supported for failover subscription"));
         }
 
-        if (conf.getTopicNames().size() == 1) {
+        if (conf.getTopicsPattern() != null) {
+            // If use topicsPattern, we should not use topic(), and topics() method.
+            if (!conf.getTopicNames().isEmpty()){
+                return FutureUtil
+                    .failedFuture(new IllegalArgumentException("Topic names list must be null when use topicsPattern"));
+            }
+            return patternTopicSubscribeAsync(conf);
+        } else if (conf.getTopicNames().size() == 1) {
             return singleTopicSubscribeAsysnc(conf);
         } else {
             return multiTopicSubscribeAsync(conf);
@@ -380,6 +390,41 @@ public class PulsarClientImpl implements PulsarClient {
         synchronized (consumers) {
             consumers.put(consumer, Boolean.TRUE);
         }
+
+        return consumerSubscribedFuture;
+    }
+
+    public CompletableFuture<Consumer> patternTopicSubscribeAsync(ConsumerConfigurationData conf) {
+        String regex = conf.getTopicsPattern().pattern();
+        DestinationName destination = DestinationName.get(regex);
+        NamespaceName namespaceName = destination.getNamespaceObject();
+
+        CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
+        lookup.getTopicsUnderNamespace(namespaceName)
+            .thenAccept(topics -> {
+                List<String> topicsList = topics.stream()
+                    .filter(topic -> {
+                        DestinationName destinationName = DestinationName.get(topic);
+                        checkState(destinationName.getNamespaceObject().equals(namespaceName));
+                        return conf.getTopicsPattern().matcher(destinationName.toString()).matches();
+                    })
+                    .collect(Collectors.toList());
+                conf.getTopicNames().addAll(topicsList);
+                ConsumerBase consumer = new PatternTopicsConsumerImpl(conf.getTopicsPattern(),
+                    PulsarClientImpl.this,
+                    conf,
+                    externalExecutorProvider.getExecutor(),
+                    consumerSubscribedFuture);
+
+                synchronized (consumers) {
+                    consumers.put(consumer, Boolean.TRUE);
+                }
+            })
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to get topics under namespace", namespaceName);
+                consumerSubscribedFuture.completeExceptionally(ex);
+                return null;
+            });
 
         return consumerSubscribedFuture;
     }

@@ -20,9 +20,11 @@ package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
 
+import com.google.common.collect.Lists;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -31,6 +33,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -175,6 +178,46 @@ public class BinaryProtoLookupService implements LookupService {
     public String getServiceUrl() {
         return serviceAddress.toString();
     }
+
+    @Override
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+        return getTopicsUnderNamespace(serviceAddress, namespace);
+    }
+
+    private CompletableFuture<List<String>> getTopicsUnderNamespace(InetSocketAddress socketAddress,
+                                                                    NamespaceName namespace) {
+        CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
+
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
+            ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
+                namespace.toString(), requestId);
+
+            clientCnx.newGetTopicsOfNamespace(request, requestId).thenAccept(topicsList -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[namespace: {}] Success get topics list in request: {}", namespace.toString(), requestId);
+                }
+
+                // do not keep partition part of topic name
+                List<String> result = Lists.newArrayList();
+                topicsList.forEach(topic -> {
+                    String filtered = TopicName.get(topic).getPartitionedTopicName();
+                    if (!result.contains(filtered)) {
+                        result.add(filtered);
+                    }
+                });
+
+                topicsFuture.complete(result);
+            }).exceptionally((e) -> {
+                log.warn("[namespace: {}] failed to get topics list: {}", namespace.toString(), e.getCause().getMessage(), e);
+                topicsFuture.completeExceptionally(e);
+                return null;
+            });
+        });
+
+        return topicsFuture;
+    }
+
 
     @Override
     public void close() throws Exception {
