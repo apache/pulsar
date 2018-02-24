@@ -176,6 +176,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public Producer createProducer(final String topic, final ProducerConfiguration conf) throws PulsarClientException {
+        if (conf == null) {
+            throw new PulsarClientException.InvalidConfigurationException("Invalid null configuration object");
+        }
+
         try {
             ProducerConfigurationData confData = conf.getProducerConfigurationData().clone();
             confData.setTopicName(topic);
@@ -207,7 +211,7 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(confData);
     }
 
-    CompletableFuture<Producer> createProducerAsync(ProducerConfigurationData conf) {
+    public CompletableFuture<Producer> createProducerAsync(ProducerConfigurationData conf) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
@@ -284,6 +288,11 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public CompletableFuture<Consumer> subscribeAsync(final String topic, final String subscription,
             final ConsumerConfiguration conf) {
+        if (conf == null) {
+            return FutureUtil.failedFuture(
+                    new PulsarClientException.InvalidConfigurationException("Invalid null configuration"));
+        }
+
         ConsumerConfigurationData confData = conf.getConfigurationData().clone();
         confData.getTopicNames().add(topic);
         confData.setSubscriptionName(subscription);
