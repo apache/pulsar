@@ -19,8 +19,8 @@
 package org.apache.pulsar.client.impl.conf;
 
 import java.io.Serializable;
-import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.TimeUnit;
@@ -33,11 +33,13 @@ import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 
 import lombok.Data;
 
 @Data
-public class ProducerConfigurationData implements Serializable {
+public class ProducerConfigurationData implements Serializable, Cloneable {
 
     private static final long serialVersionUID = 1L;
 
@@ -71,7 +73,7 @@ public class ProducerConfigurationData implements Serializable {
     // Cannot use Optional<Long> since it's not serializable
     private Long initialSequenceId = null;
 
-    private final Map<String, String> properties = new TreeMap<>();
+    private SortedMap<String, String> properties = new TreeMap<>();
 
     /**
      *
@@ -84,9 +86,12 @@ public class ProducerConfigurationData implements Serializable {
 
     public ProducerConfigurationData clone() {
         try {
-            return (ProducerConfigurationData) super.clone();
+            ProducerConfigurationData c = (ProducerConfigurationData) super.clone();
+            c.encryptionKeys = Sets.newTreeSet(this.encryptionKeys);
+            c.properties = Maps.newTreeMap(this.properties);
+            return c;
         } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ProducerConfigurationData");
+            throw new RuntimeException("Failed to clone ProducerConfigurationData", e);
         }
     }
 }

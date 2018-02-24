@@ -92,19 +92,19 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Deprecated
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
-        this(conf.setServiceUrl(serviceUrl).getConfigurationData());
+        this(conf.setServiceUrl(serviceUrl).getConfigurationData().clone());
     }
 
     @Deprecated
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
-        this(conf.setServiceUrl(serviceUrl).getConfigurationData(), eventLoopGroup);
+        this(conf.setServiceUrl(serviceUrl).getConfigurationData().clone(), eventLoopGroup);
     }
 
     @Deprecated
     public PulsarClientImpl(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup,
             ConnectionPool cnxPool) throws PulsarClientException {
-        this(conf.setServiceUrl(serviceUrl).getConfigurationData(), eventLoopGroup, cnxPool);
+        this(conf.setServiceUrl(serviceUrl).getConfigurationData().clone(), eventLoopGroup, cnxPool);
     }
 
     public PulsarClientImpl(ClientConfigurationData conf) throws PulsarClientException {
@@ -177,7 +177,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public Producer createProducer(final String topic, final ProducerConfiguration conf) throws PulsarClientException {
         try {
-            ProducerConfigurationData confData = conf.getProducerConfigurationData();
+            ProducerConfigurationData confData = conf.getProducerConfigurationData().clone();
             confData.setTopicName(topic);
             return createProducerAsync(confData).get();
         } catch (ExecutionException e) {
@@ -202,7 +202,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public CompletableFuture<Producer> createProducerAsync(final String topic, final ProducerConfiguration conf) {
-        ProducerConfigurationData confData = conf.getProducerConfigurationData();
+        ProducerConfigurationData confData = conf.getProducerConfigurationData().clone();
         confData.setTopicName(topic);
         return createProducerAsync(confData);
     }
@@ -284,7 +284,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public CompletableFuture<Consumer> subscribeAsync(final String topic, final String subscription,
             final ConsumerConfiguration conf) {
-        ConsumerConfigurationData confData = conf.getConfigurationData();
+        ConsumerConfigurationData confData = conf.getConfigurationData().clone();
         confData.getTopicNames().add(topic);
         confData.setSubscriptionName(subscription);
         return subscribeAsync(confData);
@@ -396,7 +396,7 @@ public class PulsarClientImpl implements PulsarClient {
     @Override
     public CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId,
             ReaderConfiguration conf) {
-        ReaderConfigurationData confData = conf.getReaderConfigurationData();
+        ReaderConfigurationData confData = conf.getReaderConfigurationData().clone();
         confData.setTopicName(topic);
         confData.setStartMessageId(startMessageId);
         return createReaderAsync(confData);
