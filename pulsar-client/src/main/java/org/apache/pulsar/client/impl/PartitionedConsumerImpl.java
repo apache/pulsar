@@ -437,6 +437,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private ConsumerConfigurationData getInternalConsumerConfig() {
         ConsumerConfigurationData internalConsumerConfig = new ConsumerConfigurationData();
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
+        internalConsumerConfig.setSubscriptionName(conf.getSubscriptionName());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
         if (null != conf.getConsumerEventListener()) {
