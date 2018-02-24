@@ -25,36 +25,35 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
 import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerBuilder;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
-@SuppressWarnings("deprecation")
 public class ProducerBuilderImpl implements ProducerBuilder {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private String topicName;
-    private final ProducerConfiguration conf;
+    private final ProducerConfigurationData conf;
 
     ProducerBuilderImpl(PulsarClientImpl client) {
+        this(client, new ProducerConfigurationData());
+    }
+
+    private ProducerBuilderImpl(PulsarClientImpl client, ProducerConfigurationData conf) {
         this.client = client;
-        this.conf = new ProducerConfiguration();
+        this.conf = conf;
     }
 
     @Override
     public ProducerBuilder clone() {
-        try {
-            return (ProducerBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ProducerBuilderImpl");
-        }
+        return new ProducerBuilderImpl(client, conf.clone());
     }
 
     @Override
@@ -76,17 +75,17 @@ public class ProducerBuilderImpl implements ProducerBuilder {
 
     @Override
     public CompletableFuture<Producer> createAsync() {
-        if (topicName == null) {
+        if (conf.getTopicName() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the producer builder"));
         }
 
-        return client.createProducerAsync(topicName, conf);
+        return client.createProducerAsync(conf);
     }
 
     @Override
     public ProducerBuilder topic(String topicName) {
-        this.topicName = topicName;
+        conf.setTopicName(topicName);
         return this;
     }
 
@@ -98,7 +97,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
 
     @Override
     public ProducerBuilder sendTimeout(int sendTimeout, TimeUnit unit) {
-        conf.setSendTimeout(sendTimeout, unit);
+        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
         return this;
     }
 
@@ -122,7 +121,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
 
     @Override
     public ProducerBuilder messageRoutingMode(MessageRoutingMode messageRouteMode) {
-        conf.setMessageRoutingMode(ProducerConfiguration.MessageRoutingMode.valueOf(messageRouteMode.toString()));
+        conf.setMessageRoutingMode(messageRouteMode);
         return this;
     }
 
@@ -133,8 +132,14 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     }
 
     @Override
+    public ProducerBuilder hashingScheme(HashingScheme hashingScheme) {
+        conf.setHashingScheme(hashingScheme);
+        return this;
+    }
+
+    @Override
     public ProducerBuilder messageRouter(MessageRouter messageRouter) {
-        conf.setMessageRouter(messageRouter);
+        conf.setCustomMessageRouter(messageRouter);
         return this;
     }
 
@@ -152,7 +157,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
 
     @Override
     public ProducerBuilder addEncryptionKey(String key) {
-        conf.addEncryptionKey(key);
+        conf.getEncryptionKeys().add(key);
         return this;
     }
 
@@ -164,7 +169,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
 
     @Override
     public ProducerBuilder batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
-        conf.setBatchingMaxPublishDelay(batchDelay, timeUnit);
+        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
         return this;
     }
 
@@ -182,13 +187,13 @@ public class ProducerBuilderImpl implements ProducerBuilder {
 
     @Override
     public ProducerBuilder property(String key, String value) {
-        conf.setProperty(key, value);
+        conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
     public ProducerBuilder properties(Map<String, String> properties) {
-        conf.setProperties(properties);
+        conf.getProperties().putAll(properties);
         return this;
     }
 }

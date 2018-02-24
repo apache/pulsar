@@ -21,7 +21,6 @@ package org.apache.pulsar.client.impl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
-import com.google.common.collect.Lists;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
@@ -37,15 +36,15 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.naming.DestinationName;
@@ -53,6 +52,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Lists;
 
 public class TopicsConsumerImpl extends ConsumerBase {
 
@@ -79,14 +80,12 @@ public class TopicsConsumerImpl extends ConsumerBase {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
-    private final ConsumerConfiguration internalConfig;
+    private final ConsumerConfigurationData internalConfig;
 
-    TopicsConsumerImpl(PulsarClientImpl client, Collection<String> topics, String subscription,
-                       ConsumerConfiguration conf, ExecutorService listenerExecutor,
-                       CompletableFuture<Consumer> subscribeFuture) {
-        super(client, "TopicsConsumerFakeTopicName" + ConsumerName.generateRandomName(), subscription,
-            conf, Math.max(2, conf.getReceiverQueueSize()), listenerExecutor,
-            subscribeFuture);
+    TopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf, ExecutorService listenerExecutor,
+            CompletableFuture<Consumer> subscribeFuture) {
+        super(client, "TopicsConsumerFakeTopicName" + ConsumerName.generateRandomName(), conf,
+                Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture);
 
         checkArgument(conf.getReceiverQueueSize() > 0,
             "Receiver queue size needs to be greater than 0 for Topics Consumer");
@@ -106,23 +105,19 @@ public class TopicsConsumerImpl extends ConsumerBase {
         this.internalConfig = getInternalConsumerConfig();
         this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
 
-        if (topics.isEmpty()) {
+        if (conf.getTopicNames().isEmpty()) {
             this.namespaceName = null;
             setState(State.Ready);
             subscribeFuture().complete(TopicsConsumerImpl.this);
             return;
         }
 
-        checkArgument(topics.isEmpty() || topicNamesValid(topics), "Topics should have same namespace.");
-        this.namespaceName = topics.stream().findFirst().flatMap(
-            new Function<String, Optional<NamespaceName>>() {
-                @Override
-                public Optional<NamespaceName> apply(String s) {
-                    return Optional.of(DestinationName.get(s).getNamespaceObject());
-                }
-            }).get();
+        checkArgument(conf.getTopicNames().isEmpty() || topicNamesValid(conf.getTopicNames()), "Topics should have same namespace.");
+        this.namespaceName = conf.getTopicNames().stream().findFirst()
+                .flatMap(s -> Optional.of(DestinationName.get(s).getNamespaceObject())).get();
 
-        List<CompletableFuture<Void>> futures = topics.stream().map(t -> subscribeAsync(t)).collect(Collectors.toList());
+        List<CompletableFuture<Void>> futures = conf.getTopicNames().stream().map(t -> subscribeAsync(t))
+                .collect(Collectors.toList());
         FutureUtil.waitForAll(futures)
             .thenAccept(finalFuture -> {
                 try {
@@ -490,8 +485,9 @@ public class TopicsConsumerImpl extends ConsumerBase {
         return subscription;
     }
 
-    private ConsumerConfiguration getInternalConsumerConfig() {
-        ConsumerConfiguration internalConsumerConfig = new ConsumerConfiguration();
+    private ConsumerConfigurationData getInternalConsumerConfig() {
+        ConsumerConfigurationData internalConsumerConfig = new ConsumerConfigurationData();
+        internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
@@ -500,7 +496,7 @@ public class TopicsConsumerImpl extends ConsumerBase {
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
         }
         if (conf.getAckTimeoutMillis() != 0) {
-            internalConsumerConfig.setAckTimeout(conf.getAckTimeoutMillis(), TimeUnit.MILLISECONDS);
+            internalConsumerConfig.setAckTimeoutMillis(conf.getAckTimeoutMillis());
         }
 
         return internalConsumerConfig;
@@ -658,9 +654,8 @@ public class TopicsConsumerImpl extends ConsumerBase {
                         partitionIndex -> {
                             String partitionName = DestinationName.get(topicName).getPartition(partitionIndex).toString();
                             CompletableFuture<Consumer> subFuture = new CompletableFuture<Consumer>();
-                            ConsumerImpl newConsumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
-                                client.externalExecutorProvider().getExecutor(), partitionIndex,
-                                subFuture);
+                            ConsumerImpl newConsumer = new ConsumerImpl(client, partitionName, internalConfig,
+                                    client.externalExecutorProvider().getExecutor(), partitionIndex, subFuture);
                             consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
                             return subFuture;
                         })
@@ -671,9 +666,8 @@ public class TopicsConsumerImpl extends ConsumerBase {
                 partitionNumber.incrementAndGet();
 
                 CompletableFuture<Consumer> subFuture = new CompletableFuture<Consumer>();
-                ConsumerImpl newConsumer = new ConsumerImpl(client, topicName, subscription, internalConfig,
-                    client.externalExecutorProvider().getExecutor(), 0,
-                    subFuture);
+                ConsumerImpl newConsumer = new ConsumerImpl(client, topicName, internalConfig,
+                        client.externalExecutorProvider().getExecutor(), 0, subFuture);
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
 
                 futureList = Lists.newArrayList(subFuture);
