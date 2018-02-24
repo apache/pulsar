@@ -23,6 +23,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+
 /**
  *
  * @deprecated Use {@link PulsarClient#newReader()} to construct and configure a {@link Reader} instance
@@ -30,20 +32,13 @@ import java.io.Serializable;
 @Deprecated
 public class ReaderConfiguration implements Serializable {
 
-    private int receiverQueueSize = 1000;
-
-    private ReaderListener readerListener;
-
-    private String readerName = null;
-
-    private CryptoKeyReader cryptoKeyReader = null;
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    private final ReaderConfigurationData conf = new ReaderConfigurationData();
 
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
     public ReaderListener getReaderListener() {
-        return this.readerListener;
+        return conf.getReaderListener();
     }
 
     /**
@@ -57,7 +52,7 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setReaderListener(ReaderListener readerListener) {
         checkNotNull(readerListener);
-        this.readerListener = readerListener;
+        conf.setReaderListener(readerListener);
         return this;
     }
 
@@ -65,14 +60,14 @@ public class ReaderConfiguration implements Serializable {
      * @return the configure receiver queue size value
      */
     public int getReceiverQueueSize() {
-        return this.receiverQueueSize;
+        return conf.getReceiverQueueSize();
     }
 
     /**
      * @return the CryptoKeyReader
      */
     public CryptoKeyReader getCryptoKeyReader() {
-        return this.cryptoKeyReader;
+        return conf.getCryptoKeyReader();
     }
 
     /**
@@ -83,7 +78,7 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
-        this.cryptoKeyReader = cryptoKeyReader;
+        conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
@@ -94,14 +89,14 @@ public class ReaderConfiguration implements Serializable {
      *            The action to take when the decoding fails
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
-        cryptoFailureAction = action;
+        conf.setCryptoFailureAction(action);
     }
 
     /**
      * @return The ConsumerCryptoFailureAction
      */
     public ConsumerCryptoFailureAction getCryptoFailureAction() {
-        return this.cryptoFailureAction;
+        return conf.getCryptoFailureAction();
     }
 
     /**
@@ -118,7 +113,7 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
-        this.receiverQueueSize = receiverQueueSize;
+        conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }
 
@@ -126,7 +121,7 @@ public class ReaderConfiguration implements Serializable {
      * @return the consumer name
      */
     public String getReaderName() {
-        return readerName;
+        return conf.getReaderName();
     }
 
     /**
@@ -136,8 +131,12 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setReaderName(String readerName) {
         checkArgument(readerName != null && !readerName.equals(""));
-        this.readerName = readerName;
+        conf.setReaderName(readerName);
         return this;
+    }
+
+    public ReaderConfigurationData getReaderConfigurationData() {
+        return conf;
     }
 
     private static final long serialVersionUID = 1L;

@@ -20,48 +20,45 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
+import com.google.common.collect.Lists;
 
-@SuppressWarnings("deprecation")
 public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private String subscriptionName;
-    private final ConsumerConfiguration conf;
-    private Set<String> topicNames;
+    private final ConsumerConfigurationData conf;
+
+    private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
 
     ConsumerBuilderImpl(PulsarClientImpl client) {
+        this(client, new ConsumerConfigurationData());
+    }
+
+    private ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData conf) {
         this.client = client;
-        this.conf = new ConsumerConfiguration();
+        this.conf = conf;
     }
 
     @Override
     public ConsumerBuilder clone() {
-        try {
-            return (ConsumerBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ConsumerBuilderImpl");
-        }
+        return new ConsumerBuilderImpl(client, conf.clone());
     }
 
     @Override
@@ -83,55 +80,45 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync() {
-        if (topicNames == null || topicNames.isEmpty()) {
+        if (conf.getTopicNames().isEmpty()) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
         }
 
-        if (subscriptionName == null) {
+        if (conf.getSubscriptionName() == null) {
             return FutureUtil.failedFuture(
                     new IllegalArgumentException("Subscription name must be set on the consumer builder"));
         }
 
-        if (topicNames.size() == 1) {
-            return client.subscribeAsync(topicNames.stream().findFirst().orElse(""), subscriptionName, conf);
-        } else {
-            return client.subscribeAsync(topicNames, subscriptionName, conf);
-        }
+        return client.subscribeAsync(conf);
     }
 
     @Override
     public ConsumerBuilder topic(String... topicNames) {
         checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
-        if (this.topicNames == null) {
-            this.topicNames = Sets.newHashSet(topicNames);
-        } else {
-            this.topicNames.addAll(Lists.newArrayList(topicNames));
-        }
+        conf.getTopicNames().addAll(Lists.newArrayList(topicNames));
         return this;
     }
 
     @Override
     public ConsumerBuilder topics(List<String> topicNames) {
-        checkArgument(topicNames != null && !topicNames.isEmpty(),
-            "Passed in topicNames list should not be empty.");
-        if (this.topicNames == null) {
-            this.topicNames = Sets.newHashSet();
-        }
-        this.topicNames.addAll(topicNames);
+        checkArgument(topicNames != null && !topicNames.isEmpty(), "Passed in topicNames list should not be empty.");
+        conf.getTopicNames().addAll(topicNames);
 
         return this;
     }
 
     @Override
     public ConsumerBuilder subscriptionName(String subscriptionName) {
-        this.subscriptionName = subscriptionName;
+        conf.setSubscriptionName(subscriptionName);
         return this;
     }
 
     @Override
     public ConsumerBuilder ackTimeout(long ackTimeout, TimeUnit timeUnit) {
-        conf.setAckTimeout(ackTimeout, timeUnit);
+        checkArgument(timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
+                "Ack timeout should be should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
+        conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
         return this;
     }
 
@@ -179,13 +166,13 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public ConsumerBuilder property(String key, String value) {
-        conf.setProperty(key, value);
+        conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
     public ConsumerBuilder properties(Map<String, String> properties) {
-        conf.setProperties(properties);
+        conf.getProperties().putAll(properties);
         return this;
     }
 

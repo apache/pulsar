@@ -150,7 +150,7 @@ flexible messaging model and an intuitive client API.</description>
           </exclusion>
         </exclusions>
       </dependency>
-      
+
       <dependency>
         <groupId>org.testng</groupId>
         <artifactId>testng</artifactId>
@@ -405,7 +405,7 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>jersey-container-servlet</artifactId>
         <version>2.23.2</version>
       </dependency>
-      
+
       <dependency>
         <groupId>javax.ws.rs</groupId>
         <artifactId>javax.ws.rs-api</artifactId>
@@ -628,6 +628,13 @@ flexible messaging model and an intuitive client API.</description>
       <groupId>org.powermock</groupId>
       <artifactId>powermock-module-testng</artifactId>
       <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.projectlombok</groupId>
+      <artifactId>lombok</artifactId>
+      <version>1.16.20</version>
+      <scope>provided</scope>
     </dependency>
   </dependencies>
 
