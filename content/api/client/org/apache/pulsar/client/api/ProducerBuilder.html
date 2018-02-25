@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6,"i21":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -199,61 +199,67 @@ extends Serializable, Cloneable</pre>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#hashingScheme-org.apache.pulsar.client.api.HashingScheme-">hashingScheme</a></span>(<a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api">HashingScheme</a>&nbsp;hashingScheme)</code>
+<div class="block">Change the <a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api"><code>HashingScheme</code></a> used to chose the partition on where to publish a particular message.</div>
+</td>
+</tr>
+<tr id="i12" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#initialSequenceId-long-">initialSequenceId</a></span>(long&nbsp;initialSequenceId)</code>
 <div class="block">Set the baseline for the sequence ids for messages published by the producer.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
+<tr id="i13" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessages-int-">maxPendingMessages</a></span>(int&nbsp;maxPendingMessages)</code>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
+<tr id="i14" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessagesAcrossPartitions-int-">maxPendingMessagesAcrossPartitions</a></span>(int&nbsp;maxPendingMessagesAcrossPartitions)</code>
 <div class="block">Set the number of max pending messages across all the partitions</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i15" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRouter-org.apache.pulsar.client.api.MessageRouter-">messageRouter</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a>&nbsp;messageRouter)</code>
 <div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
+<tr id="i16" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRoutingMode-org.apache.pulsar.client.api.MessageRoutingMode-">messageRoutingMode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRouteMode)</code>
-<div class="block">Set the message routing mode for the partitioned producer</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRoutingMode-org.apache.pulsar.client.api.MessageRoutingMode-">messageRoutingMode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</code>
+<div class="block">Set the message routing mode for the partitioned producer.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#producerName-java.lang.String-">producerName</a></span>(String&nbsp;producerName)</code>
 <div class="block">Specify a name for the producer</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
+<tr id="i18" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#properties-java.util.Map-">properties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#property-java.lang.String-java.lang.String-">property</a></span>(String&nbsp;key,
         String&nbsp;value)</code>
 <div class="block">Set a name/value property with this producer.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#sendTimeout-int-java.util.concurrent.TimeUnit-">sendTimeout</a></span>(int&nbsp;sendTimeout,
            TimeUnit&nbsp;unit)</code>
 <div class="block">Set the send timeout <i>(default: 30 seconds)</i></div>
 </td>
 </tr>
-<tr id="i20" class="altColor">
+<tr id="i21" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
 <div class="block">Specify the topic this producer will be publishing on.</div>
@@ -448,12 +454,39 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>messageRoutingMode</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;messageRoutingMode(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRouteMode)</pre>
-<div class="block">Set the message routing mode for the partitioned producer</div>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;messageRoutingMode(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</pre>
+<div class="block">Set the message routing mode for the partitioned producer.
+
+ Default routing mode for messages to partition.
+
+ This logic is applied when the application is not setting a key <a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html#setKey-java.lang.String-"><code>MessageBuilder.setKey(String)</code></a> on a
+ particular message.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>mode</code> - </dd>
-<dt><span class="returnLabel">Returns:</span></dt>
+<dd><code>messageRoutingMode</code> - the message routing mode</dd>
+</dl>
+</li>
+</ul>
+<a name="hashingScheme-org.apache.pulsar.client.api.HashingScheme-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>hashingScheme</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;hashingScheme(<a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api">HashingScheme</a>&nbsp;hashingScheme)</pre>
+<div class="block">Change the <a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api"><code>HashingScheme</code></a> used to chose the partition on where to publish a particular message.
+
+ Standard hashing functions available are:
+ <ul>
+ <li><code>JavaStringHash</code>: Java <code>String.hashCode()</code>
+ <li><code>Murmur3_32Hash</code>: Use Murmur3 hashing function.
+ <a href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
+ </ul>
+
+ Default is <code>JavaStringHash</code>.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>hashingScheme</code> - the chosen <a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api"><code>HashingScheme</code></a></dd>
 </dl>
 </li>
 </ul>
@@ -572,9 +605,9 @@ extends Serializable, Cloneable</pre>
 <dd><code>timeUnit</code> - the time unit of the <code>batchDelay</code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dt><span class="seeLabel">See Also:</span></dt>
-<dd><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#batchingMaxMessages"><code>threshold is reached; all messages will be published as a single
+<dd><code>threshold is reached; all messages will be published as a single
       batch message. The consumer will be delivered individual messages in the batch in the same order they were
-      enqueued</code></a></dd>
+      enqueued</code></dd>
 </dl>
 </li>
 </ul>
