@@ -46,7 +46,7 @@ import org.apache.pulsar.broker.service.Dispatcher;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
@@ -139,7 +139,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         Policies policies;
         try {
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic.getName()).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             policies = new Policies();
@@ -157,7 +157,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         Policies policies;
         try {
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic.getName()).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             policies = new Policies();

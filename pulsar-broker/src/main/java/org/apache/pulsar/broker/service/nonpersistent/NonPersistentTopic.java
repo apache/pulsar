@@ -268,7 +268,7 @@ public class NonPersistentTopic implements Topic {
         Policies policies;
         try {
             policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             policies = new Policies();
@@ -591,7 +591,7 @@ public class NonPersistentTopic implements Topic {
         }
         return isReplicatorStarted.get();
     }
-    
+
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
         log.info("[{}] Removing replicator to {}", topic, remoteCluster);
         final CompletableFuture<Void> future = new CompletableFuture<>();
@@ -976,7 +976,7 @@ public class NonPersistentTopic implements Topic {
         this.hasBatchMessagePublished = true;
     }
 
-    
-    
+
+
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 }

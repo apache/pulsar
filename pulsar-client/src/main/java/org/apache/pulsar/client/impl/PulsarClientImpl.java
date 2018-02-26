@@ -31,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
@@ -52,6 +51,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -396,7 +396,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     public CompletableFuture<Consumer> patternTopicSubscribeAsync(ConsumerConfigurationData conf) {
         String regex = conf.getTopicsPattern().pattern();
-        DestinationName destination = DestinationName.get(regex);
+        TopicName destination = TopicName.get(regex);
         NamespaceName namespaceName = destination.getNamespaceObject();
 
         CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
@@ -404,7 +404,7 @@ public class PulsarClientImpl implements PulsarClient {
             .thenAccept(topics -> {
                 List<String> topicsList = topics.stream()
                     .filter(topic -> {
-                        DestinationName destinationName = DestinationName.get(topic);
+                        TopicName destinationName = TopicName.get(topic);
                         checkState(destinationName.getNamespaceObject().equals(namespaceName));
                         return conf.getTopicsPattern().matcher(destinationName.toString()).matches();
                     })

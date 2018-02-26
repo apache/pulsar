@@ -1154,7 +1154,7 @@ public class ServerCnx extends PulsarHandler {
         try {
             List<String> topics = getBrokerService().pulsar()
                 .getNamespaceService()
-                .getListOfDestinations(NamespaceName.get(namespace));
+                .getListOfTopics(NamespaceName.get(namespace));
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",

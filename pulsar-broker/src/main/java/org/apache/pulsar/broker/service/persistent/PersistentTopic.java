@@ -351,7 +351,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         Policies policies;
         try {
             policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             policies = new Policies();
@@ -911,7 +911,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
                 boolean isReplicatorStarted = addReplicationCluster(remoteCluster, PersistentTopic.this, cursor, localCluster);
                 if (isReplicatorStarted) {
-                    future.complete(null);    
+                    future.complete(null);
                 } else {
                     future.completeExceptionally(new NamingException(
                             PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster));
