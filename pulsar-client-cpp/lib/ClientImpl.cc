@@ -22,7 +22,6 @@
 #include "ConsumerImpl.h"
 #include "ProducerImpl.h"
 #include "ReaderImpl.h"
-#include "DestinationName.h"
 #include "PartitionedProducerImpl.h"
 #include "PartitionedConsumerImpl.h"
 #include <boost/bind.hpp>
@@ -31,6 +30,7 @@
 #include <openssl/sha.h>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include <lib/HTTPLookupService.h>
+#include <lib/TopicName.h>
 
 DECLARE_LOG_OBJECT()
 
@@ -99,33 +99,33 @@ ExecutorServiceProviderPtr ClientImpl::getPartitionListenerExecutorProvider() {
 }
 void ClientImpl::createProducerAsync(const std::string& topic, ProducerConfiguration conf,
                                      CreateProducerCallback callback) {
-    DestinationNamePtr dn;
+    TopicNamePtr topicName;
     {
         Lock lock(mutex_);
         if (state_ != Open) {
             lock.unlock();
             callback(ResultAlreadyClosed, Producer());
             return;
-        } else if (!(dn = DestinationName::get(topic))) {
+        } else if (!(topicName = TopicName::get(topic))) {
             lock.unlock();
             callback(ResultInvalidTopicName, Producer());
             return;
         }
     }
-    lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(
-        boost::bind(&ClientImpl::handleCreateProducer, shared_from_this(), _1, _2, dn, conf, callback));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(boost::bind(
+        &ClientImpl::handleCreateProducer, shared_from_this(), _1, _2, topicName, conf, callback));
 }
 
 void ClientImpl::handleCreateProducer(const Result result, const LookupDataResultPtr partitionMetadata,
-                                      DestinationNamePtr dn, ProducerConfiguration conf,
+                                      TopicNamePtr topicName, ProducerConfiguration conf,
                                       CreateProducerCallback callback) {
     if (!result) {
         ProducerImplBasePtr producer;
         if (partitionMetadata->getPartitions() > 1) {
-            producer = boost::make_shared<PartitionedProducerImpl>(shared_from_this(), dn,
+            producer = boost::make_shared<PartitionedProducerImpl>(shared_from_this(), topicName,
                                                                    partitionMetadata->getPartitions(), conf);
         } else {
-            producer = boost::make_shared<ProducerImpl>(shared_from_this(), dn->toString(), conf);
+            producer = boost::make_shared<ProducerImpl>(shared_from_this(), topicName->toString(), conf);
         }
         producer->getProducerCreatedFuture().addListener(
             boost::bind(&ClientImpl::handleProducerCreated, shared_from_this(), _1, _2, callback, producer));
@@ -135,7 +135,7 @@ void ClientImpl::handleCreateProducer(const Result result, const LookupDataResul
         producer->start();
     } else {
         LOG_ERROR("Error Checking/Getting Partition Metadata while creating producer on "
-                  << dn->toString() << " -- " << result);
+                  << topicName->toString() << " -- " << result);
         callback(result, Producer());
     }
 }
@@ -147,14 +147,14 @@ void ClientImpl::handleProducerCreated(Result result, ProducerImplBaseWeakPtr pr
 
 void ClientImpl::createReaderAsync(const std::string& topic, const MessageId& startMessageId,
                                    const ReaderConfiguration& conf, ReaderCallback callback) {
-    DestinationNamePtr dn;
+    TopicNamePtr topicName;
     {
         Lock lock(mutex_);
         if (state_ != Open) {
             lock.unlock();
             callback(ResultAlreadyClosed, Reader());
             return;
-        } else if (!(dn = DestinationName::get(topic))) {
+        } else if (!(topicName = TopicName::get(topic))) {
             lock.unlock();
             callback(ResultInvalidTopicName, Reader());
             return;
@@ -162,12 +162,13 @@ void ClientImpl::createReaderAsync(const std::string& topic, const MessageId& st
     }
 
     BatchMessageId msgId(startMessageId);
-    lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(boost::bind(
-        &ClientImpl::handleReaderMetadataLookup, shared_from_this(), _1, _2, dn, msgId, conf, callback));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
+        boost::bind(&ClientImpl::handleReaderMetadataLookup, shared_from_this(), _1, _2, topicName, msgId,
+                    conf, callback));
 }
 
 void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDataResultPtr partitionMetadata,
-                                            DestinationNamePtr dn, BatchMessageId startMessageId,
+                                            TopicNamePtr topicName, BatchMessageId startMessageId,
                                             ReaderConfiguration conf, ReaderCallback callback) {
     if (result != ResultOk) {
         LOG_ERROR("Error Checking/Getting Partition Metadata while creating reader: " << result);
@@ -176,12 +177,12 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
     }
 
     if (partitionMetadata->getPartitions() > 1) {
-        LOG_ERROR("Topic reader cannot be created on a partitioned topic: " << dn->toString());
+        LOG_ERROR("Topic reader cannot be created on a partitioned topic: " << topicName->toString());
         callback(ResultOperationNotSupported, Reader());
         return;
     }
 
-    ReaderImplPtr reader = boost::make_shared<ReaderImpl>(shared_from_this(), dn->toString(), conf,
+    ReaderImplPtr reader = boost::make_shared<ReaderImpl>(shared_from_this(), topicName->toString(), conf,
                                                           getListenerExecutorProvider()->get(), callback);
     reader->start(startMessageId);
 
@@ -191,26 +192,26 @@ void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDat
 
 void ClientImpl::subscribeAsync(const std::string& topic, const std::string& consumerName,
                                 const ConsumerConfiguration& conf, SubscribeCallback callback) {
-    DestinationNamePtr dn;
+    TopicNamePtr topicName;
     {
         Lock lock(mutex_);
         if (state_ != Open) {
             lock.unlock();
             callback(ResultAlreadyClosed, Consumer());
             return;
-        } else if (!(dn = DestinationName::get(topic))) {
+        } else if (!(topicName = TopicName::get(topic))) {
             lock.unlock();
             callback(ResultInvalidTopicName, Consumer());
             return;
         }
     }
 
-    lookupServicePtr_->getPartitionMetadataAsync(dn).addListener(boost::bind(
-        &ClientImpl::handleSubscribe, shared_from_this(), _1, _2, dn, consumerName, conf, callback));
+    lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(boost::bind(
+        &ClientImpl::handleSubscribe, shared_from_this(), _1, _2, topicName, consumerName, conf, callback));
 }
 
 void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr partitionMetadata,
-                                 DestinationNamePtr dn, const std::string& consumerName,
+                                 TopicNamePtr topicName, const std::string& consumerName,
                                  ConsumerConfiguration conf, SubscribeCallback callback) {
     if (result == ResultOk) {
         // generate random name if not supplied by the customer.
@@ -224,11 +225,11 @@ void ClientImpl::handleSubscribe(const Result result, const LookupDataResultPtr 
                 callback(ResultInvalidConfiguration, Consumer());
                 return;
             }
-            consumer = boost::make_shared<PartitionedConsumerImpl>(shared_from_this(), consumerName, dn,
-                                                                   partitionMetadata->getPartitions(), conf);
+            consumer = boost::make_shared<PartitionedConsumerImpl>(
+                shared_from_this(), consumerName, topicName, partitionMetadata->getPartitions(), conf);
         } else {
-            consumer =
-                boost::make_shared<ConsumerImpl>(shared_from_this(), dn->toString(), consumerName, conf);
+            consumer = boost::make_shared<ConsumerImpl>(shared_from_this(), topicName->toString(),
+                                                        consumerName, conf);
         }
         consumer->getConsumerCreatedFuture().addListener(
             boost::bind(&ClientImpl::handleConsumerCreated, shared_from_this(), _1, _2, callback, consumer));

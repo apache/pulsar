@@ -21,8 +21,8 @@
 #include <boost/lexical_cast.hpp>
 #include <lib/LogUtils.h>
 #include <pulsar/MessageBuilder.h>
-#include "DestinationName.h"
 #include <lib/Commands.h>
+#include <lib/TopicName.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"

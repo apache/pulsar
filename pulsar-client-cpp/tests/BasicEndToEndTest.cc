@@ -21,13 +21,13 @@
 #include <boost/lexical_cast.hpp>
 #include <lib/LogUtils.h>
 #include <pulsar/MessageBuilder.h>
-#include "DestinationName.h"
 #include <lib/Commands.h>
 #include <sstream>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
 #include <boost/thread.hpp>
 #include <boost/thread/mutex.hpp>
+#include <lib/TopicName.h>
 #include "PulsarFriend.h"
 #include "HttpHelper.h"
 #include <set>
