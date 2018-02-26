@@ -31,7 +31,7 @@ import org.apache.pulsar.broker.service.AbstractDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 
 public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractDispatcherSingleActiveConsumer implements NonPersistentDispatcher {
@@ -70,7 +70,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         Policies policies;
         try {
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topicName).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             policies = new Policies();
@@ -88,7 +88,7 @@ public final class NonPersistentDispatcherSingleActiveConsumer extends AbstractD
         Policies policies;
         try {
             policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topicName).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topicName).getNamespace()))
                     .orElseGet(() -> new Policies());
         } catch (Exception e) {
             policies = new Policies();
