@@ -36,9 +36,9 @@ class BinaryProtoLookupService : public LookupService {
      */
     BinaryProtoLookupService(ConnectionPool& cnxPool, const std::string& serviceUrl);
 
-    Future<Result, LookupDataResultPtr> lookupAsync(const std::string& destinationName);
+    Future<Result, LookupDataResultPtr> lookupAsync(const std::string& topicName);
 
-    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr& dn);
+    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr& topicName);
 
    private:
     boost::mutex mutex_;
@@ -47,18 +47,18 @@ class BinaryProtoLookupService : public LookupService {
     std::string serviceUrl_;
     ConnectionPool& cnxPool_;
 
-    void sendTopicLookupRequest(const std::string& destinationName, bool authoritative, Result result,
+    void sendTopicLookupRequest(const std::string& topicName, bool authoritative, Result result,
                                 const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
 
-    void handleLookup(const std::string& destinationName, Result result, LookupDataResultPtr data,
+    void handleLookup(const std::string& topicName, Result result, LookupDataResultPtr data,
                       const ClientConnectionWeakPtr& clientCnx, LookupDataResultPromisePtr promise);
 
-    void sendPartitionMetadataLookupRequest(const std::string& destinationName, Result result,
+    void sendPartitionMetadataLookupRequest(const std::string& topicName, Result result,
                                             const ClientConnectionWeakPtr& clientCnx,
                                             LookupDataResultPromisePtr promise);
 
-    void handlePartitionMetadataLookup(const std::string& destinationName, Result result,
-                                       LookupDataResultPtr data, const ClientConnectionWeakPtr& clientCnx,
+    void handlePartitionMetadataLookup(const std::string& topicName, Result result, LookupDataResultPtr data,
+                                       const ClientConnectionWeakPtr& clientCnx,
                                        LookupDataResultPromisePtr promise);
 
     uint64_t newRequestId();

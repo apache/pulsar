@@ -20,7 +20,6 @@
 #include <pulsar/Client.h>
 #include <boost/lexical_cast.hpp>
 #include <lib/LogUtils.h>
-#include <lib/DestinationName.h>
 #include <lib/Commands.h>
 #include "boost/date_time/posix_time/posix_time.hpp"
 #include "CustomRoutingPolicy.h"
@@ -32,6 +31,7 @@
 #include "HttpHelper.h"
 #include <lib/Latch.h>
 #include <lib/PartitionedConsumerImpl.h>
+#include <lib/TopicName.h>
 DECLARE_LOG_OBJECT();
 
 using namespace pulsar;
