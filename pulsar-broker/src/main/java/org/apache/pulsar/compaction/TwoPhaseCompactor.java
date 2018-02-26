@@ -75,15 +75,22 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<PhaseOneResult> phaseOne(RawReader reader) {
         Map<String,MessageId> latestForKey = new HashMap<>();
-
         CompletableFuture<PhaseOneResult> loopPromise = new CompletableFuture<>();
-        phaseOneLoop(reader, Optional.empty(), Optional.empty(), latestForKey, loopPromise);
+
+        reader.getLastMessageIdAsync().whenComplete(
+                (lastMessageId, exception) -> {
+                    if (exception != null) {
+                        loopPromise.completeExceptionally(exception);
+                    } else {
+                        phaseOneLoop(reader, Optional.empty(), lastMessageId, latestForKey, loopPromise);
+                    }
+                });
         return loopPromise;
     }
 
     private void phaseOneLoop(RawReader reader,
                               Optional<MessageId> firstMessageId,
-                              Optional<MessageId> lastMessageId,
+                              MessageId lastMessageId,
                               Map<String,MessageId> latestForKey,
                               CompletableFuture<PhaseOneResult> loopPromise) {
         if (loopPromise.isDone()) {
@@ -91,34 +98,30 @@ public class TwoPhaseCompactor extends Compactor {
         }
         CompletableFuture<RawMessage> future = reader.readNextAsync();
         scheduleTimeout(future);
-        future.whenComplete(
+        future.whenCompleteAsync(
                 (m, exception) -> {
                     try {
                         if (exception != null) {
-                            if (exception instanceof TimeoutException
-                                && firstMessageId.isPresent()) {
-                                loopPromise.complete(new PhaseOneResult(firstMessageId.get(),
-                                                                        lastMessageId.get(),
-                                                                        latestForKey));
-                            } else {
-                                loopPromise.completeExceptionally(exception);
-                            }
+                            loopPromise.completeExceptionally(exception);
                             return;
                         }
-
                         MessageId id = m.getMessageId();
                         String key = extractKey(m);
                         latestForKey.put(key, id);
 
-                        phaseOneLoop(reader,
-                                     Optional.of(firstMessageId.orElse(id)),
-                                     Optional.of(id),
-                                     latestForKey, loopPromise);
+                        if (id.compareTo(lastMessageId) == 0) {
+                            loopPromise.complete(new PhaseOneResult(firstMessageId.orElse(id),
+                                                                    id, latestForKey));
+                        } else {
+                            phaseOneLoop(reader,
+                                         Optional.of(firstMessageId.orElse(id)),
+                                         lastMessageId,
+                                         latestForKey, loopPromise);
+                        }
                     } finally {
                         m.close();
                     }
-                });
-
+                }, scheduler);
     }
 
     private void scheduleTimeout(CompletableFuture<RawMessage> future) {
@@ -168,7 +171,7 @@ public class TwoPhaseCompactor extends Compactor {
 
     private void phaseTwoLoop(RawReader reader, MessageId to, Map<String, MessageId> latestForKey,
                               LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
-        reader.readNextAsync().whenComplete(
+        reader.readNextAsync().whenCompleteAsync(
                 (m, exception) -> {
                     try {
                         if (exception != null) {
@@ -205,7 +208,7 @@ public class TwoPhaseCompactor extends Compactor {
                     } finally {
                         m.close();
                     }
-                });
+                }, scheduler);
     }
 
     private CompletableFuture<LedgerHandle> createLedger(BookKeeper bk) {
