@@ -90,7 +90,7 @@ Variable name | Description | Default
 `public_key_path` | The path of the public key that you've generated. | `~/.ssh/id_rsa.pub`
 `region` | The AWS region in which the Pulsar cluster will run | `us-west-2`
 `availability_zone` | The AWS availability zone in which the Pulsar cluster will run | `us-west-2a`
-`ami` | The [Amazon Machine Image](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) (AMI) that will be used by the cluster | `ami-9fa343e7`
+`aws_ami` | The [Amazon Machine Image](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) (AMI) that will be used by the cluster | `ami-9fa343e7`
 `num_zookeeper_nodes` | The number of [ZooKeeper](https://zookeeper.apache.org) nodes in the ZooKeeper cluster | 3
 `num_pulsar_brokers` | The number of Pulsar brokers and BookKeeper bookies that will run in the cluster | 3
 `base_cidr_block` | The root [CIDR](http://searchnetworking.techtarget.com/definition/CIDR) that will be used by network assets for the cluster | `10.0.0.0/16`
