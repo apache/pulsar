@@ -39,7 +39,6 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.ImmutableMap;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
@@ -88,12 +87,13 @@ import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.compaction.CompactedTopic;
@@ -109,6 +109,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.ImmutableMap;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -169,7 +171,7 @@ public class PersistentTopicTest {
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(DestinationName.class));
+        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
 
         setupMLAsyncCallbackMocks();
     }
@@ -364,15 +366,8 @@ public class PersistentTopicTest {
         topic.removeProducer(producer); /* noop */
     }
 
-    @Test
     public void testMaxProducers() throws Exception {
-        // set max clients
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
-        doReturn(2).when(svcConfig).getMaxProducersPerTopic();
-        doReturn(svcConfig).when(pulsar).getConfiguration();
-
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
-
         String role = "appid1";
         // 1. add producer1
         Producer producer = new Producer(topic, serverCnx, 1 /* producer id */, "prod-name1", role, false, null);
@@ -392,6 +387,28 @@ public class PersistentTopicTest {
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.ProducerBusyException);
         }
+    }
+
+    @Test
+    public void testMaxProducersForBroker() throws Exception {
+        // set max clients
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(2).when(svcConfig).getMaxProducersPerTopic();
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+        testMaxProducers();
+    }
+
+    @Test
+    public void testMaxProducersForNamespace() throws Exception {
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+        // set max clients
+        Policies policies = new Policies();
+        policies.max_producers_per_topic = 2;
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(policies));
+        testMaxProducers();
     }
 
     @Test
@@ -476,14 +493,7 @@ public class PersistentTopicTest {
         }
     }
 
-    @Test
     public void testMaxConsumersShared() throws Exception {
-        // set max clients
-        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
-        doReturn(2).when(svcConfig).getMaxConsumersPerSubscription();
-        doReturn(3).when(svcConfig).getMaxConsumersPerTopic();
-        doReturn(svcConfig).when(pulsar).getConfiguration();
-
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
         PersistentSubscription sub2 = new PersistentSubscription(topic, "sub-2", cursorMock);
@@ -547,12 +557,33 @@ public class PersistentTopicTest {
     }
 
     @Test
-    public void testMaxConsumersFailover() throws Exception {
+    public void testMaxConsumersSharedForBroker() throws Exception {
         // set max clients
         ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
         doReturn(2).when(svcConfig).getMaxConsumersPerSubscription();
         doReturn(3).when(svcConfig).getMaxConsumersPerTopic();
         doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        testMaxConsumersShared();
+    }
+
+    @Test
+    public void testMaxConsumersSharedForNamespace() throws Exception {
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        // set max clients
+        Policies policies = new Policies();
+        policies.max_consumers_per_subscription = 2;
+        policies.max_consumers_per_topic = 3;
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(policies));
+
+        testMaxConsumersShared();
+    }
+
+    public void testMaxConsumersFailover() throws Exception {
 
         PersistentTopic topic = new PersistentTopic(successTopicName, ledgerMock, brokerService);
         PersistentSubscription sub = new PersistentSubscription(topic, "sub-1", cursorMock);
@@ -614,6 +645,33 @@ public class PersistentTopicTest {
         } catch (BrokerServiceException e) {
             assertTrue(e instanceof BrokerServiceException.ConsumerBusyException);
         }
+    }
+
+    @Test
+    public void testMaxConsumersFailoverForBroker() throws Exception {
+        // set max clients
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(2).when(svcConfig).getMaxConsumersPerSubscription();
+        doReturn(3).when(svcConfig).getMaxConsumersPerTopic();
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        testMaxConsumersFailover();
+    }
+
+    @Test
+    public void testMaxConsumersFailoverForNamespace() throws Exception {
+        ServiceConfiguration svcConfig = spy(new ServiceConfiguration());
+        doReturn(svcConfig).when(pulsar).getConfiguration();
+
+        // set max clients
+        Policies policies = new Policies();
+        policies.max_consumers_per_subscription = 2;
+        policies.max_consumers_per_topic = 3;
+        when(pulsar.getConfigurationCache().policiesCache()
+                .get(AdminResource.path(POLICIES, TopicName.get(successTopicName).getNamespace())))
+                .thenReturn(Optional.of(policies));
+
+        testMaxConsumersFailover();
     }
 
     @Test
@@ -1116,7 +1174,7 @@ public class PersistentTopicTest {
         // step-2 now, policies doesn't have removed replication cluster so, it should not invoke "startProducer" of the
         // replicator
         when(pulsar.getConfigurationCache().policiesCache()
-                .get(AdminResource.path(POLICIES, DestinationName.get(globalTopicName).getNamespace())))
+                .get(AdminResource.path(POLICIES, TopicName.get(globalTopicName).getNamespace())))
                         .thenReturn(Optional.of(new Policies()));
         // try to start replicator again
         topic.startReplProducers();
@@ -1151,17 +1209,18 @@ public class PersistentTopicTest {
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
 
-        doReturn(new CompletableFuture<Producer>()).when(clientImpl).createProducerAsync(matches(globalTopicName), any());
+        doReturn(new CompletableFuture<Producer>()).when(clientImpl)
+                .createProducerAsync(any(ProducerConfigurationData.class));
 
         replicator.startProducer();
-        verify(clientImpl).createProducerAsync(matches(globalTopicName), any());
+        verify(clientImpl).createProducerAsync(any(ProducerConfigurationData.class));
 
         replicator.disconnect(false);
         replicator.disconnect(false);
 
         replicator.startProducer();
 
-        verify(clientImpl, Mockito.times(2)).createProducerAsync(matches(globalTopicName), any());
+        verify(clientImpl, Mockito.times(2)).createProducerAsync(any(ProducerConfigurationData.class));
     }
 
     @Test

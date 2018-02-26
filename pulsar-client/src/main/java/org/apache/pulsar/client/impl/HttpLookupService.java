@@ -23,10 +23,10 @@ import java.net.URI;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -40,9 +40,9 @@ class HttpLookupService implements LookupService {
     private final boolean useTls;
     private static final String BasePath = "lookup/v2/destination/";
 
-    public HttpLookupService(String serviceUrl, ClientConfiguration conf, EventLoopGroup eventLoopGroup)
+    public HttpLookupService(ClientConfigurationData conf, EventLoopGroup eventLoopGroup)
             throws PulsarClientException {
-        this.httpClient = new HttpClient(serviceUrl, conf.getAuthentication(),
+        this.httpClient = new HttpClient(conf.getServiceUrl(), conf.getAuthentication(),
                 eventLoopGroup, conf.isTlsAllowInsecureConnection(), conf.getTlsTrustCertsFilePath());
         this.useTls = conf.isUseTls();
     }
@@ -50,12 +50,12 @@ class HttpLookupService implements LookupService {
     /**
      * Calls http-lookup api to find broker-service address which can serve a given topic.
      *
-     * @param destination: topic-name
+     * @param topicName topic-name
      * @return broker-socket-address that serves given topic
      */
     @SuppressWarnings("deprecation")
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(DestinationName destination) {
-        return httpClient.get(BasePath + destination.getLookupName(), LookupData.class).thenCompose(lookupData -> {
+    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
+        return httpClient.get(BasePath + topicName.getLookupName(), LookupData.class).thenCompose(lookupData -> {
             // Convert LookupData into as SocketAddress, handling exceptions
         	URI uri = null;
             try {
@@ -73,14 +73,14 @@ class HttpLookupService implements LookupService {
                 return CompletableFuture.completedFuture(Pair.of(brokerAddress, brokerAddress));
             } catch (Exception e) {
                 // Failed to parse url
-            	log.warn("[{}] Lookup Failed due to invalid url {}, {}", destination, uri, e.getMessage());
+            	log.warn("[{}] Lookup Failed due to invalid url {}, {}", topicName, uri, e.getMessage());
                 return FutureUtil.failedFuture(e);
             }
         });
     }
 
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DestinationName destination) {
-    	return httpClient.get(String.format("admin/%s/partitions", destination.getLookupName()),
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+    	return httpClient.get(String.format("admin/%s/partitions", topicName.getLookupName()),
                 PartitionedTopicMetadata.class);
     }
 

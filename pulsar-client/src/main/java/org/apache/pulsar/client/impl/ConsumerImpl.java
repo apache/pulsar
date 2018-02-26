@@ -25,11 +25,6 @@ import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
-import com.google.common.collect.Iterables;
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Timeout;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -52,13 +47,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -74,6 +70,13 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Iterables;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Timeout;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
+
 public class ConsumerImpl extends ConsumerBase {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
@@ -83,6 +86,7 @@ public class ConsumerImpl extends ConsumerBase {
     // broker to notify that we are ready to get (and store in the incoming messages queue) more messages
     private static final AtomicIntegerFieldUpdater<ConsumerImpl> AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(ConsumerImpl.class, "availablePermits");
+    @SuppressWarnings("unused")
     private volatile int availablePermits = 0;
 
     private MessageId lastDequeuedMessage = MessageId.earliest;
@@ -125,16 +129,15 @@ public class ConsumerImpl extends ConsumerBase {
         NonDurable
     }
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+    ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture) {
-        this(client, topic, subscription, conf, listenerExecutor, partitionIndex, subscribeFuture,
-                SubscriptionMode.Durable, null);
+        this(client, topic, conf, listenerExecutor, partitionIndex, subscribeFuture, SubscriptionMode.Durable, null);
     }
 
-    ConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
+    ConsumerImpl(PulsarClientImpl client, String topic, ConsumerConfigurationData conf,
             ExecutorService listenerExecutor, int partitionIndex, CompletableFuture<Consumer> subscribeFuture,
             SubscriptionMode subscriptionMode, MessageId startMessageId) {
-        super(client, topic, subscription, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
+        super(client, topic, conf, conf.getReceiverQueueSize(), listenerExecutor, subscribeFuture);
         this.consumerId = client.newConsumerId();
         this.subscriptionMode = subscriptionMode;
         this.startMessageId = startMessageId != null ? new BatchMessageIdImpl((MessageIdImpl) startMessageId) : null;
@@ -145,7 +148,7 @@ public class ConsumerImpl extends ConsumerBase {
         this.codecProvider = new CompressionCodecProvider();
         this.priorityLevel = conf.getPriorityLevel();
         this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
-        this.readCompacted = conf.getReadCompacted();
+        this.readCompacted = conf.isReadCompacted();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);

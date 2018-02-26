@@ -36,7 +36,7 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     private Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimensionMap;
     // temp map to prepare aggregation metrics
     private Map<String, Double> tempAggregatedMetricsMap;
-    
+
     public ManagedLedgerMetrics(PulsarService pulsar) {
         super(pulsar);
         this.metricsCollection = Lists.newArrayList();
@@ -54,14 +54,14 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
 
     /**
      * Aggregation by namespace (not thread-safe)
-     * 
+     *
      * @param ledgersByDimension
      * @return
      */
     private List<Metrics> aggregate(Map<Metrics, List<ManagedLedgerImpl>> ledgersByDimension) {
 
         metricsCollection.clear();
-        
+
         for (Entry<Metrics, List<ManagedLedgerImpl>> e : ledgersByDimension.entrySet()) {
             Metrics metrics = e.getKey();
             List<ManagedLedgerImpl> ledgers = e.getValue();
@@ -122,17 +122,17 @@ public class ManagedLedgerMetrics extends AbstractMetrics {
     }
 
     /**
-     * Build a map of dimensions key to list of destination stats (not thread-safe)
+     * Build a map of dimensions key to list of topic stats (not thread-safe)
      * <p>
-     * 
+     *
      * @return
      */
     private Map<Metrics, List<ManagedLedgerImpl>> groupLedgersByDimension() {
 
         ledgersByDimensionMap.clear();
-        
-        // get the current destinations statistics from StatsBrokerFilter
-        // Map : destination-name->dest-stat
+
+        // get the current topics statistics from StatsBrokerFilter
+        // Map : topic-name->dest-stat
 
         for (Entry<String, ManagedLedgerImpl> e : getManagedLedgers().entrySet()) {
 

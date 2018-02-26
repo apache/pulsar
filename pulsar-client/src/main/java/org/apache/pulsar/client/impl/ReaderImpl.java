@@ -23,30 +23,35 @@ import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
+
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl.SubscriptionMode;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 
 public class ReaderImpl implements Reader {
 
     private final ConsumerImpl consumer;
 
-    public ReaderImpl(PulsarClientImpl client, String topic, MessageId startMessageId,
-            ReaderConfiguration readerConfiguration, ExecutorService listenerExecutor,
-            CompletableFuture<Consumer> consumerFuture) {
+    public ReaderImpl(PulsarClientImpl client, ReaderConfigurationData readerConfiguration,
+            ExecutorService listenerExecutor, CompletableFuture<Consumer> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
+            subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
+        }
 
-        ConsumerConfiguration consumerConfiguration = new ConsumerConfiguration();
+        ConsumerConfigurationData consumerConfiguration = new ConsumerConfigurationData();
+        consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
+        consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
         consumerConfiguration.setReceiverQueueSize(readerConfiguration.getReceiverQueueSize());
         if (readerConfiguration.getReaderName() != null) {
@@ -76,8 +81,8 @@ public class ReaderImpl implements Reader {
             consumerConfiguration.setCryptoKeyReader(readerConfiguration.getCryptoKeyReader());
         }
 
-        consumer = new ConsumerImpl(client, topic, subscription, consumerConfiguration, listenerExecutor, -1,
-                consumerFuture, SubscriptionMode.NonDurable, startMessageId);
+        consumer = new ConsumerImpl(client, readerConfiguration.getTopicName(), consumerConfiguration, listenerExecutor,
+                -1, consumerFuture, SubscriptionMode.NonDurable, readerConfiguration.getStartMessageId());
     }
 
     @Override
