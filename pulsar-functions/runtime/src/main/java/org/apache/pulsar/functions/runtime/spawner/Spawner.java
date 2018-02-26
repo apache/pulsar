@@ -25,15 +25,12 @@ package org.apache.pulsar.functions.runtime.spawner;
 
 import java.util.Timer;
 import java.util.TimerTask;
-import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.proto.Function;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.InstanceConfig;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;

@@ -20,6 +20,7 @@
 package org.apache.pulsar.functions.runtime.container;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,7 +71,7 @@ public class ProcessFunctionContainerTest {
         functionConfigBuilder.setTenant(TEST_TENANT);
         functionConfigBuilder.setNamespace(TEST_NAMESPACE);
         functionConfigBuilder.setName(TEST_NAME);
-        functionConfigBuilder.setClassName("org.apache.pulsar.functions.runtime.functioncache.AddFunction");
+        functionConfigBuilder.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
         functionConfigBuilder.addInputs(TEST_NAME + "-source1");
         functionConfigBuilder.addInputs(TEST_NAME + "-source2");
         functionConfigBuilder.setOutput(TEST_NAME + "-sink");

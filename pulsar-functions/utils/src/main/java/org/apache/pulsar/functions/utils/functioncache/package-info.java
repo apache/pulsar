@@ -17,25 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
-
-import org.apache.pulsar.functions.instance.InstanceConfig;
-
 /**
- * A factory to create {@link FunctionContainer}s to invoke functions.
+ * A cache system for managing function library dependencies.
  */
-public interface FunctionContainerFactory extends AutoCloseable {
-
-    /**
-     * Create a function container to execute a java instance.
-     *
-     * @param instanceConfig java instance config
-     * @return function container to start/stop instance
-     */
-    FunctionContainer createContainer(
-            InstanceConfig instanceConfig, String codeFile);
-
-    @Override
-    void close();
-
-}
+package org.apache.pulsar.functions.utils.functioncache;
