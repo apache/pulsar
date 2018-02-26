@@ -47,8 +47,16 @@ commands:
     pulsar broker \
       --conf /path/to/broker.conf
   options:
-  - flags: -c, --conf
+  - flags: -c, --broker-conf
     description: Configuration file for the broker
+  - flags: -bc, --bookie-conf
+    description: Configuration file for BookKeeper
+  - flags: -rb, --run-bookie
+    description: Run a BookKeeper bookie on the same host as the Pulsar broker
+    default: 'false'
+  - flags: -ra, --run-bookie-autorecovery
+    description: Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker
+    default: 'false'
 - name: discovery
   description: Run a discovery server
   example: |
