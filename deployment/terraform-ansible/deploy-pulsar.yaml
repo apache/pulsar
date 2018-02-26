@@ -56,7 +56,7 @@
         zookeeper_servers: "{{ groups['zookeeper']|map('extract', hostvars, ['ansible_default_ipv4', 'address'])|map('regex_replace', '(.*)', '\\1:2181') | join(',') }}"
         service_url: "pulsar://{{ hostvars[groups['pulsar'][0]].public_ip }}:6650/"
         http_url: "http://{{ hostvars[groups['pulsar'][0]].public_ip }}:8080/"
-        pulsar_version: "1.20.0-incubating"
+        pulsar_version: "1.22.0-incubating"
 
     - name: Download Pulsar binary package
       unarchive:
@@ -129,14 +129,6 @@
     - template:
         src: "../templates/bookkeeper.conf"
         dest: "/opt/pulsar/conf/bookkeeper.conf"
-    - name: Install bookkeeper systemd service
-      template:
-        src: "../templates/bookkeeper.service"
-        dest: "/etc/systemd/system/bookkeeper.service"
-    - systemd:
-        state: restarted
-        daemon_reload: yes
-        name: "bookkeeper"
 
 - name: Set up Pulsar
   hosts: pulsar
