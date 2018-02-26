@@ -227,7 +227,7 @@ public class ZooKeeperClientAspectJTest {
 
             BrokerService brokerService = pulsar.getBrokerService();
             brokerService.updateRates();
-            List<Metrics> metrics = brokerService.getDestinationMetrics();
+            List<Metrics> metrics = brokerService.getTopicMetrics();
             AtomicDouble writeRate = new AtomicDouble();
             AtomicDouble readRate = new AtomicDouble();
             metrics.forEach(m -> {
@@ -250,7 +250,7 @@ public class ZooKeeperClientAspectJTest {
     private Metrics getMetric(PulsarService pulsar, String dimension) {
         BrokerService brokerService = pulsar.getBrokerService();
         brokerService.updateRates();
-        for (Metrics metric : brokerService.getDestinationMetrics()) {
+        for (Metrics metric : brokerService.getTopicMetrics()) {
             if (dimension.equalsIgnoreCase(metric.getDimension("metric"))) {
                 return metric;
             }

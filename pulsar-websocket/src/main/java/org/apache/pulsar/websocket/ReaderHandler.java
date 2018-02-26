@@ -40,7 +40,7 @@ import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ReaderImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerMessage;
@@ -249,7 +249,7 @@ public class ReaderHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(DestinationName.get(topic), authRole, authenticationData,
+        return service.getAuthorizationService().canConsume(TopicName.get(topic), authRole, authenticationData,
                 this.subscription);
     }
 

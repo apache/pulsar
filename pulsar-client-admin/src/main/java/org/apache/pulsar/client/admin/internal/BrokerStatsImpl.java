@@ -75,7 +75,7 @@ public class BrokerStatsImpl extends BaseResource implements BrokerStats {
     }
 
     @Override
-    public JsonObject getDestinations() throws PulsarAdminException {
+    public JsonObject getTopics() throws PulsarAdminException {
         try {
             String json = request(brokerStats.path("/destinations")).get(String.class);
             return new Gson().fromJson(json, JsonObject.class);

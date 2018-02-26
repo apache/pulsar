@@ -44,7 +44,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -226,7 +226,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canProduce(DestinationName.get(topic), authRole, authenticationData);
+        return service.getAuthorizationService().canProduce(TopicName.get(topic), authRole, authenticationData);
     }
 
     private void sendAckResponse(ProducerAck response) {

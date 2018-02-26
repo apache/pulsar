@@ -51,7 +51,7 @@ import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -203,7 +203,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         // Ensure all partitions exist
         for (int i = 0; i < numPartitions; i++) {
-            DestinationName partition = DestinationName.get(topic).getPartition(i);
+            TopicName partition = TopicName.get(topic).getPartition(i);
             assertNotNull(pulsar.getBrokerService().getTopicReference(partition.toString()));
         }
 
@@ -494,7 +494,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             NonPersistentTopicStats stats;
             SubscriptionStats subStats;
 
-            DestinationName dest = DestinationName.get(globalTopicName);
+            TopicName dest = TopicName.get(globalTopicName);
 
             PulsarClient client1 = PulsarClient.create(replication.url1.toString(), new ClientConfiguration());
             PulsarClient client2 = PulsarClient.create(replication.url2.toString(), new ClientConfiguration());
@@ -652,7 +652,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             manager.start();
             loadManagerRef.set(manager);
 
-            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
             ResourceUnit broker = null;
             try {
@@ -741,7 +741,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             manager.start();
             loadManagerRef.set(manager);
 
-            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+            NamespaceBundle fdqn = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
             LoadManager loadManager = pulsar.getLoadManager().get();
             ResourceUnit broker = null;
             try {
@@ -865,7 +865,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             return 60;
         }
 
-        public boolean isBrokerServicePurgeInactiveDestination() {
+        public boolean isBrokerServicePurgeInactiveTopic() {
             return false;
         }
 
@@ -891,7 +891,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config1.setWebServicePort(webServicePort1);
             config1.setZookeeperServers("127.0.0.1:" + zkPort1);
             config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-            config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+            config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config1.setBrokerServicePort(PortManager.nextFreePort());
@@ -917,7 +917,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config2.setAdvertisedAddress("localhost");
             config2.setZookeeperServers("127.0.0.1:" + zkPort2);
             config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-            config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+            config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config2.setBrokerServicePort(PortManager.nextFreePort());
@@ -943,7 +943,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             config3.setAdvertisedAddress("localhost");
             config3.setZookeeperServers("127.0.0.1:" + zkPort3);
             config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-            config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+            config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
             config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                     inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
             config3.setBrokerServicePort(PortManager.nextFreePort());

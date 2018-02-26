@@ -35,7 +35,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TopicMetadata;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -102,7 +102,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
             ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<Producer>(),
                     partitionIndex);
             producers.add(producer);
