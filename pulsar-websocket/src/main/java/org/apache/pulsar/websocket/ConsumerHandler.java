@@ -35,8 +35,9 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
@@ -64,7 +65,7 @@ import com.google.common.base.Splitter;
  */
 public class ConsumerHandler extends AbstractWebSocketHandler {
 
-    private final String subscription;
+    private String subscription = null;
     private final ConsumerConfiguration conf;
     private Consumer consumer;
 
@@ -80,18 +81,19 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     public ConsumerHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         super(service, request, response);
-        this.subscription = extractSubscription(request);
         this.conf = getConsumerConfiguration();
         this.maxPendingMessages = (conf.getReceiverQueueSize() == 0) ? 1 : conf.getReceiverQueueSize();
         this.numMsgsDelivered = new LongAdder();
         this.numBytesDelivered = new LongAdder();
         this.numMsgsAcked = new LongAdder();
 
-        if (!authResult) {
-            return;
-        }
-
         try {
+            // checkAuth() should be called after assigning a value to this.subscription
+            this.subscription = extractSubscription(request);
+            if (!checkAuth(response)) {
+                return;
+            }
+
             this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
@@ -100,16 +102,31 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         } catch (Exception e) {
             log.warn("[{}:{}] Failed in creating subscription {} on topic {}", request.getRemoteAddr(),
                     request.getRemotePort(), subscription, topic, e);
-            boolean configError = e instanceof IllegalArgumentException;
-            int errorCode = configError ? HttpServletResponse.SC_BAD_REQUEST
-                    : HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
-            String errorMsg = configError ? "Invalid query-param " + e.getMessage() : "Failed to subscribe";
+
             try {
-                response.sendError(errorCode, errorMsg);
+                response.sendError(getErrorCode(e), getErrorMessage(e));
             } catch (IOException e1) {
                 log.warn("[{}:{}] Failed to send error: {}", request.getRemoteAddr(), request.getRemotePort(),
                         e1.getMessage(), e1);
             }
+        }
+    }
+
+    private static int getErrorCode(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return HttpServletResponse.SC_BAD_REQUEST;
+        } else if (e instanceof ConsumerBusyException) {
+            return HttpServletResponse.SC_CONFLICT;
+        } else {
+            return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
+        }
+    }
+
+    private static String getErrorMessage(Exception e) {
+        if (e instanceof IllegalArgumentException) {
+            return "Invalid query params: " + e.getMessage();
+        } else {
+            return "Failed to subscribe: " + e.getMessage();
         }
     }
 
@@ -284,7 +301,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(DestinationName.get(topic), authRole, authenticationData,
+        return service.getAuthorizationService().canConsume(TopicName.get(topic), authRole, authenticationData,
                 this.subscription);
     }
 

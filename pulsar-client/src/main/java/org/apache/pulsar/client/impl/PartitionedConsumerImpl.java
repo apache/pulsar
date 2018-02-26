@@ -35,13 +35,13 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,10 +65,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final ConsumerStats stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
 
-    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfiguration conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
-        super(client, topic, subscription, conf, Math.max(Math.max(2, numPartitions), conf.getReceiverQueueSize()), listenerExecutor,
-                subscribeFuture);
+    PartitionedConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf, int numPartitions,
+            ExecutorService listenerExecutor, CompletableFuture<Consumer> subscribeFuture) {
+        super(client, conf.getSingleTopic(), conf, Math.max(Math.max(2, numPartitions), conf.getReceiverQueueSize()),
+                listenerExecutor, subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
@@ -89,10 +89,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private void start() {
         AtomicReference<Throwable> subscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
-        ConsumerConfiguration internalConfig = getInternalConsumerConfig();
+        ConsumerConfigurationData internalConfig = getInternalConsumerConfig();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
+            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, internalConfig,
                     client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
@@ -434,9 +434,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return subscription;
     }
 
-    private ConsumerConfiguration getInternalConsumerConfig() {
-        ConsumerConfiguration internalConsumerConfig = new ConsumerConfiguration();
+    private ConsumerConfigurationData getInternalConsumerConfig() {
+        ConsumerConfigurationData internalConsumerConfig = new ConsumerConfigurationData();
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
+        internalConsumerConfig.setSubscriptionName(conf.getSubscriptionName());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
         if (null != conf.getConsumerEventListener()) {
@@ -451,7 +452,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
         }
         if (conf.getAckTimeoutMillis() != 0) {
-            internalConsumerConfig.setAckTimeout(conf.getAckTimeoutMillis(), TimeUnit.MILLISECONDS);
+            internalConsumerConfig.setAckTimeoutMillis(conf.getAckTimeoutMillis());
         }
 
         return internalConsumerConfig;

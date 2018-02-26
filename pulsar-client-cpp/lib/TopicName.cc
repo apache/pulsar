@@ -16,7 +16,6 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include "DestinationName.h"
 #include "NamedEntity.h"
 #include "LogUtils.h"
 #include "PartitionedProducerImpl.h"
@@ -25,6 +24,7 @@
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/find.hpp>
 #include <boost/make_shared.hpp>
+#include <lib/TopicName.h>
 #include <vector>
 #include <iostream>
 #include <sstream>
@@ -36,10 +36,10 @@ namespace pulsar {
 
 typedef boost::unique_lock<boost::mutex> Lock;
 // static members
-CURL* DestinationName::curl = NULL;
-boost::mutex DestinationName::curlHandleMutex;
+CURL* TopicName::curl = NULL;
+boost::mutex TopicName::curlHandleMutex;
 
-CURL* DestinationName::getCurlHandle() {
+CURL* TopicName::getCurlHandle() {
     if (curl == NULL) {
         // this handle can not be shared across threads, so had to get here everytime
         curl = curl_easy_init();
@@ -47,30 +47,30 @@ CURL* DestinationName::getCurlHandle() {
     return curl;
 }
 //********************************************************************
-DestinationName::DestinationName() {}
+TopicName::TopicName() {}
 
-bool DestinationName::init(const std::string& destinationName) {
-    destination_ = destinationName;
-    if (destinationName.find("://") == std::string::npos) {
-        LOG_ERROR("Destination Name Invalid, domain not present - " << destinationName);
+bool TopicName::init(const std::string& topicName) {
+    topicName_ = topicName;
+    if (topicName.find("://") == std::string::npos) {
+        LOG_ERROR("Topic name is not valid, domain not present - " << topicName);
         return false;
     }
-    parse(destination_, domain_, property_, cluster_, namespacePortion_, localName_);
+    parse(topicName_, domain_, property_, cluster_, namespacePortion_, localName_);
     if (localName_.empty()) {
-        LOG_ERROR("Destination Name is not valid, topic name is empty - " << destination_);
+        LOG_ERROR("Topic name is not valid, topic name is empty - " << topicName_);
         return false;
     }
     namespaceName_ = NamespaceName::get(property_, cluster_, namespacePortion_);
     return true;
 }
-void DestinationName::parse(const std::string& destinationName, std::string& domain, std::string& property,
-                            std::string& cluster, std::string& namespacePortion, std::string& localName) {
-    std::string destinationNameCopy = destinationName;
-    boost::replace_first(destinationNameCopy, "://", "/");
+void TopicName::parse(const std::string& topicName, std::string& domain, std::string& property,
+                      std::string& cluster, std::string& namespacePortion, std::string& localName) {
+    std::string topicNameCopy = topicName;
+    boost::replace_first(topicNameCopy, "://", "/");
     std::vector<std::string> pathTokens;
-    boost::algorithm::split(pathTokens, destinationNameCopy, boost::algorithm::is_any_of("/"));
+    boost::algorithm::split(pathTokens, topicNameCopy, boost::algorithm::is_any_of("/"));
     if (pathTokens.size() < 5) {
-        LOG_ERROR("Destination Name Invalid, does not have enough parts - " << destinationName);
+        LOG_ERROR("Topic name is not valid, does not have enough parts - " << topicName);
         return;
     }
     domain = pathTokens[0];
@@ -80,13 +80,13 @@ void DestinationName::parse(const std::string& destinationName, std::string& dom
     size_t slashIndex = -1;
     // find four '/', whatever is left is topic local name
     for (int i = 0; i < 4; i++) {
-        slashIndex = destinationNameCopy.find('/', slashIndex + 1);
+        slashIndex = topicNameCopy.find('/', slashIndex + 1);
     }
     // get index to next char to '/'
     slashIndex++;
-    localName = destinationNameCopy.substr(slashIndex, (destinationNameCopy.size() - slashIndex));
+    localName = topicNameCopy.substr(slashIndex, (topicNameCopy.size() - slashIndex));
 }
-std::string DestinationName::getEncodedName(const std::string& nameBeforeEncoding) {
+std::string TopicName::getEncodedName(const std::string& nameBeforeEncoding) {
     Lock lock(curlHandleMutex);
     std::string nameAfterEncoding;
     if (getCurlHandle()) {
@@ -104,23 +104,23 @@ std::string DestinationName::getEncodedName(const std::string& nameBeforeEncodin
     return nameAfterEncoding;
 }
 
-std::string DestinationName::getDomain() { return domain_; }
+std::string TopicName::getDomain() { return domain_; }
 
-std::string DestinationName::getProperty() { return property_; }
+std::string TopicName::getProperty() { return property_; }
 
-std::string DestinationName::getCluster() { return cluster_; }
+std::string TopicName::getCluster() { return cluster_; }
 
-std::string DestinationName::getNamespacePortion() { return namespacePortion_; }
+std::string TopicName::getNamespacePortion() { return namespacePortion_; }
 
-std::string DestinationName::getLocalName() { return localName_; }
+std::string TopicName::getLocalName() { return localName_; }
 
-std::string DestinationName::getEncodedLocalName() { return getEncodedName(localName_); }
+std::string TopicName::getEncodedLocalName() { return getEncodedName(localName_); }
 
-bool DestinationName::operator==(const DestinationName& other) {
-    return (this->destination_.compare(other.destination_) == 0);
+bool TopicName::operator==(const TopicName& other) {
+    return (this->topicName_.compare(other.topicName_) == 0);
 }
 
-bool DestinationName::validateDestination() {
+bool TopicName::validate() {
     // check domain matches to "persistent", in future check "memory" when server is ready
     if (domain_.compare("persistent") != 0) {
         return false;
@@ -133,22 +133,22 @@ bool DestinationName::validateDestination() {
     }
 }
 
-boost::shared_ptr<DestinationName> DestinationName::get(const std::string& destination) {
-    boost::shared_ptr<DestinationName> ptr(new DestinationName());
-    if (!ptr->init(destination)) {
-        LOG_ERROR("Destination Name Initialization failed");
-        return boost::shared_ptr<DestinationName>();
+boost::shared_ptr<TopicName> TopicName::get(const std::string& topicName) {
+    boost::shared_ptr<TopicName> ptr(new TopicName());
+    if (!ptr->init(topicName)) {
+        LOG_ERROR("Topic name initialization failed");
+        return boost::shared_ptr<TopicName>();
     }
-    if (ptr->validateDestination()) {
+    if (ptr->validate()) {
         return ptr;
     } else {
-        LOG_ERROR("Destination Name Validation Failed");
-        return boost::shared_ptr<DestinationName>();
+        LOG_ERROR("Topic name validation Failed");
+        return boost::shared_ptr<TopicName>();
     }
 }
 
 // TODO - for now return empty string if there's any error in format, later think about better error handling
-std::string DestinationName::getLookupName() {
+std::string TopicName::getLookupName() {
     std::stringstream ss;
     std::string seperator("/");
     ss << domain_ << seperator << property_ << seperator << cluster_ << seperator << namespacePortion_
@@ -156,7 +156,7 @@ std::string DestinationName::getLookupName() {
     return ss.str();
 }
 
-std::string DestinationName::toString() {
+std::string TopicName::toString() {
     std::stringstream ss;
     std::string seperator("/");
     ss << domain_ << "://" << property_ << seperator << cluster_ << seperator << namespacePortion_
@@ -164,7 +164,7 @@ std::string DestinationName::toString() {
     return ss.str();
 }
 
-const std::string DestinationName::getTopicPartitionName(unsigned int partition) {
+const std::string TopicName::getTopicPartitionName(unsigned int partition) {
     std::stringstream topicPartitionName;
     // make this topic name as well
     topicPartitionName << toString() << PartitionedProducerImpl::PARTITION_NAME_SUFFIX << partition;

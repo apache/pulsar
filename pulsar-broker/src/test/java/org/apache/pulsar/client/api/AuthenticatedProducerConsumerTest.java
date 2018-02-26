@@ -307,17 +307,17 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
         String namespace = "my-property/use/my-ns";
         admin.namespaces().createNamespace(namespace);
 
-        String destination = "persistent://" + namespace + "1/topic1";
+        String topic = "persistent://" + namespace + "1/topic1";
         // this will cause NPE and it should throw 500
         mockZookKeeper.shutdown();
         pulsar.getConfiguration().setSuperUserRoles(Sets.newHashSet());
         try {
-            admin.persistentTopics().getPartitionedTopicMetadata(destination);
+            admin.persistentTopics().getPartitionedTopicMetadata(topic);
         } catch (PulsarAdminException e) {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }
         try {
-            admin.lookups().lookupDestination(destination);
+            admin.lookups().lookupTopic(topic);
         } catch (PulsarAdminException e) {
             Assert.assertTrue(e.getCause() instanceof InternalServerErrorException);
         }

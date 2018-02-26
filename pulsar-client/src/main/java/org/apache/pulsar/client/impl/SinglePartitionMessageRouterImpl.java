@@ -18,15 +18,17 @@
  */
 package org.apache.pulsar.client.impl;
 
+import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.TopicMetadata;
 
 public class SinglePartitionMessageRouterImpl extends MessageRouterBase {
 
+    private static final long serialVersionUID = 1L;
+
     private final int partitionIndex;
 
-    public SinglePartitionMessageRouterImpl(int partitionIndex, ProducerConfiguration.HashingScheme hashingScheme) {
+    public SinglePartitionMessageRouterImpl(int partitionIndex, HashingScheme hashingScheme) {
         super(hashingScheme);
         this.partitionIndex = partitionIndex;
     }
