@@ -290,7 +290,7 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
                     redirectedBroker = e.getCause().getMessage().split(":")[0];
                 } else {
                     // fail
-                    fail();
+                    fail("Expected to receive UnknownHostException, but received : " + e);
                 }
             }
             return redirectedBroker;
