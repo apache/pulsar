@@ -708,5 +708,78 @@ public class Namespaces extends NamespacesBase {
         internalModifyEncryptionRequired(encryptionRequired);
     }
 
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/maxProducersPerTopic")
+    @ApiOperation(value = "Get maxProducersPerTopic config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public int getMaxProducersPerTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetMaxProducersPerTopic();
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/maxProducersPerTopic")
+    @ApiOperation(value = " Set maxProducersPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxProducersPerTopic value is not valid") })
+    public void setMaxProducersPerTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, int maxProducersPerTopic) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetMaxProducersPerTopic(maxProducersPerTopic);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/maxConsumersPerTopic")
+    @ApiOperation(value = "Get maxConsumersPerTopic config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public int getMaxConsumersPerTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetMaxConsumersPerTopic();
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/maxConsumersPerTopic")
+    @ApiOperation(value = " Set maxConsumersPerTopic configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxConsumersPerTopic value is not valid") })
+    public void setMaxConsumersPerTopic(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, int maxConsumersPerTopic) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetMaxConsumersPerTopic(maxConsumersPerTopic);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/maxConsumersPerSubscription")
+    @ApiOperation(value = "Get maxConsumersPerSubscription config on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public int getMaxConsumersPerSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetMaxConsumersPerSubscription();
+    }
+
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/maxConsumersPerSubscription")
+    @ApiOperation(value = " Set maxConsumersPerSubscription configuration on a namespace.")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Namespace does not exist"),
+            @ApiResponse(code = 409, message = "Concurrent modification"),
+            @ApiResponse(code = 412, message = "maxConsumersPerSubscription value is not valid") })
+    public void setMaxConsumersPerSubscription(@PathParam("property") String property, @PathParam("cluster") String cluster,
+            @PathParam("namespace") String namespace, int maxConsumersPerSubscription) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetMaxConsumersPerSubscription(maxConsumersPerSubscription);
+    }
+
+
     private static final Logger log = LoggerFactory.getLogger(Namespaces.class);
 }

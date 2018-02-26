@@ -365,6 +365,28 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("unsubscribe -b 0x80000000_0xffffffff -s my-sub myprop/clust/ns1"));
         verify(mockNamespaces).unsubscribeNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", "my-sub");
+
+        mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("get-max-producers-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxProducersPerTopic("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-producers-per-topic myprop/clust/ns1 -p 1"));
+        verify(mockNamespaces).setMaxProducersPerTopic("myprop/clust/ns1", 1);
+
+        namespaces.run(split("get-max-consumers-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxConsumersPerTopic("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-consumers-per-topic myprop/clust/ns1 -c 2"));
+        verify(mockNamespaces).setMaxConsumersPerTopic("myprop/clust/ns1", 2);
+
+        namespaces.run(split("get-max-consumers-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxConsumersPerSubscription("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
+        verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
     }
 
     @Test
