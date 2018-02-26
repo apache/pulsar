@@ -78,6 +78,11 @@ public class RawReaderImpl implements RawReader {
         return consumer.closeAsync();
     }
 
+    @Override
+    public CompletableFuture<MessageId> getLastMessageIdAsync() {
+        return consumer.getLastMessageIdAsync();
+    }
+
     static class RawConsumerImpl extends ConsumerImpl {
         final BlockingQueue<RawMessageAndCnx> incomingRawMessages;
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
