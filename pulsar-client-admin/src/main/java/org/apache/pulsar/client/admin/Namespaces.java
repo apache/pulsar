@@ -917,4 +917,136 @@ public interface Namespaces {
      * @throws PulsarAdminException
      */
     void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException;
+
+    /**
+     * Get the maxProducersPerTopic for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxProducersPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxProducersPerTopic for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxProducersPerTopic
+     *            maxProducersPerTopic value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxProducersPerTopic(String namespace, int maxProducersPerTopic) throws PulsarAdminException;
+
+    /**
+     * Get the maxProducersPerTopic for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxConsumersPerTopic(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxConsumersPerTopic for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxConsumersPerTopic
+     *            maxConsumersPerTopic value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxConsumersPerTopic(String namespace, int maxConsumersPerTopic) throws PulsarAdminException;
+
+    /**
+     * Get the maxConsumersPerSubscription for a namespace.
+     * <p>
+     * Response example:
+     *
+     * <pre>
+     * <code>0</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException;
+
+    /**
+     * Set maxConsumersPerSubscription for a namespace.
+     * <p>
+     * Request example:
+     *
+     * <pre>
+     * <code>10</code>
+     * </pre>
+     *
+     * @param namespace
+     *            Namespace name
+     * @param maxConsumersPerSubscription
+     *            maxConsumersPerSubscription value for a namespace
+     *
+     * @throws NotAuthorizedException
+     *             Don't have admin permission
+     * @throws NotFoundException
+     *             Namespace does not exist
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException;
 }
