@@ -5,7 +5,8 @@ aws_ami             = "ami-9fa343e7"
 num_zookeeper_nodes = 3
 num_pulsar_brokers  = 3
 base_cidr_block     = "10.0.0.0/16"
+
 instance_types      = {
-  "pulsar"    = "i3.3xlarge"
+  "pulsar"    = "i3.xlarge"
   "zookeeper" = "t2.small"
 }
