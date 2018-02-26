@@ -122,7 +122,7 @@ pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650
 You can fetch that value at any time by running `terraform output pulsar_service_url` or parsing the `terraform.tstate` file (which is JSON, even though the filename doesn't reflect that):
 
 ```bash
-$ cat terraform.tfstate | jq '.modules | .[0].outputs.pulsar_connection_url.value'
+$ cat terraform.tfstate | jq .modules[0].outputs.pulsar_service_url.value
 ```
 
 ### Destroying your cluster
