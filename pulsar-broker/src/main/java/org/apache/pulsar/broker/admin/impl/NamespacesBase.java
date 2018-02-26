@@ -1249,6 +1249,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -1289,6 +1290,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxConsumersPerTopic(int maxConsumersPerTopic) {
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
@@ -1329,6 +1331,7 @@ public abstract class NamespacesBase extends AdminResource {
     }
 
     protected void internalSetMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
+        validateSuperUserAccess();
         validatePoliciesReadOnlyAccess();
 
         try {
