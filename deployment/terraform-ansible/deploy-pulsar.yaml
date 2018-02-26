@@ -121,7 +121,7 @@
         chdir: /opt/pulsar
       when: groups['zookeeper'][0] == inventory_hostname
 
-- name: Set up Bookkeeper
+- name: Set up Bookkeeper config
   hosts: pulsar
   connection: ssh
   become: true
@@ -129,14 +129,6 @@
     - template:
         src: "../templates/bookkeeper.conf"
         dest: "/opt/pulsar/conf/bookkeeper.conf"
-    - name: Install bookkeeper systemd service
-      template:
-        src: "../templates/bookkeeper.service"
-        dest: "/etc/systemd/system/bookkeeper.service"
-    - systemd:
-        state: restarted
-        daemon_reload: yes
-        name: "bookkeeper"
 
 - name: Set up Pulsar
   hosts: pulsar
