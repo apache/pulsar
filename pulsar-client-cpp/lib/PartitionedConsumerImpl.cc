@@ -23,12 +23,12 @@ DECLARE_LOG_OBJECT()
 namespace pulsar {
 
 PartitionedConsumerImpl::PartitionedConsumerImpl(ClientImplPtr client, const std::string& subscriptionName,
-                                                 const DestinationNamePtr destinationName,
+                                                 const TopicNamePtr topicName,
                                                  const unsigned int numPartitions,
                                                  const ConsumerConfiguration& conf)
     : client_(client),
       subscriptionName_(subscriptionName),
-      destinationName_(destinationName),
+      topicName_(topicName),
       numPartitions_(numPartitions),
       numConsumersCreated_(0),
       conf_(conf),
@@ -37,7 +37,7 @@ PartitionedConsumerImpl::PartitionedConsumerImpl(ClientImplPtr client, const std
       messages_(1000),
       listenerExecutor_(client->getListenerExecutorProvider()->get()),
       messageListener_(conf.getMessageListener()),
-      topic_(destinationName->toString()) {
+      topic_(topicName->toString()) {
     std::stringstream consumerStrStream;
     consumerStrStream << "[Partitioned Consumer: " << topic_ << "," << subscriptionName << ","
                       << numPartitions << "]";
@@ -96,7 +96,7 @@ Result PartitionedConsumerImpl::receive(Message& msg, int timeout) {
 }
 
 void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
-    LOG_INFO("[" << destinationName_->toString() << "," << subscriptionName_ << "] Unsubscribing");
+    LOG_INFO("[" << topicName_->toString() << "," << subscriptionName_ << "] Unsubscribing");
     // change state to Closing, so that no Ready state operation is permitted during unsubscribe
     setState(Closing);
     // do not accept un subscribe until we have subscribe to all of the partitions of a topic
@@ -108,7 +108,7 @@ void PartitionedConsumerImpl::unsubscribeAsync(ResultCallback callback) {
         for (ConsumerList::const_iterator consumer = consumers_.begin(); consumer != consumers_.end();
              consumer++) {
             LOG_DEBUG("Unsubcribing Consumer - " << index << " for Subscription - " << subscriptionName_
-                                                 << " for Topic - " << destinationName_->toString());
+                                                 << " for Topic - " << topicName_->toString());
             (*consumer)->unsubscribeAsync(boost::bind(&PartitionedConsumerImpl::handleUnsubscribeAsync,
                                                       shared_from_this(), _1, index++, callback));
         }
@@ -124,7 +124,7 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
         // or do we still go ahead and check how many could we close successfully?
         LOG_DEBUG("handleUnsubscribeAsync callback received in Failed State for consumerIndex - "
                   << consumerIndex << "with Result - " << result << " for Subscription - "
-                  << subscriptionName_ << " for Topic - " << destinationName_->toString());
+                  << subscriptionName_ << " for Topic - " << topicName_->toString());
         return;
     }
     lock.unlock();
@@ -139,7 +139,7 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
     // this means we have successfully closed this partition consumer and no unsubscribe has failed so far
     LOG_INFO("Successfully Unsubscribed Consumer - " << consumerIndex << " for Subscription - "
                                                      << subscriptionName_ << " for Topic - "
-                                                     << destinationName_->toString());
+                                                     << topicName_->toString());
     unsubscribedSoFar_++;
     if (unsubscribedSoFar_ == numPartitions_) {
         LOG_DEBUG("Unsubscribed all of the partition consumer for subscription - " << subscriptionName_);
@@ -178,7 +178,7 @@ void PartitionedConsumerImpl::start() {
 
     // create consumer on each partition
     for (unsigned int i = 0; i < numPartitions_; i++) {
-        std::string topicPartitionName = destinationName_->getTopicPartitionName(i);
+        std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         consumer = boost::make_shared<ConsumerImpl>(client_, topicPartitionName, subscriptionName_, config,
                                                     internalListenerExecutor, Partitioned);
         consumer->getConsumerCreatedFuture().addListener(boost::bind(
@@ -218,8 +218,8 @@ void PartitionedConsumerImpl::handleSinglePartitionConsumerCreated(
     assert(partitionIndex < numPartitions_ && partitionIndex >= 0);
     numConsumersCreated_++;
     if (numConsumersCreated_ == numPartitions_) {
-        LOG_INFO("Successfully Subscribed to Partitioned Topic - "
-                 << destinationName_->toString() << " with - " << numPartitions_ << " Partitions.");
+        LOG_INFO("Successfully Subscribed to Partitioned Topic - " << topicName_->toString() << " with - "
+                                                                   << numPartitions_ << " Partitions.");
         state_ = Ready;
         lock.unlock();
         receiveMessages();

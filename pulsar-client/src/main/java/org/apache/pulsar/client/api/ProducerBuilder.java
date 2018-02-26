@@ -144,12 +144,34 @@ public interface ProducerBuilder extends Serializable, Cloneable {
     ProducerBuilder blockIfQueueFull(boolean blockIfQueueFull);
 
     /**
-     * Set the message routing mode for the partitioned producer
+     * Set the message routing mode for the partitioned producer.
      *
-     * @param mode
-     * @return
+     * Default routing mode for messages to partition.
+     *
+     * This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)} on a
+     * particular message.
+     *
+     * @param messageRoutingMode
+     *            the message routing mode
      */
-    ProducerBuilder messageRoutingMode(MessageRoutingMode messageRouteMode);
+    ProducerBuilder messageRoutingMode(MessageRoutingMode messageRoutingMode);
+
+    /**
+     * Change the {@link HashingScheme} used to chose the partition on where to publish a particular message.
+     *
+     * Standard hashing functions available are:
+     * <ul>
+     * <li><code>JavaStringHash</code>: Java <code>String.hashCode()</code>
+     * <li><code>Murmur3_32Hash</code>: Use Murmur3 hashing function.
+     * <a href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
+     * </ul>
+     *
+     * Default is <code>JavaStringHash</code>.
+     *
+     * @param hashingScheme
+     *            the chosen {@link HashingScheme}
+     */
+    ProducerBuilder hashingScheme(HashingScheme hashingScheme);
 
     /**
      * Set the compression type for the producer.

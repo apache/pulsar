@@ -74,7 +74,7 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
@@ -548,20 +548,20 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
     @Test(enabled = false)
     public void testUnloadNamespace() throws Exception {
-        String topicName = "persistent://prop/use/ns-abc/topic-9";
-        DestinationName destinationName = DestinationName.get(topicName);
-        pulsarClient.createProducer(topicName);
+        String topic = "persistent://prop/use/ns-abc/topic-9";
+        TopicName topicName = TopicName.get(topic);
+        pulsarClient.createProducer(topic);
         pulsarClient.close();
 
-        assertTrue(pulsar.getBrokerService().getTopicReference(topicName) != null);
+        assertTrue(pulsar.getBrokerService().getTopicReference(topic) != null);
         assertTrue(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
-                .containsKey(destinationName.getPersistenceNamingEncoding()));
+                .containsKey(topicName.getPersistenceNamingEncoding()));
 
         admin.namespaces().unload("prop/use/ns-abc");
 
         int i = 0;
         for (i = 0; i < 30; i++) {
-            if (pulsar.getBrokerService().getTopicReference(topicName) == null) {
+            if (pulsar.getBrokerService().getTopicReference(topic) == null) {
                 break;
             }
             Thread.sleep(1000);
@@ -572,7 +572,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // ML should have been closed as well
         assertFalse(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
-                .containsKey(destinationName.getPersistenceNamingEncoding()));
+                .containsKey(topicName.getPersistenceNamingEncoding()));
     }
 
     @Test
@@ -1128,7 +1128,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // sleep 1 sec to caclulate metrics per second
         Thread.sleep(1000);
         brokerService.updateRates();
-        List<Metrics> metrics = brokerService.getDestinationMetrics();
+        List<Metrics> metrics = brokerService.getTopicMetrics();
         for (int i = 0; i < metrics.size(); i++) {
             if (metrics.get(i).getDimension("namespace").equalsIgnoreCase(namespace)) {
                 metric = metrics.get(i);

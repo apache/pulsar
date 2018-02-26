@@ -49,7 +49,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -170,13 +170,13 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfDestinations(namespaceName).isEmpty();
+            isEmpty = pulsar().getNamespaceService().getListOfTopics(namespaceName).isEmpty();
         } catch (Exception e) {
             throw new RestException(e);
         }
 
         if (!isEmpty) {
-            log.debug("Found destinations on namespace {}", namespaceName);
+            log.debug("Found topics on namespace {}", namespaceName);
             throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
         }
 
@@ -269,11 +269,11 @@ public abstract class NamespacesBase extends AdminResource {
         NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
         try {
-            List<String> destinations = pulsar().getNamespaceService().getListOfDestinations(namespaceName);
-            for (String destination : destinations) {
-                NamespaceBundle destinationBundle = (NamespaceBundle) pulsar().getNamespaceService()
-                        .getBundle(DestinationName.get(destination));
-                if (bundle.equals(destinationBundle)) {
+            List<String> topics = pulsar().getNamespaceService().getListOfTopics(namespaceName);
+            for (String topic : topics) {
+                NamespaceBundle topicBundle = (NamespaceBundle) pulsar().getNamespaceService()
+                        .getBundle(TopicName.get(topic));
+                if (bundle.equals(topicBundle)) {
                     throw new RestException(Status.CONFLICT, "Cannot delete non empty bundle");
                 }
             }
@@ -1239,6 +1239,130 @@ public abstract class NamespacesBase extends AdminResource {
 
         if (policies.persistence != null) {
             validatePersistencePolicies(policies.persistence);
+        }
+    }
+
+
+    protected int internalGetMaxProducersPerTopic() {
+        validateAdminAccessOnProperty(namespaceName.getProperty());
+        return getNamespacePolicies(namespaceName).max_producers_per_topic;
+    }
+
+    protected void internalSetMaxProducersPerTopic(int maxProducersPerTopic) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (maxProducersPerTopic < 0) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "maxProducersPerTopic must be 0 or more");
+            }
+            policies.max_producers_per_topic = maxProducersPerTopic;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated maxProducersPerTopic configuration: namespace={}, value={}", clientAppId(),
+                    namespaceName, policies.max_producers_per_topic);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update maxProducersPerTopic configuration for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update maxProducersPerTopic configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update maxProducersPerTopic configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
+            throw new RestException(e);
+        }
+    }
+
+    protected int internalGetMaxConsumersPerTopic() {
+        validateAdminAccessOnProperty(namespaceName.getProperty());
+        return getNamespacePolicies(namespaceName).max_consumers_per_topic;
+    }
+
+    protected void internalSetMaxConsumersPerTopic(int maxConsumersPerTopic) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (maxConsumersPerTopic < 0) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "maxConsumersPerTopic must be 0 or more");
+            }
+            policies.max_consumers_per_topic = maxConsumersPerTopic;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated maxConsumersPerTopic configuration: namespace={}, value={}", clientAppId(),
+                    namespaceName, policies.max_consumers_per_topic);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update maxConsumersPerTopic configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
+            throw new RestException(e);
+        }
+    }
+
+    protected int internalGetMaxConsumersPerSubscription() {
+        validateAdminAccessOnProperty(namespaceName.getProperty());
+        return getNamespacePolicies(namespaceName).max_consumers_per_subscription;
+    }
+
+    protected void internalSetMaxConsumersPerSubscription(int maxConsumersPerSubscription) {
+        validateSuperUserAccess();
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+            if (maxConsumersPerSubscription < 0) {
+                throw new RestException(Status.PRECONDITION_FAILED,
+                        "maxConsumersPerSubscription must be 0 or more");
+            }
+            policies.max_consumers_per_subscription = maxConsumersPerSubscription;
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated maxConsumersPerSubscription configuration: namespace={}, value={}", clientAppId(),
+                    namespaceName, policies.max_consumers_per_subscription);
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: does not exist", clientAppId(),
+                    namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: concurrent modification",
+                    clientAppId(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (Exception e) {
+            log.error("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}", clientAppId(), namespaceName,
+                    e);
+            throw new RestException(e);
         }
     }
 

@@ -107,7 +107,7 @@ class Message {
 
     /**
      * Get the partition key for this message
-     * @return key string that is hashed to determine message's destination partition
+     * @return key string that is hashed to determine message's topic partition
      */
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;

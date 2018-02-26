@@ -57,7 +57,7 @@ import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.configuration.VipStatus;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
@@ -459,13 +459,13 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * Load all the destination contained in a namespace
+     * Load all the topics contained in a namespace
      *
      * @param bundle
      *            <code>NamespaceBundle</code> to identify the service unit
      * @throws Exception
      */
-    public void loadNamespaceDestinations(NamespaceBundle bundle) {
+    public void loadNamespaceTopics(NamespaceBundle bundle) {
         executor.submit(() -> {
             LOG.info("Loading all topics on bundle: {}", bundle);
 
@@ -473,10 +473,10 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfDestinations(nsName)) {
+            for (String topic : getNamespaceService().getListOfTopics(nsName)) {
                 try {
-                    DestinationName dn = DestinationName.get(topic);
-                    if (bundle.includes(dn)) {
+                    TopicName topicName = TopicName.get(topic);
+                    if (bundle.includes(topicName)) {
                         CompletableFuture<Topic> future = brokerService.getTopic(topic);
                         if (future != null) {
                             persistentTopics.add(future);

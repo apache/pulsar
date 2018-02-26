@@ -16,8 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#ifndef _PULSAR_DESTINATION_NAME_HEADER_
-#define _PULSAR_DESTINATION_NAME_HEADER_
+#ifndef _PULSAR_TOPIC_NAME_HEADER_
+#define _PULSAR_TOPIC_NAME_HEADER_
 
 #include "NamespaceName.h"
 #include "ServiceUnitId.h"
@@ -30,9 +30,9 @@
 #pragma GCC visibility push(default)
 
 namespace pulsar {
-class DestinationName : public ServiceUnitId {
+class TopicName : public ServiceUnitId {
    private:
-    std::string destination_;
+    std::string topicName_;
     std::string domain_;
     std::string property_;
     std::string cluster_;
@@ -49,8 +49,8 @@ class DestinationName : public ServiceUnitId {
     std::string getLocalName();
     std::string getEncodedLocalName();
     std::string toString();
-    static boost::shared_ptr<DestinationName> get(const std::string& destination);
-    bool operator==(const DestinationName& other);
+    static boost::shared_ptr<TopicName> get(const std::string& topicName);
+    bool operator==(const TopicName& other);
     static std::string getEncodedName(const std::string& nameBeforeEncoding);
     const std::string getTopicPartitionName(unsigned int partition);
 
@@ -58,16 +58,16 @@ class DestinationName : public ServiceUnitId {
     static CURL* getCurlHandle();
     static CURL* curl;
     static boost::mutex curlHandleMutex;
-    static void parse(const std::string& destinationName, std::string& domain, std::string& property,
+    static void parse(const std::string& topicName, std::string& domain, std::string& property,
                       std::string& cluster, std::string& namespacePortion, std::string& localName);
-    DestinationName();
-    bool validateDestination();
-    bool init(const std::string& destinationName);
+    TopicName();
+    bool validate();
+    bool init(const std::string& topicName);
 };
-typedef boost::shared_ptr<DestinationName> DestinationNamePtr;
+typedef boost::shared_ptr<TopicName> TopicNamePtr;
 }  // namespace pulsar
 // end of namespace pulsar
 
 #pragma GCC visibility pop
 
-#endif  //_PULSAR_DESTINATION_NAME_HEADER_
+#endif  //_PULSAR_TOPIC_NAME_HEADER_

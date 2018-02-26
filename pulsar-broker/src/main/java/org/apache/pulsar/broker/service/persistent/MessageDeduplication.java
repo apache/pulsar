@@ -42,7 +42,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic.PublishContext;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -365,7 +365,7 @@ public class MessageDeduplication {
     }
 
     private CompletableFuture<Boolean> isDeduplicationEnabled() {
-        DestinationName name = DestinationName.get(topic.getName());
+        TopicName name = TopicName.get(topic.getName());
 
         return pulsar.getConfigurationCache().policiesCache()
                 .getAsync(AdminResource.path(POLICIES, name.getNamespace())).thenApply(policies -> {

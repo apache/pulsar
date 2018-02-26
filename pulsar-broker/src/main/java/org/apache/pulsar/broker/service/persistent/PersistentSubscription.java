@@ -49,7 +49,7 @@ import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
@@ -119,7 +119,7 @@ public class PersistentSubscription implements Subscription {
                 }
                 break;
             case Failover:
-                int partitionIndex = DestinationName.getPartitionIndex(topicName);
+                int partitionIndex = TopicName.getPartitionIndex(topicName);
                 if (partitionIndex < 0) {
                     // For non partition topics, assume index 0 to pick a predictable consumer
                     partitionIndex = 0;
@@ -234,7 +234,7 @@ public class PersistentSubscription implements Subscription {
     }
 
     @Override
-    public String getDestination() {
+    public String getTopicName() {
         return this.topicName;
     }
 

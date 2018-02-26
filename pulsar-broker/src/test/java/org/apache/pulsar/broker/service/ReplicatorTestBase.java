@@ -43,7 +43,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -95,7 +95,7 @@ public class ReplicatorTestBase {
         return 60;
     }
 
-    public boolean isBrokerServicePurgeInactiveDestination() {
+    public boolean isBrokerServicePurgeInactiveTopic() {
         return false;
     }
 
@@ -122,7 +122,7 @@ public class ReplicatorTestBase {
         config1.setWebServicePortTls(webServicePortTls1);
         config1.setZookeeperServers("127.0.0.1:" + zkPort1);
         config1.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-        config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+        config1.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config1.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config1.setBrokerServicePort(PortManager.nextFreePort());
@@ -156,7 +156,7 @@ public class ReplicatorTestBase {
         config2.setWebServicePortTls(webServicePortTls2);
         config2.setZookeeperServers("127.0.0.1:" + zkPort2);
         config2.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-        config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+        config2.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config2.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config2.setBrokerServicePort(PortManager.nextFreePort());
@@ -190,7 +190,7 @@ public class ReplicatorTestBase {
         config3.setWebServicePortTls(webServicePortTls3);
         config3.setZookeeperServers("127.0.0.1:" + zkPort3);
         config3.setGlobalZookeeperServers("127.0.0.1:" + globalZKPort + "/foo");
-        config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveDestination());
+        config3.setBrokerDeleteInactiveTopicsEnabled(isBrokerServicePurgeInactiveTopic());
         config3.setBrokerServicePurgeInactiveFrequencyInSeconds(
                 inSec(getBrokerServicePurgeInactiveFrequency(), TimeUnit.SECONDS));
         config3.setBrokerServicePort(PortManager.nextFreePort());
@@ -265,7 +265,7 @@ public class ReplicatorTestBase {
         PulsarClient client;
         Producer producer;
 
-        MessageProducer(URL url, final DestinationName dest) throws Exception {
+        MessageProducer(URL url, final TopicName dest) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
@@ -276,7 +276,7 @@ public class ReplicatorTestBase {
 
         }
 
-        MessageProducer(URL url, final DestinationName dest, boolean batch) throws Exception {
+        MessageProducer(URL url, final TopicName dest, boolean batch) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();
@@ -337,11 +337,11 @@ public class ReplicatorTestBase {
         final PulsarClient client;
         final Consumer consumer;
 
-        MessageConsumer(URL url, final DestinationName dest) throws Exception {
+        MessageConsumer(URL url, final TopicName dest) throws Exception {
             this(url, dest, "sub-id");
         }
 
-        MessageConsumer(URL url, final DestinationName dest, String subId) throws Exception {
+        MessageConsumer(URL url, final TopicName dest, String subId) throws Exception {
             this.url = url;
             this.namespace = dest.getNamespace();
             this.topicName = dest.toString();

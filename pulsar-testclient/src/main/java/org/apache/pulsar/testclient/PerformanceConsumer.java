@@ -46,7 +46,7 @@ import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,14 +79,14 @@ public class PerformanceConsumer {
         public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
-        public int numDestinations = 1;
+        public int numTopics = 1;
 
         @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per topic)")
         public int numConsumers = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
-        
+
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscriber name prefix")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
@@ -149,7 +149,7 @@ public class PerformanceConsumer {
         }
 
         if (arguments.topic.size() != 1) {
-            System.out.println("Only one destination name is allowed");
+            System.out.println("Only one topic name is allowed");
             jc.usage();
             System.exit(-1);
         }
@@ -193,7 +193,7 @@ public class PerformanceConsumer {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
 
-        final DestinationName prefixDestinationName = DestinationName.get(arguments.topic.get(0));
+        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
@@ -258,10 +258,10 @@ public class PerformanceConsumer {
             consumerConfig.setCryptoKeyReader(keyReader);
         }
 
-        for (int i = 0; i < arguments.numDestinations; i++) {
-            final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixDestinationName
-                    : DestinationName.get(String.format("%s-%d", prefixDestinationName, i));
-            log.info("Adding {} consumers on destination {}", arguments.numConsumers, destinationName);
+        for (int i = 0; i < arguments.numTopics; i++) {
+            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
+                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            log.info("Adding {} consumers on topic {}", arguments.numConsumers, topicName);
 
             for (int j = 0; j < arguments.numConsumers; j++) {
                 String subscriberName;
@@ -271,7 +271,7 @@ public class PerformanceConsumer {
                     subscriberName = arguments.subscriberName;
                 }
 
-                futures.add(pulsarClient.subscribeAsync(destinationName.toString(), subscriberName, consumerConfig));
+                futures.add(pulsarClient.subscribeAsync(topicName.toString(), subscriberName, consumerConfig));
             }
         }
 
@@ -279,8 +279,8 @@ public class PerformanceConsumer {
             future.get();
         }
 
-        log.info("Start receiving from {} consumers on {} destinations", arguments.numConsumers,
-                arguments.numDestinations);
+        log.info("Start receiving from {} consumers on {} topics", arguments.numConsumers,
+                arguments.numTopics);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
