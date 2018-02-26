@@ -17,25 +17,33 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.utils.functioncache;
 
-import org.apache.pulsar.functions.instance.InstanceConfig;
+import java.net.URL;
+import java.net.URLClassLoader;
 
 /**
- * A factory to create {@link FunctionContainer}s to invoke functions.
+ * Class loaders for loading function code.
  */
-public interface FunctionContainerFactory extends AutoCloseable {
+public class FunctionClassLoaders {
 
     /**
-     * Create a function container to execute a java instance.
-     *
-     * @param instanceConfig java instance config
-     * @return function container to start/stop instance
+     * Class loader that loads from the parent first and only after that from urls.
      */
-    FunctionContainer createContainer(
-            InstanceConfig instanceConfig, String codeFile);
+    static class ParentFirstClassLoader extends URLClassLoader {
 
-    @Override
-    void close();
+        public ParentFirstClassLoader(URL[] urls, ClassLoader parent) {
+            super(urls, parent);
+        }
+
+        public ParentFirstClassLoader(URL[] urls) {
+            this(urls, FunctionClassLoaders.class.getClassLoader());
+        }
+    }
+
+    public static URLClassLoader create(URL[] urls,
+                                        ClassLoader parent) {
+        return new ParentFirstClassLoader(urls, parent);
+    }
 
 }

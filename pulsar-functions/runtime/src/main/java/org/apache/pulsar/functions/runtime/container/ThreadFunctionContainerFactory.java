@@ -24,8 +24,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManager;
-import org.apache.pulsar.functions.runtime.functioncache.FunctionCacheManagerImpl;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
+import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
 
 /**
  * Thread based function container factory implementation.

@@ -25,7 +25,7 @@ import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;

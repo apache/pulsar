@@ -34,6 +34,8 @@
   <modules>
     <module>proto</module>
     <module>api-java</module>
+    <module>utils</module>
+    <module>instance</module>
     <module>runtime</module>
     <module>worker</module>
     <module>cli</module>

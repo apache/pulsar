@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.runtime.container;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 
 /**
  * Thread based function container factory implementation.

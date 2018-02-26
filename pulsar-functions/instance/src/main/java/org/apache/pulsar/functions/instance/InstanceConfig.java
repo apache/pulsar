@@ -16,26 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+package org.apache.pulsar.functions.instance;
 
-package org.apache.pulsar.functions.runtime.container;
-
-import org.apache.pulsar.functions.instance.InstanceConfig;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.Getter;
+import lombok.Setter;
+import lombok.ToString;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 
 /**
- * A factory to create {@link FunctionContainer}s to invoke functions.
+ * This is the config passed to the Java Instance. Contains all the information
+ * passed to run functions
  */
-public interface FunctionContainerFactory extends AutoCloseable {
-
-    /**
-     * Create a function container to execute a java instance.
-     *
-     * @param instanceConfig java instance config
-     * @return function container to start/stop instance
-     */
-    FunctionContainer createContainer(
-            InstanceConfig instanceConfig, String codeFile);
-
-    @Override
-    void close();
-
+@Data
+@Getter
+@Setter
+@EqualsAndHashCode
+@ToString
+public class InstanceConfig {
+    private String instanceId;
+    private String functionId;
+    private String functionVersion;
+    private FunctionConfig functionConfig;
+    private int maxBufferedTuples;
 }

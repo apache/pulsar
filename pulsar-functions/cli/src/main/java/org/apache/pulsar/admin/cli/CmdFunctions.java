@@ -50,7 +50,7 @@ import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.runtime.container.InstanceConfig;
+import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
