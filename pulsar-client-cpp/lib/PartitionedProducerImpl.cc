@@ -20,11 +20,11 @@
 #include "PartitionedProducerImpl.h"
 #include "LogUtils.h"
 #include <boost/bind.hpp>
+#include <lib/TopicName.h>
 #include <sstream>
 #include "RoundRobinMessageRouter.h"
 #include "SinglePartitionMessageRouter.h"
 #include "TopicMetadataImpl.h"
-#include "DestinationName.h"
 #include "MessageImpl.h"
 
 DECLARE_LOG_OBJECT()
@@ -33,13 +33,12 @@ namespace pulsar {
 
 const std::string PartitionedProducerImpl::PARTITION_NAME_SUFFIX = "-partition-";
 
-PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client,
-                                                 const DestinationNamePtr destinationName,
+PartitionedProducerImpl::PartitionedProducerImpl(ClientImplPtr client, const TopicNamePtr topicName,
                                                  const unsigned int numPartitions,
                                                  const ProducerConfiguration& config)
     : client_(client),
-      destinationName_(destinationName),
-      topic_(destinationName_->toString()),
+      topicName_(topicName),
+      topic_(topicName_->toString()),
       conf_(config),
       state_(Pending),
       topicMetadata_(new TopicMetadataImpl(numPartitions)) {
@@ -76,7 +75,7 @@ void PartitionedProducerImpl::start() {
     boost::shared_ptr<ProducerImpl> producer;
     // create producer per partition
     for (unsigned int i = 0; i < topicMetadata_->getNumPartitions(); i++) {
-        std::string topicPartitionName = destinationName_->getTopicPartitionName(i);
+        std::string topicPartitionName = topicName_->getTopicPartitionName(i);
         producer = boost::make_shared<ProducerImpl>(client_, topicPartitionName, conf_);
         producer->getProducerCreatedFuture().addListener(boost::bind(
             &PartitionedProducerImpl::handleSinglePartitionProducerCreated, shared_from_this(), _1, _2, i));

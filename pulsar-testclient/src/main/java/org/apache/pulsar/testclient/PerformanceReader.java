@@ -37,7 +37,7 @@ import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +67,7 @@ public class PerformanceReader {
         public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
-        public int numDestinations = 1;
+        public int numTopics = 1;
 
         @Parameter(names = { "-r", "--rate" }, description = "Simulate a slow message reader (rate in msg/s)")
         public double rate = 0;
@@ -169,7 +169,7 @@ public class PerformanceReader {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance reader with config: {}", w.writeValueAsString(arguments));
 
-        final DestinationName prefixTopicName = DestinationName.get(arguments.topic.get(0));
+        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
@@ -208,16 +208,16 @@ public class PerformanceReader {
             startMessageId = new MessageIdImpl(Long.parseLong(parts[0]), Long.parseLong(parts[1]), -1);
         }
 
-        for (int i = 0; i < arguments.numDestinations; i++) {
-            final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixTopicName
-                    : DestinationName.get(String.format("%s-%d", prefixTopicName, i));
+        for (int i = 0; i < arguments.numTopics; i++) {
+            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
+                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
 
-            futures.add(pulsarClient.createReaderAsync(destinationName.toString(), startMessageId, readerConfig));
+            futures.add(pulsarClient.createReaderAsync(topicName.toString(), startMessageId, readerConfig));
         }
 
         FutureUtil.waitForAll(futures).get();
 
-        log.info("Start reading from {} topics", arguments.numDestinations);
+        log.info("Start reading from {} topics", arguments.numTopics);
 
         long oldTime = System.nanoTime();
 

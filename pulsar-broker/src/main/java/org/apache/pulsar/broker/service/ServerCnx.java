@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
-import static org.apache.pulsar.broker.lookup.DestinationLookup.lookupDestinationAsync;
+import static org.apache.pulsar.broker.lookup.TopicLookup.lookupTopicAsync;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
@@ -75,7 +75,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.Metadata;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
@@ -218,7 +218,7 @@ public class ServerCnx extends PulsarHandler {
             log.debug("[{}] Received Lookup from {} for {}", lookup.getTopic(), remoteAddress, requestId);
         }
 
-        DestinationName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
+        TopicName topicName = validateTopicName(lookup.getTopic(), requestId, lookup);
         if (topicName == null) {
             return;
         }
@@ -258,7 +258,7 @@ public class ServerCnx extends PulsarHandler {
             String finalOriginalPrincipal = originalPrincipal;
             isProxyAuthorizedFuture.thenApply(isProxyAuthorized -> {
                 if (isProxyAuthorized) {
-                    lookupDestinationAsync(getBrokerService().pulsar(), topicName, authoritative,
+                    lookupTopicAsync(getBrokerService().pulsar(), topicName, authoritative,
                             finalOriginalPrincipal != null ? finalOriginalPrincipal : authRole, authenticationData,
                             requestId).handle((lookupResponse, ex) -> {
                                 if (ex == null) {
@@ -304,7 +304,7 @@ public class ServerCnx extends PulsarHandler {
                     remoteAddress, requestId);
         }
 
-        DestinationName topicName = validateTopicName(partitionMetadata.getTopic(), requestId, partitionMetadata);
+        TopicName topicName = validateTopicName(partitionMetadata.getTopic(), requestId, partitionMetadata);
         if (topicName == null) {
             return;
         }
@@ -533,7 +533,7 @@ public class ServerCnx extends PulsarHandler {
         checkArgument(state == State.Connected);
         final long requestId = subscribe.getRequestId();
         final long consumerId = subscribe.getConsumerId();
-        DestinationName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
+        TopicName topicName = validateTopicName(subscribe.getTopic(), requestId, subscribe);
         if (topicName == null) {
             return;
         }
@@ -736,7 +736,7 @@ public class ServerCnx extends PulsarHandler {
         final boolean isEncrypted = cmdProducer.getEncrypted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(cmdProducer);
 
-        DestinationName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
+        TopicName topicName = validateTopicName(cmdProducer.getTopic(), requestId, cmdProducer);
         if (topicName == null) {
             return;
         }
@@ -1158,7 +1158,7 @@ public class ServerCnx extends PulsarHandler {
 
             Topic topic = consumer.getSubscription().getTopic();
             Position position = topic.getLastMessageId();
-            int partitionIndex = DestinationName.getPartitionIndex(topic.getName());
+            int partitionIndex = TopicName.getPartitionIndex(topic.getName());
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}][{}] Get LastMessageId {} partitionIndex {}", remoteAddress,
                     topic.getName(), consumer.getSubscription().getName(), position, partitionIndex);
@@ -1292,9 +1292,9 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    private DestinationName validateTopicName(String topic, long requestId, GeneratedMessageLite requestCommand) {
+    private TopicName validateTopicName(String topic, long requestId, GeneratedMessageLite requestCommand) {
         try {
-            return DestinationName.get(topic);
+            return TopicName.get(topic);
         } catch (Throwable t) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] Failed to parse topic name '{}'", remoteAddress, topic, t);

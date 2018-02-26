@@ -24,7 +24,7 @@ import static org.testng.Assert.fail;
 import java.util.EnumSet;
 
 import org.apache.pulsar.broker.authorization.AuthorizationService;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
@@ -49,6 +49,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         conf.setClusterName("c1");
         conf.setAuthorizationEnabled(true);
         conf.setAuthorizationAllowWildcardsMatching(true);
+        conf.setSuperUserRoles(Sets.newHashSet("pulsar.super_user"));
         internalSetup();
     }
 
@@ -62,7 +63,7 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
     void simple() throws Exception {
         AuthorizationService auth = pulsar.getBrokerService().getAuthorizationService();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), false);
 
         admin.clusters().updateCluster("c1", new ClusterData());
         admin.properties().createProperty("p1", new PropertyAdmin(Lists.newArrayList("role1"), Sets.newHashSet("c1")));
@@ -70,120 +71,120 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().createNamespace("p1/c1/ns1");
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), false);
 
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "my-role", EnumSet.of(AuthAction.produce));
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
 
         admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds2", "other-role",
                 EnumSet.of(AuthAction.consume));
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, null), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "other-role", null, null), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds2"), "no-access-role", null, null), false);
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "no-access-role", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "no-access-role", null), false);
 
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "my-role", EnumSet.allOf(AuthAction.class));
         waitForChange();
 
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my-role", null, null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my-role", null, null), true);
 
         // test for wildcard
 
         // namespace prefix match
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), false);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), false);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
 
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "my.role.*", EnumSet.of(AuthAction.produce));
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
 
         // namespace suffix match
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), false);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), false);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
 
         admin.namespaces().grantPermissionOnNamespace("p1/c1/ns1", "*.role.my", EnumSet.of(AuthAction.consume));
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
 
         // revoke for next test
         admin.namespaces().revokePermissionsOnNamespace("p1/c1/ns1", "my.role.*");
         admin.namespaces().revokePermissionsOnNamespace("p1/c1/ns1", "*.role.my");
         waitForChange();
 
-        // destination prefix match
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), false);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null), false);
+        // topic prefix match
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), false);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null), false);
 
         admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds1", "my.*",
                 EnumSet.of(AuthAction.produce));
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.2", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "my.role.1", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "other.role.2", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.1", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "my.role.2", null), false);
 
-        // destination suffix match
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), false);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null), false);
+        // topic suffix match
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), false);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null), false);
 
         admin.persistentTopics().grantPermission("persistent://p1/c1/ns1/ds1", "*.my",
                 EnumSet.of(AuthAction.consume));
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), true);
-        assertEquals(auth.canProduce(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null), false);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.my", null), true);
+        assertEquals(auth.canProduce(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null), false);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "1.role.my", null, null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "2.role.other", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "1.role.my", null), false);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds2"), "2.role.my", null), false);
 
         admin.persistentTopics().revokePermissions("persistent://p1/c1/ns1/ds1", "my.*");
         admin.persistentTopics().revokePermissions("persistent://p1/c1/ns1/ds1", "*.my");
@@ -193,19 +194,20 @@ public class AuthorizationTest extends MockedPulsarServiceBaseTest {
         admin.namespaces().setSubscriptionAuthMode("p1/c1/ns1", SubscriptionAuthMode.Prefix);
         waitForChange();
 
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role1", null), true);
-        assertEquals(auth.canLookup(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role2", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null), true);
+        assertEquals(auth.canLookup(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null), true);
         try {
-            assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"), false);
+            assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "sub1"), false);
             fail();
         } catch (Exception e) {}
         try {
-            assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"), false);
+            assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "sub2"), false);
             fail();
         } catch (Exception e) {}
 
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"), true);
-        assertEquals(auth.canConsume(DestinationName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role1", null, "role1-sub1"), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "role2", null, "role2-sub2"), true);
+        assertEquals(auth.canConsume(TopicName.get("persistent://p1/c1/ns1/ds1"), "pulsar.super_user", null, "role3-sub1"), true);
 
         admin.namespaces().deleteNamespace("p1/c1/ns1");
         admin.properties().deleteProperty("p1");

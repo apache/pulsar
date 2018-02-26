@@ -33,11 +33,12 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
@@ -57,7 +58,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +106,7 @@ public class ClientCnx extends PulsarHandler {
         None, SentConnectFrame, Ready, Failed
     }
 
-    public ClientCnx(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
+    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         super(30, TimeUnit.SECONDS);
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
         this.authentication = conf.getAuthentication();
@@ -196,14 +196,14 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleConnected(CommandConnected connected) {
-        
+
         if (isTlsHostnameVerificationEnable && remoteHostName != null && !verifyTlsHostName(remoteHostName, ctx)) {
             // close the connection if host-verification failed with the broker
             log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
             ctx.close();
             return;
         }
-        
+
         checkArgument(state == State.SentConnectFrame);
 
         if (log.isDebugEnabled()) {
@@ -593,9 +593,9 @@ public class ClientCnx extends PulsarHandler {
 
     /**
      * verifies host name provided in x509 Certificate in tls session
-     * 
+     *
      * it matches hostname with below scenarios
-     * 
+     *
      * <pre>
      *  1. Supports IPV4 and IPV6 host matching
      *  2. Supports wild card matching for DNS-name
@@ -605,7 +605,7 @@ public class ClientCnx extends PulsarHandler {
      * 2.  localhost                    local*       PASS
      * 3.  pulsar1-broker.com           pulsar*.com  PASS
      * </pre>
-     * 
+     *
      * @param ctx
      * @return true if hostname is verified else return false
      */
@@ -648,7 +648,7 @@ public class ClientCnx extends PulsarHandler {
      void setRemoteHostName(String remoteHostName) {
         this.remoteHostName = remoteHostName;
     }
-    
+
     private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:
