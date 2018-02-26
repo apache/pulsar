@@ -18,6 +18,8 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.commons.lang3.StringUtils;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -130,8 +132,26 @@ public class ReaderConfiguration implements Serializable {
      * @param readerName
      */
     public ReaderConfiguration setReaderName(String readerName) {
-        checkArgument(readerName != null && !readerName.equals(""));
+        checkArgument(StringUtils.isNotBlank(readerName));
         conf.setReaderName(readerName);
+        return this;
+    }
+
+    /**
+     * @return the subscription role prefix for subscription auth
+     */
+    public String getSubscriptionRolePrefix() {
+        return conf.getSubscriptionRolePrefix();
+    }
+
+    /**
+     * Set the subscription role prefix for subscription auth. The default prefix is "reader".
+     *
+     * @param subscriptionRolePrefix
+     */
+    public ReaderConfiguration setSubscriptionRolePrefix(String subscriptionRolePrefix) {
+        checkArgument(StringUtils.isNotBlank(subscriptionRolePrefix));
+        conf.setSubscriptionRolePrefix(subscriptionRolePrefix);
         return this;
     }
 

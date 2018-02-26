@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.codec.digest.DigestUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
@@ -44,6 +45,9 @@ public class ReaderImpl implements Reader {
             ExecutorService listenerExecutor, CompletableFuture<Consumer> consumerFuture) {
 
         String subscription = "reader-" + DigestUtils.sha1Hex(UUID.randomUUID().toString()).substring(0, 10);
+        if (StringUtils.isNotBlank(readerConfiguration.getSubscriptionRolePrefix())) {
+            subscription = readerConfiguration.getSubscriptionRolePrefix() + "-" + subscription;
+        }
 
         ConsumerConfigurationData consumerConfiguration = new ConsumerConfigurationData();
         consumerConfiguration.getTopicNames().add(readerConfiguration.getTopicName());
