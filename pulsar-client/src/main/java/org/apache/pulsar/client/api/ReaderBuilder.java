@@ -137,4 +137,11 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @param readerName
      */
     ReaderBuilder readerName(String readerName);
+
+    /**
+     * Set the subscription role prefix. The default prefix is "reader".
+     *
+     * @param subscriptionRolePrefix
+     */
+    ReaderBuilder subscriptionRolePrefix(String subscriptionRolePrefix);
 }

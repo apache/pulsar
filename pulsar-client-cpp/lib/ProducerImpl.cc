@@ -21,10 +21,10 @@
 #include "MessageImpl.h"
 #include "PulsarApi.pb.h"
 #include "Commands.h"
-#include "DestinationName.h"
 #include "BatchMessageContainer.h"
 #include <boost/bind.hpp>
 #include <boost/date_time/local_time/local_time.hpp>
+#include <lib/TopicName.h>
 
 namespace pulsar {
 DECLARE_LOG_OBJECT()

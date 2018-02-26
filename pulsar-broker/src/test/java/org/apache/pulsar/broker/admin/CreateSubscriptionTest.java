@@ -28,7 +28,7 @@ import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -99,7 +99,7 @@ public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
 
         for (int i = 0; i < 10; i++) {
             assertEquals(
-                    admin.persistentTopics().getSubscriptions(DestinationName.get(topic).getPartition(i).toString()),
+                    admin.persistentTopics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
                     Lists.newArrayList("sub-1"));
         }
     }

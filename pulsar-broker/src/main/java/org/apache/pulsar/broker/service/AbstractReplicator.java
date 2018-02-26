@@ -32,7 +32,7 @@ import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -217,28 +217,28 @@ public abstract class AbstractReplicator {
 
     /**
      * Replication can't be started on root-partitioned-topic to avoid producer startup conflict.
-     * 
+     *
      * <pre>
      * eg:
      * if topic : persistent://prop/cluster/ns/my-topic is a partitioned topic with 2 partitions then
      * broker explicitly creates replicator producer for: "my-topic-partition-1" and "my-topic-partition-2".
-     * 
-     * However, if broker tries to start producer with root topic "my-topic" then client-lib internally creates individual 
-     * producers for "my-topic-partition-1" and "my-topic-partition-2" which creates conflict with existing 
+     *
+     * However, if broker tries to start producer with root topic "my-topic" then client-lib internally creates individual
+     * producers for "my-topic-partition-1" and "my-topic-partition-2" which creates conflict with existing
      * replicator producers.
      * </pre>
-     * 
+     *
      * Therefore, replicator can't be started on root-partition topic which can internally create multiple partitioned
      * producers.
-     * 
+     *
      * @param topicName
      * @param brokerService
      */
-    private void validatePartitionedTopic(String topicName, BrokerService brokerService) throws NamingException {
-        DestinationName destination = DestinationName.get(topicName);
+    private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {
+        TopicName topicName = TopicName.get(topic);
         String partitionedTopicPath = path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE,
-                destination.getNamespace().toString(), destination.getDomain().toString(),
-                destination.getEncodedLocalName());
+                topicName.getNamespace().toString(), topicName.getDomain().toString(),
+                topicName.getEncodedLocalName());
         boolean isPartitionedTopic = false;
         try {
             isPartitionedTopic = brokerService.pulsar().getConfigurationCache().policiesCache()

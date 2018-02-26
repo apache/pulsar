@@ -31,7 +31,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -74,48 +74,48 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     /**
-     * Check if the specified role has permission to send messages to the specified fully qualified destination name.
+     * Check if the specified role has permission to send messages to the specified fully qualified topic name.
      *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
      * @param role
-     *            the app id used to send messages to the destination.
+     *            the app id used to send messages to the topic.
      */
     @Override
-    public CompletableFuture<Boolean> canProduceAsync(DestinationName destination, String role,
+    public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
-        return checkAuthorization(destination, role, AuthAction.produce);
+        return checkAuthorization(topicName, role, AuthAction.produce);
     }
 
     /**
-     * Check if the specified role has permission to receive messages from the specified fully qualified destination
+     * Check if the specified role has permission to receive messages from the specified fully qualified topic
      * name.
      *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
      * @param role
-     *            the app id used to receive messages from the destination.
+     *            the app id used to receive messages from the topic.
      * @param subscription
      *            the subscription name defined by the client
      */
     @Override
-    public CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role,
+    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData, String subscription) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            configCache.policiesCache().getAsync(POLICY_ROOT + destination.getNamespace()).thenAccept(policies -> {
+            configCache.policiesCache().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Policies node couldn't be found for destination : {}", destination);
+                        log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
-                    if (isNotBlank(subscription)) {
+                    if (isNotBlank(subscription) && !isSuperUser(role)) {
                         switch (policies.get().subscription_auth_mode) {
                         case Prefix:
                             if (!subscription.startsWith(role)) {
                                 PulsarServerException ex = new PulsarServerException(String.format(
-                                        "Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for destination: %s",
-                                        role, destination));
+                                        "Failed to create consumer - The subscription name needs to be prefixed by the authentication role, like %s-xxxx for topic: %s",
+                                        role, topicName));
                                 permissionFuture.completeExceptionally(ex);
                                 return;
                             }
@@ -125,17 +125,17 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         }
                     }
                 }
-                checkAuthorization(destination, role, AuthAction.consume).thenAccept(isAuthorized -> {
+                checkAuthorization(topicName, role, AuthAction.consume).thenAccept(isAuthorized -> {
                     permissionFuture.complete(isAuthorized);
                 });
             }).exceptionally(ex -> {
-                log.warn("Client with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                log.warn("Client with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                         ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+            log.warn("Client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                     e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
@@ -143,20 +143,20 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     /**
-     * Check whether the specified role can perform a lookup for the specified destination.
+     * Check whether the specified role can perform a lookup for the specified topic.
      *
      * For that the caller needs to have producer or consumer permission.
      *
-     * @param destination
+     * @param topicName
      * @param role
      * @return
      * @throws Exception
      */
     @Override
-    public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role,
+    public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
         CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        canProduceAsync(destination, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
+        canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
             if (ex == null) {
                 if (produceAuthorized) {
                     finalResult.complete(produceAuthorized);
@@ -165,11 +165,11 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
             } else {
                 if (log.isDebugEnabled()) {
                     log.debug(
-                            "Destination [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
-                            destination.toString(), role, ex.getMessage());
+                            "Topic [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                            topicName.toString(), role, ex.getMessage());
                 }
             }
-            canConsumeAsync(destination, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
+            canConsumeAsync(topicName, role, authenticationData, null).whenComplete((consumeAuthorized, e) -> {
                 if (e == null) {
                     if (consumeAuthorized) {
                         finalResult.complete(consumeAuthorized);
@@ -178,8 +178,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 } else {
                     if (log.isDebugEnabled()) {
                         log.debug(
-                                "Destination [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
-                                destination.toString(), role, e.getMessage());
+                                "Topic [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                                topicName.toString(), role, e.getMessage());
 
                     }
                     finalResult.completeExceptionally(e);
@@ -192,9 +192,9 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
     }
 
     @Override
-    public CompletableFuture<Void> grantPermissionAsync(DestinationName destination, Set<AuthAction> actions,
+    public CompletableFuture<Void> grantPermissionAsync(TopicName topicName, Set<AuthAction> actions,
             String role, String authDataJson) {
-        return grantPermissionAsync(destination.getNamespaceObject(), actions, role, authDataJson);
+        return grantPermissionAsync(topicName.getNamespaceObject(), actions, role, authDataJson);
     }
 
     @Override
@@ -246,34 +246,34 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
         return result;
     }
 
-    private CompletableFuture<Boolean> checkAuthorization(DestinationName destination, String role, AuthAction action) {
+    private CompletableFuture<Boolean> checkAuthorization(TopicName topicName, String role, AuthAction action) {
         if (isSuperUser(role)) {
             return CompletableFuture.completedFuture(true);
         } else {
-            return checkPermission(destination, role, action)
-                    .thenApply(isPermission -> isPermission && checkCluster(destination));
+            return checkPermission(topicName, role, action)
+                    .thenApply(isPermission -> isPermission && checkCluster(topicName));
         }
     }
 
-    private boolean checkCluster(DestinationName destination) {
-        if (destination.isGlobal() || conf.getClusterName().equals(destination.getCluster())) {
+    private boolean checkCluster(TopicName topicName) {
+        if (topicName.isGlobal() || conf.getClusterName().equals(topicName.getCluster())) {
             return true;
         } else {
             if (log.isDebugEnabled()) {
-                log.debug("Destination [{}] does not belong to local cluster [{}]", destination.toString(),
+                log.debug("Topic [{}] does not belong to local cluster [{}]", topicName.toString(),
                         conf.getClusterName());
             }
             return false;
         }
     }
 
-    public CompletableFuture<Boolean> checkPermission(DestinationName destination, String role, AuthAction action) {
+    public CompletableFuture<Boolean> checkPermission(TopicName topicName, String role, AuthAction action) {
         CompletableFuture<Boolean> permissionFuture = new CompletableFuture<>();
         try {
-            configCache.policiesCache().getAsync(POLICY_ROOT + destination.getNamespace()).thenAccept(policies -> {
+            configCache.policiesCache().getAsync(POLICY_ROOT + topicName.getNamespace()).thenAccept(policies -> {
                 if (!policies.isPresent()) {
                     if (log.isDebugEnabled()) {
-                        log.debug("Policies node couldn't be found for destination : {}", destination);
+                        log.debug("Policies node couldn't be found for topic : {}", topicName);
                     }
                 } else {
                     Map<String, Set<AuthAction>> namespaceRoles = policies.get().auth_policies.namespace_auth;
@@ -284,13 +284,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                         return;
                     }
 
-                    Map<String, Set<AuthAction>> destinationRoles = policies.get().auth_policies.destination_auth
-                            .get(destination.toString());
-                    if (destinationRoles != null) {
-                        // Destination has custom policy
-                        Set<AuthAction> destinationActions = destinationRoles.get(role);
-                        if (destinationActions != null && destinationActions.contains(action)) {
-                            // The role has destination level permission
+                    Map<String, Set<AuthAction>> topicRoles = policies.get().auth_policies.destination_auth
+                            .get(topicName.toString());
+                    if (topicRoles != null) {
+                        // Topic has custom policy
+                        Set<AuthAction> topicActions = topicRoles.get(role);
+                        if (topicActions != null && topicActions.contains(action)) {
+                            // The role has topic level permission
                             permissionFuture.complete(true);
                             return;
                         }
@@ -304,8 +304,8 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                             return;
                         }
 
-                        if (destinationRoles != null && checkWildcardPermission(role, action, destinationRoles)) {
-                            // The role has destination level permission by wildcard match
+                        if (topicRoles != null && checkWildcardPermission(role, action, topicRoles)) {
+                            // The role has topic level permission by wildcard match
                             permissionFuture.complete(true);
                             return;
                         }
@@ -313,13 +313,13 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
                 }
                 permissionFuture.complete(false);
             }).exceptionally(ex -> {
-                log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+                log.warn("Client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                         ex.getMessage());
                 permissionFuture.completeExceptionally(ex);
                 return null;
             });
         } catch (Exception e) {
-            log.warn("Client  with Role - {} failed to get permissions for destination - {}. {}", role, destination,
+            log.warn("Client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
                     e.getMessage());
             permissionFuture.completeExceptionally(e);
         }
@@ -352,7 +352,7 @@ public class PulsarAuthorizationProvider implements AuthorizationProvider {
      * Super user roles are allowed to do anything, used for replication primarily
      *
      * @param role
-     *            the app id used to receive messages from the destination.
+     *            the app id used to receive messages from the topic.
      */
     public boolean isSuperUser(String role) {
         Set<String> superUserRoles = conf.getSuperUserRoles();

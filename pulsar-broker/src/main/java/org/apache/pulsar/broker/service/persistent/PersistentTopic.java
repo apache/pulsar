@@ -85,7 +85,7 @@ import org.apache.pulsar.client.impl.BatchMessageIdImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
@@ -240,7 +240,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
         } catch (Exception e) {
@@ -353,7 +353,17 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     private boolean isProducersExceeded() {
-        final int maxProducers = brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        Policies policies;
+        try {
+            policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxProducers = policies.max_producers_per_topic > 0 ?
+                policies.max_producers_per_topic :
+                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
         if (maxProducers > 0 && maxProducers <= producers.size()) {
             return true;
         }
@@ -386,7 +396,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         // read repl-cluster from policies to avoid restart of replicator which are in process of disconnect and close
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             if (policies.replication_clusters != null) {
                 Set<String> configuredClusters = Sets.newTreeSet(policies.replication_clusters);
@@ -796,7 +806,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     private CompletableFuture<Void> checkPersistencePolicies() {
-        DestinationName topicName = DestinationName.get(topic);
+        TopicName topicName = TopicName.get(topic);
         CompletableFuture<Void> future = new CompletableFuture<>();
         brokerService.getManagedLedgerConfig(topicName).thenAccept(config -> {
             // update managed-ledger config and managed-cursor.markDeleteRate
@@ -812,7 +822,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<Void> checkReplication() {
-        DestinationName name = DestinationName.get(topic);
+        TopicName name = TopicName.get(topic);
         if (!name.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -873,7 +883,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public void checkMessageExpiry() {
-        DestinationName name = DestinationName.get(topic);
+        TopicName name = TopicName.get(topic);
         Policies policies;
         try {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache()
@@ -906,7 +916,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
                 boolean isReplicatorStarted = addReplicationCluster(remoteCluster, PersistentTopic.this, cursor, localCluster);
                 if (isReplicatorStarted) {
-                    future.complete(null);    
+                    future.complete(null);
                 } else {
                     future.completeExceptionally(new NamingException(
                             PersistentTopic.this.getName() + " Failed to start replicator " + remoteCluster));
@@ -1026,7 +1036,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return ledger;
     }
 
-    public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream destStatsStream,
+    public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
             ClusterReplicationMetrics replStats, String namespace) {
 
         TopicStats topicStats = threadLocalTopicStats.get();
@@ -1036,7 +1046,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
         nsStats.producerCount += producers.size();
         bundleStats.producerCount += producers.size();
-        destStatsStream.startObject(topic);
+        topicStatsStream.startObject(topic);
 
         producers.forEach(producer -> {
             producer.updateRates();
@@ -1051,11 +1061,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
 
         // Creating publishers object for backward compatibility
-        destStatsStream.startList("publishers");
-        destStatsStream.endList();
+        topicStatsStream.startList("publishers");
+        topicStatsStream.endList();
 
         // Start replicator stats
-        destStatsStream.startObject("replication");
+        topicStatsStream.startObject("replication");
         nsStats.replicatorCount += topicStats.remotePublishersStats.size();
         replicators.forEach((cluster, replicator) -> {
             // Update replicator cursor state
@@ -1077,20 +1087,20 @@ public class PersistentTopic implements Topic, AddEntryCallback {
             topicStats.aggMsgThroughputOut += rStat.msgThroughputOut;
 
             // Populate replicator specific stats here
-            destStatsStream.startObject(cluster);
-            destStatsStream.writePair("connected", rStat.connected);
-            destStatsStream.writePair("msgRateExpired", rStat.msgRateExpired);
-            destStatsStream.writePair("msgRateIn", rStat.msgRateIn);
-            destStatsStream.writePair("msgRateOut", rStat.msgRateOut);
-            destStatsStream.writePair("msgThroughputIn", rStat.msgThroughputIn);
-            destStatsStream.writePair("msgThroughputOut", rStat.msgThroughputOut);
-            destStatsStream.writePair("replicationBacklog", rStat.replicationBacklog);
-            destStatsStream.writePair("replicationDelayInSeconds", rStat.replicationDelayInSeconds);
-            destStatsStream.writePair("inboundConnection", rStat.inboundConnection);
-            destStatsStream.writePair("inboundConnectedSince", rStat.inboundConnectedSince);
-            destStatsStream.writePair("outboundConnection", rStat.outboundConnection);
-            destStatsStream.writePair("outboundConnectedSince", rStat.outboundConnectedSince);
-            destStatsStream.endObject();
+            topicStatsStream.startObject(cluster);
+            topicStatsStream.writePair("connected", rStat.connected);
+            topicStatsStream.writePair("msgRateExpired", rStat.msgRateExpired);
+            topicStatsStream.writePair("msgRateIn", rStat.msgRateIn);
+            topicStatsStream.writePair("msgRateOut", rStat.msgRateOut);
+            topicStatsStream.writePair("msgThroughputIn", rStat.msgThroughputIn);
+            topicStatsStream.writePair("msgThroughputOut", rStat.msgThroughputOut);
+            topicStatsStream.writePair("replicationBacklog", rStat.replicationBacklog);
+            topicStatsStream.writePair("replicationDelayInSeconds", rStat.replicationDelayInSeconds);
+            topicStatsStream.writePair("inboundConnection", rStat.inboundConnection);
+            topicStatsStream.writePair("inboundConnectedSince", rStat.inboundConnectedSince);
+            topicStatsStream.writePair("outboundConnection", rStat.outboundConnection);
+            topicStatsStream.writePair("outboundConnectedSince", rStat.outboundConnectedSince);
+            topicStatsStream.endObject();
 
             nsStats.msgReplBacklog += rStat.replicationBacklog;
 
@@ -1113,10 +1123,10 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
 
         // Close replication
-        destStatsStream.endObject();
+        topicStatsStream.endObject();
 
         // Start subscription stats
-        destStatsStream.startObject("subscriptions");
+        topicStatsStream.startObject("subscriptions");
         nsStats.subsCount += subscriptions.size();
 
         subscriptions.forEach((subscriptionName, subscription) -> {
@@ -1126,12 +1136,12 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
             // Start subscription name & consumers
             try {
-                destStatsStream.startObject(subscriptionName);
+                topicStatsStream.startObject(subscriptionName);
                 Object[] consumers = subscription.getConsumers().array();
                 nsStats.consumerCount += consumers.length;
                 bundleStats.consumerCount += consumers.length;
 
-                destStatsStream.startList("consumers");
+                topicStatsStream.startList("consumers");
 
                 for (Object consumerObj : consumers) {
                     Consumer consumer = (Consumer) consumerObj;
@@ -1143,48 +1153,48 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
 
                     // Populate consumer specific stats here
-                    destStatsStream.startObject();
-                    destStatsStream.writePair("address", consumerStats.address);
-                    destStatsStream.writePair("consumerName", consumerStats.consumerName);
-                    destStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    destStatsStream.writePair("connectedSince", consumerStats.connectedSince);
-                    destStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
-                    destStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
-                    destStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
+                    topicStatsStream.startObject();
+                    topicStatsStream.writePair("address", consumerStats.address);
+                    topicStatsStream.writePair("consumerName", consumerStats.consumerName);
+                    topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
+                    topicStatsStream.writePair("connectedSince", consumerStats.connectedSince);
+                    topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
+                    topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
+                    topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
 
                     if (SubType.Shared.equals(subscription.getType())) {
-                        destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
-                        destStatsStream.writePair("blockedConsumerOnUnackedMsgs",
+                        topicStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
+                        topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
                                 consumerStats.blockedConsumerOnUnackedMsgs);
                     }
                     if (consumerStats.clientVersion != null) {
-                        destStatsStream.writePair("clientVersion", consumerStats.clientVersion);
+                        topicStatsStream.writePair("clientVersion", consumerStats.clientVersion);
                     }
-                    destStatsStream.endObject();
+                    topicStatsStream.endObject();
                 }
 
                 // Close Consumer stats
-                destStatsStream.endList();
+                topicStatsStream.endList();
 
                 // Populate subscription specific stats here
-                destStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
-                destStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
-                destStatsStream.writePair("msgRateOut", subMsgRateOut);
-                destStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
-                destStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
-                destStatsStream.writePair("numberOfEntriesSinceFirstNotAckedMessage", subscription.getNumberOfEntriesSinceFirstNotAckedMessage());
-                destStatsStream.writePair("totalNonContiguousDeletedMessagesRange", subscription.getTotalNonContiguousDeletedMessagesRange());
-                destStatsStream.writePair("type", subscription.getTypeString());
+                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
+                topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
+                topicStatsStream.writePair("msgRateOut", subMsgRateOut);
+                topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
+                topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
+                topicStatsStream.writePair("numberOfEntriesSinceFirstNotAckedMessage", subscription.getNumberOfEntriesSinceFirstNotAckedMessage());
+                topicStatsStream.writePair("totalNonContiguousDeletedMessagesRange", subscription.getTotalNonContiguousDeletedMessagesRange());
+                topicStatsStream.writePair("type", subscription.getTypeString());
                 if (SubType.Shared.equals(subscription.getType())) {
                     if(subscription.getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
                         PersistentDispatcherMultipleConsumers dispatcher = (PersistentDispatcherMultipleConsumers)subscription.getDispatcher();
-                        destStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
-                        destStatsStream.writePair("unackedMessages", dispatcher.getTotalUnackedMessages());
+                        topicStatsStream.writePair("blockedSubscriptionOnUnackedMsgs",  dispatcher.isBlockedDispatcherOnUnackedMsgs());
+                        topicStatsStream.writePair("unackedMessages", dispatcher.getTotalUnackedMessages());
                     }
                 }
 
                 // Close consumers
-                destStatsStream.endObject();
+                topicStatsStream.endObject();
 
                 topicStats.aggMsgRateOut += subMsgRateOut;
                 topicStats.aggMsgThroughputOut += subMsgThroughputOut;
@@ -1196,19 +1206,19 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         });
 
         // Close subscription
-        destStatsStream.endObject();
+        topicStatsStream.endObject();
 
         // Remaining dest stats.
         topicStats.averageMsgSize = topicStats.aggMsgRateIn == 0.0 ? 0.0
                 : (topicStats.aggMsgThroughputIn / topicStats.aggMsgRateIn);
-        destStatsStream.writePair("producerCount", producers.size());
-        destStatsStream.writePair("averageMsgSize", topicStats.averageMsgSize);
-        destStatsStream.writePair("msgRateIn", topicStats.aggMsgRateIn);
-        destStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
-        destStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
-        destStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
-        destStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
-        destStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
+        topicStatsStream.writePair("producerCount", producers.size());
+        topicStatsStream.writePair("averageMsgSize", topicStats.averageMsgSize);
+        topicStatsStream.writePair("msgRateIn", topicStats.aggMsgRateIn);
+        topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
+        topicStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
+        topicStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
+        topicStatsStream.writePair("storageSize", ledger.getEstimatedBacklogSize());
+        topicStatsStream.writePair("pendingAddEntriesCount", ((ManagedLedgerImpl) ledger).getPendingAddEntriesCount());
 
         nsStats.msgRateIn += topicStats.aggMsgRateIn;
         nsStats.msgRateOut += topicStats.aggMsgRateOut;
@@ -1223,7 +1233,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         bundleStats.cacheSize += ((ManagedLedgerImpl) ledger).getCacheSize();
 
         // Close topic object
-        destStatsStream.endObject();
+        topicStatsStream.endObject();
     }
 
     public PersistentTopicStats getStats() {
@@ -1333,7 +1343,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     }
 
     public boolean isActive() {
-        if (DestinationName.get(topic).isGlobal()) {
+        if (TopicName.get(topic).isGlobal()) {
             // No local consumers and no local producers
             return !subscriptions.isEmpty() || hasLocalProducers();
         }
@@ -1353,7 +1363,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         } else {
             CompletableFuture<Void> replCloseFuture = new CompletableFuture<>();
 
-            if (DestinationName.get(topic).isGlobal()) {
+            if (TopicName.get(topic).isGlobal()) {
                 // For global namespace, close repl producers first.
                 // Once all repl producers are closed, we can delete the topic,
                 // provided no remote producers connected to the broker.
@@ -1407,7 +1417,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      * marked as inactive.
      */
     private boolean shouldTopicBeRetained() {
-        DestinationName name = DestinationName.get(topic);
+        TopicName name = TopicName.get(topic);
         try {
             Optional<Policies> policies = brokerService.pulsar().getConfigurationCache().policiesCache()
                     .get(AdminResource.path(POLICIES, name.getNamespace()));
@@ -1453,8 +1463,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
      */
     @Override
     public BacklogQuota getBacklogQuota() {
-        DestinationName destination = DestinationName.get(this.getName());
-        String namespace = destination.getNamespace();
+        TopicName topicName = TopicName.get(this.getName());
+        String namespace = topicName.getNamespace();
         String policyPath = AdminResource.path(POLICIES, namespace);
 
         BacklogQuota backlogQuota = brokerService.getBacklogQuotaManager().getBacklogQuota(namespace, policyPath);

@@ -35,7 +35,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -145,17 +145,17 @@ public class ServerConnection extends PulsarHandler {
 
     private void sendPartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata) {
         final long requestId = partitionMetadata.getRequestId();
-        DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
+        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
 
         service.getDiscoveryProvider()
-                .getPartitionedTopicMetadata(service, dn, authRole, authenticationData)
+                .getPartitionedTopicMetadata(service, topicName, authRole, authenticationData)
                 .thenAccept(metadata -> {
             if (LOG.isDebugEnabled()) {
-                LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, dn, metadata.partitions);
+                LOG.debug("[{}] Total number of partitions for topic {} is {}", authRole, topicName, metadata.partitions);
             }
             ctx.writeAndFlush(Commands.newPartitionMetadataResponse(metadata.partitions, requestId));
         }).exceptionally(ex -> {
-            LOG.warn("[{}] Failed to get partitioned metadata for topic {} {}", remoteAddress, dn, ex.getMessage(), ex);
+            LOG.warn("[{}] Failed to get partitioned metadata for topic {} {}", remoteAddress, topicName, ex.getMessage(), ex);
             ctx.writeAndFlush(
                     Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady, ex.getMessage(), requestId));
             return null;

@@ -18,12 +18,12 @@
  */
 package org.apache.pulsar.common.naming;
 
-public enum DestinationDomain {
+public enum TopicDomain {
     persistent("persistent"), non_persistent("non-persistent");
 
     private String value;
 
-    private DestinationDomain(String value) {
+    private TopicDomain(String value) {
         this.value = value;
     }
 
@@ -31,8 +31,8 @@ public enum DestinationDomain {
         return this.value;
     }
     
-    public static DestinationDomain getEnum(String value) {
-        for (DestinationDomain e : values()) {
+    public static TopicDomain getEnum(String value) {
+        for (TopicDomain e : values()) {
             if (e.value.equalsIgnoreCase(value)) {
                 return e;
             }

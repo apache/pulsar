@@ -39,7 +39,7 @@ public class SimpleLoadCalculatorImpl implements LoadCalculator {
     @Override
     public void recaliberateResourceUsagePerServiceUnit(LoadReport loadReport) {
         // Based on each load report, calculate the average resource required by each service request characteristics
-        // i.e. from the load report, we calculate that # of destinations and # of consumers are related to memory
+        // i.e. from the load report, we calculate that # of topics and # of consumers are related to memory
         // usage, # of msg/s is counted toward NIC inbw and outbw and CPU, # of connections are related to the # of
         // threads, etc.
         // For example, based on the the current usage number of CPU on the broker and the total # of msg/s in all

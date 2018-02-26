@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.lookup;
 
-import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupResponse;
 
@@ -40,6 +39,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import javax.ws.rs.core.Response.Status;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
@@ -49,14 +49,12 @@ import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.DestinationDomain;
-import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
-import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import javax.ws.rs.core.Response.Status;
 
 import io.netty.buffer.ByteBuf;
 import io.swagger.annotations.ApiResponse;
@@ -64,26 +62,26 @@ import io.swagger.annotations.ApiResponses;
 
 @Path("/v2/destination/")
 @NoSwaggerDocumentation
-public class DestinationLookup extends PulsarWebResource {
+public class TopicLookup extends PulsarWebResource {
 
     @GET
-    @Path("{destination-domain}/{property}/{cluster}/{namespace}/{dest}")
+    @Path("{topic-domain}/{property}/{cluster}/{namespace}/{topic}")
     @Produces(MediaType.APPLICATION_JSON)
-    public void lookupDestinationAsync(@PathParam("destination-domain") String destinationDomain,
+    public void lookupTopicAsync(@PathParam("topic-domain") String topicDomain,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest,
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String encodedTopic,
             @QueryParam("authoritative") @DefaultValue("false") boolean authoritative,
             @Suspended AsyncResponse asyncResponse) {
-        dest = Codec.decode(dest);
-        DestinationDomain domain = null;
+        String topicName = Codec.decode(encodedTopic);
+        TopicDomain domain = null;
         try {
-            domain = DestinationDomain.getEnum(destinationDomain);
+            domain = TopicDomain.getEnum(topicDomain);
         } catch (IllegalArgumentException e) {
-            log.error("[{}] Invalid destination-domain {}", clientAppId(), destinationDomain, e);
+            log.error("[{}] Invalid topic-domain {}", clientAppId(), topicDomain, e);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Unsupported destination domain " + destinationDomain);
+                    "Unsupported topic domain " + topicDomain);
         }
-        DestinationName topic = DestinationName.get(domain.value(), property, cluster, namespace, dest);
+        TopicName topic = TopicName.get(domain.value(), property, cluster, namespace, topicName);
 
         if (!pulsar().getBrokerService().getLookupRequestSemaphore().tryAcquire()) {
             log.warn("No broker was found available for topic {}", topic);
@@ -153,23 +151,23 @@ public class DestinationLookup extends PulsarWebResource {
     }
 
     @GET
-    @Path("{destination-domain}/{property}/{cluster}/{namespace}/{dest}/bundle")
+    @Path("{topic-domain}/{property}/{cluster}/{namespace}/{topic}/bundle")
     @Produces(MediaType.APPLICATION_JSON)
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 405, message = "Invalid destination domain type") })
-    public String getNamespaceBundle(@PathParam("destination-domain") String destinationDomain,
+            @ApiResponse(code = 405, message = "Invalid topic domain type") })
+    public String getNamespaceBundle(@PathParam("topic-domain") String topicDomain,
             @PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("dest") @Encoded String dest) {
-        dest = Codec.decode(dest);
-        DestinationDomain domain = null;
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String topicName) {
+        topicName = Codec.decode(topicName);
+        TopicDomain domain = null;
         try {
-            domain = DestinationDomain.getEnum(destinationDomain);
+            domain = TopicDomain.getEnum(topicDomain);
         } catch (IllegalArgumentException e) {
-            log.error("[{}] Invalid destination-domain {}", clientAppId(), destinationDomain, e);
+            log.error("[{}] Invalid topic-domain {}", clientAppId(), topicDomain, e);
             throw new RestException(Status.METHOD_NOT_ALLOWED,
-                    "Bundle lookup can not be done on destination domain " + destinationDomain);
+                    "Bundle lookup can not be done on topic domain " + topicDomain);
         }
-        DestinationName topic = DestinationName.get(domain.value(), property, cluster, namespace, dest);
+        TopicName topic = TopicName.get(domain.value(), property, cluster, namespace, topicName);
         validateSuperUserAccess();
         try {
             NamespaceBundle bundle = pulsar().getNamespaceService().getBundle(topic);
@@ -193,18 +191,18 @@ public class DestinationLookup extends PulsarWebResource {
      * success(connect) response to client.
      *
      * @param pulsarService
-     * @param fqdn
+     * @param topicName
      * @param authoritative
      * @param clientAppId
      * @param requestId
      * @return
      */
-    public static CompletableFuture<ByteBuf> lookupDestinationAsync(PulsarService pulsarService, DestinationName fqdn, boolean authoritative,
+    public static CompletableFuture<ByteBuf> lookupTopicAsync(PulsarService pulsarService, TopicName topicName, boolean authoritative,
             String clientAppId, AuthenticationDataSource authenticationData, long requestId) {
 
         final CompletableFuture<ByteBuf> validationFuture = new CompletableFuture<>();
         final CompletableFuture<ByteBuf> lookupfuture = new CompletableFuture<>();
-        final String cluster = fqdn.getCluster();
+        final String cluster = topicName.getCluster();
 
         // (1) validate cluster
         getClusterDataIfDifferentCluster(pulsarService, cluster, clientAppId).thenAccept(differentClusterData -> {
@@ -220,19 +218,19 @@ public class DestinationLookup extends PulsarWebResource {
             } else {
                 // (2) authorize client
                 try {
-                    checkAuthorization(pulsarService, fqdn, clientAppId, authenticationData);
+                    checkAuthorization(pulsarService, topicName, clientAppId, authenticationData);
                 } catch (RestException authException) {
-                    log.warn("Failed to authorized {} on cluster {}", clientAppId, fqdn.toString());
+                    log.warn("Failed to authorized {} on cluster {}", clientAppId, topicName.toString());
                     validationFuture.complete(
                             newLookupErrorResponse(ServerError.AuthorizationError, authException.getMessage(), requestId));
                     return;
                 } catch (Exception e) {
-                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, fqdn.toString());
+                    log.warn("Unknown error while authorizing {} on cluster {}", clientAppId, topicName.toString());
                     validationFuture.completeExceptionally(e);
                     return;
                 }
                 // (3) validate global namespace
-                checkLocalOrGetPeerReplicationCluster(pulsarService, fqdn.getNamespaceObject())
+                checkLocalOrGetPeerReplicationCluster(pulsarService, topicName.getNamespaceObject())
                         .thenAccept(peerClusterData -> {
                             if (peerClusterData == null) {
                                 // (4) all validation passed: initiate lookup
@@ -261,16 +259,16 @@ public class DestinationLookup extends PulsarWebResource {
             if (validaitonFailureResponse != null) {
                 lookupfuture.complete(validaitonFailureResponse);
             } else {
-                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(fqdn, authoritative)
+                pulsarService.getNamespaceService().getBrokerServiceUrlAsync(topicName, authoritative)
                         .thenAccept(lookupResult -> {
 
                             if (log.isDebugEnabled()) {
-                                log.debug("[{}] Lookup result {}", fqdn.toString(), lookupResult);
+                                log.debug("[{}] Lookup result {}", topicName.toString(), lookupResult);
                             }
 
                             if (!lookupResult.isPresent()) {
                                 lookupfuture.complete(newLookupErrorResponse(ServerError.ServiceNotReady,
-                                        "No broker was available to own " + fqdn, requestId));
+                                        "No broker was available to own " + topicName, requestId));
                                 return;
                             }
 
@@ -287,10 +285,10 @@ public class DestinationLookup extends PulsarWebResource {
                             }
                         }).exceptionally(ex -> {
                             if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
-                                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
                                         ex.getCause().getMessage());
                             } else {
-                                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
                                         ex.getMessage(), ex);
                             }
                             lookupfuture.complete(
@@ -301,10 +299,10 @@ public class DestinationLookup extends PulsarWebResource {
 
         }).exceptionally(ex -> {
             if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
-                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                log.info("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
                         ex.getCause().getMessage());
             } else {
-                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, fqdn.toString(),
+                log.warn("Failed to lookup {} for topic {} with error {}", clientAppId, topicName.toString(),
                         ex.getMessage(), ex);
             }
 
@@ -325,5 +323,5 @@ public class DestinationLookup extends PulsarWebResource {
         asyncResponse.resume(lookupData);
     }
 
-    private static final Logger log = LoggerFactory.getLogger(DestinationLookup.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicLookup.class);
 }

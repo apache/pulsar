@@ -264,14 +264,14 @@ public class PulsarAdmin implements Closeable {
     public ResourceQuotas resourceQuotas() {
         return resourceQuotas;
     }
-    
+
     /**
-     * @return does a looks up for the broker serving the destination
+     * @return does a looks up for the broker serving the topic
      */
     public Lookup lookups() {
         return lookups;
     }
-    
+
     /**
      * @return the broker statics
      */

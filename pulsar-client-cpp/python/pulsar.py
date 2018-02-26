@@ -553,13 +553,13 @@ class Producer:
           A dict of application-defined string properties.
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
-          to determine the message's destination partition.
+          to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
-          have been previously configured as destinations. Given an empty list,
+          have been previously configured as topics. Given an empty list,
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
@@ -603,12 +603,12 @@ class Producer:
           A dict of application0-defined string properties.
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
-          used to determine the message's destination partition.
+          used to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
-          and that all clusters have been previously configured as destinations.
+          and that all clusters have been previously configured as topics.
           Given an empty list, the message will replicate per the namespace
           configuration.
         * `disable_replication`:

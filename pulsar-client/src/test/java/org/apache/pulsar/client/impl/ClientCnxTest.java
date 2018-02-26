@@ -24,10 +24,9 @@ import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.testng.annotations.Test;
@@ -42,8 +41,8 @@ public class ClientCnxTest {
     @Test
     public void testClientCnxTimeout() throws Exception {
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("testClientCnxTimeout"));
-        ClientConfiguration conf = new ClientConfiguration();
-        conf.setOperationTimeout(10, TimeUnit.MILLISECONDS);
+        ClientConfigurationData conf = new ClientConfigurationData();
+        conf.setOperationTimeoutMs(10);
         ClientCnx cnx = new ClientCnx(conf, eventLoop);
 
         ChannelHandlerContext ctx = mock(ChannelHandlerContext.class);
