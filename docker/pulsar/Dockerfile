@@ -22,10 +22,10 @@ FROM openjdk:8-jdk
 # Install some utilities
 RUN apt-get update && apt-get install -y netcat dnsutils
 
-ARG VERSION
+ARG PULSAR_TARBALL
 
-ADD apache-pulsar-${VERSION}-bin.tar.gz /
-RUN mv /apache-pulsar-${VERSION} /pulsar
+ADD ${PULSAR_TARBALL} /
+RUN mv /apache-pulsar-* /pulsar
 
 COPY scripts/apply-config-from-env.py /pulsar/bin
 COPY scripts/generate-zookeeper-config.sh /pulsar/bin
