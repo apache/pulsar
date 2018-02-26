@@ -153,6 +153,8 @@ commands:
   options:
   - flags: -c, --conf
     description: Configuration file for ZooKeeper
+- name: zookeeper-shell
+  description: Opens up a shell client to the ZooKeeper cluster used by Pulsar
 env_vars:
 - name: PULSAR_LOG_CONF
   description: Log4j configuration file
