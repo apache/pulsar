@@ -41,7 +41,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,7 +91,7 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         AtomicInteger completed = new AtomicInteger();
         ConsumerConfigurationData internalConfig = getInternalConsumerConfig();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
             ConsumerImpl consumer = new ConsumerImpl(client, partitionName, internalConfig,
                     client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<Consumer>());
             consumers.add(consumer);

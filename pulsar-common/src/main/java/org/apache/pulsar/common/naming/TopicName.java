@@ -34,17 +34,17 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.UncheckedExecutionException;
 
 /**
- * Encapsulate the parsing of the destination name.
+ * Encapsulate the parsing of the completeTopicName name.
  */
-public class DestinationName implements ServiceUnitId {
+public class TopicName implements ServiceUnitId {
 
-    private static final Logger log = LoggerFactory.getLogger(DestinationName.class);
+    private static final Logger log = LoggerFactory.getLogger(TopicName.class);
 
     private static final String PARTITIONED_TOPIC_SUFFIX = "-partition-";
 
-    private final String destination;
+    private final String completeTopicName;
 
-    private final DestinationDomain domain;
+    private final TopicDomain domain;
     private final String property;
     private final String cluster;
     private final String namespacePortion;
@@ -54,33 +54,33 @@ public class DestinationName implements ServiceUnitId {
 
     private final int partitionIndex;
 
-    private static final LoadingCache<String, DestinationName> cache = CacheBuilder.newBuilder().maximumSize(100000)
-            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, DestinationName>() {
+    private static final LoadingCache<String, TopicName> cache = CacheBuilder.newBuilder().maximumSize(100000)
+            .expireAfterAccess(30, TimeUnit.MINUTES).build(new CacheLoader<String, TopicName>() {
                 @Override
-                public DestinationName load(String name) throws Exception {
-                    return new DestinationName(name);
+                public TopicName load(String name) throws Exception {
+                    return new TopicName(name);
                 }
             });
 
-    public static DestinationName get(String domain, NamespaceName namespaceName, String destination) {
-        String name = domain + "://" + namespaceName.toString() + '/' + destination;
-        return DestinationName.get(name);
+    public static TopicName get(String domain, NamespaceName namespaceName, String topic) {
+        String name = domain + "://" + namespaceName.toString() + '/' + topic;
+        return TopicName.get(name);
     }
 
-    public static DestinationName get(String domain, String property, String namespace, String destination) {
-        String name = domain + "://" + property + '/' + namespace + '/' + destination;
-        return DestinationName.get(name);
+    public static TopicName get(String domain, String property, String namespace, String topic) {
+        String name = domain + "://" + property + '/' + namespace + '/' + topic;
+        return TopicName.get(name);
     }
 
-    public static DestinationName get(String domain, String property, String cluster, String namespace,
-            String destination) {
-        String name = domain + "://" + property + '/' + cluster + '/' + namespace + '/' + destination;
-        return DestinationName.get(name);
+    public static TopicName get(String domain, String property, String cluster, String namespace,
+            String topic) {
+        String name = domain + "://" + property + '/' + cluster + '/' + namespace + '/' + topic;
+        return TopicName.get(name);
     }
 
-    public static DestinationName get(String destination) {
+    public static TopicName get(String topic) {
         try {
-            return cache.get(destination);
+            return cache.get(topic);
         } catch (ExecutionException e) {
             throw (RuntimeException) e.getCause();
         } catch (UncheckedExecutionException e) {
@@ -88,28 +88,28 @@ public class DestinationName implements ServiceUnitId {
         }
     }
 
-    public static boolean isValid(String destination) {
+    public static boolean isValid(String topic) {
         try {
-            get(destination);
+            get(topic);
             return true;
         } catch (Exception e) {
             return false;
         }
     }
 
-    private DestinationName(String destination) {
-        this.destination = destination;
+    private TopicName(String completeTopicName) {
+        this.completeTopicName = completeTopicName;
         try {
             // The topic name can be in two different forms:
             // new:    persistent://property/namespace/topic
             // legacy: persistent://property/cluster/namespace/topic
-            if (!destination.contains("://")) {
+            if (!completeTopicName.contains("://")) {
                 throw new IllegalArgumentException(
-                        "Invalid destination name: " + destination + " -- Domain is missing");
+                        "Invalid completeTopicName name: " + completeTopicName + " -- Domain is missing");
             }
 
-            List<String> parts = Splitter.on("://").limit(2).splitToList(destination);
-            this.domain = DestinationDomain.getEnum(parts.get(0));
+            List<String> parts = Splitter.on("://").limit(2).splitToList(completeTopicName);
+            this.domain = TopicDomain.getEnum(parts.get(0));
 
             String rest = parts.get(1);
 
@@ -128,7 +128,7 @@ public class DestinationName implements ServiceUnitId {
                 this.cluster = null;
                 this.namespacePortion = parts.get(1);
                 this.localName = parts.get(2);
-                this.partitionIndex = getPartitionIndex(destination);
+                this.partitionIndex = getPartitionIndex(completeTopicName);
                 this.namespaceName = NamespaceName.get(property, namespacePortion);
             } else if (parts.size() == 4) {
                 // Legacy topic name that includes cluster name
@@ -136,24 +136,24 @@ public class DestinationName implements ServiceUnitId {
                 this.cluster = parts.get(1);
                 this.namespacePortion = parts.get(2);
                 this.localName = parts.get(3);
-                this.partitionIndex = getPartitionIndex(destination);
+                this.partitionIndex = getPartitionIndex(completeTopicName);
                 this.namespaceName = NamespaceName.get(property, cluster, namespacePortion);
             } else {
-                throw new IllegalArgumentException("Invalid destination name: " + destination);
+                throw new IllegalArgumentException("Invalid completeTopicName name: " + completeTopicName);
             }
 
 
             if (localName == null || localName.isEmpty()) {
-                throw new IllegalArgumentException("Invalid destination name: " + destination);
+                throw new IllegalArgumentException("Invalid completeTopicName name: " + completeTopicName);
             }
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Invalid destination name: " + destination, e);
+            throw new IllegalArgumentException("Invalid completeTopicName name: " + completeTopicName, e);
         }
 
     }
 
     /**
-     * Extract the namespace portion out of a destination name.
+     * Extract the namespace portion out of a completeTopicName name.
      *
      * Works both with old & new convention.
      *
@@ -164,7 +164,7 @@ public class DestinationName implements ServiceUnitId {
     }
 
     /**
-     * Get the namespace object that this destination belongs to
+     * Get the namespace object that this completeTopicName belongs to
      *
      * @return namespace object
      */
@@ -173,7 +173,7 @@ public class DestinationName implements ServiceUnitId {
         return namespaceName;
     }
 
-    public DestinationDomain getDomain() {
+    public TopicDomain getDomain() {
         return domain;
     }
 
@@ -198,7 +198,7 @@ public class DestinationName implements ServiceUnitId {
         return Codec.encode(localName);
     }
 
-    public DestinationName getPartition(int index) {
+    public TopicName getPartition(int index) {
         if (index == -1 || this.toString().contains(PARTITIONED_TOPIC_SUFFIX)) {
             return this;
         }
@@ -207,7 +207,7 @@ public class DestinationName implements ServiceUnitId {
     }
 
     /**
-     * @return partition index of the destination. It returns -1 if the destination (topic) is not partitioned.
+     * @return partition index of the completeTopicName. It returns -1 if the completeTopicName (topic) is not partitioned.
      */
     public int getPartitionIndex() {
         return partitionIndex;
@@ -227,14 +227,14 @@ public class DestinationName implements ServiceUnitId {
      */
     public String getPartitionedTopicName() {
         if (isPartitioned()) {
-            return destination.substring(0, destination.lastIndexOf("-partition-"));
+            return completeTopicName.substring(0, completeTopicName.lastIndexOf("-partition-"));
         } else {
-            return destination;
+            return completeTopicName;
         }
     }
 
     /**
-     * @return partition index of the destination. It returns -1 if the destination (topic) is not partitioned.
+     * @return partition index of the completeTopicName. It returns -1 if the completeTopicName (topic) is not partitioned.
      */
     public static int getPartitionIndex(String topic) {
         int partitionIndex = -1;
@@ -250,7 +250,7 @@ public class DestinationName implements ServiceUnitId {
     }
 
     /**
-     * Returns the name of the persistence resource associated with the destination.
+     * Returns the name of the persistence resource associated with the completeTopicName.
      *
      * @return the relative path to be used in persistence
      */
@@ -268,11 +268,11 @@ public class DestinationName implements ServiceUnitId {
     }
 
     /**
-     * Get a string suitable for destination lookup
+     * Get a string suitable for completeTopicName lookup
      * <p>
      * Example:
      * <p>
-     * persistent://property/cluster/namespace/destination -> persistent/property/cluster/namespace/destination
+     * persistent://property/cluster/namespace/completeTopicName -> persistent/property/cluster/namespace/completeTopicName
      *
      * @return
      */
@@ -290,14 +290,14 @@ public class DestinationName implements ServiceUnitId {
 
     @Override
     public String toString() {
-        return destination;
+        return completeTopicName;
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof DestinationName) {
-            DestinationName other = (DestinationName) obj;
-            return Objects.equal(destination, other.destination);
+        if (obj instanceof TopicName) {
+            TopicName other = (TopicName) obj;
+            return Objects.equal(completeTopicName, other.completeTopicName);
         }
 
         return false;
@@ -305,12 +305,12 @@ public class DestinationName implements ServiceUnitId {
 
     @Override
     public int hashCode() {
-        return destination.hashCode();
+        return completeTopicName.hashCode();
     }
 
     @Override
-    public boolean includes(DestinationName dn) {
-        return this.equals(dn);
+    public boolean includes(TopicName otherTopicName) {
+        return this.equals(otherTopicName);
     }
 
 }

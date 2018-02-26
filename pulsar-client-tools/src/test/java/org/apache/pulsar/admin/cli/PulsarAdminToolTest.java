@@ -89,8 +89,8 @@ public class PulsarAdminToolTest {
 
         CmdBrokerStats brokerStats = new CmdBrokerStats(admin);
 
-        brokerStats.run(split("destinations"));
-        verify(mockBrokerStats).getDestinations();
+        brokerStats.run(split("topics"));
+        verify(mockBrokerStats).getTopics();
 
         brokerStats.run(split("load-report"));
         verify(mockBrokerStats).getLoadReport();
@@ -175,7 +175,7 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("update-peer-clusters my-cluster --peer-clusters c1,c2"));
         verify(mockClusters).updatePeerClusterNames("my-cluster", Sets.newLinkedHashSet(Lists.newArrayList("c1", "c2")));
-        
+
         clusters.run(split("get-peer-clusters my-cluster"));
         verify(mockClusters).getPeerClusterNames("my-cluster");
     }
@@ -224,8 +224,8 @@ public class PulsarAdminToolTest {
         namespaces.run(split("list-cluster myprop/clust"));
         verify(mockNamespaces).getNamespaces("myprop", "clust");
 
-        namespaces.run(split("destinations myprop/clust/ns1"));
-        verify(mockNamespaces).getDestinations("myprop/clust/ns1");
+        namespaces.run(split("topics myprop/clust/ns1"));
+        verify(mockNamespaces).getTopics("myprop/clust/ns1");
 
         namespaces.run(split("policies myprop/clust/ns1"));
         verify(mockNamespaces).getPolicies("myprop/clust/ns1");

@@ -52,7 +52,7 @@ public class MetricsGenerator {
         metricsCollection.addAll(jvmMetrics.generate());
         metricsCollection.addAll(new ManagedLedgerCacheMetrics(pulsar).generate());
         metricsCollection.addAll(new ManagedLedgerMetrics(pulsar).generate());
-        metricsCollection.addAll(pulsar.getBrokerService().getDestinationMetrics());
+        metricsCollection.addAll(pulsar.getBrokerService().getTopicMetrics());
         metricsCollection.addAll(pulsar.getLoadManager().get().getLoadBalancingMetrics());
 
         return metricsCollection;

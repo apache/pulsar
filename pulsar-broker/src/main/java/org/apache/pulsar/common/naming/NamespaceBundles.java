@@ -26,7 +26,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.SortedSet;
 
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 
 import com.google.common.base.Objects;
@@ -86,11 +86,11 @@ public class NamespaceBundles {
         }
     }
 
-    public NamespaceBundle findBundle(DestinationName dn) {
-        checkArgument(this.nsname.equals(dn.getNamespaceObject()));
-        long hashCode = factory.getLongHashCode(dn.toString());
+    public NamespaceBundle findBundle(TopicName topicName) {
+        checkArgument(this.nsname.equals(topicName.getNamespaceObject()));
+        long hashCode = factory.getLongHashCode(topicName.toString());
         NamespaceBundle bundle = getBundle(hashCode);
-        if (dn.getDomain().equals(DestinationDomain.non_persistent)) {
+        if (topicName.getDomain().equals(TopicDomain.non_persistent)) {
             bundle.setHasNonPersistentTopic(true);
         }
         return bundle;

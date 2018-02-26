@@ -59,7 +59,7 @@ import org.apache.pulsar.client.kafka.compat.MessageIdUtils;
 import org.apache.pulsar.client.kafka.compat.PulsarClientKafkaConfig;
 import org.apache.pulsar.client.kafka.compat.PulsarConsumerKafkaConfig;
 import org.apache.pulsar.client.util.ConsumerName;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
 public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener {
@@ -211,7 +211,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     // Subscribe to each partition
                     conf.setConsumerName(ConsumerName.generateRandomName());
                     for (int i = 0; i < numberOfPartitions; i++) {
-                        String partitionName = DestinationName.get(topic).getPartition(i).toString();
+                        String partitionName = TopicName.get(topic).getPartition(i).toString();
                         CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client
                                 .subscribeAsync(partitionName, groupId, conf);
                         int partitionIndex = i;
@@ -290,9 +290,9 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             int numberOfRecords = 0;
 
             while (item != null && ++numberOfRecords < MAX_RECORDS_IN_SINGLE_POLL) {
-                DestinationName dn = DestinationName.get(item.consumer.getTopic());
-                String topic = dn.getPartitionedTopicName();
-                int partition = dn.isPartitioned() ? dn.getPartitionIndex() : 0;
+                TopicName topicName = TopicName.get(item.consumer.getTopic());
+                String topic = topicName.getPartitionedTopicName();
+                int partition = topicName.isPartitioned() ? topicName.getPartitionIndex() : 0;
                 Message msg = item.message;
                 MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
                 long offset = MessageIdUtils.getOffset(msgId);

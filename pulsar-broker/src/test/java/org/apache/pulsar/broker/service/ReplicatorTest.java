@@ -63,7 +63,7 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
@@ -124,10 +124,10 @@ public class ReplicatorTest extends ReplicatorTestBase {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
         // This test is to verify that the config change on global namespace is successfully applied in broker during
         // runtime.
-        // Run a set of producer tasks to create the destinations
+        // Run a set of producer tasks to create the topics
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
-            final DestinationName dest = DestinationName
+            final TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns/topic-%d", i));
 
             results.add(executor.submit(new Callable<Void>() {
@@ -212,7 +212,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         final String namespace = "pulsar/global/concurrent";
         admin1.namespaces().createNamespace(namespace);
         admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2"));
-        final DestinationName dest = DestinationName.get(String.format("persistent://" + namespace + "/topic-%d", 0));
+        final TopicName dest = TopicName.get(String.format("persistent://" + namespace + "/topic-%d", 0));
         ClientConfiguration conf = new ClientConfiguration();
         conf.setStatsInterval(0, TimeUnit.SECONDS);
         Producer producer = PulsarClient.create(url1.toString(), conf).createProducer(dest.toString());
@@ -288,11 +288,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // This test is to verify that the config change on global namespace is successfully applied in broker during
         // runtime.
-        // Run a set of producer tasks to create the destinations
+        // Run a set of producer tasks to create the topics
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 3; i++) {
-            final DestinationName dest = DestinationName
+            final TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns/repltopic-%d", i));
             testDests.add(dest.toString());
 
@@ -389,11 +389,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // This test is to verify that the config change on global namespace is successfully applied in broker during
         // runtime.
-        // Run a set of producer tasks to create the destinations
+        // Run a set of producer tasks to create the topics
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 10; i++) {
-            final DestinationName dest = DestinationName
+            final TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns/repltopic-%d", i));
             testDests.add(dest.toString());
 
@@ -473,7 +473,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         try {
             // 1. Create a consumer using the reserved consumer id prefix "pulsar.repl."
 
-            final DestinationName dest = DestinationName
+            final TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns/res-cons-id"));
 
             // Create another consumer using replication prefix as sub id
@@ -491,7 +491,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         SortedSet<String> testDests = new TreeSet<String>();
 
-        final DestinationName dest = DestinationName.get("persistent://pulsar/global/ns/peekAndSeekTopic");
+        final TopicName dest = TopicName.get("persistent://pulsar/global/ns/peekAndSeekTopic");
         testDests.add(dest.toString());
 
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -515,7 +515,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         // This test is to verify that reset cursor fails on global topic
         SortedSet<String> testDests = new TreeSet<String>();
 
-        final DestinationName dest = DestinationName.get("persistent://pulsar/global/ns/clearBacklogTopic");
+        final TopicName dest = TopicName.get("persistent://pulsar/global/ns/clearBacklogTopic");
         testDests.add(dest.toString());
 
         MessageProducer producer1 = new MessageProducer(url1, dest);
@@ -545,7 +545,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 1; i++) {
-            final DestinationName dest = DestinationName
+            final TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns/resetrepltopic-%d", i));
             testDests.add(dest.toString());
 
@@ -587,11 +587,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         log.info("--- Starting ReplicatorTest::testReplicationForBatchMessages ---");
 
-        // Run a set of producer tasks to create the destinations
+        // Run a set of producer tasks to create the topics
         SortedSet<String> testDests = new TreeSet<String>();
         List<Future<Void>> results = Lists.newArrayList();
         for (int i = 0; i < 3; i++) {
-            final DestinationName dest = DestinationName
+            final TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns/repltopicbatch-%d", i));
             testDests.add(dest.toString());
 
@@ -660,7 +660,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void testDeleteReplicatorFailure() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
-        final DestinationName dest = DestinationName.get(topicName);
+        final TopicName dest = TopicName.get(topicName);
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName);
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
@@ -699,7 +699,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public void testReplicatorProducerClosing() throws Exception {
         log.info("--- Starting ReplicatorTest::testDeleteReplicatorFailure ---");
         final String topicName = "persistent://pulsar/global/ns/repltopicbatch";
-        final DestinationName dest = DestinationName.get(topicName);
+        final TopicName dest = TopicName.get(topicName);
         MessageProducer producer1 = new MessageProducer(url1, dest);
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopicReference(topicName);
         final String replicatorClusterName = topic.getReplicators().keys().get(0);
@@ -735,7 +735,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
             admin1.namespaces().setBacklogQuota("pulsar/global/ns1", new BacklogQuota(1 * 1024 * 1024, policy));
             Thread.sleep(200);
 
-            DestinationName dest = DestinationName
+            TopicName dest = TopicName
                     .get(String.format("persistent://pulsar/global/ns1/%s-%d", policy, System.currentTimeMillis()));
 
             // Producer on r1
@@ -796,7 +796,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Test(timeOut = 5000)
     public void testCloseReplicatorStartProducer() throws Exception {
 
-        DestinationName dest = DestinationName.get("persistent://pulsar/global/ns1/closeCursor");
+        TopicName dest = TopicName.get("persistent://pulsar/global/ns1/closeCursor");
         // Producer on r1
         MessageProducer producer1 = new MessageProducer(url1, dest);
         // Consumer on r1

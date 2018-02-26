@@ -49,7 +49,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -170,13 +170,13 @@ public abstract class NamespacesBase extends AdminResource {
 
         boolean isEmpty;
         try {
-            isEmpty = pulsar().getNamespaceService().getListOfDestinations(namespaceName).isEmpty();
+            isEmpty = pulsar().getNamespaceService().getListOfTopics(namespaceName).isEmpty();
         } catch (Exception e) {
             throw new RestException(e);
         }
 
         if (!isEmpty) {
-            log.debug("Found destinations on namespace {}", namespaceName);
+            log.debug("Found topics on namespace {}", namespaceName);
             throw new RestException(Status.CONFLICT, "Cannot delete non empty namespace");
         }
 
@@ -269,11 +269,11 @@ public abstract class NamespacesBase extends AdminResource {
         NamespaceBundle bundle = validateNamespaceBundleOwnership(namespaceName, policies.bundles, bundleRange,
                 authoritative, true);
         try {
-            List<String> destinations = pulsar().getNamespaceService().getListOfDestinations(namespaceName);
-            for (String destination : destinations) {
-                NamespaceBundle destinationBundle = (NamespaceBundle) pulsar().getNamespaceService()
-                        .getBundle(DestinationName.get(destination));
-                if (bundle.equals(destinationBundle)) {
+            List<String> topics = pulsar().getNamespaceService().getListOfTopics(namespaceName);
+            for (String topic : topics) {
+                NamespaceBundle topicBundle = (NamespaceBundle) pulsar().getNamespaceService()
+                        .getBundle(TopicName.get(topic));
+                if (bundle.equals(topicBundle)) {
                     throw new RestException(Status.CONFLICT, "Cannot delete non empty bundle");
                 }
             }
