@@ -29,36 +29,38 @@
 #include <lib/Version.h>
 
 namespace pulsar {
-    class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
-        class CurlInitializer {
-         public:
-            CurlInitializer() {
-                // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
-                curl_global_init (CURL_GLOBAL_ALL);
-            }
-            ~CurlInitializer() {
-                curl_global_cleanup();
-            }
-        };
-        static CurlInitializer curlInitializer;
-        enum RequestType {Lookup, PartitionMetaData};
-        typedef Promise<Result, LookupDataResultPtr> LookupPromise;
-        ExecutorServiceProviderPtr executorProvider_;
-        std::string adminUrl_;
-        AuthenticationPtr authenticationPtr_;
-        int lookupTimeoutInSeconds_;
-
-        static LookupDataResultPtr parsePartitionData(const std::string&);
-        static LookupDataResultPtr parseLookupData(const std::string&);
-        void sendHTTPRequest(LookupPromise, const std::string, RequestType);
-     public:
-        HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
-
-        Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
-
-        Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const DestinationNamePtr&);
+class HTTPLookupService : public LookupService, public boost::enable_shared_from_this<HTTPLookupService> {
+    class CurlInitializer {
+       public:
+        CurlInitializer() {
+            // Once per application - https://curl.haxx.se/mail/lib-2015-11/0052.html
+            curl_global_init(CURL_GLOBAL_ALL);
+        }
+        ~CurlInitializer() { curl_global_cleanup(); }
     };
+    static CurlInitializer curlInitializer;
+    enum RequestType
+    {
+        Lookup,
+        PartitionMetaData
+    };
+    typedef Promise<Result, LookupDataResultPtr> LookupPromise;
+    ExecutorServiceProviderPtr executorProvider_;
+    std::string adminUrl_;
+    AuthenticationPtr authenticationPtr_;
+    int lookupTimeoutInSeconds_;
 
-}
+    static LookupDataResultPtr parsePartitionData(const std::string&);
+    static LookupDataResultPtr parseLookupData(const std::string&);
+    void sendHTTPRequest(LookupPromise, const std::string, RequestType);
 
-#endif //PULSAR_CPP_HTTPLOOKUPSERVICE_H
+   public:
+    HTTPLookupService(const std::string&, const ClientConfiguration&, const AuthenticationPtr&);
+
+    Future<Result, LookupDataResultPtr> lookupAsync(const std::string&);
+
+    Future<Result, LookupDataResultPtr> getPartitionMetadataAsync(const TopicNamePtr&);
+};
+}  // namespace pulsar
+
+#endif  // PULSAR_CPP_HTTPLOOKUPSERVICE_H

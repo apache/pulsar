@@ -70,4 +70,14 @@ class TypedReaderImpl<T> implements Reader<T> {
     public void close() throws IOException {
         untypedReader.close();
     }
+
+    @Override
+    public boolean hasMessageAvailable() throws PulsarClientException {
+        return untypedReader.hasMessageAvailable();
+    }
+
+    @Override
+    public CompletableFuture<Boolean> hasMessageAvailableAsync() {
+        return untypedReader.hasMessageAvailableAsync();
+    }
 }

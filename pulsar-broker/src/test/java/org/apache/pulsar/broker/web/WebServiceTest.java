@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.web;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -43,7 +42,6 @@ import javax.net.ssl.TrustManager;
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException.ConflictException;
 import org.apache.pulsar.client.api.Authentication;
@@ -243,6 +241,7 @@ public class WebServiceTest {
         roles.add("client");
 
         ServiceConfiguration config = new ServiceConfiguration();
+        config.setAdvertisedAddress("localhost");
         config.setWebServicePort(BROKER_WEBSERVICE_PORT);
         config.setWebServicePortTls(BROKER_WEBSERVICE_PORT_TLS);
         config.setClientLibraryVersionCheckEnabled(enableFilter);
@@ -257,6 +256,7 @@ public class WebServiceTest {
         config.setTlsTrustCertsFilePath(allowInsecure ? "" : TLS_CLIENT_CERT_FILE_PATH);
         config.setClusterName("local");
         config.setAdvertisedAddress("localhost"); // TLS certificate expects localhost
+        config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
         pulsar.start();

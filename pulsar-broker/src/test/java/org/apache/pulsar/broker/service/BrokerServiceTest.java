@@ -63,7 +63,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.LocalPolicies;
@@ -114,7 +114,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         });
         latch1.await();
 
-        admin.lookups().lookupDestination(topic);
+        admin.lookups().lookupTopic(topic);
 
         final CountDownLatch latch2 = new CountDownLatch(1);
         service.getTopic(topic).thenAccept(t -> {
@@ -371,15 +371,15 @@ public class BrokerServiceTest extends BrokerTestBase {
         }
 
         rolloverPerIntervalStats();
-        JsonObject destinationStats = brokerStatsClient.getDestinations();
-        assertEquals(destinationStats.size(), 2, destinationStats.toString());
+        JsonObject topicStats = brokerStatsClient.getTopics();
+        assertEquals(topicStats.size(), 2, topicStats.toString());
 
         for (String ns : nsList) {
-            JsonObject nsObject = destinationStats.getAsJsonObject(ns);
-            List<String> topicList = admin.namespaces().getDestinations(ns);
+            JsonObject nsObject = topicStats.getAsJsonObject(ns);
+            List<String> topicList = admin.namespaces().getTopics(ns);
             for (String topic : topicList) {
                 NamespaceBundle bundle = (NamespaceBundle) pulsar.getNamespaceService()
-                        .getBundle(DestinationName.get(topic));
+                        .getBundle(TopicName.get(topic));
                 JsonObject bundleObject = nsObject.getAsJsonObject(bundle.getBundleRange());
                 JsonObject topicObject = bundleObject.getAsJsonObject("persistent");
                 AtomicBoolean topicPresent = new AtomicBoolean();
@@ -396,8 +396,8 @@ public class BrokerServiceTest extends BrokerTestBase {
             producer.close();
         }
         for (String ns : nsList) {
-            List<String> destinations = admin.namespaces().getDestinations(ns);
-            for (String dest : destinations) {
+            List<String> topics = admin.namespaces().getTopics(ns);
+            for (String dest : topics) {
                 admin.persistentTopics().delete(dest);
             }
             admin.namespaces().deleteNamespace(ns);
@@ -510,7 +510,7 @@ public class BrokerServiceTest extends BrokerTestBase {
             consumer.close();
             fail("should fail");
         } catch (Exception e) {
-            assertTrue(e.getMessage().contains("General SSLEngine problem"));
+            assertTrue(e.getMessage().contains("General OpenSslEngine problem"));
         } finally {
             pulsarClient.close();
         }
@@ -761,12 +761,12 @@ public class BrokerServiceTest extends BrokerTestBase {
 
         // own namespace bundle
         final String topicName = "persistent://" + namespace + "/my-topic";
-        DestinationName destination = DestinationName.get(topicName);
+        TopicName topic = TopicName.get(topicName);
         Producer producer = pulsarClient.createProducer(topicName);
         producer.close();
 
         // disable namespace-bundle
-        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(destination);
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(topic);
         pulsar.getNamespaceService().getOwnershipCache().updateBundleState(bundle, false);
 
         // try to create topic which should fail as bundle is disable

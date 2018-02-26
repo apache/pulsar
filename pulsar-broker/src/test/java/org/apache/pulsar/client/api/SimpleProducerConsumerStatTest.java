@@ -344,7 +344,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
         double produceRate = 17;
         int batchSize = 5;
-        ConsumerConfiguration<byte[]> consumerConf = new ConsumerConfiguration<>();
+        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
         consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
         Consumer<byte[]> consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
         ProducerConfiguration producerConf = new ProducerConfiguration();

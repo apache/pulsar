@@ -30,13 +30,13 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.TopicMetadata;
-import org.apache.pulsar.client.util.FutureUtil;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,13 +49,17 @@ public class PartitionedProducerImpl extends ProducerBase {
     private final ProducerStats stats;
     private final TopicMetadata topicMetadata;
 
-    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf, int numPartitions,
+    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
             CompletableFuture<Producer<byte[]>> producerCreatedFuture) {
         super(client, topic, conf, producerCreatedFuture);
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
         stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStats() : null;
+
+        int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
+                conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
+        conf.setMaxPendingMessages(maxPendingMessages);
         start();
     }
 
@@ -63,7 +67,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         MessageRouter messageRouter;
 
         MessageRoutingMode messageRouteMode = conf.getMessageRoutingMode();
-        MessageRouter customMessageRouter = conf.getMessageRouter();
+        MessageRouter customMessageRouter = conf.getCustomMessageRouter();
 
         switch (messageRouteMode) {
         case CustomPartition:
@@ -71,12 +75,12 @@ public class PartitionedProducerImpl extends ProducerBase {
             messageRouter = customMessageRouter;
             break;
         case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl();
+            messageRouter = new RoundRobinPartitionMessageRouterImpl(conf.getHashingScheme());
             break;
         case SinglePartition:
         default:
             messageRouter = new SinglePartitionMessageRouterImpl(
-                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()));
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()), conf.getHashingScheme());
         }
 
         return messageRouter;
@@ -98,7 +102,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
             ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<>(),
                     partitionIndex);
             producers.add(producer);

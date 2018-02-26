@@ -33,7 +33,7 @@ typedef boost::unique_lock<boost::mutex> Lock;
 
 namespace pulsar {
 
-template<typename Result, typename Type>
+template <typename Result, typename Type>
 struct InternalState {
     boost::mutex mutex;
     boost::condition_variable condition;
@@ -44,9 +44,9 @@ struct InternalState {
     std::list<typename boost::function<void(Result, const Type&)> > listeners;
 };
 
-template<typename Result, typename Type>
+template <typename Result, typename Type>
 class Future {
- public:
+   public:
     typedef boost::function<void(Result, const Type&)> ListenerCallback;
 
     Future& addListener(ListenerCallback callback) {
@@ -78,24 +78,20 @@ class Future {
         return state->result;
     }
 
- private:
+   private:
     typedef boost::shared_ptr<InternalState<Result, Type> > InternalStatePtr;
-    Future(InternalStatePtr state)
-            : state_(state) {
-    }
+    Future(InternalStatePtr state) : state_(state) {}
 
     boost::shared_ptr<InternalState<Result, Type> > state_;
 
-    template<typename U, typename V>
+    template <typename U, typename V>
     friend class Promise;
 };
 
-template<typename Result, typename Type>
+template <typename Result, typename Type>
 class Promise {
- public:
-    Promise()
-            : state_(boost::make_shared<InternalState<Result, Type> >()) {
-    }
+   public:
+    Promise() : state_(boost::make_shared<InternalState<Result, Type> >()) {}
 
     bool setValue(const Type& value) {
         InternalState<Result, Type>* state = state_.get();
@@ -148,17 +144,14 @@ class Promise {
         return state->complete;
     }
 
-    Future<Result, Type> getFuture() const {
-        return Future<Result, Type>(state_);
-    }
+    Future<Result, Type> getFuture() const { return Future<Result, Type>(state_); }
 
- private:
+   private:
     typedef boost::function<void(Result, const Type&)> ListenerCallback;
     boost::shared_ptr<InternalState<Result, Type> > state_;
 };
 
-class Void {
-};
+class Void {};
 
 } /* namespace pulsar */
 

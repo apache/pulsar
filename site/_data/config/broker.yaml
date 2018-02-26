@@ -206,6 +206,9 @@ configs:
   default: '1000'
   description: |
     Max number of "acknowledgment holes" that are going to be persistently stored. When acknowledging out of order, a consumer will leave holes that are supposed to be quickly filled by acking all the messages. The information of which messages are acknowledged is persisted by compressing in "ranges" of messages that were acknowledged. After the max number of ranges is reached, the information will only be tracked in memory and messages will be redelivered in case of crashes.
+- name: autoSkipNonRecoverableData
+  default: 'false'
+  description: Skip reading non-recoverable/unreadable data-ledger under managed-ledger's list.It helps when data-ledgers gets corrupted at bookkeeper and managed-cursor is stuck at that ledger.
 - name: loadBalancerEnabled
   default: 'true'
   description: Enable load balancer
@@ -227,6 +230,9 @@ configs:
 - name: loadBalancerSheddingGracePeriodMinutes
   default: '30'
   description: Prevent the same topics to be shed and moved to other broker more that once within this timeframe
+- name: loadBalancerBrokerMaxTopics
+  default: '50000'
+  description: Usage threshold to allocate max number of topics to broker
 - name: loadBalancerBrokerUnderloadedThresholdPercentage
   default: '1'
   description: Usage threshold to determine a broker as under-loaded

@@ -22,7 +22,7 @@ BINDIR=$(dirname "$0")
 PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
-DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j.shell.properties
+DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yaml
 
 if [ -f "$PULSAR_HOME/conf/pulsar_tools_env.sh" ]
 then
@@ -88,7 +88,7 @@ fi
 
 PULSAR_CLASSPATH="$PULSAR_JAR:$PULSAR_CLASSPATH:$PULSAR_EXTRA_CLASSPATH"
 PULSAR_CLASSPATH="`dirname $PULSAR_LOG_CONF`:$PULSAR_CLASSPATH"
-OPTS="$OPTS -Dlog4j.configuration=`basename $PULSAR_LOG_CONF`"
+OPTS="$OPTS -Dlog4j.configurationFile=`basename $PULSAR_LOG_CONF`"
 OPTS="$OPTS -Djava.net.preferIPv4Stack=true"
 
 OPTS="-cp $PULSAR_CLASSPATH $OPTS"
@@ -96,12 +96,12 @@ OPTS="-cp $PULSAR_CLASSPATH $OPTS"
 OPTS="$OPTS $PULSAR_EXTRA_OPTS"
 
 # log directory & file
-PULSAR_ROOT_LOGGER=${PULSAR_ROOT_LOGGER:-"INFO,CONSOLE"}
 PULSAR_LOG_DIR=${PULSAR_LOG_DIR:-"$PULSAR_HOME/logs"}
+PULSAR_LOG_APPENDER=${PULSAR_LOG_APPENDER:-"Console"}
 
 #Configure log configuration system properties
-OPTS="$OPTS -Dpulsar.root.logger=$PULSAR_ROOT_LOGGER"
 OPTS="$OPTS -Dpulsar.log.dir=$PULSAR_LOG_DIR"
+OPTS="$OPTS -Dpulsar.log.appender=$PULSAR_LOG_APPENDER"
 
 #Change to PULSAR_HOME to support relative paths
 cd "$PULSAR_HOME"

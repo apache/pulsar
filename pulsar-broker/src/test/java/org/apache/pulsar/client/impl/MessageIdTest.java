@@ -51,6 +51,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.ProducerImpl.OpSendMsg;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -294,7 +296,7 @@ public class MessageIdTest extends BrokerTestBase {
         ((PulsarClientImpl) pulsarClient).timer().stop();
 
         ClientCnx mockClientCnx = spy(
-                new ClientCnx(new ClientConfiguration(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
+                new ClientCnx(new ClientConfigurationData(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
         doReturn(producer.brokerChecksumSupportedVersion() - 1).when(mockClientCnx).getRemoteEndpointProtocolVersion();
         prod.setClientCnx(mockClientCnx);
 
@@ -359,7 +361,7 @@ public class MessageIdTest extends BrokerTestBase {
 
         // set clientCnx mock to get non-checksum supported version
         ClientCnx mockClientCnx = spy(
-                new ClientCnx(new ClientConfiguration(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
+                new ClientCnx(new ClientConfigurationData(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
         doReturn(producer.brokerChecksumSupportedVersion() - 1).when(mockClientCnx).getRemoteEndpointProtocolVersion();
         prod.setClientCnx(mockClientCnx);
 
@@ -471,7 +473,7 @@ public class MessageIdTest extends BrokerTestBase {
         Builder metadataBuilder = ((MessageImpl) msg).getMessageBuilder();
         MessageMetadata msgMetadata = metadataBuilder.setProducerName("test").setSequenceId(1).setPublishTime(10L)
                 .build();
-        ByteBuf cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
+        ByteBufPair cmd = Commands.newSend(producerId, 1, 1, ChecksumType.Crc32c, msgMetadata, payload);
         // (a) create OpSendMsg with message-data : "message-1"
         OpSendMsg op = OpSendMsg.create(((MessageImpl) msg), cmd, 1, null);
         // a.verify: as message is not corrupt: no need to update checksum
@@ -488,7 +490,7 @@ public class MessageIdTest extends BrokerTestBase {
         MessageImpl msg1 = (MessageImpl) MessageBuilder.create().setContent("message-1".getBytes()).build();
         future = producer.sendAsync(msg1);
         ClientCnx cnx = spy(
-                new ClientCnx(new ClientConfiguration(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
+                new ClientCnx(new ClientConfigurationData(), ((PulsarClientImpl) pulsarClient).eventLoopGroup()));
         String exc = "broker is already stopped";
         // when client-try to recover checksum by resending to broker: throw exception as broker is stopped
         doThrow(new IllegalStateException(exc)).when(cnx).ctx();

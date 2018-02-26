@@ -26,17 +26,18 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
 public abstract class ProducerBase extends HandlerBase implements Producer<byte[]> {
 
     protected final CompletableFuture<Producer<byte[]>> producerCreatedFuture;
-    protected final ProducerConfiguration conf;
+    protected final ProducerConfigurationData conf;
 
-    protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfiguration conf,
+    protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
             CompletableFuture<Producer<byte[]>> producerCreatedFuture) {
-        super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
+        super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS,
+                Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
     }
@@ -98,7 +99,7 @@ public abstract class ProducerBase extends HandlerBase implements Producer<byte[
         return topic;
     }
 
-    public ProducerConfiguration getConfiguration() {
+    public ProducerConfigurationData getConfiguration() {
         return conf;
     }
 

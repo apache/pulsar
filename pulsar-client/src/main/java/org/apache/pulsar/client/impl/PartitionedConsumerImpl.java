@@ -20,7 +20,10 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import java.util.*;
+import com.google.common.collect.Lists;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
@@ -31,15 +34,17 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-
-import org.apache.pulsar.client.api.*;
-import org.apache.pulsar.client.util.FutureUtil;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
 
 public class PartitionedConsumerImpl extends ConsumerBase {
 
@@ -58,10 +63,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private final ConsumerStats stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
 
-    PartitionedConsumerImpl(PulsarClientImpl client, String topic, String subscription, ConsumerConfig<byte[]> conf,
-            int numPartitions, ExecutorService listenerExecutor, CompletableFuture<Consumer<byte[]>> subscribeFuture) {
-        super(client, topic, subscription, conf, Math.max(Math.max(2, numPartitions), conf.getReceiverQueueSize()), listenerExecutor,
-                subscribeFuture);
+    PartitionedConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf, int numPartitions,
+            ExecutorService listenerExecutor, CompletableFuture<Consumer<byte[]>> subscribeFuture) {
+        super(client, conf.getSingleTopic(), conf, Math.max(Math.max(2, numPartitions), conf.getReceiverQueueSize()),
+                listenerExecutor, subscribeFuture);
         this.consumers = Lists.newArrayListWithCapacity(numPartitions);
         this.pausedConsumers = new ConcurrentLinkedQueue<>();
         this.sharedQueueResumeThreshold = maxReceiverQueueSize / 2;
@@ -82,10 +87,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     private void start() {
         AtomicReference<Throwable> subscribeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
-        ConsumerConfiguration internalConfig = getInternalConsumerConfig();
+        ConsumerConfigurationData internalConfig = getInternalConsumerConfig();
         for (int partitionIndex = 0; partitionIndex < numPartitions; partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, subscription, internalConfig,
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
+            ConsumerImpl consumer = new ConsumerImpl(client, partitionName, internalConfig,
                     client.externalExecutorProvider().getExecutor(), partitionIndex, new CompletableFuture<>());
             consumers.add(consumer);
             consumer.subscribeFuture().handle((cons, subscribeException) -> {
@@ -427,17 +432,25 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return subscription;
     }
 
-    private ConsumerConfiguration getInternalConsumerConfig() {
-        ConsumerConfiguration internalConsumerConfig = new ConsumerConfiguration();
+    private ConsumerConfigurationData getInternalConsumerConfig() {
+        ConsumerConfigurationData internalConsumerConfig = new ConsumerConfigurationData();
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
+        internalConsumerConfig.setSubscriptionName(conf.getSubscriptionName());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        if (null != conf.getConsumerEventListener()) {
+            internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
+        }
+        int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
+                conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
+        internalConsumerConfig.setReceiverQueueSize(receiverQueueSize);
+
         if (conf.getCryptoKeyReader() != null) {
             internalConsumerConfig.setCryptoKeyReader(conf.getCryptoKeyReader());
             internalConsumerConfig.setCryptoFailureAction(conf.getCryptoFailureAction());
         }
         if (conf.getAckTimeoutMillis() != 0) {
-            internalConsumerConfig.setAckTimeout(conf.getAckTimeoutMillis(), TimeUnit.MILLISECONDS);
+            internalConsumerConfig.setAckTimeoutMillis(conf.getAckTimeoutMillis());
         }
 
         return internalConsumerConfig;
@@ -456,7 +469,8 @@ public class PartitionedConsumerImpl extends ConsumerBase {
     }
 
     @Override
-    public void redeliverUnacknowledgedMessages(Set<MessageIdImpl> messageIds) {
+    public void redeliverUnacknowledgedMessages(Set<MessageId> messageIds) {
+        checkArgument(messageIds.stream().findFirst().get() instanceof MessageIdImpl);
         if (conf.getSubscriptionType() != SubscriptionType.Shared) {
             // We cannot redeliver single messages if subscription type is not Shared
             redeliverUnacknowledgedMessages();
@@ -464,9 +478,11 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         }
         removeExpiredMessagesFromQueue(messageIds);
         messageIds.stream()
-                .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
-                .forEach((partitionIndex, messageIds1) ->
-                        consumers.get(partitionIndex).redeliverUnacknowledgedMessages(messageIds1));
+            .map(messageId -> (MessageIdImpl)messageId)
+            .collect(Collectors.groupingBy(MessageIdImpl::getPartitionIndex, Collectors.toSet()))
+            .forEach((partitionIndex, messageIds1) ->
+                consumers.get(partitionIndex).redeliverUnacknowledgedMessages(
+                    messageIds1.stream().map(mid -> (MessageId)mid).collect(Collectors.toSet())));
         resumeReceivingFromPausedConsumersIfNeeded();
     }
 
@@ -534,10 +550,10 @@ public class PartitionedConsumerImpl extends ConsumerBase {
         return unAckedMessageTracker;
     }
 
-    private void removeExpiredMessagesFromQueue(Set<MessageIdImpl> messageIds) {
+    private void removeExpiredMessagesFromQueue(Set<MessageId> messageIds) {
         Message peek = incomingMessages.peek();
         if (peek != null) {
-            if (!messageIds.contains((MessageIdImpl) peek.getMessageId())) {
+            if (!messageIds.contains(peek.getMessageId())) {
                 // first message is not expired, then no message is expired in queue.
                 return;
             }

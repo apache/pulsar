@@ -86,7 +86,7 @@ public class PerformanceProducer {
         public String confFile;
 
         @Parameter(description = "persistent://prop/cluster/ns/my-topic", required = true)
-        public List<String> destinations;
+        public List<String> topics;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
@@ -174,7 +174,7 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.destinations.size() != 1) {
+        if (arguments.topics.size() != 1) {
             System.out.println("Only one topic name is allowed");
             jc.usage();
             System.exit(-1);
@@ -230,7 +230,7 @@ public class PerformanceProducer {
         }
 
         // Now processing command line arguments
-        String prefixTopicName = arguments.destinations.get(0);
+        String prefixTopicName = arguments.topics.get(0);
         List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
         ClientConfiguration clientConf = new ClientConfiguration();
@@ -269,12 +269,12 @@ public class PerformanceProducer {
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setSendTimeout(0, TimeUnit.SECONDS);
         producerConf.setCompressionType(arguments.compression);
+        producerConf.setMaxPendingMessages(arguments.maxOutstanding);
         // enable round robin message routing if it is a partitioned topic
         producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         if (arguments.batchTime > 0) {
             producerConf.setBatchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS);
             producerConf.setBatchingEnabled(true);
-            producerConf.setMaxPendingMessages(arguments.msgRate);
         }
 
         // Block if queue is full else we will start seeing errors in sendAsync
@@ -289,7 +289,7 @@ public class PerformanceProducer {
 
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
-            log.info("Adding {} publishers on destination {}", arguments.numProducers, topic);
+            log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
             for (int j = 0; j < arguments.numProducers; j++) {
                 futures.add(client.createProducerAsync(topic, producerConf));

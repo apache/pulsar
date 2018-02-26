@@ -41,9 +41,21 @@ public class BrokerServiceException extends Exception {
         }
     }
 
+    public static class ProducerBusyException extends BrokerServiceException {
+        public ProducerBusyException(String msg) {
+            super(msg);
+        }
+    }
+
     public static class ServiceUnitNotReadyException extends BrokerServiceException {
         public ServiceUnitNotReadyException(String msg) {
             super(msg);
+        }
+    }
+
+    public static class TopicClosedException extends BrokerServiceException {
+        public TopicClosedException(Throwable t) {
+            super(t);
         }
     }
 
@@ -130,6 +142,8 @@ public class BrokerServiceException extends Exception {
     public static PulsarApi.ServerError getClientErrorCode(Throwable t) {
         if (t instanceof ServerMetadataException) {
             return PulsarApi.ServerError.MetadataError;
+        } else if (t instanceof NamingException) {
+            return PulsarApi.ServerError.ProducerBusy;
         } else if (t instanceof PersistenceException) {
             return PulsarApi.ServerError.PersistenceError;
         } else if (t instanceof ConsumerBusyException) {

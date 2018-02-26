@@ -22,13 +22,12 @@
 #include <boost/thread/mutex.hpp>
 #include <boost/date_time/posix_time/ptime.hpp>
 
-
-
 #include "ClientImpl.h"
 #include "BlockingQueue.h"
 #include "HandlerBase.h"
 #include "SharedBuffer.h"
 #include "CompressionCodec.h"
+#include "MessageCrypto.h"
 #include "stats/ProducerStatsDisabled.h"
 #include "stats/ProducerStatsImpl.h"
 
@@ -39,6 +38,7 @@ namespace pulsar {
 class BatchMessageContainer;
 
 typedef boost::shared_ptr<BatchMessageContainer> BatchMessageContainerPtr;
+typedef boost::shared_ptr<MessageCrypto> MessageCryptoPtr;
 
 class PulsarFriend;
 
@@ -50,13 +50,14 @@ struct OpSendMsg {
     boost::posix_time::ptime timeout_;
 
     OpSendMsg();
-    OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& msg,
-              const SendCallback& sendCallback, const ProducerConfiguration& conf);
+    OpSendMsg(uint64_t producerId, uint64_t sequenceId, const Message& msg, const SendCallback& sendCallback,
+              const ProducerConfiguration& conf);
 };
 
-class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<ProducerImpl>, public ProducerImplBase {
- public:
-
+class ProducerImpl : public HandlerBase,
+                     public boost::enable_shared_from_this<ProducerImpl>,
+                     public ProducerImplBase {
+   public:
     ProducerImpl(ClientImplPtr client, const std::string& topic,
                  const ProducerConfiguration& producerConfiguration);
     ~ProducerImpl();
@@ -87,12 +88,12 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
 
     bool isClosed();
 
- protected:
+   protected:
     ProducerStatsBasePtr producerStatsBasePtr_;
 
     typedef BlockingQueue<OpSendMsg> MessageQueue;
 
-    void setMessageMetadata(const Message &msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
+    void setMessageMetadata(const Message& msg, const uint64_t& sequenceId, const uint32_t& uncompressedSize);
 
     void sendMessage(const Message& msg, SendCallback callback);
 
@@ -105,23 +106,25 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     virtual void connectionOpened(const ClientConnectionPtr& connection);
     virtual void connectionFailed(Result result);
 
-    virtual HandlerBaseWeakPtr get_weak_from_this() {
-        return shared_from_this();
-    }
+    virtual HandlerBaseWeakPtr get_weak_from_this() { return shared_from_this(); }
 
     const std::string& getName() const;
 
- private:
+   private:
     void printStats();
 
     void handleCreateProducer(const ClientConnectionPtr& cnx, Result result,
                               const ResponseData& responseData);
 
-    void statsCallBackHandler(Result , const Message& , SendCallback , boost::posix_time::ptime );
+    void statsCallBackHandler(Result, const Message&, SendCallback, boost::posix_time::ptime);
 
     void handleClose(Result result, ResultCallback callback);
 
     void resendMessages(ClientConnectionPtr cnx);
+
+    void refreshEncryptionKey(const boost::system::error_code& ec);
+    bool encryptMessage(proto::MessageMetadata& metadata, SharedBuffer& payload,
+                        SharedBuffer& encryptedPayload);
 
     typedef boost::unique_lock<boost::mutex> Lock;
 
@@ -147,10 +150,14 @@ class ProducerImpl : public HandlerBase, public boost::enable_shared_from_this<P
     Promise<Result, ProducerImplBaseWeakPtr> producerCreatedPromise_;
 
     void failPendingMessages(Result result);
+
+    MessageCryptoPtr msgCrypto_;
+    DeadlineTimerPtr dataKeyGenTImer_;
+    uint32_t dataKeyGenIntervalSec_;
 };
 
 struct ProducerImplCmp {
-    bool operator()(const ProducerImplPtr &a, const ProducerImplPtr &b) const;
+    bool operator()(const ProducerImplPtr& a, const ProducerImplPtr& b) const;
 };
 
 } /* namespace pulsar */

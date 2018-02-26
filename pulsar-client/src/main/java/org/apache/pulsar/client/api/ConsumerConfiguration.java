@@ -18,21 +18,24 @@
  */
 package org.apache.pulsar.client.api;
 
-import java.util.HashMap;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+import java.io.Serializable;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
  * will be able to use the same subscription name and the messages will be dispatched in a round robin fashion.
  *
- *
+ * @deprecated Use {@link PulsarClient#newConsumer} to build and configure a {@link Consumer} instance
  */
-public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
+@Deprecated
+public class ConsumerConfiguration implements Serializable {
 
     /**
      * Resend shouldn't be requested before minAckTimeoutMillis.
@@ -41,29 +44,13 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
 
     private static final long serialVersionUID = 1L;
 
-    private SubscriptionType subscriptionType = SubscriptionType.Exclusive;
-
-    private MessageListener<T> messageListener;
-
-    private int receiverQueueSize = 1000;
-
-    private String consumerName = null;
-
-    private long ackTimeoutMillis = 0;
-    
-    private int priorityLevel = 0;
-
-    private CryptoKeyReader cryptoKeyReader = null;
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
-
-    private final Map<String, String> properties = new HashMap<>();
+    private final ConsumerConfigurationData conf = new ConsumerConfigurationData();
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
      */
-    @Override
     public long getAckTimeoutMillis() {
-        return ackTimeoutMillis;
+        return conf.getAckTimeoutMillis();
     }
 
     /**
@@ -76,20 +63,19 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      *            unit in which the timeout is provided.
      * @return {@link ConsumerConfiguration}
      */
-    public ConsumerConfiguration<T> setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
+    public ConsumerConfiguration setAckTimeout(long ackTimeout, TimeUnit timeUnit) {
         long ackTimeoutMillis = timeUnit.toMillis(ackTimeout);
         checkArgument(ackTimeoutMillis >= minAckTimeoutMillis,
                 "Ack timeout should be should be greater than " + minAckTimeoutMillis + " ms");
-        this.ackTimeoutMillis = ackTimeoutMillis;
+        conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
         return this;
     }
 
     /**
      * @return the configured subscription type
      */
-    @Override
     public SubscriptionType getSubscriptionType() {
-        return this.subscriptionType;
+        return conf.getSubscriptionType();
     }
 
     /**
@@ -100,18 +86,17 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      * @param subscriptionType
      *            the subscription type value
      */
-    public ConsumerConfiguration<T> setSubscriptionType(SubscriptionType subscriptionType) {
+    public ConsumerConfiguration setSubscriptionType(SubscriptionType subscriptionType) {
         checkNotNull(subscriptionType);
-        this.subscriptionType = subscriptionType;
+        conf.setSubscriptionType(subscriptionType);
         return this;
     }
 
     /**
      * @return the configured {@link MessageListener} for the consumer
      */
-    @Override
-    public MessageListener<T> getMessageListener() {
-        return this.messageListener;
+    public MessageListener getMessageListener() {
+        return conf.getMessageListener();
     }
 
     /**
@@ -123,26 +108,74 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      * @param messageListener
      *            the listener object
      */
-    public ConsumerConfiguration<T> setMessageListener(MessageListener<T> messageListener) {
+    public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
         checkNotNull(messageListener);
-        this.messageListener = messageListener;
+        conf.setMessageListener(messageListener);
+        return this;
+    }
+
+    /**
+     * @return this configured {@link ConsumerEventListener} for the consumer.
+     * @see #setConsumerEventListener(ConsumerEventListener)
+     * @since 2.0
+     */
+    public ConsumerEventListener getConsumerEventListener() {
+        return conf.getConsumerEventListener();
+    }
+
+    /**
+     * Sets a {@link ConsumerEventListener} for the consumer.
+     *
+     * <p>
+     * The consumer group listener is used for receiving consumer state change in a consumer group for failover
+     * subscription. Application can then react to the consumer state changes.
+     *
+     * <p>
+     * This change is experimental. It is subject to changes coming in release 2.0.
+     *
+     * @param listener
+     *            the consumer group listener object
+     * @return consumer configuration
+     * @since 2.0
+     */
+    public ConsumerConfiguration setConsumerEventListener(ConsumerEventListener listener) {
+        checkNotNull(listener);
+        conf.setConsumerEventListener(listener);
         return this;
     }
 
     /**
      * @return the configure receiver queue size value
      */
-    @Override
     public int getReceiverQueueSize() {
-        return this.receiverQueueSize;
+        return conf.getReceiverQueueSize();
+    }
+
+    /**
+     * @return the configured max total receiver queue size across partitions
+     */
+    public int getMaxTotalReceiverQueueSizeAcrossPartitions() {
+        return conf.getMaxTotalReceiverQueueSizeAcrossPartitions();
+    }
+
+    /**
+     * Set the max total receiver queue size across partitons.
+     * <p>
+     * This setting will be used to reduce the receiver queue size for individual partitions
+     * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions
+     */
+    public void setMaxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
+        checkArgument(maxTotalReceiverQueueSizeAcrossPartitions >= conf.getReceiverQueueSize());
+        conf.setMaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions);
     }
 
     /**
      * @return the CryptoKeyReader
      */
-    @Override
     public CryptoKeyReader getCryptoKeyReader() {
-        return this.cryptoKeyReader;
+        return conf.getCryptoKeyReader();
     }
 
     /**
@@ -153,25 +186,25 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      */
     public ConsumerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
-        this.cryptoKeyReader = cryptoKeyReader;
+        conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
-     * 
-     * @param action The consumer action
+     *
+     * @param The
+     *            consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
-        cryptoFailureAction = action;
+        conf.setCryptoFailureAction(action);
     }
 
     /**
      * @return The ConsumerCryptoFailureAction
      */
-    @Override
     public ConsumerCryptoFailureAction getCryptoFailureAction() {
-        return this.cryptoFailureAction;
+        return conf.getCryptoFailureAction();
     }
 
     /**
@@ -200,18 +233,17 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    public ConsumerConfiguration<T> setReceiverQueueSize(int receiverQueueSize) {
+    public ConsumerConfiguration setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
-        this.receiverQueueSize = receiverQueueSize;
+        conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }
 
     /**
      * @return the consumer name
      */
-    @Override
     public String getConsumerName() {
-        return consumerName;
+        return conf.getConsumerName();
     }
 
     /**
@@ -219,15 +251,14 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      *
      * @param consumerName
      */
-    public ConsumerConfiguration<T> setConsumerName(String consumerName) {
+    public ConsumerConfiguration setConsumerName(String consumerName) {
         checkArgument(consumerName != null && !consumerName.equals(""));
-        this.consumerName = consumerName;
+        conf.setConsumerName(consumerName);
         return this;
     }
-    
-    @Override
+
     public int getPriorityLevel() {
-        return priorityLevel;
+        return conf.getPriorityLevel();
     }
 
     /**
@@ -237,7 +268,7 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      * permits, else broker will consider next priority level consumers. </br>
      * If subscription has consumer-A with priorityLevel 0 and Consumer-B with priorityLevel 1 then broker will dispatch
      * messages to only consumer-A until it runs out permit and then broker starts dispatching messages to Consumer-B.
-     * 
+     *
      * <pre>
      * Consumer PriorityLevel Permits
      * C1       0             2
@@ -247,15 +278,38 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
      * C5       1             1
      * Order in which broker dispatches messages to consumers: C1, C2, C3, C1, C4, C5, C4
      * </pre>
-     * 
+     *
      * @param priorityLevel
      */
     public void setPriorityLevel(int priorityLevel) {
-        this.priorityLevel = priorityLevel;
+        conf.setPriorityLevel(priorityLevel);
+    }
+
+    public boolean getReadCompacted() {
+        return conf.isReadCompacted();
+    }
+
+    /**
+     * If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
+     * of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
+     * each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
+     * point, the messages will be sent as normal.
+     *
+     * readCompacted can only be enabled subscriptions to persistent topics, which have a single active consumer (i.e.
+     * failure or exclusive subscriptions). Attempting to enable it on subscriptions to a non-persistent topics or on a
+     * shared subscription, will lead to the subscription call throwing a PulsarClientException.
+     *
+     * @param readCompacted
+     *            whether to read from the compacted topic
+     */
+    public ConsumerConfiguration setReadCompacted(boolean readCompacted) {
+        conf.setReadCompacted(readCompacted);
+        return this;
     }
 
     /**
      * Set a name/value property with this consumer.
+     *
      * @param key
      * @param value
      * @return
@@ -263,23 +317,26 @@ public class ConsumerConfiguration<T> implements ConsumerConfig<T> {
     public ConsumerConfiguration setProperty(String key, String value) {
         checkArgument(key != null);
         checkArgument(value != null);
-        properties.put(key, value);
+        conf.getProperties().put(key, value);
         return this;
     }
 
     /**
      * Add all the properties in the provided map
+     *
      * @param properties
      * @return
      */
     public ConsumerConfiguration setProperties(Map<String, String> properties) {
-        if (properties != null) {
-            this.properties.putAll(properties);
-        }
+        conf.getProperties().putAll(properties);
         return this;
     }
 
     public Map<String, String> getProperties() {
-        return properties;
+        return conf.getProperties();
+    }
+
+    public ConsumerConfigurationData getConfigurationData() {
+        return conf;
     }
 }

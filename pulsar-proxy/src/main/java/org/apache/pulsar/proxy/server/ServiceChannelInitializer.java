@@ -18,17 +18,13 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import java.io.File;
-
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.util.SecurityUtility;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 /**
  * Initialize service channel handlers.
@@ -51,14 +47,12 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         if (enableTLS) {
-            File tlsCert = new File(serviceConfig.getTlsCertificateFilePath());
-            File tlsKey = new File(serviceConfig.getTlsKeyFilePath());
-            SslContextBuilder builder = SslContextBuilder.forServer(tlsCert, tlsKey);
-            // allows insecure connection
-            builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-            SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
+            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(true /* to allow InsecureConnection */,
+                    serviceConfig.getTlsTrustCertsFilePath(), serviceConfig.getTlsCertificateFilePath(),
+                    serviceConfig.getTlsKeyFilePath(), serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
+
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));
         ch.pipeline().addLast("handler", new ProxyConnection(proxyService));
     }

@@ -21,14 +21,27 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 
 /**
- * Class that provides a client interface to Pulsar
- *
- *
+ * Class that provides a client interface to Pulsar.
+ * <p>
+ * Client instances are thread-safe and can be reused for managing multiple {@link Producer}, {@link Consumer} and
+ * {@link Reader} instances.
  */
 public interface PulsarClient extends Closeable {
+
+    /**
+     * Get a new builder instance that can used to configure and build a {@link PulsarClient} instance.
+     *
+     * @return the {@link ClientBuilder}
+     *
+     * @since 2.0.0
+     */
+    public static ClientBuilder builder() {
+        return new ClientBuilderImpl();
+    }
 
     /**
      * Create a new PulsarClient object using default client configuration
@@ -38,7 +51,9 @@ public interface PulsarClient extends Closeable {
      * @return a new pulsar client object
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
+     * @deprecated use {@link #builder()} to construct a client instance
      */
+    @Deprecated
     public static PulsarClient create(String serviceUrl) throws PulsarClientException {
         return create(serviceUrl, new ClientConfiguration());
     }
@@ -53,35 +68,55 @@ public interface PulsarClient extends Closeable {
      * @return a new pulsar client object
      * @throws PulsarClientException.InvalidServiceURL
      *             if the serviceUrl is invalid
+     * @deprecated use {@link #builder()} to construct a client instance
      */
+    @Deprecated
     public static PulsarClient create(String serviceUrl, ClientConfiguration conf) throws PulsarClientException {
         return new PulsarClientImpl(serviceUrl, conf);
     }
 
     /**
-     * Create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
+     * Create a producer with default for publishing on a specific topic
+     * <p>
+     * Example:
      *
-     * @param topic
-     *            The name of the topic where to produce
-     * @return The producer object
-     * @throws PulsarClientException.AlreadyClosedException
-     *             if the client was already closed
-     * @throws PulsarClientException.InvalidTopicNameException
-     *             if the topic name is not valid
-     * @throws PulsarClientException.AuthenticationException
-     *             if there was an error with the supplied credentials
-     * @throws PulsarClientException.AuthorizationException
-     *             if the authorization to publish on topic was denied
+     * <code>
+     * Producer producer = client.newProducer().topic(myTopic).create();
+     * </code>
+     *
+     *
+     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
      */
-    Producer<byte[]> createProducer(String topic) throws PulsarClientException;
+    ProducerBuilder newProducer();
+
+    /**
+     * Create a producer with default for publishing on a specific topic
+     *
+     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
+     */
+    ConsumerBuilder newConsumer();
+
+    /**
+     * Create a topic reader for reading messages from the specified topic.
+     * <p>
+     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
+     * subscription. Reader can only work on non-partitioned topics.
+     *
+     * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
+     *
+     * @since 2.0.0
+     */
+    ReaderBuilder newReader();
 
     /**
      * Create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
      *
      * @param topic
      *            The name of the topic where to produce
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
      * @return The producer object
      * @throws PulsarClientException.AlreadyClosedException
      *             if the client was already closed
@@ -91,8 +126,10 @@ public interface PulsarClient extends Closeable {
      *             if there was an error with the supplied credentials
      * @throws PulsarClientException.AuthorizationException
      *             if the authorization to publish on topic was denied
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
-    <T> Producer<T> createProducer(String topic, Schema<T> schema) throws PulsarClientException;
+    @Deprecated
+    Producer createProducer(String topic) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -100,21 +137,12 @@ public interface PulsarClient extends Closeable {
      * @param topic
      *            The name of the topic where to produce
      * @return Future of the asynchronously created producer object
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     CompletableFuture<Producer<byte[]>> createProducerAsync(String topic);
 
     /**
-     * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
-     *
-     * @param topic
-     *            The name of the topic where to produce
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return Future of the asynchronously created producer object
-     */
-    <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, Schema<T> schema);
-
-    /**
      * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
      *
      * @param topic
@@ -125,26 +153,12 @@ public interface PulsarClient extends Closeable {
      * @throws PulsarClientException
      *             if it was not possible to create the producer
      * @throws InterruptedException
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     Producer<byte[]> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
-     * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
-     *
-     * @param topic
-     *            The name of the topic where to produce
-     * @param conf
-     *            The {@code ProducerConfiguration} object
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return The producer object
-     * @throws PulsarClientException
-     *             if it was not possible to create the producer
-     * @throws InterruptedException
-     */
-    <T> Producer<T> createProducer(String topic, ProducerConfiguration conf, Schema<T> schema) throws PulsarClientException;
-
-    /**
      * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
      *
      * @param topic
@@ -152,23 +166,12 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ProducerConfiguration} object
      * @return Future of the asynchronously created producer object
+     * @deprecated use {@link #newProducer()} to build a new producer
      */
+    @Deprecated
     CompletableFuture<Producer<byte[]>> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
-     * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
-     *
-     * @param topic
-     *            The name of the topic where to produce
-     * @param conf
-     *            The {@code ProducerConfiguration} object
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return Future of the asynchronously created producer object
-     */
-    <T> CompletableFuture<Producer<T>> createProducerAsync(String topic, ProducerConfiguration conf, Schema<T> schema);
-
-    /**
      * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}
      *
      * @param topic
@@ -178,23 +181,11 @@ public interface PulsarClient extends Closeable {
      * @return The {@code Consumer} object
      * @throws PulsarClientException
      * @throws InterruptedException
-     */
-    Consumer<byte[]> subscribe(String topic, String subscription) throws PulsarClientException;
-
-    /**
-     * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}
      *
-     * @param topic
-     *            The name of the topic
-     * @param subscription
-     *            The name of the subscription
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return The {@code Consumer} object
-     * @throws PulsarClientException
-     * @throws InterruptedException
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
-    <T> Consumer<T> subscribe(String topic, String subscription, Schema<T> schema) throws PulsarClientException;
+    @Deprecated
+    Consumer subscribe(String topic, String subscription) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using default
@@ -205,24 +196,12 @@ public interface PulsarClient extends Closeable {
      * @param subscription
      *            The subscription name
      * @return Future of the {@code Consumer} object
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
+    @Deprecated
     CompletableFuture<Consumer<byte[]>> subscribeAsync(String topic, String subscription);
 
     /**
-     * Asynchronously subscribe to the given topic and subscription combination using default
-     * {@code ConsumerConfiguration}
-     *
-     * @param topic
-     *            The topic name
-     * @param subscription
-     *            The subscription name
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return Future of the {@code Consumer} object
-     */
-    <T> CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, Schema<T> schema);
-
-    /**
      * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
      *
      * @param topic
@@ -233,24 +212,10 @@ public interface PulsarClient extends Closeable {
      *            The {@code ConsumerConfiguration} object
      * @return The {@code Consumer} object
      * @throws PulsarClientException
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
-    Consumer<byte[]> subscribe(String topic, String subscription, ConsumerConfig<byte[]> conf) throws PulsarClientException;
-
-    /**
-     * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
-     *
-     * @param topic
-     *            The name of the topic
-     * @param subscription
-     *            The name of the subscription
-     * @param conf
-     *            The {@code ConsumerConfiguration} object
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return The {@code Consumer} object
-     * @throws PulsarClientException
-     */
-    <T> Consumer<T> subscribe(String topic, String subscription, ConsumerConfig<T> conf, Schema<T> schema) throws PulsarClientException;
+    @Deprecated
+    Consumer<byte[]> subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using given
@@ -263,24 +228,10 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ConsumerConfiguration} object
      * @return Future of the {@code Consumer} object
+     * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
-    CompletableFuture<Consumer<byte[]>> subscribeAsync(String topic, String subscription, ConsumerConfig<byte[]> conf);
-
-    /**
-     * Asynchronously subscribe to the given topic and subscription combination using given
-     * {@code ConsumerConfiguration}
-     *
-     * @param topic
-     *            The name of the topic
-     * @param subscription
-     *            The name of the subscription
-     * @param conf
-     *            The {@code ConsumerConfiguration} object
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return Future of the {@code Consumer} object
-     */
-    <T> CompletableFuture<Consumer<T>> subscribeAsync(String topic, String subscription, ConsumerConfig<T> conf, Schema<T> schema);
+    @Deprecated
+    CompletableFuture<Consumer<byte[]>> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.
@@ -305,36 +256,10 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ReaderConfiguration} object
      * @return The {@code Reader} object
+     * @deprecated Use {@link #newReader()} to build a new reader
      */
-    Reader<byte[]> createReader(String topic, MessageId startMessageId, ReaderConfig<byte[]> conf) throws PulsarClientException;
-
-    /**
-     * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.
-     * <p>
-     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
-     * subscription. Reader can only work on non-partitioned topics.
-     * <p>
-     * The initial reader positioning is done by specifying a message id. The options are:
-     * <ul>
-     * <li><code>MessageId.earliest</code> : Start reading from the earliest message available in the topic
-     * <li><code>MessageId.latest</code> : Start reading from the end topic, only getting messages published after the
-     * reader was created
-     * <li><code>MessageId</code> : When passing a particular message id, the reader will position itself on that
-     * specific position. The first message to be read will be the message next to the specified messageId.
-     * </ul>
-     *
-     * @param topic
-     *            The name of the topic where to read
-     * @param startMessageId
-     *            The message id where the reader will position itself. The first message returned will be the one after
-     *            the specified startMessageId
-     * @param conf
-     *            The {@code ReaderConfiguration} object
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return The {@code Reader} object
-     */
-    <T> Reader<T> createReader(String topic, MessageId startMessageId, ReaderConfig<T> conf, Schema<T> schema) throws PulsarClientException;
+    @Deprecated
+    Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a topic reader with given {@code ReaderConfiguration} for reading messages from the
@@ -360,37 +285,10 @@ public interface PulsarClient extends Closeable {
      * @param conf
      *            The {@code ReaderConfiguration} object
      * @return Future of the asynchronously created producer object
+     * @deprecated Use {@link #newReader()} to build a new reader
      */
-    CompletableFuture<Reader<byte[]>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfig<byte[]> conf);
-
-    /**
-     * Asynchronously create a topic reader with given {@code ReaderConfiguration} for reading messages from the
-     * specified topic.
-     * <p>
-     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
-     * subscription. Reader can only work on non-partitioned topics.
-     * <p>
-     * The initial reader positioning is done by specifying a message id. The options are:
-     * <ul>
-     * <li><code>MessageId.earliest</code> : Start reading from the earliest message available in the topic
-     * <li><code>MessageId.latest</code> : Start reading from the end topic, only getting messages published after the
-     * reader was created
-     * <li><code>MessageId</code> : When passing a particular message id, the reader will position itself on that
-     * specific position. The first message to be read will be the message next to the specified messageId.
-     * </ul>
-     *
-     * @param topic
-     *            The name of the topic where to read
-     * @param startMessageId
-     *            The message id where the reader will position itself. The first message returned will be the one after
-     *            the specified startMessageId
-     * @param conf
-     *            The {@code ReaderConfiguration} object
-     * @param schema
-     *            A schema used to validate objects as well as serialize/deserialize
-     * @return Future of the asynchronously created producer object
-     */
-    <T> CompletableFuture<Reader<T>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfig<T> conf, Schema<T> schema);
+    @Deprecated
+    CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
 
     /**
      * Close the PulsarClient and release all the resources.

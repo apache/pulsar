@@ -29,7 +29,7 @@ namespace pulsar {
  * URL parsing utility
  */
 class Url {
-public:
+   public:
     static bool parse(const std::string& urlStr, Url& url);
 
     const std::string& protocol() const;
@@ -39,8 +39,11 @@ public:
     const std::string& pathWithoutFile() const;
     const std::string& file() const;
     const std::string& parameter() const;
-    friend std::ostream& operator<<(std::ostream &os, const Url& obj);
-private:
+    friend std::ostream& operator<<(std::ostream& os, const Url& obj);
+
+    std::string hostPort() const;
+
+   private:
     std::string protocol_;
     std::string host_;
     int port_;
@@ -50,7 +53,7 @@ private:
     std::string parameter_;
 };
 
-} // pulsar
+}  // namespace pulsar
 
 #pragma GCC visibility pop
 

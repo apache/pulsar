@@ -116,7 +116,7 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         return publishMessagesBase(topic, count, true);
     }
 
-    private static String extractKey(RawMessage m) throws Exception {
+    public static String extractKey(RawMessage m) throws Exception {
         ByteBuf headersAndPayload = m.getHeadersAndPayload();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
         return msgMetadata.getPartitionKey();

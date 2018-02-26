@@ -31,7 +31,9 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.PulsarServerException;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
@@ -96,13 +98,13 @@ public class BrokerDiscoveryProvider implements Closeable {
     }
 
     CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DiscoveryService service,
-            DestinationName destination, String role) {
+            TopicName topicName, String role, AuthenticationDataSource authenticationData) {
 
         CompletableFuture<PartitionedTopicMetadata> metadataFuture = new CompletableFuture<>();
         try {
-            checkAuthorization(service, destination, role);
-            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE, destination.getProperty(), destination.getCluster(),
-                    destination.getNamespacePortion(), "persistent", destination.getEncodedLocalName());
+            checkAuthorization(service, topicName, role, authenticationData);
+            final String path = path(PARTITIONED_TOPIC_PATH_ZNODE,
+                    topicName.getNamespaceObject().toString(), "persistent", topicName.getEncodedLocalName());
             // gets the number of partitions from the zk cache
             globalZkCache
                     .getDataAsync(path,
@@ -125,7 +127,8 @@ public class BrokerDiscoveryProvider implements Closeable {
         return metadataFuture;
     }
 
-    protected static void checkAuthorization(DiscoveryService service, DestinationName destination, String role)
+    protected static void checkAuthorization(DiscoveryService service, TopicName topicName, String role,
+            AuthenticationDataSource authenticationData)
             throws Exception {
         if (!service.getConfiguration().isAuthorizationEnabled()
                 || service.getConfiguration().getSuperUserRoles().contains(role)) {
@@ -133,28 +136,28 @@ public class BrokerDiscoveryProvider implements Closeable {
             return;
         }
         // get zk policy manager
-        if (!service.getAuthorizationManager().canLookup(destination, role)) {
-            LOG.warn("[{}] Role {} is not allowed to lookup topic", destination, role);
+        if (!service.getAuthorizationService().canLookup(topicName, role, authenticationData)) {
+            LOG.warn("[{}] Role {} is not allowed to lookup topic", topicName, role);
             // check namespace authorization
             PropertyAdmin propertyAdmin;
             try {
                 propertyAdmin = service.getConfigurationCacheService().propertiesCache()
-                        .get(path(POLICIES, destination.getProperty()))
+                        .get(path(POLICIES, topicName.getProperty()))
                         .orElseThrow(() -> new IllegalAccessException("Property does not exist"));
             } catch (KeeperException.NoNodeException e) {
-                LOG.warn("Failed to get property admin data for non existing property {}", destination.getProperty());
+                LOG.warn("Failed to get property admin data for non existing property {}", topicName.getProperty());
                 throw new IllegalAccessException("Property does not exist");
             } catch (Exception e) {
                 LOG.error("Failed to get property admin data for property");
                 throw new IllegalAccessException(String.format("Failed to get property %s admin data due to %s",
-                        destination.getProperty(), e.getMessage()));
+                        topicName.getProperty(), e.getMessage()));
             }
             if (!propertyAdmin.getAdminRoles().contains(role)) {
                 throw new IllegalAccessException("Don't have permission to administrate resources on this property");
             }
         }
         if (LOG.isDebugEnabled()) {
-            LOG.debug("Successfully authorized {} on property {}", role, destination.getProperty());
+            LOG.debug("Successfully authorized {} on property {}", role, topicName.getProperty());
         }
     }
 

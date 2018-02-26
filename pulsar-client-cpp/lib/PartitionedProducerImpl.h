@@ -18,31 +18,32 @@
  */
 #include "ProducerImpl.h"
 #include "ClientImpl.h"
-#include "DestinationName.h"
 #include <vector>
 #include <boost/shared_ptr.hpp>
+#include <boost/scoped_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <pulsar/MessageRoutingPolicy.h>
+#include <pulsar/TopicMetadata.h>
+#include <lib/TopicName.h>
 
 namespace pulsar {
 
-  class PartitionedProducerImpl: public ProducerImplBase, public boost::enable_shared_from_this<PartitionedProducerImpl> {
-
- public:
-    enum PartitionedProducerState {
-      Pending,
-      Ready,
-      Closing,
-      Closed,
-      Failed
+class PartitionedProducerImpl : public ProducerImplBase,
+                                public boost::enable_shared_from_this<PartitionedProducerImpl> {
+   public:
+    enum PartitionedProducerState
+    {
+        Pending,
+        Ready,
+        Closing,
+        Closed,
+        Failed
     };
     const static std::string PARTITION_NAME_SUFFIX;
 
     typedef boost::unique_lock<boost::mutex> Lock;
 
-    PartitionedProducerImpl(ClientImplPtr ptr,
-                            const DestinationNamePtr destinationName,
-                            const unsigned int numPartitions,
+    PartitionedProducerImpl(ClientImplPtr ptr, const TopicNamePtr topicName, const unsigned int numPartitions,
                             const ProducerConfiguration& config);
     virtual ~PartitionedProducerImpl();
 
@@ -68,12 +69,10 @@ namespace pulsar {
 
     virtual Future<Result, ProducerImplBaseWeakPtr> getProducerCreatedFuture();
 
-    void handleSinglePartitionProducerCreated(Result result,
-                                              ProducerImplBaseWeakPtr producerBaseWeakPtr,
+    void handleSinglePartitionProducerCreated(Result result, ProducerImplBaseWeakPtr producerBaseWeakPtr,
                                               const unsigned int partitionIndex);
 
-    void handleSinglePartitionProducerClose(Result result,
-                                            const unsigned int partitionIndex,
+    void handleSinglePartitionProducerClose(Result result, const unsigned int partitionIndex,
                                             CloseCallback callback);
 
     void notifyResult(CloseCallback closeCallback);
@@ -82,13 +81,13 @@ namespace pulsar {
 
     friend class PulsarFriend;
 
- private:
+   private:
     const ClientImplPtr client_;
 
-    const DestinationNamePtr destinationName_;
+    const TopicNamePtr topicName_;
     const std::string topic_;
 
-    const unsigned int numPartitions_;
+    boost::scoped_ptr<TopicMetadata> topicMetadata_;
 
     unsigned int numProducersCreated_;
 
@@ -97,7 +96,7 @@ namespace pulsar {
      */
     bool cleanup_;
 
-    const ProducerConfiguration conf_;
+    ProducerConfiguration conf_;
 
     typedef std::vector<ProducerImplPtr> ProducerList;
 
@@ -112,6 +111,8 @@ namespace pulsar {
 
     // only set this promise to value, when producers on all partitions are created.
     Promise<Result, ProducerImplBaseWeakPtr> partitionedProducerCreatedPromise_;
-  };
 
-} //ends namespace Pulsar
+    MessageRoutingPolicyPtr getMessageRouter();
+};
+
+}  // namespace pulsar

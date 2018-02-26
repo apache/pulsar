@@ -29,6 +29,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
+import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.ParameterException;
@@ -62,15 +63,15 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Get the destinations for a namespace")
-    private class GetDestinations extends CliCommand {
+    @Parameters(commandDescription = "Get the topics for a namespace")
+    private class GetTopics extends CliCommand {
         @Parameter(description = "property/cluster/namespace\n", required = true)
         private java.util.List<String> params;
 
         @Override
         void run() throws PulsarAdminException {
             String namespace = validateNamespace(params);
-            print(admin.namespaces().getDestinations(namespace));
+            print(admin.namespaces().getTopics(namespace));
         }
     }
 
@@ -212,6 +213,65 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set Anti-affinity group name for a namspace")
+    private class SetAntiAffinityGroup extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--group", "-g" }, description = "Anti-affinity group name", required = true)
+        private String antiAffinityGroup;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setNamespaceAntiAffinityGroup(namespace, antiAffinityGroup);
+        }
+    }
+
+    @Parameters(commandDescription = "Get Anti-affinity group name for a namspace")
+    private class GetAntiAffinityGroup extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getNamespaceAntiAffinityGroup(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Get Anti-affinity namespaces grouped with the given anti-affinity group name")
+    private class GetAntiAffinityNamespaces extends CliCommand {
+
+        @Parameter(names = { "--property",
+                "-p" }, description = "property is only used for authorization. Client has to be admin of any of the property to access this api", required = false)
+        private String property;
+
+        @Parameter(names = { "--cluster", "-c" }, description = "Cluster name", required = true)
+        private String cluster;
+
+        @Parameter(names = { "--group", "-g" }, description = "Anti-affinity group name", required = true)
+        private String antiAffinityGroup;
+
+        @Override
+        void run() throws PulsarAdminException {
+            print(admin.namespaces().getAntiAffinityNamespaces(property, cluster, antiAffinityGroup));
+        }
+    }
+
+    @Parameters(commandDescription = "Remove Anti-affinity group name for a namspace")
+    private class DeleteAntiAffinityGroup extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().deleteNamespaceAntiAffinityGroup(namespace);
+        }
+    }
+
+
     @Parameters(commandDescription = "Enable or disable deduplication for a namespace")
     private class SetDeduplication extends CliCommand {
         @Parameter(description = "property/cluster/namespace", required = true)
@@ -240,10 +300,12 @@ public class CmdNamespaces extends CmdBase {
         private java.util.List<String> params;
 
         @Parameter(names = { "--time",
-                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w)", required = true)
+                "-t" }, description = "Retention time in minutes (or minutes, hours,days,weeks eg: 100m, 3h, 2d, 5w). "
+                        + "0 means no retention and -1 means infinite time retention", required = true)
         private String retentionTimeStr;
 
-        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G)", required = true)
+        @Parameter(names = { "--size", "-s" }, description = "Retention size limit (eg: 10M, 16G, 3T). "
+                + "0 means no retention and -1 means infinite size retention", required = true)
         private String limitStr;
 
         @Override
@@ -308,7 +370,7 @@ public class CmdNamespaces extends CmdBase {
 
         @Parameter(names = { "--bundle", "-b" }, description = "{start-boundary}_{end-boundary}\n", required = true)
         private String bundle;
-        
+
         @Parameter(names = { "--unload",
                 "-u" }, description = "Unload newly split bundles after splitting old bundle", required = false)
         private boolean unload;
@@ -489,7 +551,7 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Unsubscribe the given subscription on all destinations on a namespace")
+    @Parameters(commandDescription = "Unsubscribe the given subscription on all topics on a namespace")
     private class Unsubscribe extends CliCommand {
         @Parameter(description = "property/cluster/namespace", required = true)
         private java.util.List<String> params;
@@ -534,6 +596,102 @@ public class CmdNamespaces extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Set subscription auth mode on a namespace")
+    private class SetSubscriptionAuthMode extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "-m", "--subscription-auth-mode" }, description = "subscription name", required = true)
+        private String mode;
+
+        @Override
+        void run() throws Exception {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setSubscriptionAuthMode(namespace, SubscriptionAuthMode.valueOf(mode));
+        }
+    }
+
+    @Parameters(commandDescription = "Get maxProducersPerTopic for a namespace")
+    private class GetMaxProducersPerTopic extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxProducersPerTopic(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set maxProducersPerTopic for a namespace")
+    private class SetMaxProducersPerTopic extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-producers-per-topic", "-p" }, description = "maxProducersPerTopic for a namespace", required = true)
+        private int maxProducersPerTopic;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxProducersPerTopic(namespace, maxProducersPerTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get maxConsumersPerTopic for a namespace")
+    private class GetMaxConsumersPerTopic extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxConsumersPerTopic(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set maxConsumersPerTopic for a namespace")
+    private class SetMaxConsumersPerTopic extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-consumers-per-topic", "-c" }, description = "maxConsumersPerTopic for a namespace", required = true)
+        private int maxConsumersPerTopic;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxConsumersPerTopic(namespace, maxConsumersPerTopic);
+        }
+    }
+
+    @Parameters(commandDescription = "Get maxConsumersPerSubscription for a namespace")
+    private class GetMaxConsumersPerSubscription extends CliCommand {
+        @Parameter(description = "property/cluster/namespace\n", required = true)
+        private java.util.List<String> params;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            print(admin.namespaces().getMaxConsumersPerSubscription(namespace));
+        }
+    }
+
+    @Parameters(commandDescription = "Set maxConsumersPerSubscription for a namespace")
+    private class SetMaxConsumersPerSubscription extends CliCommand {
+        @Parameter(description = "property/cluster/namespace", required = true)
+        private java.util.List<String> params;
+
+        @Parameter(names = { "--max-consumers-per-subscription", "-c" }, description = "maxConsumersPerSubscription for a namespace", required = true)
+        private int maxConsumersPerSubscription;
+
+        @Override
+        void run() throws PulsarAdminException {
+            String namespace = validateNamespace(params);
+            admin.namespaces().setMaxConsumersPerSubscription(namespace, maxConsumersPerSubscription);
+        }
+    }
+
     private static long validateSizeString(String s) {
         char last = s.charAt(s.length() - 1);
         String subStr = s.substring(0, s.length() - 1);
@@ -549,6 +707,10 @@ public class CmdNamespaces extends CmdBase {
         case 'g':
         case 'G':
             return Long.parseLong(subStr) * 1024 * 1024 * 1024;
+
+        case 't':
+        case 'T':
+            return Long.parseLong(subStr) * 1024 * 1024 * 1024 * 1024;
 
         default:
             return Long.parseLong(s);
@@ -584,7 +746,8 @@ public class CmdNamespaces extends CmdBase {
         super("namespaces", admin);
         jcommander.addCommand("list", new GetNamespacesPerProperty());
         jcommander.addCommand("list-cluster", new GetNamespacesPerCluster());
-        jcommander.addCommand("destinations", new GetDestinations());
+
+        jcommander.addCommand("topics", new GetTopics(), "destinations");
         jcommander.addCommand("policies", new GetPolicies());
         jcommander.addCommand("create", new Create());
         jcommander.addCommand("delete", new Delete());
@@ -606,6 +769,11 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("get-message-ttl", new GetMessageTTL());
         jcommander.addCommand("set-message-ttl", new SetMessageTTL());
 
+        jcommander.addCommand("get-anti-affinity-group", new GetAntiAffinityGroup());
+        jcommander.addCommand("set-anti-affinity-group", new SetAntiAffinityGroup());
+        jcommander.addCommand("get-anti-affinity-namespaces", new GetAntiAffinityNamespaces());
+        jcommander.addCommand("delete-anti-affinity-group", new DeleteAntiAffinityGroup());
+
         jcommander.addCommand("set-deduplication", new SetDeduplication());
 
         jcommander.addCommand("get-retention", new GetRetention());
@@ -623,5 +791,13 @@ public class CmdNamespaces extends CmdBase {
         jcommander.addCommand("unsubscribe", new Unsubscribe());
 
         jcommander.addCommand("set-encryption-required", new SetEncryptionRequired());
+        jcommander.addCommand("set-subscription-auth-mode", new SetSubscriptionAuthMode());
+
+        jcommander.addCommand("get-max-producers-per-topic", new GetMaxProducersPerTopic());
+        jcommander.addCommand("set-max-producers-per-topic", new SetMaxProducersPerTopic());
+        jcommander.addCommand("get-max-consumers-per-topic", new GetMaxConsumersPerTopic());
+        jcommander.addCommand("set-max-consumers-per-topic", new SetMaxConsumersPerTopic());
+        jcommander.addCommand("get-max-consumers-per-subscription", new GetMaxConsumersPerSubscription());
+        jcommander.addCommand("set-max-consumers-per-subscription", new SetMaxConsumersPerSubscription());
     }
 }

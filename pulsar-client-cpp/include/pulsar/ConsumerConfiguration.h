@@ -24,6 +24,8 @@
 #include <pulsar/Result.h>
 #include <pulsar/ConsumerType.h>
 #include <pulsar/Message.h>
+#include <pulsar/ConsumerCryptoFailureAction.h>
+#include <pulsar/CryptoKeyReader.h>
 
 #pragma GCC visibility push(default)
 namespace pulsar {
@@ -43,7 +45,7 @@ class ConsumerConfigurationImpl;
  * Class specifying the configuration of a consumer.
  */
 class ConsumerConfiguration {
- public:
+   public:
     ConsumerConfiguration();
     ~ConsumerConfiguration();
     ConsumerConfiguration(const ConsumerConfiguration&);
@@ -55,11 +57,11 @@ class ConsumerConfiguration {
      * only a single consumer is allowed to attach to the subscription. Other consumers
      * will get an error message. In Shared subscription, multiple consumers will be
      * able to use the same subscription name and the messages will be dispatched in a
-     * round robin fashion. In Failover subscription, a master-slave subscription model
+     * round robin fashion. In Failover subscription, a primary-failover subscription model
      * allows for multiple consumers to attach to a single subscription, though only one
-     * of them will be “master” at a given time. Only the master consumer will receive
-     * messages. When the master gets disconnected, one among the slaves will be promoted
-     * to master and will start getting messages.
+     * of them will be “master” at a given time. Only the primary consumer will receive
+     * messages. When the primary consumer gets disconnected, one among the failover
+     * consumers will be promoted to primary and will start getting messages.
      */
     ConsumerConfiguration& setConsumerType(ConsumerType consumerType);
     ConsumerType getConsumerType() const;
@@ -80,9 +82,12 @@ class ConsumerConfiguration {
      * application calls receive(). Using a higher value could potentially increase the consumer throughput
      * at the expense of bigger memory utilization.
      *
-     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling pre-fetching of
-     * messages. This approach improves the message distribution on shared subscription, by pushing messages only to
-     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can be
+     * Setting the consumer queue size as zero decreases the throughput of the consumer, by disabling
+     * pre-fetching of
+     * messages. This approach improves the message distribution on shared subscription, by pushing messages
+     * only to
+     * the consumers that are ready to process them. Neither receive with timeout nor Partitioned Topics can
+     * be
      * used if the consumer queue size is zero. The receive() function call should not be interrupted when
      * the consumer queue size is zero.
      *
@@ -93,6 +98,21 @@ class ConsumerConfiguration {
      */
     void setReceiverQueueSize(int size);
     int getReceiverQueueSize() const;
+
+    /**
+     * Set the max total receiver queue size across partitons.
+     * <p>
+     * This setting will be used to reduce the receiver queue size for individual partitions
+     * {@link #setReceiverQueueSize(int)} if the total exceeds this value (default: 50000).
+     *
+     * @param maxTotalReceiverQueueSizeAcrossPartitions
+     */
+    void setMaxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
+
+    /**
+     * @return the configured max total receiver queue size across partitions
+     */
+    int getMaxTotalReceiverQueueSizeAcrossPartitions() const;
 
     void setConsumerName(const std::string&);
     const std::string& getConsumerName() const;
@@ -121,13 +141,19 @@ class ConsumerConfiguration {
      * @return the configured timeout in milliseconds caching BrokerConsumerStats.
      */
     long getBrokerConsumerStatsCacheTimeInMs() const;
+
+    bool isEncryptionEnabled() const;
+    const CryptoKeyReaderPtr getCryptoKeyReader() const;
+    ConsumerConfiguration& setCryptoKeyReader(CryptoKeyReaderPtr cryptoKeyReader);
+
+    ConsumerCryptoFailureAction getCryptoFailureAction() const;
+    ConsumerConfiguration& setCryptoFailureAction(ConsumerCryptoFailureAction action);
+
     friend class PulsarWrapper;
 
- private:
+   private:
     boost::shared_ptr<ConsumerConfigurationImpl> impl_;
 };
-
-}
+}  // namespace pulsar
 #pragma GCC visibility pop
 #endif /* PULSAR_CONSUMERCONFIGURATION_H_ */
-

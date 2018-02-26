@@ -22,6 +22,7 @@ import static java.lang.String.format;
 
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.channels.ClosedChannelException;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -29,13 +30,12 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import io.netty.buffer.ByteBuf;
-import io.netty.resolver.InetSocketAddressResolver;
 
 public class BinaryProtoLookupService implements LookupService {
 
@@ -63,29 +63,29 @@ public class BinaryProtoLookupService implements LookupService {
     /**
      * Calls broker binaryProto-lookup api to find broker-service address which can serve a given topic.
      *
-     * @param destination:
+     * @param topicName
      *            topic-name
      * @return broker-socket-address that serves given topic
      */
-    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(DestinationName destination) {
-        return findBroker(serviceAddress, false, destination);
+    public CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> getBroker(TopicName topicName) {
+        return findBroker(serviceAddress, false, topicName);
     }
 
     /**
      * calls broker binaryProto-lookup api to get metadata of partitioned-topic.
      *
      */
-    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(DestinationName destination) {
-        return getPartitionedTopicMetadata(serviceAddress, destination);
+    public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(TopicName topicName) {
+        return getPartitionedTopicMetadata(serviceAddress, topicName);
     }
 
     private CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> findBroker(InetSocketAddress socketAddress,
-            boolean authoritative, DestinationName destination) {
+            boolean authoritative, TopicName topicName) {
         CompletableFuture<Pair<InetSocketAddress, InetSocketAddress>> addressFuture = new CompletableFuture<>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newLookup(destination.toString(), authoritative, requestId);
+            ByteBuf request = Commands.newLookup(topicName.toString(), authoritative, requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 URI uri = null;
                 try {
@@ -101,12 +101,12 @@ public class BinaryProtoLookupService implements LookupService {
 
                     // (2) redirect to given address if response is: redirect
                     if (lookupDataResult.redirect) {
-                        findBroker(responseBrokerAddress, lookupDataResult.authoritative, destination)
+                        findBroker(responseBrokerAddress, lookupDataResult.authoritative, topicName)
                                 .thenAccept(addressPair -> {
                                     addressFuture.complete(addressPair);
                                 }).exceptionally((lookupException) -> {
                                     // lookup failed
-                                    log.warn("[{}] lookup failed : {}", destination.toString(),
+                                    log.warn("[{}] lookup failed : {}", topicName.toString(),
                                             lookupException.getMessage(), lookupException);
                                     addressFuture.completeExceptionally(lookupException);
                                     return null;
@@ -124,14 +124,14 @@ public class BinaryProtoLookupService implements LookupService {
 
                 } catch (Exception parseUrlException) {
                     // Failed to parse url
-                    log.warn("[{}] invalid url {} : {}", destination.toString(), uri, parseUrlException.getMessage(),
+                    log.warn("[{}] invalid url {} : {}", topicName.toString(), uri, parseUrlException.getMessage(),
                             parseUrlException);
                     addressFuture.completeExceptionally(parseUrlException);
                 }
             }).exceptionally((sendException) -> {
                 // lookup failed
-                log.warn("[{}] failed to send lookup request : {}", destination.toString(), sendException.getMessage(),
-                        sendException);
+                log.warn("[{}] failed to send lookup request : {}", topicName.toString(), sendException.getMessage(),
+                        sendException instanceof ClosedChannelException ? null : sendException);
                 addressFuture.completeExceptionally(sendException);
                 return null;
             });
@@ -143,13 +143,13 @@ public class BinaryProtoLookupService implements LookupService {
     }
 
     private CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadata(InetSocketAddress socketAddress,
-            DestinationName destination) {
+            TopicName topicName) {
 
         CompletableFuture<PartitionedTopicMetadata> partitionFuture = new CompletableFuture<PartitionedTopicMetadata>();
 
         client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
             long requestId = client.newRequestId();
-            ByteBuf request = Commands.newPartitionMetadataRequest(destination.toString(), requestId);
+            ByteBuf request = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
             clientCnx.newLookup(request, requestId).thenAccept(lookupDataResult -> {
                 try {
                     partitionFuture.complete(new PartitionedTopicMetadata(lookupDataResult.partitions));
@@ -159,7 +159,7 @@ public class BinaryProtoLookupService implements LookupService {
                                     lookupDataResult.redirect, lookupDataResult.partitions, e.getMessage())));
                 }
             }).exceptionally((e) -> {
-                log.warn("[{}] failed to get Partitioned metadata : {}", destination.toString(),
+                log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
                         e.getCause().getMessage(), e);
                 partitionFuture.completeExceptionally(e);
                 return null;

@@ -88,10 +88,12 @@ public class SLAMonitoringTest {
             ServiceConfiguration config = new ServiceConfiguration();
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setClusterName("my-cluster");
+            config.setAdvertisedAddress("localhost");
             config.setWebServicePort(brokerWebServicePorts[i]);
             config.setZookeeperServers("127.0.0.1" + ":" + ZOOKEEPER_PORT);
             config.setBrokerServicePort(brokerNativeBrokerPorts[i]);
             config.setDefaultNumberOfNamespaceBundles(1);
+            config.setLoadBalancerEnabled(false);
             configurations[i] = config;
 
             pulsarServices[i] = new PulsarService(config);
@@ -105,9 +107,9 @@ public class SLAMonitoringTest {
 
         createProperty(pulsarAdmins[BROKER_COUNT - 1]);
         for (int i = 0; i < BROKER_COUNT; i++) {
-            String destination = String.format("%s/%s/%s:%s", NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster",
+            String topic = String.format("%s/%s/%s:%s", NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster",
                     pulsarServices[i].getAdvertisedAddress(), brokerWebServicePorts[i]);
-            pulsarAdmins[0].namespaces().createNamespace(destination);
+            pulsarAdmins[0].namespaces().createNamespace(topic);
         }
     }
 
@@ -115,7 +117,7 @@ public class SLAMonitoringTest {
             throws PulsarClientException, MalformedURLException, PulsarAdminException {
         ClusterData clusterData = new ClusterData();
         clusterData.setServiceUrl(pulsarAdmin.getServiceUrl().toString());
-        pulsarAdmins[0].clusters().createCluster("my-cluster", clusterData);
+        pulsarAdmins[0].clusters().updateCluster("my-cluster", clusterData);
         Set<String> allowedClusters = new HashSet<>();
         allowedClusters.add("my-cluster");
         PropertyAdmin adminConfig = new PropertyAdmin();
@@ -175,10 +177,10 @@ public class SLAMonitoringTest {
     public void testOwnershipViaAdminAfterSetup() {
         for (int i = 0; i < BROKER_COUNT; i++) {
             try {
-                String destination = String.format("persistent://%s/%s/%s:%s/%s",
+                String topic = String.format("persistent://%s/%s/%s:%s/%s",
                         NamespaceService.SLA_NAMESPACE_PROPERTY, "my-cluster", pulsarServices[i].getAdvertisedAddress(),
                         brokerWebServicePorts[i], "my-topic");
-                assertEquals(pulsarAdmins[0].lookups().lookupDestination(destination),
+                assertEquals(pulsarAdmins[0].lookups().lookupTopic(topic),
                         "pulsar://" + pulsarServices[i].getAdvertisedAddress() + ":" + brokerNativeBrokerPorts[i]);
             } catch (Exception e) {
                 e.printStackTrace();
@@ -200,15 +202,15 @@ public class SLAMonitoringTest {
             fail("Should be a able to close the broker index " + crashIndex + " Exception: " + e);
         }
 
-        String destination = String.format("persistent://%s/%s/%s:%s/%s", NamespaceService.SLA_NAMESPACE_PROPERTY,
+        String topic = String.format("persistent://%s/%s/%s:%s/%s", NamespaceService.SLA_NAMESPACE_PROPERTY,
                 "my-cluster", pulsarServices[crashIndex].getAdvertisedAddress(), brokerWebServicePorts[crashIndex], "my-topic");
 
-        log.info("Lookup for namespace {}", destination);
+        log.info("Lookup for namespace {}", topic);
 
         String broker = null;
         try {
-            broker = pulsarAdmins[BROKER_COUNT - 1].lookups().lookupDestination(destination);
-            log.info("{} Namespace is owned by {}", destination, broker);
+            broker = pulsarAdmins[BROKER_COUNT - 1].lookups().lookupTopic(topic);
+            log.info("{} Namespace is owned by {}", topic, broker);
             assertNotEquals(broker,
                     "pulsar://" + pulsarServices[crashIndex].getAdvertisedAddress() + ":" + brokerNativeBrokerPorts[crashIndex]);
         } catch (PulsarAdminException e) {
@@ -228,8 +230,8 @@ public class SLAMonitoringTest {
         }
 
         try {
-            broker = pulsarAdmins[0].lookups().lookupDestination(destination);
-            log.info("{} Namespace is re-owned by {}", destination, broker);
+            broker = pulsarAdmins[0].lookups().lookupTopic(topic);
+            log.info("{} Namespace is re-owned by {}", topic, broker);
             assertEquals(broker,
                     "pulsar://" + pulsarServices[crashIndex].getAdvertisedAddress() + ":" + brokerNativeBrokerPorts[crashIndex]);
         } catch (PulsarAdminException e) {

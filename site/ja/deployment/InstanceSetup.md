@@ -149,14 +149,14 @@ $ bin/pulsar-admin properties create test-prop \
   --admin-roles test-admin-role
 ```
 
-これによって、`test-admin-role`ロールを持つユーザが`us-west`クラスタのみを使用できる`test`プロパティの設定を管理できるようになります。これ以降は、テナントはリソースを自分自身で管理できます。
+これによって、`test-admin-role`ロールを持つユーザが`us-west`クラスタのみを使用できる`test-prop`プロパティの設定を管理できるようになります。これ以降は、テナントはリソースを自分自身で管理できます。
 
 テナントが作成されたら、そのプロパティ内のトピックの{% popover_ja ネームスペース %}を作成する必要があります。
 
 最初のステップはネームスペースを作成する事です。ネームスペースは多くのトピックを含む事のできる管理単位です。一般的な方法は、単一のテナントからユースケースごとにネームスペースを作成するというものです。
 
 ```shell
-$ bin/pulsar-admin namespaces create test/us-west/ns1
+$ bin/pulsar-admin namespaces create test-prop/us-west/ns1
 ```
 
 ##### ProducerとConsumerのテスト
@@ -167,22 +167,22 @@ $ bin/pulsar-admin namespaces create test/us-west/ns1
 
 この場合のトピック名は次のようになります:
 
-{% include topic.html p="test" c="us-west" n="ns1" t="my-topic" %}
+{% include topic.html p="test-prop" c="us-west" n="ns1" t="my-topic" %}
 
 トピックのサブスクリプションを作成し、メッセージを待ち受けるConsumerを開始します:
 
 ```shell
-$ bin/pulsar-perf consume persistent://test/us-west/ns1/my-topic
+$ bin/pulsar-perf consume persistent://test-prop/us-west/ns1/my-topic
 ```
 
 一定のレートでメッセージを送信し、10秒ごとに統計情報をレポートするProducerを開始します:
 
 ```shell
-$ bin/pulsar-perf produce persistent://test/us-west/ns1/my-topic
+$ bin/pulsar-perf produce persistent://test-prop/us-west/ns1/my-topic
 ```
 
 トピックの統計情報を閲覧するには次のコマンドを実行します:
 
 ```shell
-$ bin/pulsar-admin persistent stats persistent://test/us-west/ns1/my-topic
+$ bin/pulsar-admin persistent stats persistent://test-prop/us-west/ns1/my-topic
 ```

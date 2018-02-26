@@ -56,9 +56,9 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -437,7 +437,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         try {
             Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic7",
-                    "my-subscriber-name", (ConsumerConfiguration<byte[]>) null);
+                    "my-subscriber-name", (ConsumerConfiguration) null);
             Assert.fail("Should fail");
         } catch (PulsarClientException e) {
             Assert.assertTrue(e instanceof PulsarClientException.InvalidConfigurationException);
@@ -2152,9 +2152,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // (2) Partitioned-consumer
         int numPartitions = 4;
-        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/failAsyncReceive");
-        admin.persistentTopics().createPartitionedTopic(dn.toString(), numPartitions);
-        Consumer partitionedConsumer = pulsarClient.subscribe(dn.toString(), "my-partitioned-subscriber",
+        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/failAsyncReceive");
+        admin.persistentTopics().createPartitionedTopic(topicName.toString(), numPartitions);
+        Consumer partitionedConsumer = pulsarClient.subscribe(topicName.toString(), "my-partitioned-subscriber",
                 new ConsumerConfiguration());
         partitionedConsumer.close();
         // receive messages

@@ -215,6 +215,28 @@ CompletableFuture<Message> asyncMessage = consumer.receiveAsync();
 
 Async receive operations return a {% javadoc Message client org.apache.pulsar.client.api.Message %} wrapped in a [`CompletableFuture`](http://www.baeldung.com/java-completablefuture).
 
+## Reader interface
+
+With the [reader interface](../../getting-started/ConceptsAndArchitecture#reader-interface), Pulsar clients can "manually position" themselves within a topic, reading all messages from a specified message onward. The Pulsar API for Java enables you to create  {% javadoc Reader client org.apache.pulsar.client.api.Reader %} objects by specifying a {% popover topic %}, a {% javadoc MessageId client org.apache.pulsar.client.api.MessageId %}, and {% javadoc ReaderConfiguration client org.apache.pulsar.client.api.ReaderConfiguration %}.
+
+Here's an example:
+
+```java
+ReaderConfiguration conf = new ReaderConfiguration();
+byte[] msgIdBytes = // Some message ID byte array
+MessageId id = MessageId.fromByteArray(msgIdBytes);
+Reader reader = pulsarClient.createReader(topic, id, conf);
+
+while (true) {
+    Message message = reader.readNext();
+    // Process message
+}
+```
+
+In the example above, a `Reader` object is instantiated for a specific topic and message (by ID); the reader then iterates over each message in the topic after the message identified by `msgIdBytes` (how that value is obtained depends on the application).
+
+The code sample above shows pointing the `Reader` object to a specific message (by ID), but you can also use `MessageId.earliest` to point to the earliest available message on the topic of `MessageId.latest` to point to the most recent available message.
+
 ## Authentication
 
 Pulsar currently supports two authentication schemes: [TLS](../../admin/Authz#tls-client-auth) and [Athenz](../../admin/Authz#athenz). The Pulsar Java client can be used with both.
@@ -235,8 +257,7 @@ authParams.put("tlsCertFile", "/path/to/client-cert.pem");
 authParams.put("tlsKeyFile", "/path/to/client-key.pem");
 conf.setAuthentication(AuthenticationTls.class.getName(), authParams);
 
-PulsarClient client = PulsarClient.create(
-                        "pulsar+ssl://my-broker.com:6651", conf);
+PulsarClient client = PulsarClient.create("pulsar+ssl://my-broker.com:6651", conf);
 ```
 
 ### Athenz
@@ -270,10 +291,11 @@ PulsarClient client = PulsarClient.create(
         "pulsar+ssl://my-broker.com:6651", conf);
 ```
 
-**Note**: *`privateKey` parameter supports following three patterns format*.
+{% include admonition.html type="info" title="Supported pattern formats"
+content='
+The `privateKey` parameter supports the following three pattern formats:
 
-```
-file:///path/to/file
-file:/path/to/file
-data:application/x-pem-file;base64,<base64-encoded value>
-```
+* `file:///path/to/file`
+* `file:/path/to/file`
+* `data:application/x-pem-file;base64,<base64-encoded value>`' %}
+
