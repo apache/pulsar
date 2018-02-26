@@ -39,7 +39,6 @@ import java.util.concurrent.TimeUnit;
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
-import javax.ws.rs.core.Response.Status;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1487,9 +1486,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         try {
             admin.properties().createProperty("test-property", cpa);
-            fail("Should fail with unknown properties : ");
-        } catch (PulsarAdminException e) {
-            assertEquals(Status.BAD_REQUEST.getStatusCode(), e.getStatusCode());
+        } catch (Exception e) {
+            fail("Should not happen : ", e);
         }
     }
 
