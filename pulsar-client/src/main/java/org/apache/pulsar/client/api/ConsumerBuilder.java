@@ -103,6 +103,14 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
     ConsumerBuilder topicsPattern(Pattern topicsPattern);
 
     /**
+     * Specify a pattern for topics that this consumer will subscribe on.
+     * <p>
+     *
+     * @param topicsPattern
+     */
+    ConsumerBuilder topicsPattern(String topicsPattern);
+
+    /**
      * Specify the subscription name for this consumer.
      * <p>
      * This argument is required when constructing the consumer.

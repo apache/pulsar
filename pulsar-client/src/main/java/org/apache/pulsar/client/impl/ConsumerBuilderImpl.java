@@ -110,7 +110,15 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public ConsumerBuilder topicsPattern(Pattern topicsPattern) {
+        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
         conf.setTopicsPattern(topicsPattern);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder topicsPattern(String topicsPattern) {
+        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
+        conf.setTopicsPattern(Pattern.compile(topicsPattern));
         return this;
     }
 

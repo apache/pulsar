@@ -70,14 +70,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
         List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
-        Pattern pattern = Pattern.compile("persistent://prop/use/ns-abc/pattern-topic.*");
-
+        final String patternString = "persistent://prop/use/ns-abc/pattern-topic.*";
+        Pattern pattern = Pattern.compile(patternString);
 
         admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
-        // test failing builder with empty topics
+        // test failing builder with pattern and topic should fail
         try {
             Consumer consumer1 = pulsarClient.newConsumer()
                 .topicsPattern(pattern)
@@ -91,6 +91,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             // expected
         }
 
+        // test failing builder with pattern and topics should fail
         try {
             Consumer consumer2 = pulsarClient.newConsumer()
                 .topicsPattern(pattern)
@@ -101,6 +102,20 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
                 .subscribe();
             fail("subscribe2 with pattern and topics should fail.");
         } catch (PulsarClientException e) {
+            // expected
+        }
+
+        // test failing builder with pattern and patternString should fail
+        try {
+            Consumer consumer3 = pulsarClient.newConsumer()
+                .topicsPattern(pattern)
+                .topicsPattern(patternString)
+                .subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscribe();
+            fail("subscribe3 with pattern and patternString should fail.");
+        } catch (IllegalArgumentException e) {
             // expected
         }
     }
