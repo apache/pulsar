@@ -130,4 +130,10 @@ public class ReaderBuilderImpl implements ReaderBuilder {
         conf.setReaderName(readerName);
         return this;
     }
+
+    @Override
+    public ReaderBuilder subscriptionRolePrefix(String subscriptionRolePrefix) {
+        conf.setSubscriptionRolePrefix(subscriptionRolePrefix);
+        return this;
+    }
 }
