@@ -24,18 +24,14 @@
   <packaging>pom</packaging>
   <modelVersion>4.0.0</modelVersion>
   <parent>
-    <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
+    <groupId>org.apache.pulsar.tests</groupId>
+    <artifactId>tests-parent</artifactId>
     <version>2.0.0-incubating-SNAPSHOT</version>
   </parent>
-  <groupId>org.apache.pulsar</groupId>
+  <groupId>org.apache.pulsar.tests</groupId>
   <artifactId>docker-images</artifactId>
-  <name>Apache Pulsar :: Docker Images</name>
-  <properties>
-    <docker.organization>apachepulsar</docker.organization>
-  </properties>
+  <name>Apache Pulsar :: Tests :: Docker Images</name>
   <modules>
-    <module>pulsar</module>
-    <module>grafana</module>
+    <module>latest-version-image</module>
   </modules>
 </project>
