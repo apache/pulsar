@@ -46,7 +46,7 @@ import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
@@ -390,7 +390,7 @@ public class CmdFunctions extends CmdBase {
         private void inferMissingTenant(FunctionConfig.Builder builder) {
             try {
                 String inputTopic = getUniqueInput(builder);
-                builder.setTenant(DestinationName.get(inputTopic).getProperty());
+                builder.setTenant(TopicName.get(inputTopic).getProperty());
             } catch (IllegalArgumentException ex) {
                 throw new RuntimeException("Missing tenant", ex);
             }
@@ -399,7 +399,7 @@ public class CmdFunctions extends CmdBase {
         private void inferMissingNamespace(FunctionConfig.Builder builder) {
             try {
                 String inputTopic = getUniqueInput(builder);
-                builder.setNamespace(DestinationName.get(inputTopic).getNamespacePortion());
+                builder.setNamespace(TopicName.get(inputTopic).getNamespacePortion());
             } catch (IllegalArgumentException ex) {
                 throw new RuntimeException("Missing Namespace");
             }
