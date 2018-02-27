@@ -32,11 +32,10 @@ Configuration:
   Loggers:
 
     Root:
-      level: info
+      level: warn
       AppenderRef:
         - ref: Console
 
     Logger:
-      name: org.apache.bookkeeper.mledger
+      name: org.apache.pulsar
       level: info
-      additivity: false
