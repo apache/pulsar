@@ -93,7 +93,7 @@ public class SecurityUtility {
     }
 
     public static SslContext createNettySslContextForServer(boolean allowInsecureConnection, String trustCertsFilePath,
-            String certFilePath, String keyFilePath, Set<String> ciphers, Set<String> protocols)
+            String certFilePath, String keyFilePath, Set<String> ciphers, Set<String> protocols, String clientAuth)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
@@ -103,7 +103,7 @@ public class SecurityUtility {
         setupProtocols(builder, protocols);
         setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
         setupKeyManager(builder, privateKey, certificates);
-        setupClientAuthentication(builder);
+        setupClientAuthentication(builder, clientAuth);
         return builder.build();
     }
 
@@ -236,7 +236,7 @@ public class SecurityUtility {
         }
     }
 
-    private static void setupClientAuthentication(SslContextBuilder builder) {
-        builder.clientAuth(ClientAuth.OPTIONAL);
+    private static void setupClientAuthentication(SslContextBuilder builder, String clientAuth) {
+        builder.clientAuth(ClientAuth.valueOf(clientAuth));
     }
 }

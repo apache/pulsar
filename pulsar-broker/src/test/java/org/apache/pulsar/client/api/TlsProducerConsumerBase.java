@@ -21,11 +21,14 @@ package org.apache.pulsar.client.api;
 import static org.mockito.Mockito.spy;
 
 import java.net.URI;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 
 import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -38,6 +41,8 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerBase.class);
 
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
+    protected final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     private final String clusterName = "use";
@@ -45,7 +50,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-
         // TLS configuration for Broker
         internalSetUpForBroker();
 
@@ -63,14 +67,24 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setClusterName(clusterName);
+        conf.setTlsClientAuth("REQUIRE");
+        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.2");
+        conf.setTlsProtocols(tlsProtocols);
     }
 
     protected void internalSetUpForClient() throws Exception {
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         clientConf.setUseTls(true);
-        String lookupUrl = new URI("pulsar+ssl://localhost:" + BROKER_PORT_TLS).toString();
+        clientConf.setTlsAllowInsecureConnection(false);
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        clientConf.setAuthentication(AuthenticationTls.class.getName(), authParams);
+        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT_TLS).toString();
         pulsarClient = PulsarClient.create(lookupUrl, clientConf);
     }
 
@@ -78,6 +92,11 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         clientConf.setUseTls(true);
+        clientConf.setTlsAllowInsecureConnection(false);
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        clientConf.setAuthentication(AuthenticationTls.class.getName(), authParams);
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
         admin.clusters().updateCluster(clusterName,
                 new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,

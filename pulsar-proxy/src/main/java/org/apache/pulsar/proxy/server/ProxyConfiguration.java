@@ -98,7 +98,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     private Set<String> tlsCiphers = Sets.newTreeSet();
-
+    // Specify whether Client certificates are required for TLS
+    // https://netty.io/4.0/api/io/netty/handler/ssl/ClientAuth.html
+    // Acceptable values:- [NONE, OPTIONAL, REQUIRE]
+    private String tlsClientAuth = "OPTIONAL";
+    
     private Properties properties = new Properties();
 
     public boolean forwardAuthorizationCredentials() {
@@ -331,5 +335,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
+    }
+    
+    public String getTlsClientAuth() {
+        return tlsClientAuth;
+    }
+
+    public void setTlsClientAuth(String tlsClientAuth) {
+        this.tlsClientAuth = tlsClientAuth;
     }
 }
