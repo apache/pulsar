@@ -17,25 +17,29 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
-import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.InstanceCommunication;
+
+import java.util.concurrent.CompletableFuture;
 
 /**
- * A factory to create {@link FunctionContainer}s to invoke functions.
+ * A function container is an environment for invoking functions.
  */
-public interface FunctionContainerFactory extends AutoCloseable {
+public interface Runtime {
 
-    /**
-     * Create a function container to execute a java instance.
-     *
-     * @param instanceConfig java instance config
-     * @return function container to start/stop instance
-     */
-    FunctionContainer createContainer(
-            InstanceConfig instanceConfig, String codeFile);
+    void start();
 
-    @Override
-    void close();
+    void join() throws Exception;
+
+    void stop();
+
+    boolean isAlive();
+
+    Exception getDeathException();
+
+    CompletableFuture<InstanceCommunication.FunctionStatus> getFunctionStatus();
+
+    CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics();
 
 }

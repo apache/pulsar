@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
@@ -33,7 +33,6 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.InstanceControlGrpc;
-import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import java.lang.reflect.Type;
 import java.util.Map;
@@ -152,12 +151,12 @@ public class JavaInstanceMain {
         FunctionConfig functionConfig = functionConfigBuilder.build();
         instanceConfig.setFunctionConfig(functionConfig);
 
-        ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
+        ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",
                 pulsarServiceUrl,
                 stateStorageServiceUrl);
 
-        Spawner spawner = new Spawner(
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
                 containerFactory,
@@ -165,26 +164,26 @@ public class JavaInstanceMain {
                 0);
 
         server = ServerBuilder.forPort(port)
-                .addService(new InstanceControlImpl(spawner))
+                .addService(new InstanceControlImpl(runtimeSpawner))
                 .build()
                 .start();
         log.info("JaveInstance Server started, listening on " + port);
-        Runtime.getRuntime().addShutdownHook(new Thread() {
+        java.lang.Runtime.getRuntime().addShutdownHook(new Thread() {
             @Override
             public void run() {
                 // Use stderr here since the logger may have been reset by its JVM shutdown hook.
                 try {
                     server.shutdown();
-                    spawner.close();
+                    runtimeSpawner.close();
                 } catch (Exception ex) {
                     System.err.println(ex);
                 }
             }
         });
-        log.info("Starting spawner");
-        spawner.start();
-        spawner.join();
-        log.info("Spawner quit, shutting down JavaInstance");
+        log.info("Starting runtimeSpawner");
+        runtimeSpawner.start();
+        runtimeSpawner.join();
+        log.info("RuntimeSpawner quit, shutting down JavaInstance");
         server.shutdown();
     }
 
@@ -199,16 +198,16 @@ public class JavaInstanceMain {
     }
 
     static class InstanceControlImpl extends InstanceControlGrpc.InstanceControlImplBase {
-        private Spawner spawner;
+        private RuntimeSpawner runtimeSpawner;
 
-        public InstanceControlImpl(Spawner spawner) {
-            this.spawner = spawner;
+        public InstanceControlImpl(RuntimeSpawner runtimeSpawner) {
+            this.runtimeSpawner = runtimeSpawner;
         }
 
         @Override
         public void getFunctionStatus(Empty request, StreamObserver<InstanceCommunication.FunctionStatus> responseObserver) {
             try {
-                InstanceCommunication.FunctionStatus response = spawner.getFunctionStatus().get();
+                InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus().get();
                 responseObserver.onNext(response);
                 responseObserver.onCompleted();
             } catch (Exception e) {

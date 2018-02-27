@@ -24,10 +24,10 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.metrics.MetricsSink;
-import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 import java.io.File;
@@ -45,7 +45,7 @@ import java.util.concurrent.TimeUnit;
 public class FunctionActioner implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
-    private final FunctionContainerFactory functionContainerFactory;
+    private final RuntimeFactory runtimeFactory;
     private final MetricsSink metricsSink;
     private final int metricsCollectionInterval;
     private final Namespace dlogNamespace;
@@ -54,13 +54,13 @@ public class FunctionActioner implements AutoCloseable {
     private Thread actioner;
 
     public FunctionActioner(WorkerConfig workerConfig,
-                            FunctionContainerFactory functionContainerFactory,
+                            RuntimeFactory runtimeFactory,
                             MetricsSink metricsSink,
                             int metricCollectionInterval,
                             Namespace dlogNamespace,
                             LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
-        this.functionContainerFactory = functionContainerFactory;
+        this.runtimeFactory = runtimeFactory;
         this.metricsSink = metricsSink;
         this.metricsCollectionInterval = metricCollectionInterval;
         this.dlogNamespace = dlogNamespace;
@@ -136,11 +136,11 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(String.valueOf(functionRuntimeInfo.getFunctionInstance().getInstanceId()));
         instanceConfig.setMaxBufferedTuples(1024);
-        Spawner spawner = new Spawner(instanceConfig, pkgFile.getAbsolutePath(), functionContainerFactory,
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(), runtimeFactory,
                 metricsSink, metricsCollectionInterval);
 
-        functionRuntimeInfo.setSpawner(spawner);
-        spawner.start();
+        functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
+        runtimeSpawner.start();
     }
 
     private boolean stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
@@ -148,9 +148,9 @@ public class FunctionActioner implements AutoCloseable {
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         log.info("Stopping function {} - {}...",
                 functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
-        if (functionRuntimeInfo.getSpawner() != null) {
-            functionRuntimeInfo.getSpawner().close();
-            functionRuntimeInfo.setSpawner(null);
+        if (functionRuntimeInfo.getRuntimeSpawner() != null) {
+            functionRuntimeInfo.getRuntimeSpawner().close();
+            functionRuntimeInfo.setRuntimeSpawner(null);
             return true;
         }
         return false;

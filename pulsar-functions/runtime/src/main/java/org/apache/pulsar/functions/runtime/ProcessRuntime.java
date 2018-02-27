@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -44,7 +44,7 @@ import java.util.concurrent.CompletableFuture;
  * A function container implemented using java thread.
  */
 @Slf4j
-class ProcessFunctionContainer implements FunctionContainer {
+class ProcessRuntime implements Runtime {
 
     // The thread that invokes the function
     @Getter
@@ -56,11 +56,11 @@ class ProcessFunctionContainer implements FunctionContainer {
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
 
-    ProcessFunctionContainer(InstanceConfig instanceConfig,
-                             String instanceFile,
-                             String logDirectory,
-                             String codeFile,
-                             String pulsarServiceUrl) {
+    ProcessRuntime(InstanceConfig instanceConfig,
+                   String instanceFile,
+                   String logDirectory,
+                   String codeFile,
+                   String pulsarServiceUrl) {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
             args.add("java");
@@ -171,7 +171,7 @@ class ProcessFunctionContainer implements FunctionContainer {
      */
     @Override
     public void start() {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
+        java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
         startProcess();
         channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
                 .usePlaintext(true)

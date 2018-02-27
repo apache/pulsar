@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -36,7 +36,7 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
  * A function container implemented using java thread.
  */
 @Slf4j
-class ThreadFunctionContainer implements FunctionContainer {
+class ThreadRuntime implements Runtime {
 
     // The thread that invokes the function
     @Getter
@@ -47,12 +47,12 @@ class ThreadFunctionContainer implements FunctionContainer {
     private JavaInstanceRunnable javaInstanceRunnable;
     private Exception startupException;
 
-    ThreadFunctionContainer(InstanceConfig instanceConfig,
-                            FunctionCacheManager fnCache,
-                            ThreadGroup threadGroup,
-                            String jarFile,
-                            PulsarClient pulsarClient,
-                            String stateStorageServiceUrl) {
+    ThreadRuntime(InstanceConfig instanceConfig,
+                  FunctionCacheManager fnCache,
+                  ThreadGroup threadGroup,
+                  String jarFile,
+                  PulsarClient pulsarClient,
+                  String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
         if (instanceConfig.getFunctionConfig().getRuntime() != Function.FunctionConfig.Runtime.JAVA) {
             throw new RuntimeException("Thread Container only supports Java Runtime");

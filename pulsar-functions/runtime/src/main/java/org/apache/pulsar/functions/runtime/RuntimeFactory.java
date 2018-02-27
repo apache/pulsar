@@ -16,7 +16,26 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
+package org.apache.pulsar.functions.runtime;
+
+import org.apache.pulsar.functions.instance.InstanceConfig;
+
 /**
- * Spanwer for spawning processes, threads, docker containers to execute functions.
+ * A factory to create {@link Runtime}s to invoke functions.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+public interface RuntimeFactory extends AutoCloseable {
+
+    /**
+     * Create a function container to execute a java instance.
+     *
+     * @param instanceConfig java instance config
+     * @return function container to start/stop instance
+     */
+    Runtime createContainer(
+            InstanceConfig instanceConfig, String codeFile);
+
+    @Override
+    void close();
+
+}

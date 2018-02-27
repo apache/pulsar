@@ -51,9 +51,9 @@ import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 
@@ -440,7 +440,7 @@ public class CmdFunctions extends CmdBase {
                 throw new RuntimeException("Missing arguments");
             }
 
-            try (ThreadFunctionContainerFactory containerFactory = new ThreadFunctionContainerFactory(
+            try (ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",
                 admin.getServiceUrl().toString(),
                 stateStorageServiceUrl)) {
@@ -452,7 +452,7 @@ public class CmdFunctions extends CmdBase {
                 instanceConfig.setFunctionId(UUID.randomUUID().toString());
                 instanceConfig.setInstanceId("0");
                 instanceConfig.setMaxBufferedTuples(1024);
-                Spawner spawner = new Spawner(
+                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                     instanceConfig,
                     userCodeFile,
                     containerFactory,
@@ -460,14 +460,14 @@ public class CmdFunctions extends CmdBase {
                     0);
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {
-                        log.info("Shutting down the localrun spawner ...");
-                        spawner.close();
-                        log.info("The localrun spawner is closed.");
+                        log.info("Shutting down the localrun runtimeSpawner ...");
+                        runtimeSpawner.close();
+                        log.info("The localrun runtimeSpawner is closed.");
                     }
                 });
-                spawner.start();
-                spawner.join();
-                log.info("Spawner is quitting.");
+                runtimeSpawner.start();
+                runtimeSpawner.join();
+                log.info("RuntimeSpawner is quitting.");
             }
         }
     }

@@ -17,11 +17,14 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.runtime.ProcessRuntime;
+import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.ThreadRuntime;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -32,31 +35,31 @@ import java.util.List;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit test of {@link ThreadFunctionContainer}.
+ * Unit test of {@link ThreadRuntime}.
  */
 @Slf4j
-public class ProcessFunctionContainerTest {
+public class ProcessRuntimeTest {
 
-    private static final Logger LOG = LoggerFactory.getLogger(ProcessFunctionContainerTest.class);
+    private static final Logger LOG = LoggerFactory.getLogger(ProcessRuntimeTest.class);
 
     private static final String TEST_TENANT = "test-function-tenant";
     private static final String TEST_NAMESPACE = "test-function-namespace";
     private static final String TEST_NAME = "test-function-container";
 
-    private final ProcessFunctionContainerFactory factory;
+    private final ProcessRuntimeFactory factory;
     private final String userJarFile;
     private final String javaInstanceJarFile;
     private final String pythonInstanceFile;
     private final String pulsarServiceUrl;
     private final String logDirectory;
 
-    public ProcessFunctionContainerTest() {
+    public ProcessRuntimeTest() {
         this.userJarFile = "/Users/user/UserJar.jar";
         this.javaInstanceJarFile = "/Users/user/JavaInstance.jar";
         this.pythonInstanceFile = "/Users/user/PythonInstance.py";
         this.pulsarServiceUrl = "pulsar://localhost:6670";
         this.logDirectory = "Users/user/logs";
-        this.factory = new ProcessFunctionContainerFactory(
+        this.factory = new ProcessRuntimeFactory(
             pulsarServiceUrl, javaInstanceJarFile, pythonInstanceFile, logDirectory);
     }
 
@@ -95,7 +98,7 @@ public class ProcessFunctionContainerTest {
     public void testJavaConstructor() {
         InstanceConfig config = createJavaInstanceConfig(FunctionConfig.Runtime.JAVA);
 
-        ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
+        ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
         assertEquals(args.size(), 39);
         args.remove(args.size() - 1);
@@ -122,7 +125,7 @@ public class ProcessFunctionContainerTest {
     public void testPythonConstructor() {
         InstanceConfig config = createJavaInstanceConfig(FunctionConfig.Runtime.PYTHON);
 
-        ProcessFunctionContainer container = factory.createContainer(config, userJarFile);
+        ProcessRuntime container = factory.createContainer(config, userJarFile);
         List<String> args = container.getProcessBuilder().command();
         assertEquals(args.size(), 38);
         args.remove(args.size() - 1);
