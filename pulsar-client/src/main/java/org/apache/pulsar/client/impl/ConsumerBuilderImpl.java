@@ -26,6 +26,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
@@ -80,7 +81,7 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
 
     @Override
     public CompletableFuture<Consumer> subscribeAsync() {
-        if (conf.getTopicNames().isEmpty()) {
+        if (conf.getTopicNames().isEmpty() && conf.getTopicsPattern() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
         }
@@ -104,7 +105,20 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     public ConsumerBuilder topics(List<String> topicNames) {
         checkArgument(topicNames != null && !topicNames.isEmpty(), "Passed in topicNames list should not be empty.");
         conf.getTopicNames().addAll(topicNames);
+        return this;
+    }
 
+    @Override
+    public ConsumerBuilder topicsPattern(Pattern topicsPattern) {
+        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
+        conf.setTopicsPattern(topicsPattern);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder topicsPattern(String topicsPattern) {
+        checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
+        conf.setTopicsPattern(Pattern.compile(topicsPattern));
         return this;
     }
 
