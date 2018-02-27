@@ -19,4 +19,4 @@
 /**
  * Spanwer for spawning processes, threads, docker containers to execute functions.
  */
-package org.apache.pulsar.functions.runtime.metrics;
+package org.apache.pulsar.functions.metrics;

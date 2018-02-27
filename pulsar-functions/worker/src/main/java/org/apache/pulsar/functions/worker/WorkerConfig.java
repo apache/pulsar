@@ -23,13 +23,10 @@ import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import lombok.Data;
-import lombok.EqualsAndHashCode;
-import lombok.Getter;
-import lombok.Setter;
-import lombok.ToString;
+import java.util.Map;
+
+import lombok.*;
 import lombok.experimental.Accessors;
-import org.apache.pulsar.functions.fs.MetricsConfig;
 
 @Data
 @Setter
@@ -100,4 +97,29 @@ public class WorkerConfig implements Serializable {
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);
     }
 
+    @Data
+    @Setter
+    @Getter
+    @EqualsAndHashCode
+    @ToString
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Accessors(chain = true)
+    /**
+     * This represents the config related to the resource limits of function calls
+     */
+    public static class MetricsConfig implements Serializable {
+
+        private static final long serialVersionUID = 1L;
+
+        private String metricsSinkClassName;
+        private int metricsCollectionInterval;
+        private Map<String, String> metricsSinkConfig;
+
+        public static MetricsConfig load(String yamlFile) throws IOException {
+            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
+            return mapper.readValue(new File(yamlFile), MetricsConfig.class);
+        }
+
+    }
 }

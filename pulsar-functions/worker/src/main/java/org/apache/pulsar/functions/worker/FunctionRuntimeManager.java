@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.spawner.Spawner;
 
 import javax.ws.rs.client.Client;

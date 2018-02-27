@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.metrics.sink;
+package org.apache.pulsar.functions.metrics.sink;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -33,7 +33,7 @@ import com.google.common.cache.CacheBuilder;
 
 import com.sun.net.httpserver.HttpServer;
 
-import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.metrics.MetricsSink;
 
 
 /**

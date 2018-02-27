@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
 import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
 import org.apache.pulsar.functions.runtime.container.FunctionContainer;
-import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 @Slf4j
