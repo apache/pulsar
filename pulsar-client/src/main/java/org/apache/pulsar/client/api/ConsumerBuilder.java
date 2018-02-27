@@ -104,9 +104,12 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
 
     /**
      * Specify a pattern for topics that this consumer will subscribe on.
+     * It accepts regular expression and will be compiled into a pattern internally.
+     * Eg. "persistent://prop/use/ns-abc/pattern-topic-.*"
      * <p>
      *
      * @param topicsPattern
+     *            given regular expression for topics pattern
      */
     ConsumerBuilder topicsPattern(String topicsPattern);
 
