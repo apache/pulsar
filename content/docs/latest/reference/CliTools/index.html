@@ -2052,6 +2052,12 @@
       </li>
       
       <li>
+        <a href="#pulsar-compact-topic">
+          <code class="highlighter-rouge">compact-topic</code>
+        </a>
+      </li>
+      
+      <li>
         <a href="#pulsar-discovery">
           <code class="highlighter-rouge">discovery</code>
         </a>
@@ -2090,6 +2096,12 @@
       <li>
         <a href="#pulsar-zookeeper">
           <code class="highlighter-rouge">zookeeper</code>
+        </a>
+      </li>
+      
+      <li>
+        <a href="#pulsar-zookeeper-shell">
+          <code class="highlighter-rouge">zookeeper-shell</code>
         </a>
       </li>
       
@@ -2311,11 +2323,118 @@
                   <code class="highlighter-rouge">-c</code>
                   , 
                   
-                  <code class="highlighter-rouge">--conf</code>
+                  <code class="highlighter-rouge">--broker-conf</code>
                   
                    <!-- for flag in option.flags -->
                 </td>
                 <td><p>Configuration file for the broker</p>
+</td>
+                <td>
+                  
+                </td>
+              </tr>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-bc</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--bookie-conf</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Configuration file for BookKeeper</p>
+</td>
+                <td>
+                  
+                </td>
+              </tr>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-rb</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--run-bookie</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Run a BookKeeper bookie on the same host as the Pulsar broker</p>
+</td>
+                <td>
+                  <code class="highlighter-rouge">false</code>
+                </td>
+              </tr>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-ra</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--run-bookie-autorecovery</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker</p>
+</td>
+                <td>
+                  <code class="highlighter-rouge">false</code>
+                </td>
+              </tr>
+               <!-- for option in options -->
+            </tbody>
+          </thead>
+        </table>
+         <!-- if command.options -->
+        
+        <h5>Example</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> <span>pulsar broker \
+  --conf /path/to/broker.conf
+</span></code></pre></div>
+         <!-- if command.example -->
+
+        
+      </div>
+    </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-compact-topic">
+        <code class="highlighter-rouge">compact-topic</code>
+      </h3>
+      <div class="card-content">
+        <p>Run compaction against a Pulsar topic</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar compact-topic <span class="options">options</span></code></pre></div>
+        
+        <h5>Options</h5>
+        <table class="options-table">
+          <thead>
+            <tr>
+              <th>Flag</th>
+              <th>Description</th>
+              <th>Default</th>
+            </tr>
+            <tbody>
+              
+              <tr>
+                <td nowrap="">
+                  
+                  
+                  <code class="highlighter-rouge">-t</code>
+                  , 
+                  
+                  <code class="highlighter-rouge">--topic</code>
+                  
+                   <!-- for flag in option.flags -->
+                </td>
+                <td><p>The Pulsar topic that you would like to compact</p>
 </td>
                 <td>
                   
@@ -2328,8 +2447,8 @@
          <!-- if command.options -->
         
         <h5>Example</h5>
-        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> <span>pulsar broker \
-  --conf /path/to/broker.conf
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> <span>pulsar compact-topic \
+  --topic persistent://sample/standalone/ns1/topic-to-compact
 </span></code></pre></div>
          <!-- if command.example -->
 
@@ -3013,6 +3132,22 @@
         
       </div>
     </div>
+    
+    <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-zookeeper-shell">
+        <code class="highlighter-rouge">zookeeper-shell</code>
+      </h3>
+      <div class="card-content">
+        <p>Opens up a shell client to the ZooKeeper cluster used by Pulsar</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar zookeeper-shell</code></pre></div>
+         <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+      </div>
+    </div>
      <!-- for command in commands -->
   </div>
 </div>
@@ -3152,6 +3287,12 @@
               <code class="highlighter-rouge">monitoring-metrics</code>
             </a>
           </li>
+          
+          <li>
+            <a href="#pulsar-admin-broker-stats-topics">
+              <code class="highlighter-rouge">topics</code>
+            </a>
+          </li>
            <!-- for subcommand in subcommands -->
         </ul>
 
@@ -3170,7 +3311,7 @@
         <div class="card cli-subcommand">
           <h4 class="card-header-title" id="pulsar-admin-broker-stats-destinations"><code class="highlighter-rouge">destinations</code></h4>
           <div class="card-content">
-            <p>Dump destination stats</p>
+            <p>Dump topic stats</p>
             <h5>Usage</h5>
             <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin broker-stats destinations <span class="options">options</span></code></pre></div>
             
@@ -3295,6 +3436,49 @@
              <!-- if command.example -->
           </div>
         </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-broker-stats-topics"><code class="highlighter-rouge">topics</code></h4>
+          <div class="card-content">
+            <p>Dump topic stats</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin broker-stats topics <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-i</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--indent</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>Indent JSON output</p>
+</td>
+                    <td>
+                      <code class="highlighter-rouge">false</code>
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
        <!-- for subcommand in subcommands -->
       
       </div>
@@ -3343,6 +3527,12 @@
           <li>
             <a href="#pulsar-admin-brokers-get-all-dynamic-config">
               <code class="highlighter-rouge">get-all-dynamic-config</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-brokers-get-internal-config">
+              <code class="highlighter-rouge">get-internal-config</code>
             </a>
           </li>
            <!-- for subcommand in subcommands -->
@@ -3472,6 +3662,17 @@
             <p>Get all overridden dynamic-configuration values</p>
             <h5>Usage</h5>
             <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin brokers get-all-dynamic-config</code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-brokers-get-internal-config"><code class="highlighter-rouge">get-internal-config</code></h4>
+          <div class="card-content">
+            <p>Get internal configuration information</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin brokers get-internal-config</code></pre></div>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>
@@ -5696,6 +5897,18 @@
         <ul>
           
           <li>
+            <a href="#pulsar-admin-non-persistent-create-partitioned-topic">
+              <code class="highlighter-rouge">create-partitioned-topic</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-non-persistent-lookup">
+              <code class="highlighter-rouge">lookup</code>
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar-admin-non-persistent-stats">
               <code class="highlighter-rouge">stats</code>
             </a>
@@ -5714,14 +5927,74 @@
           </li>
           
           <li>
-            <a href="#pulsar-admin-non-persistent-unload">
-              <code class="highlighter-rouge">unload</code>
+            <a href="#pulsar-admin-non-persistent-list">
+              <code class="highlighter-rouge">list</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-non-persistent-list-in-bundle">
+              <code class="highlighter-rouge">list-in-bundle</code>
             </a>
           </li>
            <!-- for subcommand in subcommands -->
         </ul>
 
         
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-create-partitioned-topic"><code class="highlighter-rouge">create-partitioned-topic</code></h4>
+          <div class="card-content">
+            <p>Create a partitioned topic. A partitioned non-persistent topic must be created before producers can publish to it.</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent create-partitioned-topic <span class="command">non-persistent://property/cluster/namespace/topic</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-p</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--partitions</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The number of partitions for the topic</p>
+</td>
+                    <td>
+                      <code class="highlighter-rouge">0</code>
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-lookup"><code class="highlighter-rouge">lookup</code></h4>
+          <div class="card-content">
+            <p>Look up a non-persistent topic on the current serving broker</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent lookup <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
         <div class="card cli-subcommand">
           <h4 class="card-header-title" id="pulsar-admin-non-persistent-stats"><code class="highlighter-rouge">stats</code></h4>
           <div class="card-content">
@@ -5756,11 +6029,54 @@
         </div>
       
         <div class="card cli-subcommand">
-          <h4 class="card-header-title" id="pulsar-admin-non-persistent-unload"><code class="highlighter-rouge">unload</code></h4>
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-list"><code class="highlighter-rouge">list</code></h4>
           <div class="card-content">
-            <p>Unload a topic</p>
+            <p>Get a list of non-persistent topics under a namespace</p>
             <h5>Usage</h5>
-            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent unload <span class="command">non-persistent://property/cluster/namespace/topic</span></code></pre></div>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent list <span class="command">property/cluster/namespace</span></code></pre></div>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-non-persistent-list-in-bundle"><code class="highlighter-rouge">list-in-bundle</code></h4>
+          <div class="card-content">
+            <p>Get a list of non-persistent topics present under a namespace bundle</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin non-persistent list-in-bundle <span class="command">property/cluster/namespace</span> <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-b</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--bundle</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The bundle range</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
              <!-- if subcommand.options -->
              <!-- if command.example -->
           </div>

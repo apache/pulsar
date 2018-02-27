@@ -1788,6 +1788,18 @@
           </li>
           
           <li>
+            <a href="#pulsar.proto.CommandGetTopicsOfNamespace">
+              CommandGetTopicsOfNamespace
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar.proto.CommandGetTopicsOfNamespaceResponse">
+              CommandGetTopicsOfNamespaceResponse
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar.proto.CommandLookupTopic">
               CommandLookupTopic
             </a>
@@ -2333,6 +2345,26 @@
               <td class="wrap">active_consumer_change</td>
               
               <td class="wrap"><a href="#pulsar.proto.CommandActiveConsumerChange">CommandActiveConsumerChange</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">getTopicsOfNamespace</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetTopicsOfNamespace">CommandGetTopicsOfNamespace</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">getTopicsOfNamespaceResponse</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandGetTopicsOfNamespaceResponse">CommandGetTopicsOfNamespaceResponse</a></td>
               
               <td>optional</td>
               <td></td>
@@ -3170,6 +3202,104 @@ of any number previously specified</td>
               <td class="wrap">uint64</td>
               
               <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandGetTopicsOfNamespace">
+          CommandGetTopicsOfNamespace
+        </h5>
+        <p class="message-name">pulsar.proto.CommandGetTopicsOfNamespace</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">request_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">namespace</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.CommandGetTopicsOfNamespaceResponse">
+          CommandGetTopicsOfNamespaceResponse
+        </h5>
+        <p class="message-name">pulsar.proto.CommandGetTopicsOfNamespaceResponse</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">request_id</td>
+              
+              <td class="wrap">uint64</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">topics</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>repeated</td>
               <td></td>
               <td></td>
             </tr>
@@ -5069,6 +5199,20 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
             <tr>
               <td>ACTIVE_CONSUMER_CHANGE</td>
               <td>31</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>GET_TOPICS_OF_NAMESPACE</td>
+              <td>32</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>GET_TOPICS_OF_NAMESPACE_RESPONSE</td>
+              <td>33</td>
               <td>
 </td>
             </tr>

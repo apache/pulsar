@@ -120,27 +120,27 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic</a></span>(String&nbsp;destination,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopic-java.lang.String-int-">createPartitionedTopic</a></span>(String&nbsp;topic,
                       int&nbsp;numPartitions)</code>
 <div class="block">Create a partitioned topic.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync</a></span>(String&nbsp;destination,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#createPartitionedTopicAsync-java.lang.String-int-">createPartitionedTopicAsync</a></span>(String&nbsp;topic,
                            int&nbsp;numPartitions)</code>
 <div class="block">Create a partitioned topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStats-java.lang.String-">getInternalStats</a></span>(String&nbsp;topic)</code>
 <div class="block">Get the internal stats for the topic.</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getInternalStatsAsync-java.lang.String-">getInternalStatsAsync</a></span>(String&nbsp;topic)</code>
 <div class="block">Get the internal stats for the topic asynchronously.</div>
 </td>
 </tr>
@@ -172,37 +172,37 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code>PartitionedTopicMetadata</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadata-java.lang.String-">getPartitionedTopicMetadata</a></span>(String&nbsp;topic)</code>
 <div class="block">Get metadata of a partitioned topic.</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;PartitionedTopicMetadata&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getPartitionedTopicMetadataAsync-java.lang.String-">getPartitionedTopicMetadataAsync</a></span>(String&nbsp;topic)</code>
 <div class="block">Get metadata of a partitioned topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStats-java.lang.String-">getStats</a></span>(String&nbsp;topic)</code>
 <div class="block">Get the stats for the topic.</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#getStatsAsync-java.lang.String-">getStatsAsync</a></span>(String&nbsp;topic)</code>
 <div class="block">Get the stats for the topic asynchronously.</div>
 </td>
 </tr>
 <tr id="i12" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unload-java.lang.String-">unload</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unload-java.lang.String-">unload</a></span>(String&nbsp;topic)</code>
 <div class="block">Unload a topic.</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync</a></span>(String&nbsp;destination)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/NonPersistentTopics.html#unloadAsync-java.lang.String-">unloadAsync</a></span>(String&nbsp;topic)</code>
 <div class="block">Unload a topic asynchronously.</div>
 </td>
 </tr>
@@ -227,7 +227,7 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getPartitionedTopicMetadata</h4>
-<pre>PartitionedTopicMetadata&nbsp;getPartitionedTopicMetadata(String&nbsp;destination)
+<pre>PartitionedTopicMetadata&nbsp;getPartitionedTopicMetadata(String&nbsp;topic)
                                               throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get metadata of a partitioned topic.
  <p>
@@ -235,7 +235,7 @@ var activeTableTab = "activeTableTab";
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>Partitioned topic metadata</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
@@ -249,14 +249,14 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getPartitionedTopicMetadataAsync</h4>
-<pre>CompletableFuture&lt;PartitionedTopicMetadata&gt;&nbsp;getPartitionedTopicMetadataAsync(String&nbsp;destination)</pre>
+<pre>CompletableFuture&lt;PartitionedTopicMetadata&gt;&nbsp;getPartitionedTopicMetadataAsync(String&nbsp;topic)</pre>
 <div class="block">Get metadata of a partitioned topic asynchronously.
  <p>
  Get metadata of a partitioned topic asynchronously.
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the partitioned topic metadata is returned</dd>
 </dl>
@@ -268,7 +268,7 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getStats</h4>
-<pre><a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&nbsp;getStats(String&nbsp;destination)
+<pre><a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&nbsp;getStats(String&nbsp;topic)
                           throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the stats for the topic.
  <p>
@@ -331,7 +331,7 @@ var activeTableTab = "activeTableTab";
  All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the topic statistics</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
@@ -347,12 +347,12 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getStatsAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&gt;&nbsp;getStatsAsync(String&nbsp;destination)</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/NonPersistentTopicStats.html" title="class in org.apache.pulsar.common.policies.data">NonPersistentTopicStats</a>&gt;&nbsp;getStatsAsync(String&nbsp;topic)</pre>
 <div class="block">Get the stats for the topic asynchronously. All the rates are computed over a 1 minute window and are relative
  the last completed 1 minute period.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the topic statistics are returned</dd>
 </dl>
@@ -364,14 +364,14 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getInternalStats</h4>
-<pre><a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&nbsp;getInternalStats(String&nbsp;destination)
+<pre><a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&nbsp;getInternalStats(String&nbsp;topic)
                                        throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Get the internal stats for the topic.
  <p>
  Access the internal state of the topic</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the topic statistics</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
@@ -387,11 +387,11 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>getInternalStatsAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&gt;&nbsp;getInternalStatsAsync(String&nbsp;destination)</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a>&gt;&nbsp;getInternalStatsAsync(String&nbsp;topic)</pre>
 <div class="block">Get the internal stats for the topic asynchronously.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination Name</dd>
+<dd><code>topic</code> - Topic Name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the internal topic statistics are returned</dd>
 </dl>
@@ -403,7 +403,7 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>createPartitionedTopic</h4>
-<pre>void&nbsp;createPartitionedTopic(String&nbsp;destination,
+<pre>void&nbsp;createPartitionedTopic(String&nbsp;topic,
                             int&nbsp;numPartitions)
                      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Create a partitioned topic.
@@ -412,7 +412,7 @@ var activeTableTab = "activeTableTab";
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dd><code>numPartitions</code> - Number of partitions to create of the topic</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
@@ -425,7 +425,7 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>createPartitionedTopicAsync</h4>
-<pre>CompletableFuture&lt;Void&gt;&nbsp;createPartitionedTopicAsync(String&nbsp;destination,
+<pre>CompletableFuture&lt;Void&gt;&nbsp;createPartitionedTopicAsync(String&nbsp;topic,
                                                     int&nbsp;numPartitions)</pre>
 <div class="block">Create a partitioned topic asynchronously.
  <p>
@@ -434,7 +434,7 @@ var activeTableTab = "activeTableTab";
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dd><code>numPartitions</code> - Number of partitions to create of the topic</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the partitioned topic is created</dd>
@@ -447,16 +447,16 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>unload</h4>
-<pre>void&nbsp;unload(String&nbsp;destination)
+<pre>void&nbsp;unload(String&nbsp;topic)
      throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Unload a topic.
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotAuthorizedException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotAuthorizedException</a></code> - Don't have admin permission</dd>
-<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Destination does not exist</dd>
+<dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.NotFoundException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.NotFoundException</a></code> - Topic does not exist</dd>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code> - Unexpected error</dd>
 </dl>
 </li>
@@ -467,12 +467,12 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>unloadAsync</h4>
-<pre>CompletableFuture&lt;Void&gt;&nbsp;unloadAsync(String&nbsp;destination)</pre>
+<pre>CompletableFuture&lt;Void&gt;&nbsp;unloadAsync(String&nbsp;topic)</pre>
 <div class="block">Unload a topic asynchronously.
  <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - Destination name</dd>
+<dd><code>topic</code> - Topic name</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a future that can be used to track when the topic is unloaded</dd>
 </dl>

@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -185,6 +185,12 @@ extends Serializable, Cloneable</pre>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#subscriptionRolePrefix-java.lang.String-">subscriptionRolePrefix</a></span>(String&nbsp;subscriptionRolePrefix)</code>
+<div class="block">Set the subscription role prefix.</div>
+</td>
+</tr>
+<tr id="i10" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
 <div class="block">Specify the topic this consumer will subscribe on.</div>
@@ -365,7 +371,7 @@ extends Serializable, Cloneable</pre>
 <a name="readerName-java.lang.String-">
 <!--   -->
 </a>
-<ul class="blockListLast">
+<ul class="blockList">
 <li class="blockList">
 <h4>readerName</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;readerName(String&nbsp;readerName)</pre>
@@ -373,6 +379,20 @@ extends Serializable, Cloneable</pre>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>readerName</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="subscriptionRolePrefix-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockListLast">
+<li class="blockList">
+<h4>subscriptionRolePrefix</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;subscriptionRolePrefix(String&nbsp;subscriptionRolePrefix)</pre>
+<div class="block">Set the subscription role prefix. The default prefix is "reader".</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>subscriptionRolePrefix</code> - </dd>
 </dl>
 </li>
 </ul>

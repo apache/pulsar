@@ -124,30 +124,30 @@ var activeTableTab = "activeTableTab";
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getAllocatorStats-java.lang.String-">getAllocatorStats</a></span>(String&nbsp;allocatorName)</code>&nbsp;</td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code>JsonObject</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getDestinations--">getDestinations</a></span>()</code>
-<div class="block">Returns JSON string destination stats</div>
-</td>
-</tr>
-<tr id="i2" class="altColor">
 <td class="colFirst"><code>LoadManagerReport</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getLoadReport--">getLoadReport</a></span>()</code>&nbsp;</td>
 </tr>
-<tr id="i3" class="rowColor">
+<tr id="i2" class="altColor">
 <td class="colFirst"><code>JsonArray</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getMBeans--">getMBeans</a></span>()</code>
 <div class="block">Requests JSON string server mbean dump</div>
 </td>
 </tr>
-<tr id="i4" class="altColor">
+<tr id="i3" class="rowColor">
 <td class="colFirst"><code>JsonArray</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getMetrics--">getMetrics</a></span>()</code>
 <div class="block">Returns Monitoring metrics</div>
 </td>
 </tr>
-<tr id="i5" class="rowColor">
+<tr id="i4" class="altColor">
 <td class="colFirst"><code>JsonObject</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getPendingBookieOpsStats--">getPendingBookieOpsStats</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i5" class="rowColor">
+<td class="colFirst"><code>JsonObject</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/BrokerStats.html#getTopics--">getTopics</a></span>()</code>
+<div class="block">Returns JSON string topics stats</div>
+</td>
 </tr>
 </table>
 </li>
@@ -198,15 +198,15 @@ var activeTableTab = "activeTableTab";
 </dl>
 </li>
 </ul>
-<a name="getDestinations--">
+<a name="getTopics--">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>getDestinations</h4>
-<pre>JsonObject&nbsp;getDestinations()
-                    throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
-<div class="block">Returns JSON string destination stats
+<h4>getTopics</h4>
+<pre>JsonObject&nbsp;getTopics()
+              throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Returns JSON string topics stats
  <p>
  Notes: since we don't plan to introspect the response we avoid converting the response into POJO.</div>
 <dl>

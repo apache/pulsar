@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -242,6 +242,18 @@ extends Serializable, Cloneable</pre>
 <div class="block">Specify a list of topics that this consumer will subscribe on.</div>
 </td>
 </tr>
+<tr id="i18" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.util.regex.Pattern-">topicsPattern</a></span>(java.util.regex.Pattern&nbsp;topicsPattern)</code>
+<div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
+</td>
+</tr>
+<tr id="i19" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.lang.String-">topicsPattern</a></span>(String&nbsp;topicsPattern)</code>
+<div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
+</td>
+</tr>
 </table>
 </li>
 </ul>
@@ -329,8 +341,7 @@ extends Serializable, Cloneable</pre>
 <h4>topic</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topic(String...&nbsp;topicNames)</pre>
 <div class="block">Specify the topics this consumer will subscribe on.
- <p>
- This argument is required when constructing the consumer.</div>
+ <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>topicNames</code> - </dd>
@@ -345,11 +356,42 @@ extends Serializable, Cloneable</pre>
 <h4>topics</h4>
 <pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topics(List&lt;String&gt;&nbsp;topicNames)</pre>
 <div class="block">Specify a list of topics that this consumer will subscribe on.
- <p>
- This argument is required when constructing the consumer.</div>
+ <p></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
 <dd><code>topicNames</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="topicsPattern-java.util.regex.Pattern-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>topicsPattern</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topicsPattern(java.util.regex.Pattern&nbsp;topicsPattern)</pre>
+<div class="block">Specify a pattern for topics that this consumer will subscribe on.
+ <p></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topicsPattern</code> - </dd>
+</dl>
+</li>
+</ul>
+<a name="topicsPattern-java.lang.String-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>topicsPattern</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topicsPattern(String&nbsp;topicsPattern)</pre>
+<div class="block">Specify a pattern for topics that this consumer will subscribe on.
+ It accepts regular expression and will be compiled into a pattern internally.
+ Eg. "persistent://prop/use/ns-abc/pattern-topic-.*"
+ <p></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>topicsPattern</code> - given regular expression for topics pattern</dd>
 </dl>
 </li>
 </ul>

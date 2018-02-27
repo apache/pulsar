@@ -100,8 +100,7 @@ var activeTableTab = "activeTableTab";
 <hr>
 <br>
 <pre>public interface <span class="typeNameLabel">Lookup</span></pre>
-<div class="block">This is an interface class to allow using command line tool to quickly lookup the broker serving the
- destination.</div>
+<div class="block">This is an interface class to allow using command line tool to quickly lookup the broker serving the topic.</div>
 </li>
 </ul>
 </div>
@@ -122,14 +121,14 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html#getBundleRange-java.lang.String-">getBundleRange</a></span>(String&nbsp;destination)</code>
-<div class="block">Get a bundle range of a destination</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html#getBundleRange-java.lang.String-">getBundleRange</a></span>(String&nbsp;topic)</code>
+<div class="block">Get a bundle range of a topic</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>String</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html#lookupDestination-java.lang.String-">lookupDestination</a></span>(String&nbsp;destination)</code>
-<div class="block">Lookup a destination</div>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/Lookup.html#lookupTopic-java.lang.String-">lookupTopic</a></span>(String&nbsp;topic)</code>
+<div class="block">Lookup a topic</div>
 </td>
 </tr>
 </table>
@@ -147,20 +146,20 @@ var activeTableTab = "activeTableTab";
 <!--   -->
 </a>
 <h3>Method Detail</h3>
-<a name="lookupDestination-java.lang.String-">
+<a name="lookupTopic-java.lang.String-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
-<h4>lookupDestination</h4>
-<pre>String&nbsp;lookupDestination(String&nbsp;destination)
-                  throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
-<div class="block">Lookup a destination</div>
+<h4>lookupTopic</h4>
+<pre>String&nbsp;lookupTopic(String&nbsp;topic)
+            throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<div class="block">Lookup a topic</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - </dd>
+<dd><code>topic</code> - </dd>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>the broker URL that serves the destination</dd>
+<dd>the broker URL that serves the topic</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>
 </dl>
@@ -172,12 +171,12 @@ var activeTableTab = "activeTableTab";
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getBundleRange</h4>
-<pre>String&nbsp;getBundleRange(String&nbsp;destination)
+<pre>String&nbsp;getBundleRange(String&nbsp;topic)
                throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
-<div class="block">Get a bundle range of a destination</div>
+<div class="block">Get a bundle range of a topic</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>destination</code> - </dd>
+<dd><code>topic</code> - </dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></code></dd>

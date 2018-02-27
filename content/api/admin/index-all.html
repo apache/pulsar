@@ -110,6 +110,8 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicies.html#assignBroker-NamespaceName-org.apache.pulsar.common.policies.data.BrokerStatus-java.util.SortedSet-java.util.SortedSet-java.util.SortedSet-">assignBroker(NamespaceName, BrokerStatus, SortedSet&lt;BrokerStatus&gt;, SortedSet&lt;BrokerStatus&gt;, SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicies.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicies</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#auth">auth</a></span> - Variable in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
+<dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#auth_policies">auth_policies</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/common/policies/data/AuthAction.html" title="enum in org.apache.pulsar.common.policies.data"><span class="typeNameLink">AuthAction</span></a> - Enum in <a href="org/apache/pulsar/common/policies/data/package-summary.html">org.apache.pulsar.common.policies.data</a></dt>
@@ -228,19 +230,19 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#clearNamespaceBacklog-java.lang.String-">clearNamespaceBacklog(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Clear backlog for all destinations on a namespace</div>
+<div class="block">Clear backlog for all topics on a namespace</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#clearNamespaceBacklogForSubscription-java.lang.String-java.lang.String-">clearNamespaceBacklogForSubscription(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Clear backlog for a given subscription on all destinations on a namespace</div>
+<div class="block">Clear backlog for a given subscription on all topics on a namespace</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#clearNamespaceBundleBacklog-java.lang.String-java.lang.String-">clearNamespaceBundleBacklog(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Clear backlog for all destinations on a namespace bundle</div>
+<div class="block">Clear backlog for all topics on a namespace bundle</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#clearNamespaceBundleBacklogForSubscription-java.lang.String-java.lang.String-java.lang.String-">clearNamespaceBundleBacklogForSubscription(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Clear backlog for a given subscription on all destinations on a namespace bundle</div>
+<div class="block">Clear backlog for a given subscription on all topics on a namespace bundle</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ConsumerStats.html#clientVersion">clientVersion</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ConsumerStats.html" title="class in org.apache.pulsar.common.policies.data">ConsumerStats</a></dt>
 <dd>
@@ -622,7 +624,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Lookup.html#getBundleRange-java.lang.String-">getBundleRange(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin">Lookup</a></dt>
 <dd>
-<div class="block">Get a bundle range of a destination</div>
+<div class="block">Get a bundle range of a topic</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Clusters.html#getCluster-java.lang.String-">getCluster(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Clusters.html" title="interface in org.apache.pulsar.client.admin">Clusters</a></dt>
 <dd>
@@ -635,14 +637,6 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/ResourceQuotas.html#getDefaultResourceQuota--">getDefaultResourceQuota()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/ResourceQuotas.html" title="interface in org.apache.pulsar.client.admin">ResourceQuotas</a></dt>
 <dd>
 <div class="block">Get default resource quota for new resource bundles.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/BrokerStats.html#getDestinations--">getDestinations()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/BrokerStats.html" title="interface in org.apache.pulsar.client.admin">BrokerStats</a></dt>
-<dd>
-<div class="block">Returns JSON string destination stats</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getDestinations-java.lang.String-">getDestinations(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
-<dd>
-<div class="block">Get the list of destinations.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getDispatchRate-java.lang.String-">getDispatchRate(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -724,6 +718,18 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistencePolicies.html#getManagedLedgerMaxMarkDeleteRate--">getManagedLedgerMaxMarkDeleteRate()</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistencePolicies.html" title="class in org.apache.pulsar.common.policies.data">PersistencePolicies</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getMaxConsumersPerSubscription-java.lang.String-">getMaxConsumersPerSubscription(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get the maxConsumersPerSubscription for a namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getMaxConsumersPerTopic-java.lang.String-">getMaxConsumersPerTopic(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get the maxProducersPerTopic for a namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getMaxProducersPerTopic-java.lang.String-">getMaxProducersPerTopic(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get the maxProducersPerTopic for a namespace.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/BrokerStats.html#getMBeans--">getMBeans()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/BrokerStats.html" title="interface in org.apache.pulsar.client.admin">BrokerStats</a></dt>
 <dd>
 <div class="block">Requests JSON string server mbean dump</div>
@@ -824,7 +830,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#getPermissions-java.lang.String-">getPermissions(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
-<div class="block">Get permissions on a destination.</div>
+<div class="block">Get permissions on a topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getPersistence-java.lang.String-">getPersistence(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -922,9 +928,17 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdminException.GettingAuthenticationDataException.html#GettingAuthenticationDataException-java.lang.String-">GettingAuthenticationDataException(String)</a></span> - Constructor for exception org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdminException.GettingAuthenticationDataException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException.GettingAuthenticationDataException</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/BrokerStats.html#getTopics--">getTopics()</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/BrokerStats.html" title="interface in org.apache.pulsar.client.admin">BrokerStats</a></dt>
+<dd>
+<div class="block">Returns JSON string topics stats</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#getTopics-java.lang.String-">getTopics(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Get the list of topics.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#grantPermission-java.lang.String-java.lang.String-java.util.Set-">grantPermission(String, String, Set&lt;AuthAction&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
-<div class="block">Grant permission on a destination.</div>
+<div class="block">Grant permission on a topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#grantPermissionOnNamespace-java.lang.String-java.lang.String-java.util.Set-">grantPermissionOnNamespace(String, String, Set&lt;AuthAction&gt;)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -1034,15 +1048,14 @@
 <dd>&nbsp;</dd>
 <dt><a href="org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin"><span class="typeNameLink">Lookup</span></a> - Interface in <a href="org/apache/pulsar/client/admin/package-summary.html">org.apache.pulsar.client.admin</a></dt>
 <dd>
-<div class="block">This is an interface class to allow using command line tool to quickly lookup the broker serving the
- destination.</div>
-</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Lookup.html#lookupDestination-java.lang.String-">lookupDestination(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin">Lookup</a></dt>
-<dd>
-<div class="block">Lookup a destination</div>
+<div class="block">This is an interface class to allow using command line tool to quickly lookup the broker serving the topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#lookups--">lookups()</a></span> - Method in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Lookup.html#lookupTopic-java.lang.String-">lookupTopic(String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Lookup.html" title="interface in org.apache.pulsar.client.admin">Lookup</a></dt>
+<dd>
+<div class="block">Lookup a topic</div>
+</dd>
 </dl>
 <a name="I:M">
 <!--   -->
@@ -1050,6 +1063,12 @@
 <h2 class="title">M</h2>
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#markDeletePosition">markDeletePosition</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#max_consumers_per_subscription">max_consumers_per_subscription</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#max_consumers_per_topic">max_consumers_per_topic</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#max_producers_per_topic">max_producers_per_topic</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/Policies.html#message_ttl_in_seconds">message_ttl_in_seconds</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/Policies.html" title="class in org.apache.pulsar.common.policies.data">Policies</a></dt>
 <dd>&nbsp;</dd>
@@ -1508,7 +1527,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PersistentTopics.html#revokePermissions-java.lang.String-java.lang.String-">revokePermissions(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PersistentTopics.html" title="interface in org.apache.pulsar.client.admin">PersistentTopics</a></dt>
 <dd>
-<div class="block">Revoke permissions on a destination.</div>
+<div class="block">Revoke permissions on a topic.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#revokePermissionsOnNamespace-java.lang.String-java.lang.String-">revokePermissionsOnNamespace(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
@@ -1532,7 +1551,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setBacklogQuota-java.lang.String-org.apache.pulsar.common.policies.data.BacklogQuota-">setBacklogQuota(String, BacklogQuota)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Set a backlog quota for all the destinations on a namespace.</div>
+<div class="block">Set a backlog quota for all the topics on a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#setBandwidthIn-double-">setBandwidthIn(double)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
@@ -1576,6 +1595,18 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BrokerStatus.html#setLoadFactor-int-">setLoadFactor(int)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BrokerStatus.html" title="class in org.apache.pulsar.common.policies.data">BrokerStatus</a></dt>
 <dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setMaxConsumersPerSubscription-java.lang.String-int-">setMaxConsumersPerSubscription(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set maxConsumersPerSubscription for a namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setMaxConsumersPerTopic-java.lang.String-int-">setMaxConsumersPerTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set maxConsumersPerTopic for a namespace.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setMaxProducersPerTopic-java.lang.String-int-">setMaxProducersPerTopic(String, int)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
+<dd>
+<div class="block">Set maxProducersPerTopic for a namespace.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ResourceQuota.html#setMemory-double-">setMemory(double)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ResourceQuota.html" title="class in org.apache.pulsar.common.policies.data">ResourceQuota</a></dt>
 <dd>
 <div class="block">Set memory quota</div>
@@ -1610,7 +1641,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setPersistence-java.lang.String-org.apache.pulsar.common.policies.data.PersistencePolicies-">setPersistence(String, PersistencePolicies)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Set the persistence configuration for all the destinations on a namespace.</div>
+<div class="block">Set the persistence configuration for all the topics on a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/BacklogQuota.html#setPolicy-org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy-">setPolicy(BacklogQuota.RetentionPolicy)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/BacklogQuota.html" title="class in org.apache.pulsar.common.policies.data">BacklogQuota</a></dt>
 <dd>&nbsp;</dd>
@@ -1620,7 +1651,7 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setRetention-java.lang.String-org.apache.pulsar.common.policies.data.RetentionPolicies-">setRetention(String, RetentionPolicies)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Set the retention configuration for all the destinations on a namespace.</div>
+<div class="block">Set the retention configuration for all the topics on a namespace.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#setServiceUrl-java.lang.String-">setServiceUrl(String)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
@@ -1628,7 +1659,7 @@
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#setSubscriptionAuthMode-java.lang.String-org.apache.pulsar.common.policies.data.SubscriptionAuthMode-">setSubscriptionAuthMode(String, SubscriptionAuthMode)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Set the given subscription auth mode on all destinations on a namespace</div>
+<div class="block">Set the given subscription auth mode on all topics on a namespace</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html#shouldFailover-java.util.SortedSet-">shouldFailover(SortedSet&lt;BrokerStatus&gt;)</a></span> - Method in class org.apache.pulsar.common.policies.impl.<a href="org/apache/pulsar/common/policies/impl/NamespaceIsolationPolicyImpl.html" title="class in org.apache.pulsar.common.policies.impl">NamespaceIsolationPolicyImpl</a></dt>
 <dd>&nbsp;</dd>
@@ -1816,11 +1847,11 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#unsubscribeNamespace-java.lang.String-java.lang.String-">unsubscribeNamespace(String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Unsubscribes the given subscription on all destinations on a namespace</div>
+<div class="block">Unsubscribes the given subscription on all topics on a namespace</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/Namespaces.html#unsubscribeNamespaceBundle-java.lang.String-java.lang.String-java.lang.String-">unsubscribeNamespaceBundle(String, String, String)</a></span> - Method in interface org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/Namespaces.html" title="interface in org.apache.pulsar.client.admin">Namespaces</a></dt>
 <dd>
-<div class="block">Unsubscribes the given subscription on all destinations on a namespace bundle</div>
+<div class="block">Unsubscribes the given subscription on all topics on a namespace bundle</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/ClusterData.html#update-org.apache.pulsar.common.policies.data.ClusterData-">update(ClusterData)</a></span> - Method in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/ClusterData.html" title="class in org.apache.pulsar.common.policies.data">ClusterData</a></dt>
 <dd>&nbsp;</dd>
@@ -1933,6 +1964,8 @@ the order they are declared.</div>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html#waitingCursorsCount">waitingCursorsCount</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html#waitingReadOp">waitingReadOp</a></span> - Variable in class org.apache.pulsar.common.policies.data.<a href="org/apache/pulsar/common/policies/data/PersistentTopicInternalStats.CursorStats.html" title="class in org.apache.pulsar.common.policies.data">PersistentTopicInternalStats.CursorStats</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/admin/PulsarAdmin.html#web">web</a></span> - Variable in class org.apache.pulsar.client.admin.<a href="org/apache/pulsar/client/admin/PulsarAdmin.html" title="class in org.apache.pulsar.client.admin">PulsarAdmin</a></dt>
 <dd>&nbsp;</dd>
 </dl>
 <a href="#I:A">A</a>&nbsp;<a href="#I:B">B</a>&nbsp;<a href="#I:C">C</a>&nbsp;<a href="#I:D">D</a>&nbsp;<a href="#I:E">E</a>&nbsp;<a href="#I:F">F</a>&nbsp;<a href="#I:G">G</a>&nbsp;<a href="#I:H">H</a>&nbsp;<a href="#I:I">I</a>&nbsp;<a href="#I:L">L</a>&nbsp;<a href="#I:M">M</a>&nbsp;<a href="#I:N">N</a>&nbsp;<a href="#I:O">O</a>&nbsp;<a href="#I:P">P</a>&nbsp;<a href="#I:R">R</a>&nbsp;<a href="#I:S">S</a>&nbsp;<a href="#I:T">T</a>&nbsp;<a href="#I:U">U</a>&nbsp;<a href="#I:V">V</a>&nbsp;<a href="#I:W">W</a>&nbsp;</div>

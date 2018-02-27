@@ -1866,7 +1866,7 @@ id_rsa               id_rsa.pub
       <td style="text-align: left"><code class="highlighter-rouge">us-west-2a</code></td>
     </tr>
     <tr>
-      <td style="text-align: left"><code class="highlighter-rouge">ami</code></td>
+      <td style="text-align: left"><code class="highlighter-rouge">aws_ami</code></td>
       <td style="text-align: left">The <a href="http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html">Amazon Machine Image</a> (AMI) that will be used by the cluster</td>
       <td style="text-align: left"><code class="highlighter-rouge">ami-9fa343e7</code></td>
     </tr>
@@ -1888,7 +1888,7 @@ id_rsa               id_rsa.pub
     <tr>
       <td style="text-align: left"><code class="highlighter-rouge">instance_types</code></td>
       <td style="text-align: left">The EC2 instance types to be used. This variable is a map with two keys: <code class="highlighter-rouge">zookeeper</code> for the ZooKeeper instances and <code class="highlighter-rouge">pulsar</code> for the Pulsar brokers and BookKeeper bookies</td>
-      <td style="text-align: left"><code class="highlighter-rouge">t2.small</code> (ZooKeeper) and <code class="highlighter-rouge">i3.3xlarge</code> (Pulsar/BookKeeper)</td>
+      <td style="text-align: left"><code class="highlighter-rouge">t2.small</code> (ZooKeeper) and <code class="highlighter-rouge">i3.xlarge</code> (Pulsar/BookKeeper)</td>
     </tr>
   </tbody>
 </table>
@@ -1922,7 +1922,7 @@ id_rsa               id_rsa.pub
 
 <p>You can fetch that value at any time by running <code class="highlighter-rouge">terraform output pulsar_service_url</code> or parsing the <code class="highlighter-rouge">terraform.tstate</code> file (which is JSON, even though the filename doesn’t reflect that):</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cat </span>terraform.tfstate | jq <span class="s1">'.modules | .[0].outputs.pulsar_connection_url.value'</span>
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">cat </span>terraform.tfstate | jq .modules[0].outputs.pulsar_service_url.value
 </code></pre></div></div>
 
 <h3 id="destroying-your-cluster">Destroying your cluster</h3>
@@ -1937,6 +1937,7 @@ id_rsa               id_rsa.pub
 <p>Once you’ve created the necessary AWS resources using Terraform, you can install and run Pulsar on the Terraform-created EC2 instances using Ansible. To do so, use this command:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ansible-playbook <span class="se">\</span>
+  <span class="nt">--user</span><span class="o">=</span><span class="s1">'ec2-user'</span> <span class="se">\</span>
   <span class="nt">--inventory</span><span class="o">=</span><span class="sb">`</span>which terraform-inventory<span class="sb">`</span> <span class="se">\</span>
   ../deploy-pulsar.yaml
 </code></pre></div></div>
@@ -1944,6 +1945,7 @@ id_rsa               id_rsa.pub
 <p>If you’ve created a private SSH key at a location different from <code class="highlighter-rouge">~/.ssh/id_rsa</code>, you can specify the different location using the <code class="highlighter-rouge">--private-key</code> flag:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>ansible-playbook <span class="se">\</span>
+  <span class="nt">--user</span><span class="o">=</span><span class="s1">'ec2-user'</span> <span class="se">\</span>
   <span class="nt">--inventory</span><span class="o">=</span><span class="sb">`</span>which terraform-inventory<span class="sb">`</span> <span class="se">\</span>
   <span class="nt">--private-key</span><span class="o">=</span><span class="s2">"~/.ssh/some-non-default-key"</span> <span class="se">\</span>
   ../deploy-pulsar.yaml

@@ -1704,13 +1704,13 @@ class Producer:
           A dict of application-defined string properties.
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
-          to determine the message's destination partition.
+          to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
-          have been previously configured as destinations. Given an empty list,
+          have been previously configured as topics. Given an empty list,
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
@@ -1754,12 +1754,12 @@ class Producer:
           A dict of application0-defined string properties.
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
-          used to determine the message's destination partition.
+          used to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
-          and that all clusters have been previously configured as destinations.
+          and that all clusters have been previously configured as topics.
           Given an empty list, the message will replicate per the namespace
           configuration.
         * `disable_replication`:
@@ -3719,13 +3719,13 @@ This string can be stored and later deserialized.</p></div>
           A dict of application-defined string properties.
         * `partition_key`:
           Sets the partition key for message routing. A hash of this key is used
-          to determine the message's destination partition.
+          to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`:
           Override namespace replication clusters. Note that it is the caller's
           responsibility to provide valid cluster names and that all clusters
-          have been previously configured as destinations. Given an empty list,
+          have been previously configured as topics. Given an empty list,
           the message will replicate according to the namespace configuration.
         * `disable_replication`:
           Do not replicate this message.
@@ -3769,12 +3769,12 @@ This string can be stored and later deserialized.</p></div>
           A dict of application0-defined string properties.
         * `partition_key`:
           Sets the partition key for the message routing. A hash of this key is
-          used to determine the message's destination partition.
+          used to determine the message's topic partition.
         * `sequence_id`:
           Specify a custom sequence id for the message being published.
         * `replication_clusters`: Override namespace replication clusters. Note
           that it is the caller's responsibility to provide valid cluster names
-          and that all clusters have been previously configured as destinations.
+          and that all clusters have been previously configured as topics.
           Given an empty list, the message will replicate per the namespace
           configuration.
         * `disable_replication`:
@@ -3929,13 +3929,13 @@ system or specified by the client</p></div>
   A dict of application-defined string properties.</li>
 <li><code>partition_key</code>:
   Sets the partition key for message routing. A hash of this key is used
-  to determine the message's destination partition.</li>
+  to determine the message's topic partition.</li>
 <li><code>sequence_id</code>:
   Specify a custom sequence id for the message being published.</li>
 <li><code>replication_clusters</code>:
   Override namespace replication clusters. Note that it is the caller's
   responsibility to provide valid cluster names and that all clusters
-  have been previously configured as destinations. Given an empty list,
+  have been previously configured as topics. Given an empty list,
   the message will replicate according to the namespace configuration.</li>
 <li><code>disable_replication</code>:
   Do not replicate this message.</li>
@@ -3960,13 +3960,13 @@ system or specified by the client</p></div>
       A dict of application-defined string properties.
     * `partition_key`:
       Sets the partition key for message routing. A hash of this key is used
-      to determine the message's destination partition.
+      to determine the message's topic partition.
     * `sequence_id`:
       Specify a custom sequence id for the message being published.
     * `replication_clusters`:
       Override namespace replication clusters. Note that it is the caller's
       responsibility to provide valid cluster names and that all clusters
-      have been previously configured as destinations. Given an empty list,
+      have been previously configured as topics. Given an empty list,
       the message will replicate according to the namespace configuration.
     * `disable_replication`:
       Do not replicate this message.
@@ -4012,12 +4012,12 @@ and the callback invoked with an error code.</p>
   A dict of application0-defined string properties.</li>
 <li><code>partition_key</code>:
   Sets the partition key for the message routing. A hash of this key is
-  used to determine the message's destination partition.</li>
+  used to determine the message's topic partition.</li>
 <li><code>sequence_id</code>:
   Specify a custom sequence id for the message being published.</li>
 <li><code>replication_clusters</code>: Override namespace replication clusters. Note
   that it is the caller's responsibility to provide valid cluster names
-  and that all clusters have been previously configured as destinations.
+  and that all clusters have been previously configured as topics.
   Given an empty list, the message will replicate per the namespace
   configuration.</li>
 <li><code>disable_replication</code>:
@@ -4052,12 +4052,12 @@ and the callback invoked with an error code.</p>
       A dict of application0-defined string properties.
     * `partition_key`:
       Sets the partition key for the message routing. A hash of this key is
-      used to determine the message's destination partition.
+      used to determine the message's topic partition.
     * `sequence_id`:
       Specify a custom sequence id for the message being published.
     * `replication_clusters`: Override namespace replication clusters. Note
       that it is the caller's responsibility to provide valid cluster names
-      and that all clusters have been previously configured as destinations.
+      and that all clusters have been previously configured as topics.
       Given an empty list, the message will replicate per the namespace
       configuration.
     * `disable_replication`:

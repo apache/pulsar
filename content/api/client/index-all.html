@@ -782,6 +782,10 @@
 <dd>
 <div class="block">Get a subscription for the consumer</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getSubscriptionRolePrefix--">getSubscriptionRolePrefix()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getSubscriptionType--">getSubscriptionType()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -1560,6 +1564,11 @@
 <div class="block">Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
  statsIntervalSeconds It should be set to at least 1 second</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setSubscriptionRolePrefix-java.lang.String-">setSubscriptionRolePrefix(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+<div class="block">Set the subscription role prefix for subscription auth.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setSubscriptionType-org.apache.pulsar.client.api.SubscriptionType-">setSubscriptionType(SubscriptionType)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -1643,6 +1652,10 @@
 <dd>
 <div class="block">Specify the subscription name for this consumer.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#subscriptionRolePrefix-java.lang.String-">subscriptionRolePrefix(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dd>
+<div class="block">Set the subscription role prefix.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionType-org.apache.pulsar.client.api.SubscriptionType-">subscriptionType(SubscriptionType)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
 <div class="block">Select the subscription type to be used when subscribing to the topic.</div>
@@ -1688,6 +1701,14 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#topics-java.util.List-">topics(List&lt;String&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
 <div class="block">Specify a list of topics that this consumer will subscribe on.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.util.regex.Pattern-">topicsPattern(Pattern)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.lang.String-">topicsPattern(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.TopicTerminatedException.html#TopicTerminatedException-java.lang.String-">TopicTerminatedException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.TopicTerminatedException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.TopicTerminatedException</a></dt>
 <dd>&nbsp;</dd>
