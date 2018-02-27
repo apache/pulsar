@@ -60,6 +60,7 @@ import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
@@ -242,7 +243,11 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
         Thread.sleep(3000);
 
-        Mockito.verify(pulsarClient, Mockito.times(1)).createProducerAsync(Mockito.any(ProducerConfigurationData.class));
+        Mockito.verify(pulsarClient, Mockito.times(1))
+            .createProducerAsync(
+                Mockito.any(ProducerConfigurationData.class),
+                Mockito.any(Schema.class)
+            );
 
     }
 

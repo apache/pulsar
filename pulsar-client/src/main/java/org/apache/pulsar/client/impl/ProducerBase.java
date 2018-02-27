@@ -27,29 +27,32 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
-public abstract class ProducerBase extends HandlerBase implements Producer<byte[]> {
+public abstract class ProducerBase<T> extends HandlerBase implements Producer<T> {
 
-    protected final CompletableFuture<Producer<byte[]>> producerCreatedFuture;
+    protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
+    protected final Schema<T> schema;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer<byte[]>> producerCreatedFuture) {
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS,
                 Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
+        this.schema = schema;
     }
 
     @Override
-    public MessageId send(byte[] message) throws PulsarClientException {
-        return send(MessageBuilder.create().setContent(message).build());
+    public MessageId send(T message) throws PulsarClientException {
+        return send(MessageBuilder.create().setContent(schema.encode(message)).build());
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(byte[] message) {
-        return sendAsync(MessageBuilder.create().setContent(message).build());
+    public CompletableFuture<MessageId> sendAsync(T message) {
+        return sendAsync(MessageBuilder.create().setContent(schema.encode(message)).build());
     }
 
     @Override
@@ -103,7 +106,7 @@ public abstract class ProducerBase extends HandlerBase implements Producer<byte[
         return conf;
     }
 
-    public CompletableFuture<Producer<byte[]>> producerCreatedFuture() {
+    public CompletableFuture<Producer<T>> producerCreatedFuture() {
         return producerCreatedFuture;
     }
 

@@ -217,12 +217,6 @@ public class PulsarClientImpl implements PulsarClient {
         return createProducerAsync(conf);
     }
 
-    <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema) {
-        return createProducerAsync(conf).thenApply(producer ->
-            new TypedProducerImpl<>(producer, schema)
-        );
-    }
-
     @Override
     public CompletableFuture<Producer<byte[]>> createProducerAsync(final String topic, final ProducerConfiguration conf) {
         ProducerConfigurationData confData = conf.getProducerConfigurationData().clone();
@@ -231,6 +225,10 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<Producer<byte[]>> createProducerAsync(ProducerConfigurationData conf) {
+        return createProducerAsync(conf, new Schema.Identity());
+    }
+
+    public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema) {
         if (conf == null) {
             return FutureUtil.failedFuture(
                     new PulsarClientException.InvalidConfigurationException("Producer configuration undefined"));
@@ -246,7 +244,7 @@ public class PulsarClientImpl implements PulsarClient {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
 
-        CompletableFuture<Producer<byte[]>> producerCreatedFuture = new CompletableFuture<>();
+        CompletableFuture<Producer<T>> producerCreatedFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
@@ -255,10 +253,10 @@ public class PulsarClientImpl implements PulsarClient {
 
             ProducerBase producer;
             if (metadata.partitions > 1) {
-                producer = new PartitionedProducerImpl(PulsarClientImpl.this, topic, conf, metadata.partitions,
-                        producerCreatedFuture);
+                producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
+                        producerCreatedFuture, schema);
             } else {
-                producer = new ProducerImpl(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1);
+                producer = new ProducerImpl<>(PulsarClientImpl.this, topic, conf, producerCreatedFuture, -1, schema);
             }
 
             synchronized (producers) {
@@ -360,13 +358,13 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         if (conf.getTopicNames().size() == 1) {
-            return singleTopicSubscribeAsysnc(conf);
+            return singleTopicSubscribeAsync(conf);
         } else {
             return multiTopicSubscribeAsync(conf);
         }
     }
 
-    private CompletableFuture<Consumer<byte[]>> singleTopicSubscribeAsysnc(ConsumerConfigurationData conf) {
+    private CompletableFuture<Consumer<byte[]>> singleTopicSubscribeAsync(ConsumerConfigurationData conf) {
         CompletableFuture<Consumer<byte[]>> consumerSubscribedFuture = new CompletableFuture<>();
 
         String topic = conf.getSingleTopic();
