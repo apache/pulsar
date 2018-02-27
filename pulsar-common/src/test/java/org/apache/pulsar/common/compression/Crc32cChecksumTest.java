@@ -21,11 +21,11 @@ package org.apache.pulsar.common.compression;
 import static com.scurrilous.circe.params.CrcParameters.CRC32C;
 import static org.testng.Assert.assertEquals;
 
-import org.apache.pulsar.checksum.utils.Crc32cChecksum;
-import org.apache.pulsar.checksum.utils.Crc32cSse42Provider;
 import org.testng.annotations.Test;
 
 import com.scurrilous.circe.IncrementalIntHash;
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
+import com.scurrilous.circe.checksum.Crc32cSse42Provider;
 import com.scurrilous.circe.crc.StandardCrcProvider;
 
 import io.netty.buffer.ByteBuf;
@@ -55,7 +55,7 @@ public class Crc32cChecksumTest {
     @Test
     public void testCrc32c() {
         ByteBuf payload = Unpooled.wrappedBuffer(inputBytes);
-        int checksum = Crc32cChecksum.computeChecksum(payload);
+        int checksum = Crc32cIntChecksum.computeChecksum(payload);
         payload.release();
         assertEquals(expectedChecksum, checksum);
     }
@@ -99,7 +99,7 @@ public class Crc32cChecksumTest {
         payload.release();
         assertEquals(checksum, expectedChecksum);
     }
-    
+
     @Test
     public void testCrc32cIncremental() {
         if (HARDWARE_CRC32C_HASH == null) {
@@ -126,7 +126,7 @@ public class Crc32cChecksumTest {
             data += data;
         }
     }
-    
+
     @Test
     public void testCrc32cIncrementalUsingProvider() {
 
@@ -135,23 +135,23 @@ public class Crc32cChecksumTest {
         ByteBuf payload = Unpooled.wrappedBuffer(data);
         ByteBuf doublePayload = Unpooled.wrappedBuffer(doubleData);
 
-        int expectedChecksum = Crc32cChecksum.computeChecksum(doublePayload);
-        
+        int expectedChecksum = Crc32cIntChecksum.computeChecksum(doublePayload);
+
         // (1) heap-memory
-        int checksum = Crc32cChecksum.computeChecksum(payload);
-        int incrementalChecksum = Crc32cChecksum.resumeChecksum(checksum, payload);
+        int checksum = Crc32cIntChecksum.computeChecksum(payload);
+        int incrementalChecksum = Crc32cIntChecksum.resumeChecksum(checksum, payload);
         assertEquals(expectedChecksum, incrementalChecksum);
         payload.release();
         doublePayload.release();
-        
+
         // (2) direct-memory
         payload = ByteBufAllocator.DEFAULT.directBuffer(data.length);
         payload.writeBytes(data);
-        checksum = Crc32cChecksum.computeChecksum(payload);
-        incrementalChecksum = Crc32cChecksum.resumeChecksum(checksum, payload);
+        checksum = Crc32cIntChecksum.computeChecksum(payload);
+        incrementalChecksum = Crc32cIntChecksum.resumeChecksum(checksum, payload);
         assertEquals(expectedChecksum, incrementalChecksum);
         payload.release();
-    
+
     }
-    
+
 }
