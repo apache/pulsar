@@ -21,4 +21,16 @@ package org.apache.pulsar.client.api;
 public interface Schema<T> {
     byte[] encode(T message);
     T decode(byte[] bytes);
+
+    class Identity implements Schema<byte[]> {
+        @Override
+        public byte[] encode(byte[] message) {
+            return message;
+        }
+
+        @Override
+        public byte[] decode(byte[] bytes) {
+            return bytes;
+        }
+    }
 }

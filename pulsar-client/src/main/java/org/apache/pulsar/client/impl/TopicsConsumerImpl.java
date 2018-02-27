@@ -80,9 +80,9 @@ public class TopicsConsumerImpl extends ConsumerBase {
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
     private final ConsumerStats stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
-    private final ConsumerConfigurationData internalConfig;
+    private final ConsumerConfigurationData<byte[]> internalConfig;
 
-    TopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf, ExecutorService listenerExecutor,
+    TopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<byte[]> conf, ExecutorService listenerExecutor,
             CompletableFuture<Consumer<byte[]>> subscribeFuture) {
         super(client, "TopicsConsumerFakeTopicName" + ConsumerName.generateRandomName(), conf,
                 Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture);
@@ -485,8 +485,8 @@ public class TopicsConsumerImpl extends ConsumerBase {
         return subscription;
     }
 
-    private ConsumerConfigurationData getInternalConsumerConfig() {
-        ConsumerConfigurationData internalConsumerConfig = new ConsumerConfigurationData();
+    private ConsumerConfigurationData<byte[]> getInternalConsumerConfig() {
+        ConsumerConfigurationData<byte[]> internalConsumerConfig = new ConsumerConfigurationData<>();
         internalConsumerConfig.setSubscriptionName(subscription);
         internalConsumerConfig.setReceiverQueueSize(conf.getReceiverQueueSize());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());

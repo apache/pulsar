@@ -19,14 +19,15 @@
 package org.apache.pulsar.client.impl;
 
 import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 
-class TypedReaderConfigAdapter<T> implements ReaderConfig<byte[]> {
-    private final ReaderConfig<T> typedConfig;
+class TypedReaderConfigAdapter<T> extends ReaderConfigurationData<byte[]> {
+    private final ReaderConfigurationData<T> typedConfig;
     private final Schema<T> codec;
 
     private TypedReaderImpl<T> typedReader;
 
-    public TypedReaderConfigAdapter(ReaderConfig<T> typedConfig, Schema<T> codec) {
+    public TypedReaderConfigAdapter(ReaderConfigurationData<T> typedConfig, Schema<T> codec) {
         this.typedConfig = typedConfig;
         this.codec = codec;
     }

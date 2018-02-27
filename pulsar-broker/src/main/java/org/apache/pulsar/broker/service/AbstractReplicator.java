@@ -47,7 +47,7 @@ public abstract class AbstractReplicator {
     protected volatile ProducerImpl producer;
 
     protected final int producerQueueSize;
-    protected final ProducerBuilder producerBuilder;
+    protected final ProducerBuilder<byte[]> producerBuilder;
 
     protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
 
@@ -80,7 +80,7 @@ public abstract class AbstractReplicator {
         STATE_UPDATER.set(this, State.Stopped);
     }
 
-    protected abstract void readEntries(org.apache.pulsar.client.api.Producer producer);
+    protected abstract void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer);
 
     protected abstract Position getReplicatorReadPosition();
 
@@ -231,7 +231,7 @@ public abstract class AbstractReplicator {
      * Therefore, replicator can't be started on root-partition topic which can internally create multiple partitioned
      * producers.
      *
-     * @param topicName
+     * @param topic
      * @param brokerService
      */
     private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {

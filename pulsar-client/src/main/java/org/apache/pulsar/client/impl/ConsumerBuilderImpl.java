@@ -32,37 +32,40 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
 
-public class ConsumerBuilderImpl implements ConsumerBuilder {
+public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     private static final long serialVersionUID = 1L;
 
     private final PulsarClientImpl client;
-    private final ConsumerConfigurationData conf;
+    private final ConsumerConfigurationData<T> conf;
+    private final Schema<T> schema;
 
     private static long MIN_ACK_TIMEOUT_MILLIS = 1000;
 
-    ConsumerBuilderImpl(PulsarClientImpl client) {
-        this(client, new ConsumerConfigurationData());
+    ConsumerBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
+        this(client, new ConsumerConfigurationData<T>(), schema);
     }
 
-    private ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData conf) {
+    private ConsumerBuilderImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, Schema<T> schema) {
         this.client = client;
         this.conf = conf;
+        this.schema = schema;
     }
 
     @Override
-    public ConsumerBuilder clone() {
-        return new ConsumerBuilderImpl(client, conf.clone());
+    public ConsumerBuilder<T> clone() {
+        return new ConsumerBuilderImpl<>(client, conf.clone(), schema);
     }
 
     @Override
-    public Consumer<byte[]> subscribe() throws PulsarClientException {
+    public Consumer<T> subscribe() throws PulsarClientException {
         try {
             return subscribeAsync().get();
         } catch (ExecutionException e) {
@@ -79,7 +82,7 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     }
 
     @Override
-    public CompletableFuture<Consumer<byte[]>> subscribeAsync() {
+    public CompletableFuture<Consumer<T>> subscribeAsync() {
         if (conf.getTopicNames().isEmpty()) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
@@ -90,18 +93,18 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
                     new IllegalArgumentException("Subscription name must be set on the consumer builder"));
         }
 
-        return client.subscribeAsync(conf);
+        return client.subscribeAsync(conf, schema);
     }
 
     @Override
-    public ConsumerBuilder topic(String... topicNames) {
+    public ConsumerBuilder<T> topic(String... topicNames) {
         checkArgument(topicNames.length > 0, "Passed in topicNames should not be empty.");
         conf.getTopicNames().addAll(Lists.newArrayList(topicNames));
         return this;
     }
 
     @Override
-    public ConsumerBuilder topics(List<String> topicNames) {
+    public ConsumerBuilder<T> topics(List<String> topicNames) {
         checkArgument(topicNames != null && !topicNames.isEmpty(), "Passed in topicNames list should not be empty.");
         conf.getTopicNames().addAll(topicNames);
 
@@ -109,13 +112,13 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     }
 
     @Override
-    public ConsumerBuilder subscriptionName(String subscriptionName) {
+    public ConsumerBuilder<T> subscriptionName(String subscriptionName) {
         conf.setSubscriptionName(subscriptionName);
         return this;
     }
 
     @Override
-    public ConsumerBuilder ackTimeout(long ackTimeout, TimeUnit timeUnit) {
+    public ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit) {
         checkArgument(timeUnit.toMillis(ackTimeout) >= MIN_ACK_TIMEOUT_MILLIS,
                 "Ack timeout should be should be greater than " + MIN_ACK_TIMEOUT_MILLIS + " ms");
         conf.setAckTimeoutMillis(timeUnit.toMillis(ackTimeout));
@@ -123,67 +126,67 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
     }
 
     @Override
-    public ConsumerBuilder subscriptionType(SubscriptionType subscriptionType) {
+    public ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType) {
         conf.setSubscriptionType(subscriptionType);
         return this;
     }
 
     @Override
-    public ConsumerBuilder messageListener(MessageListener messageListener) {
+    public ConsumerBuilder<T> messageListener(MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
         return this;
     }
 
     @Override
-    public ConsumerBuilder cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     @Override
-    public ConsumerBuilder cryptoFailureAction(ConsumerCryptoFailureAction action) {
+    public ConsumerBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
         return this;
     }
 
     @Override
-    public ConsumerBuilder receiverQueueSize(int receiverQueueSize) {
+    public ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize) {
         conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }
 
     @Override
-    public ConsumerBuilder consumerName(String consumerName) {
+    public ConsumerBuilder<T> consumerName(String consumerName) {
         conf.setConsumerName(consumerName);
         return this;
     }
 
     @Override
-    public ConsumerBuilder priorityLevel(int priorityLevel) {
+    public ConsumerBuilder<T> priorityLevel(int priorityLevel) {
         conf.setPriorityLevel(priorityLevel);
         return this;
     }
 
     @Override
-    public ConsumerBuilder property(String key, String value) {
+    public ConsumerBuilder<T> property(String key, String value) {
         conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
-    public ConsumerBuilder properties(Map<String, String> properties) {
+    public ConsumerBuilder<T> properties(Map<String, String> properties) {
         conf.getProperties().putAll(properties);
         return this;
     }
 
     @Override
-    public ConsumerBuilder maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
+    public ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions) {
         conf.setMaxTotalReceiverQueueSizeAcrossPartitions(maxTotalReceiverQueueSizeAcrossPartitions);
         return this;
     }
 
     @Override
-    public ConsumerBuilder readCompacted(boolean readCompacted) {
+    public ConsumerBuilder<T> readCompacted(boolean readCompacted) {
         conf.setReadCompacted(readCompacted);
         return this;
     }

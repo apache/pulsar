@@ -32,14 +32,14 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
  * @deprecated Use {@link PulsarClient#newReader()} to construct and configure a {@link Reader} instance
  */
 @Deprecated
-public class ReaderConfiguration<T> implements Serializable {
+public class ReaderConfiguration implements Serializable {
 
-    private final ReaderConfigurationData conf = new ReaderConfigurationData();
+    private final ReaderConfigurationData<byte[]> conf = new ReaderConfigurationData<>();
 
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
-    public ReaderListener getReaderListener() {
+    public ReaderListener<byte[]> getReaderListener() {
         return conf.getReaderListener();
     }
 
@@ -52,7 +52,7 @@ public class ReaderConfiguration<T> implements Serializable {
      * @param readerListener
      *            the listener object
      */
-    public ReaderConfiguration<T> setReaderListener(ReaderListener<T> readerListener) {
+    public ReaderConfiguration setReaderListener(ReaderListener<byte[]> readerListener) {
         checkNotNull(readerListener);
         conf.setReaderListener(readerListener);
         return this;
@@ -78,7 +78,7 @@ public class ReaderConfiguration<T> implements Serializable {
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
-    public ReaderConfiguration<T> setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
@@ -113,7 +113,7 @@ public class ReaderConfiguration<T> implements Serializable {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    public ReaderConfiguration<T> setReceiverQueueSize(int receiverQueueSize) {
+    public ReaderConfiguration setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
         conf.setReceiverQueueSize(receiverQueueSize);
         return this;
@@ -155,7 +155,7 @@ public class ReaderConfiguration<T> implements Serializable {
         return this;
     }
 
-    public ReaderConfigurationData getReaderConfigurationData() {
+    public ReaderConfigurationData<byte[]> getReaderConfigurationData() {
         return conf;
     }
 

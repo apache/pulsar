@@ -18,17 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.client.api.*;
+import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.CryptoKeyReader;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 
-import java.util.Map;
-
-class TypedConsumerConfigAdapter<T> implements ConsumerConfig<byte[]> {
-    private final ConsumerConfig<T> typedConfig;
+class TypedConsumerConfigAdapter<T> extends ConsumerConfigurationData<byte[]> {
+    private final ConsumerConfigurationData<T> typedConfig;
     private final Schema<T> codec;
 
     private TypedConsumerImpl<T> typedConsumer;
 
-    TypedConsumerConfigAdapter(ConsumerConfig<T> typedConfig, Schema<T> codec) {
+    TypedConsumerConfigAdapter(ConsumerConfigurationData<T> typedConfig, Schema<T> codec) {
         this.typedConfig = typedConfig;
         this.codec = codec;
     }
@@ -88,8 +93,4 @@ class TypedConsumerConfigAdapter<T> implements ConsumerConfig<byte[]> {
         return typedConfig.getPriorityLevel();
     }
 
-    @Override
-    public Map<String, String> getProperties() {
-        return typedConfig.getProperties();
-    }
 }
