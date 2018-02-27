@@ -49,7 +49,11 @@ const std::string& ReaderConfiguration::getReaderName() const { return impl_->re
 
 void ReaderConfiguration::setReaderName(const std::string& readerName) { impl_->readerName = readerName; }
 
-const std::string& ReaderConfiguration::getSubscriptionRolePrefix() const { return impl_->subscriptionRolePrefix; }
+const std::string& ReaderConfiguration::getSubscriptionRolePrefix() const {
+    return impl_->subscriptionRolePrefix;
+}
 
-void ReaderConfiguration::setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix) { impl_->subscriptionRolePrefix = subscriptionRolePrefix; }
+void ReaderConfiguration::setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix) {
+    impl_->subscriptionRolePrefix = subscriptionRolePrefix;
+}
 }  // namespace pulsar
