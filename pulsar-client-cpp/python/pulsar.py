@@ -432,7 +432,8 @@ class Client:
     def create_reader(self, topic, start_message_id,
                       reader_listener=None,
                       receiver_queue_size=1000,
-                      reader_name=None
+                      reader_name=None,
+                      subscription_role_prefix=None
                       ):
         """
         Create a reader on a particular topic
@@ -476,11 +477,14 @@ class Client:
           memory utilization.
         * `reader_name`:
           Sets the reader name.
+        * `subscription_role_prefix`:
+          Sets the subscription role prefix.
         """
         _check_type(str, topic, 'topic')
         _check_type(_pulsar.MessageId, start_message_id, 'start_message_id')
         _check_type(int, receiver_queue_size, 'receiver_queue_size')
         _check_type_or_none(str, reader_name, 'reader_name')
+        _check_type_or_none(str, subscription_role_prefix, 'subscription_role_prefix')
 
         conf = _pulsar.ReaderConfiguration()
         if reader_listener:
@@ -488,6 +492,8 @@ class Client:
         conf.receiver_queue_size(receiver_queue_size)
         if reader_name:
             conf.reader_name(reader_name)
+        if subscription_role_prefix:
+            conf.subscription_role_prefix(subscription_role_prefix)
         c = Reader()
         c._reader = self._client.create_reader(topic, start_message_id, conf)
         c._client = self
