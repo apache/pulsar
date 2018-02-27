@@ -54,6 +54,14 @@
     </dependency>
     
     <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-server</artifactId>
+      <version>${bookkeeper.version}</version>
+      <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-common</artifactId>
       <version>${project.version}</version>

@@ -20,7 +20,6 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
-import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
 import java.util.Collections;
@@ -77,10 +76,10 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.Pair;
-import org.apache.bookkeeper.util.collections.GrowableArrayBlockingQueue;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
+import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,7 +198,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
      * Queue of pending entries to be added to the managed ledger. Typically entries are queued when a new ledger is
      * created asynchronously and hence there is no ready ledger to write into.
      */
-    final Queue<OpAddEntry> pendingAddEntries = new GrowableArrayBlockingQueue<>();
+    final GrowableArrayBlockingQueue<OpAddEntry> pendingAddEntries = new GrowableArrayBlockingQueue<>();
 
     // //////////////////////////////////////////////////////////////////////
 
@@ -1173,7 +1172,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
 
         // Process all the pending addEntry requests
-        for (OpAddEntry op : pendingAddEntries) {
+        for (OpAddEntry op : pendingAddEntries.toList()) {
             op.setLedger(currentLedger);
             ++currentLedgerEntries;
             currentLedgerSize += op.data.readableBytes();

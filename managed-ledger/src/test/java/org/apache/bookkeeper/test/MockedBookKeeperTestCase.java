@@ -117,7 +117,7 @@ public abstract class MockedBookKeeperTestCase {
 
         zkc.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(), null, null);
 
-        bkc = new MockBookKeeper(baseClientConf, zkc);
+        bkc = new MockBookKeeper(zkc);
     }
 
     protected void stopBookKeeper() throws Exception {
