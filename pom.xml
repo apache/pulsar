@@ -361,12 +361,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-yaml</artifactId>
-        <version>${jackson.version}</version>
-      </dependency>
-
-      <dependency>
         <groupId>commons-io</groupId>
         <artifactId>commons-io</artifactId>
         <version>2.5</version>
@@ -603,8 +597,24 @@ flexible messaging model and an intuitive client API.</description>
   <dependencies>
     <!-- These dependencies are common to all the submodules -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>buildtools</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -671,10 +681,6 @@ flexible messaging model and an intuitive client API.</description>
         <configuration>
           <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
             -Dio.netty.leakDetectionLevel=advanced
-            -Dorg.slf4j.simpleLogger.showDateTime=true
-            -Dorg.slf4j.simpleLogger.log.org.apache.zookeeper=off
-            -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper=off
-            -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper.mledger=info
           </argLine>
           <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
