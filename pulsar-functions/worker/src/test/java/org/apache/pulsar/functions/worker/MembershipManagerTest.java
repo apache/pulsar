@@ -26,7 +26,6 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.functions.fs.MetricsConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.mockito.ArgumentMatcher;
 import org.mockito.Mockito;
@@ -61,7 +60,7 @@ public class MembershipManagerTest {
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
-        workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
+        workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
     }
 
     @Test
@@ -251,7 +250,7 @@ public class MembershipManagerTest {
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
-        workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
+        workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig().setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
         workerConfig.setRescheduleTimeoutMs(30000);
         SchedulerManager schedulerManager = mock(SchedulerManager.class);
         PulsarClient pulsarClient = mock(PulsarClient.class);

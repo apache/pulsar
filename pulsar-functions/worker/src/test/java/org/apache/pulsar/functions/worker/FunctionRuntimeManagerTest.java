@@ -23,11 +23,10 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.client.api.ReaderBuilder;
-import org.apache.pulsar.functions.fs.MetricsConfig;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request;
-import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.mockito.ArgumentMatcher;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -45,7 +44,6 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 public class FunctionRuntimeManagerTest {
 
@@ -81,7 +79,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
-        workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
+        workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
@@ -175,7 +173,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
-        workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
+        workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);
@@ -273,7 +271,7 @@ public class FunctionRuntimeManagerTest {
         workerConfig.setThreadContainerFactory(new WorkerConfig.ThreadContainerFactory().setThreadGroupName("test"));
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
-        workerConfig.setMetricsConfig(new MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
+        workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig().setMetricsSinkClassName(TestSink.class.getName()));
 
         PulsarClient pulsarClient = mock(PulsarClient.class);
         ReaderBuilder readerBuilder = mock(ReaderBuilder.class);

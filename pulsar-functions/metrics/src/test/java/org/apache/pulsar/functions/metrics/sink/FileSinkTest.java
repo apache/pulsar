@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.metrics.sink;
+package org.apache.pulsar.functions.metrics.sink;
 
 import java.io.File;
 import java.io.IOException;

@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.metrics.sink;
+package org.apache.pulsar.functions.metrics.sink;
 
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -29,7 +29,7 @@ import java.util.logging.Logger;
 import com.google.protobuf.util.JsonFormat;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.runtime.metrics.MetricsSink;
+import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 /**
