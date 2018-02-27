@@ -1487,7 +1487,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.properties().createProperty("test-property", cpa);
         } catch (Exception e) {
-            fail("Should not happen.");
+            fail("Should not happen : ", e);
         }
     }
 
