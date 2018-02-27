@@ -79,11 +79,12 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-broker-common</module>
     <module>pulsar-broker</module>
     <module>pulsar-broker-shaded</module>
+    <module>pulsar-client</module>
+    <module>pulsar-client-shaded</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
     <module>pulsar-client-tools</module>
-    <module>pulsar-client</module>
-    <module>pulsar-client-shaded</module>
+    <module>pulsar-client-tools-shaded</module>
     <module>pulsar-websocket</module>
     <module>pulsar-proxy</module>
     <module>pulsar-discovery-service</module>
