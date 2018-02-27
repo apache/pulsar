@@ -45,6 +45,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
@@ -616,6 +618,34 @@ public class Commands {
                 .setConsumerStatsResponse(builder));
         commandConsumerStatsResponse.recycle();
         builder.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetTopicsOfNamespaceRequest(String namespace, long requestId) {
+        CommandGetTopicsOfNamespace.Builder topicsBuilder = CommandGetTopicsOfNamespace.newBuilder();
+        topicsBuilder.setNamespace(namespace).setRequestId(requestId);
+
+        CommandGetTopicsOfNamespace topicsCommand = topicsBuilder.build();
+        ByteBuf res = serializeWithSize(
+            BaseCommand.newBuilder().setType(Type.GET_TOPICS_OF_NAMESPACE).setGetTopicsOfNamespace(topicsCommand));
+        topicsBuilder.recycle();
+        topicsCommand.recycle();
+        return res;
+    }
+
+    public static ByteBuf newGetTopicsOfNamespaceResponse(List<String> topics, long requestId) {
+        CommandGetTopicsOfNamespaceResponse.Builder topicsResponseBuilder =
+            CommandGetTopicsOfNamespaceResponse.newBuilder();
+
+        topicsResponseBuilder.setRequestId(requestId).addAllTopics(topics);
+
+        CommandGetTopicsOfNamespaceResponse topicsOfNamespaceResponse = topicsResponseBuilder.build();
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder()
+            .setType(Type.GET_TOPICS_OF_NAMESPACE_RESPONSE)
+            .setGetTopicsOfNamespaceResponse(topicsOfNamespaceResponse));
+
+        topicsResponseBuilder.recycle();
+        topicsOfNamespaceResponse.recycle();
         return res;
     }
 
