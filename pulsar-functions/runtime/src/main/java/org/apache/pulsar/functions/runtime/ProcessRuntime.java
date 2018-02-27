@@ -69,7 +69,7 @@ class ProcessRuntime implements Runtime {
             args.add("-Dlog4j.configurationFile=java_instance_log4j2.yml");
             args.add("-Dpulsar.log.dir=" + logDirectory);
             args.add("-Dpulsar.log.file=" + instanceConfig.getFunctionConfig().getName());
-            args.add("org.apache.pulsar.functions.runtime.instance.JavaInstanceMain");
+            args.add("org.apache.pulsar.functions.runtime.JavaInstanceMain");
             args.add("--jar");
             args.add(codeFile);
         } else if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.PYTHON) {

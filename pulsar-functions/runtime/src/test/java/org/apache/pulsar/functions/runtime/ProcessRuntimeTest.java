@@ -104,7 +104,7 @@ public class ProcessRuntimeTest {
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
                 + "-Dpulsar.log.dir=" + logDirectory + " -Dpulsar.log.file=" + config.getFunctionConfig().getName()
-                + " org.apache.pulsar.functions.runtime.instance.JavaInstanceMain"
+                + " org.apache.pulsar.functions.runtime.JavaInstanceMain"
                 + " --jar " + userJarFile + " --instance_id "
                 + config.getInstanceId() + " --function_id " + config.getFunctionId()
                 + " --function_version " + config.getFunctionVersion() + " --tenant " + config.getFunctionConfig().getTenant()
