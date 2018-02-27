@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
@@ -27,7 +27,7 @@ import org.apache.pulsar.functions.instance.InstanceConfig;
  * Thread based function container factory implementation.
  */
 @Slf4j
-public class ProcessFunctionContainerFactory implements FunctionContainerFactory {
+public class ProcessRuntimeFactory implements RuntimeFactory {
 
     private String pulsarServiceUrl;
     private String javaInstanceJarFile;
@@ -35,10 +35,10 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
     private String logDirectory;
 
     @VisibleForTesting
-    public ProcessFunctionContainerFactory(String pulsarServiceUrl,
-                                           String javaInstanceJarFile,
-                                           String pythonInstanceFile,
-                                           String logDirectory) {
+    public ProcessRuntimeFactory(String pulsarServiceUrl,
+                                 String javaInstanceJarFile,
+                                 String pythonInstanceFile,
+                                 String logDirectory) {
 
         this.pulsarServiceUrl = pulsarServiceUrl;
         this.javaInstanceJarFile = javaInstanceJarFile;
@@ -47,7 +47,7 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
     }
 
     @Override
-    public ProcessFunctionContainer createContainer(InstanceConfig instanceConfig, String codeFile) {
+    public ProcessRuntime createContainer(InstanceConfig instanceConfig, String codeFile) {
         String instanceFile;
         switch (instanceConfig.getFunctionConfig().getRuntime()) {
             case JAVA:
@@ -59,7 +59,7 @@ public class ProcessFunctionContainerFactory implements FunctionContainerFactory
             default:
                 throw new RuntimeException("Unsupported Runtime " + instanceConfig.getFunctionConfig().getRuntime());
         }
-        return new ProcessFunctionContainer(
+        return new ProcessRuntime(
             instanceConfig,
             instanceFile,
             logDirectory,

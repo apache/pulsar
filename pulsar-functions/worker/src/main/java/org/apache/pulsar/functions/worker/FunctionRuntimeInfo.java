@@ -21,8 +21,7 @@ package org.apache.pulsar.functions.worker;
 import lombok.*;
 import lombok.experimental.Accessors;
 import org.apache.pulsar.functions.proto.Function.Instance;
-import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
-import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
 @Data
 @Setter
@@ -33,7 +32,7 @@ public class FunctionRuntimeInfo {
     private Instance functionInstance;
 
     // The associated runtime with it if any
-    private Spawner spawner;
+    private RuntimeSpawner runtimeSpawner;
     // Any exceptions on startup
     private Exception startupException;
 }

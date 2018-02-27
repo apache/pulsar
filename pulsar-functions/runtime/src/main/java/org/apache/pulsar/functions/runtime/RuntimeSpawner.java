@@ -17,11 +17,11 @@
  * under the License.
  */
 /**
- * Spawner is the module responsible for running one particular instance servicing one
+ * RuntimeSpawner is the module responsible for running one particular instance servicing one
  * function. It is responsible for starting/stopping the instance and passing data to the
  * instance and getting the results back.
  */
-package org.apache.pulsar.functions.runtime.spawner;
+package org.apache.pulsar.functions.runtime;
 
 import java.util.Timer;
 import java.util.TimerTask;
@@ -30,31 +30,31 @@ import java.util.concurrent.CompletableFuture;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
-import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.FunctionContainer;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
 @Slf4j
-public class Spawner implements AutoCloseable {
+public class RuntimeSpawner implements AutoCloseable {
 
     private final InstanceConfig instanceConfig;
-    private final FunctionContainerFactory functionContainerFactory;
+    private final RuntimeFactory runtimeFactory;
     private final String codeFile;
 
-    private FunctionContainer functionContainer;
+    private Runtime runtime;
     private MetricsSink metricsSink;
     private int metricsCollectionInterval;
     private Timer metricsCollectionTimer;
     private int numRestarts;
 
-    public Spawner(InstanceConfig instanceConfig,
-                    String codeFile,
-                    FunctionContainerFactory containerFactory,
-                    MetricsSink metricsSink,
-                    int metricsCollectionInterval) {
+    public RuntimeSpawner(InstanceConfig instanceConfig,
+                          String codeFile,
+                          RuntimeFactory containerFactory,
+                          MetricsSink metricsSink,
+                          int metricsCollectionInterval) {
         this.instanceConfig = instanceConfig;
-        this.functionContainerFactory = containerFactory;
+        this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
         this.metricsSink = metricsSink;
         this.metricsCollectionInterval = metricsCollectionInterval;
@@ -62,10 +62,10 @@ public class Spawner implements AutoCloseable {
     }
 
     public void start() throws Exception {
-        log.info("Spawner starting function {} - {}", this.instanceConfig.getFunctionConfig().getName(),
+        log.info("RuntimeSpawner starting function {} - {}", this.instanceConfig.getFunctionConfig().getName(),
                 this.instanceConfig.getInstanceId());
-        functionContainer = functionContainerFactory.createContainer(this.instanceConfig, codeFile);
-        functionContainer.start();
+        runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
+        runtime.start();
         if (metricsSink != null) {
             log.info("Scheduling Metrics Collection every {} secs for {} - {}",
                     metricsCollectionInterval,
@@ -75,21 +75,21 @@ public class Spawner implements AutoCloseable {
             metricsCollectionTimer.scheduleAtFixedRate(new TimerTask() {
                 @Override
                 public void run() {
-                    if (functionContainer.isAlive()) {
+                    if (runtime.isAlive()) {
 
                         log.info("Collecting metrics for function {} - {}",
                                 FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()),
                                 instanceConfig.getInstanceId());
-                        functionContainer.getAndResetMetrics().thenAccept(t -> {
+                        runtime.getAndResetMetrics().thenAccept(t -> {
                             if (t != null) {
                                 log.debug("Collected metrics {}", t);
                                 metricsSink.processRecord(t, instanceConfig.getFunctionConfig());
                             }
                         });
                     } else {
-                        log.error("Function Container is dead with exception", functionContainer.getDeathException());
+                        log.error("Function Container is dead with exception", runtime.getDeathException());
                         log.error("Restarting...");
-                        functionContainer.start();
+                        runtime.start();
                         numRestarts++;
                     }
                 }
@@ -98,17 +98,17 @@ public class Spawner implements AutoCloseable {
     }
 
     public void join() throws Exception {
-        if (null != functionContainer) {
-            functionContainer.join();
+        if (null != runtime) {
+            runtime.join();
         }
     }
 
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        return functionContainer.getFunctionStatus().thenApply(f -> {
+        return runtime.getFunctionStatus().thenApply(f -> {
            FunctionStatus.Builder builder = FunctionStatus.newBuilder();
            builder.mergeFrom(f).setNumRestarts(numRestarts).setInstanceId(instanceConfig.getInstanceId());
-           if (functionContainer.getDeathException() != null) {
-               builder.setFailureException(functionContainer.getDeathException().getMessage());
+           if (runtime.getDeathException() != null) {
+               builder.setFailureException(runtime.getDeathException().getMessage());
            }
            return builder.build();
         });
@@ -116,9 +116,9 @@ public class Spawner implements AutoCloseable {
 
     @Override
     public void close() {
-        if (null != functionContainer) {
-            functionContainer.stop();
-            functionContainer = null;
+        if (null != runtime) {
+            runtime.stop();
+            runtime = null;
         }
         if (metricsCollectionTimer != null) {
             metricsCollectionTimer.cancel();

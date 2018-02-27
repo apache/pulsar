@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package org.apache.pulsar.functions.runtime.container;
+package org.apache.pulsar.functions.runtime;
 
 import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +32,7 @@ import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManagerImpl;
  * Thread based function container factory implementation.
  */
 @Slf4j
-public class ThreadFunctionContainerFactory implements FunctionContainerFactory {
+public class ThreadRuntimeFactory implements RuntimeFactory {
 
     private final ThreadGroup threadGroup;
     private final FunctionCacheManager fnCache;
@@ -40,9 +40,9 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     private final String storageServiceUrl;
     private volatile boolean closed;
 
-    public ThreadFunctionContainerFactory(String threadGroupName,
-                                          String pulsarServiceUrl,
-                                          String storageServiceUrl)
+    public ThreadRuntimeFactory(String threadGroupName,
+                                String pulsarServiceUrl,
+                                String storageServiceUrl)
             throws Exception {
         this(
             threadGroupName,
@@ -51,9 +51,9 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     }
 
     @VisibleForTesting
-    ThreadFunctionContainerFactory(String threadGroupName,
-                                   PulsarClient pulsarClient,
-                                   String storageServiceUrl) {
+    ThreadRuntimeFactory(String threadGroupName,
+                         PulsarClient pulsarClient,
+                         String storageServiceUrl) {
         this.fnCache = new FunctionCacheManagerImpl();
         this.threadGroup = new ThreadGroup(threadGroupName);
         this.pulsarClient = pulsarClient;
@@ -61,8 +61,8 @@ public class ThreadFunctionContainerFactory implements FunctionContainerFactory 
     }
 
     @Override
-    public ThreadFunctionContainer createContainer(InstanceConfig instanceConfig, String jarFile) {
-        return new ThreadFunctionContainer(
+    public ThreadRuntime createContainer(InstanceConfig instanceConfig, String jarFile) {
+        return new ThreadRuntime(
             instanceConfig,
             fnCache,
             threadGroup,

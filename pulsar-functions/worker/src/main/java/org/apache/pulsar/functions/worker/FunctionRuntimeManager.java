@@ -29,11 +29,11 @@ import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
-import org.apache.pulsar.functions.runtime.container.FunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.ProcessFunctionContainerFactory;
-import org.apache.pulsar.functions.runtime.container.ThreadFunctionContainerFactory;
+import org.apache.pulsar.functions.runtime.RuntimeFactory;
+import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
+import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
 import org.apache.pulsar.functions.metrics.MetricsSink;
-import org.apache.pulsar.functions.runtime.spawner.Spawner;
+import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
 import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
@@ -78,7 +78,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private FunctionActioner functionActioner;
 
-    private FunctionContainerFactory functionContainerFactory;
+    private RuntimeFactory runtimeFactory;
 
     private MembershipManager membershipManager;
 
@@ -97,12 +97,12 @@ public class FunctionRuntimeManager implements AutoCloseable{
         this.functionAssignmentTailer = new FunctionAssignmentTailer(this, reader);
 
         if (workerConfig.getThreadContainerFactory() != null) {
-            this.functionContainerFactory = new ThreadFunctionContainerFactory(
+            this.runtimeFactory = new ThreadRuntimeFactory(
                     workerConfig.getThreadContainerFactory().getThreadGroupName(),
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getStateStorageServiceUrl());
         } else if (workerConfig.getProcessContainerFactory() != null) {
-            this.functionContainerFactory = new ProcessFunctionContainerFactory(
+            this.runtimeFactory = new ProcessRuntimeFactory(
                     workerConfig.getPulsarServiceUrl(),
                     workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation(),
                     workerConfig.getProcessContainerFactory().getPythonInstanceLocation(),
@@ -115,7 +115,7 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
         this.actionQueue = new LinkedBlockingQueue<>();
 
-        this.functionActioner = new FunctionActioner(this.workerConfig, functionContainerFactory,
+        this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
                 this.metricsSink, this.workerConfig.getMetricsConfig().getMetricsCollectionInterval(),
                 dlogNamespace, actionQueue);
 
@@ -247,10 +247,10 @@ public class FunctionRuntimeManager implements AutoCloseable{
         if (assignment.getWorkerId().equals(workerId)) {
             FunctionRuntimeInfo functionRuntimeInfo = this.getFunctionRuntimeInfo(
                     Utils.getFullyQualifiedInstanceId(assignment.getInstance()));
-            Spawner spawner = functionRuntimeInfo.getSpawner();
-            if (spawner != null) {
+            RuntimeSpawner runtimeSpawner = functionRuntimeInfo.getRuntimeSpawner();
+            if (runtimeSpawner != null) {
                 try {
-                    functionStatus = functionRuntimeInfo.getSpawner().getFunctionStatus().get();
+                    functionStatus = functionRuntimeInfo.getRuntimeSpawner().getFunctionStatus().get();
                 } catch (InterruptedException | ExecutionException e) {
                     throw new RuntimeException(e);
                 }

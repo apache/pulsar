@@ -34,7 +34,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * This is the Java Instance. This is started by the spawner using the JavaInstanceClient
+ * This is the Java Instance. This is started by the runtimeSpawner using the JavaInstanceClient
  * program if invoking via a process based invocation or using JavaInstance using a thread
  * based invocation.
  */
