@@ -33,6 +33,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
@@ -40,17 +41,18 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PatternTopicsConsumerImpl extends TopicsConsumerImpl implements TimerTask {
+public class PatternTopicsConsumerImpl<T> extends TopicsConsumerImpl<T> implements TimerTask {
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
     private volatile Timeout recheckPatternTimeout = null;
 
     public PatternTopicsConsumerImpl(Pattern topicsPattern,
-                              PulsarClientImpl client,
-                              ConsumerConfigurationData conf,
-                              ExecutorService listenerExecutor,
-                              CompletableFuture<Consumer> subscribeFuture) {
-        super(client, conf, listenerExecutor, subscribeFuture);
+                                     PulsarClientImpl client,
+                                     ConsumerConfigurationData<T> conf,
+                                     ExecutorService listenerExecutor,
+                                     CompletableFuture<Consumer<T>> subscribeFuture,
+                                     Schema<T> schema) {
+        super(client, conf, listenerExecutor, subscribeFuture, schema);
         this.topicsPattern = topicsPattern;
 
         if (this.namespaceName == null) {

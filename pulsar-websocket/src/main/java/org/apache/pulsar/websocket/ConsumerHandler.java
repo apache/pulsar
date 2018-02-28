@@ -20,6 +20,9 @@ package org.apache.pulsar.websocket;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.common.base.Enums;
+import com.google.common.base.Splitter;
 import java.io.IOException;
 import java.util.Base64;
 import java.util.List;
@@ -27,10 +30,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.atomic.LongAdder;
-
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
@@ -48,10 +49,6 @@ import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.google.common.base.Enums;
-import com.google.common.base.Splitter;
-
 /**
  *
  * WebSocket end-point url handler to handle incoming receive and acknowledge requests.
@@ -67,7 +64,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     private String subscription = null;
     private final ConsumerConfiguration conf;
-    private Consumer consumer;
+    private Consumer<byte[]> consumer;
 
     private final int maxPendingMessages;
     private final AtomicInteger pendingMessages = new AtomicInteger();

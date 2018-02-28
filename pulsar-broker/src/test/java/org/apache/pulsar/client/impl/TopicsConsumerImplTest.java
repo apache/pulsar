@@ -211,17 +211,17 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 2. Create consumer
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topics(topicNames)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
@@ -368,7 +368,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 8. Simulate ackTimeout
         ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
-        ((TopicsConsumerImpl) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+        ((TopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 9. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
