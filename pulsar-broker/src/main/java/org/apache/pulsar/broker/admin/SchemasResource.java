@@ -41,7 +41,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
@@ -188,14 +188,14 @@ public class SchemasResource extends AdminResource {
     }
 
     private void validateDestinationAndAdminOperation(String property, String cluster, String namespace, String topic) {
-        DestinationName destinationName = DestinationName.get(
+        TopicName destinationName = TopicName.get(
             domain(), property, cluster, namespace, decode(topic)
         );
 
         try {
             validateDestinationExists(destinationName);
             validateAdminAccessOnProperty(destinationName.getProperty());
-            validateDestinationOwnership(destinationName, false);
+            validateTopicOwnership(destinationName, false);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
                 throw new RestException(Response.Status.NOT_FOUND, "Not Found");
@@ -205,7 +205,7 @@ public class SchemasResource extends AdminResource {
         }
     }
 
-    private void validateDestinationExists(DestinationName dn) {
+    private void validateDestinationExists(TopicName dn) {
         try {
             Topic topic = pulsar().getBrokerService().getTopicReference(dn.toString());
             checkNotNull(topic);
