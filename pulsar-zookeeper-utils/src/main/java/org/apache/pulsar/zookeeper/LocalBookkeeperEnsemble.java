@@ -232,6 +232,8 @@ public class LocalBookkeeperEnsemble {
         conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         // conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
         conf.setLedgerStorageClass(SortedLedgerStorage.class.getName());
+        conf.setDiskUsageThreshold(1.0f);
+        conf.setDiskUsageWarnThreshold(0.9999f);
         conf.setProperty("dbStorage_writeCacheMaxSizeMb", 256);
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 64);
         conf.setFlushInterval(60000);
