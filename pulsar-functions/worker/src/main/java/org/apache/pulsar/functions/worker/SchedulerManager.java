@@ -132,9 +132,6 @@ public class SchedulerManager implements AutoCloseable {
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
 
         List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
-        if (needsAssignment.isEmpty()) {
-            return;
-        }
 
         List<Assignment> assignments = this.scheduler.schedule(
                 needsAssignment, currentAssignments, currentMembership);
