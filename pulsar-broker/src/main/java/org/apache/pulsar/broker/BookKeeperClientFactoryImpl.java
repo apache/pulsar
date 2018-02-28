@@ -21,22 +21,21 @@ package org.apache.pulsar.broker;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
-import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.zookeeper.ZkBookieRackAffinityMapping;
 import org.apache.pulsar.zookeeper.ZkIsolatedBookieEnsemblePlacementPolicy;
 import org.apache.pulsar.zookeeper.ZooKeeperCache;
-import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.ZooKeeper;
 
 public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
     private ZooKeeperCache rackawarePolicyZkCache;
     private ZooKeeperCache clientIsolationZkCache;
-    
+
     @Override
     public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
         ClientConfiguration bkConf = new ClientConfiguration();
@@ -85,11 +84,11 @@ public class BookKeeperClientFactoryImpl implements BookKeeperClientFactory {
 
         try {
             return new BookKeeper(bkConf, zkClient);
-        } catch (InterruptedException | KeeperException e) {
+        } catch (InterruptedException | BKException e) {
             throw new IOException(e);
         }
     }
-    
+
     public void close() {
         if (this.rackawarePolicyZkCache != null) {
             this.rackawarePolicyZkCache.stop();

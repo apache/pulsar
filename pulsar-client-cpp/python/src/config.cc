@@ -142,5 +142,7 @@ void export_config() {
             .def("receiver_queue_size", &ReaderConfiguration::setReceiverQueueSize)
             .def("reader_name", &ReaderConfiguration::getReaderName, return_value_policy<copy_const_reference>())
             .def("reader_name", &ReaderConfiguration::setReaderName)
+            .def("subscription_role_prefix", &ReaderConfiguration::getSubscriptionRolePrefix, return_value_policy<copy_const_reference>())
+            .def("subscription_role_prefix", &ReaderConfiguration::setSubscriptionRolePrefix)
             ;
 }

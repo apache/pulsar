@@ -27,6 +27,7 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
+import java.util.*;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -109,10 +110,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerConfiguration conf = new ConsumerConfiguration();
             conf.setReceiverQueueSize(receiverQueueSize);
             conf.setSubscriptionType(SubscriptionType.Shared);
-            Consumer consumer1 = pulsarClient.subscribe(topicName, subscriberName, conf);
-            Consumer consumer2 = pulsarClient.subscribe(topicName, subscriberName, conf);
-            Consumer consumer3 = pulsarClient.subscribe(topicName, subscriberName, conf);
-            Consumer[] consumers = { consumer1, consumer2, consumer3 };
+            Consumer<byte[]> consumer1 = pulsarClient.subscribe(topicName, subscriberName, conf);
+            Consumer<byte[]> consumer2 = pulsarClient.subscribe(topicName, subscriberName, conf);
+            Consumer<byte[]> consumer3 = pulsarClient.subscribe(topicName, subscriberName, conf);
+            List<Consumer<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -130,9 +131,9 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Map<Message, Consumer> messages = Maps.newHashMap();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
-                    msg = consumers[i].receive(500, TimeUnit.MILLISECONDS);
+                    msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
                     if (msg != null) {
-                        messages.put(msg, consumers[i]);
+                        messages.put(msg, consumers.get(i));
                     } else {
                         break;
                     }
@@ -158,13 +159,13 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // expecting messages which are not received
             int expectedRemainingMessages = totalProducedMsgs - messages.size();
             CountDownLatch latch = new CountDownLatch(expectedRemainingMessages);
-            for (int i = 0; i < consumers.length; i++) {
+            for (int i = 0; i < consumers.size(); i++) {
                 final int consumerCount = i;
                 for (int j = 0; j < totalProducedMsgs; j++) {
-                    consumers[i].receiveAsync().thenAccept(m -> {
+                    consumers.get(i).receiveAsync().thenAccept(m -> {
                         result.add(m.getMessageId());
                         try {
-                            consumers[consumerCount].acknowledge(m);
+                            consumers.get(consumerCount).acknowledge(m);
                         } catch (PulsarClientException e) {
                             fail("failed to ack msg", e);
                         }
@@ -179,7 +180,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertTrue(result.size() >= expectedRemainingMessages);
 
             producer.close();
-            Arrays.asList(consumers).forEach(c -> {
+            consumers.forEach(c -> {
                 try {
                     c.close();
                 } catch (PulsarClientException e) {
@@ -219,7 +220,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
-            ConsumerImpl[] consumers = { consumer1, consumer2, consumer3 };
+            List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -237,9 +238,9 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Multimap<ConsumerImpl, MessageId> messages = ArrayListMultimap.create();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
-                    msg = consumers[i].receive(500, TimeUnit.MILLISECONDS);
+                    msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
                     if (msg != null) {
-                        messages.put(consumers[i], msg.getMessageId());
+                        messages.put(consumers.get(i), msg.getMessageId());
                         log.info("Received message: " + new String(msg.getData()));
                     } else {
                         break;
@@ -260,13 +261,13 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // all messages
             Queue<MessageId> result = Queues.newConcurrentLinkedQueue();
             CountDownLatch latch = new CountDownLatch(totalProducedMsgs);
-            for (int i = 0; i < consumers.length; i++) {
+            for (int i = 0; i < consumers.size(); i++) {
                 final int consumerCount = i;
                 for (int j = 0; j < totalProducedMsgs; j++) {
-                    consumers[i].receiveAsync().thenAccept(m -> {
+                    consumers.get(i).receiveAsync().thenAccept(m -> {
                         result.add(m.getMessageId());
                         try {
-                            consumers[consumerCount].acknowledge(m);
+                            consumers.get(consumerCount).acknowledge(m);
                         } catch (PulsarClientException e) {
                             fail("failed to ack msg", e);
                         }
@@ -280,7 +281,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // total received-messages should match to produced messages (it may have duplicate messages)
             assertTrue(result.size() >= totalProducedMsgs);
             producer.close();
-            Arrays.asList(consumers).forEach(c -> {
+            consumers.forEach(c -> {
                 try {
                     c.close();
                 } catch (PulsarClientException e) {
@@ -410,7 +411,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
-            ConsumerImpl[] consumers = { consumer1, consumer2, consumer3 };
+            List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList( consumer1, consumer2, consumer3 );
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -428,7 +429,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Set<MessageId> messages = Sets.newHashSet();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
-                    msg = consumers[i].receive(500, TimeUnit.MILLISECONDS);
+                    msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
                     if (msg != null) {
                         messages.add(msg.getMessageId());
                         log.info("Received message: " + new String(msg.getData()));
@@ -443,7 +444,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             assertEquals(totalConsumedMsgs, unackMsgAllowed, 3 * receiverQueueSize);
 
             // trigger redelivery
-            Arrays.asList(consumers).forEach(c -> {
+            consumers.forEach(c -> {
                 c.redeliverUnacknowledgedMessages();
             });
 
@@ -454,10 +455,10 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             Map<ConsumerImpl, Set<MessageId>> messages1 = Maps.newHashMap();
             for (int i = 0; i < 3; i++) {
                 for (int j = 0; j < totalProducedMsgs; j++) {
-                    msg = consumers[i].receive(500, TimeUnit.MILLISECONDS);
+                    msg = consumers.get(i).receive(500, TimeUnit.MILLISECONDS);
                     if (msg != null) {
-                        messages1.putIfAbsent(consumers[i], Sets.newHashSet());
-                        messages1.get(consumers[i]).add(msg.getMessageId());
+                        messages1.putIfAbsent(consumers.get(i), Sets.newHashSet());
+                        messages1.get(consumers.get(i)).add(msg.getMessageId());
                         log.info("Received message: " + new String(msg.getData()));
                     } else {
                         break;
@@ -466,7 +467,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             }
 
             Set<MessageId> result = Sets.newHashSet();
-            messages1.values().forEach(s -> result.addAll(s));
+            messages1.values().forEach(result::addAll);
 
             // check all unacked messages have been redelivered
 
@@ -483,20 +484,20 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
                 });
             });
 
-            messages1.values().forEach(s -> result.addAll(s));
+            messages1.values().forEach(result::addAll);
             // try to consume remaining messages
             int remainingMessages = totalProducedMsgs - result.size();
             // try to consume remaining messages: broker may take time to deliver so, retry multiple time to consume
             // all messages
             CountDownLatch latch = new CountDownLatch(remainingMessages);
             Queue<MessageId> consumedMessages = Queues.newConcurrentLinkedQueue();
-            for (int i = 0; i < consumers.length; i++) {
+            for (int i = 0; i < consumers.size(); i++) {
                 final int counsumerIndex = i;
                 for (int j = 0; j < remainingMessages; j++) {
-                    consumers[i].receiveAsync().thenAccept(m -> {
+                    consumers.get(i).receiveAsync().thenAccept(m -> {
                         consumedMessages.add(m.getMessageId());
                         try {
-                            consumers[counsumerIndex].acknowledge(m);
+                            consumers.get(counsumerIndex).acknowledge(m);
                         } catch (PulsarClientException e) {
                             fail("failed to ack", e);
                         }
@@ -509,7 +510,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // total received-messages should match remaining messages excluding duplicate
             assertTrue(consumedMessages.size() >= remainingMessages);
             producer.close();
-            Arrays.asList(consumers).forEach(c -> {
+            consumers.forEach(c -> {
                 try {
                     c.close();
                 } catch (PulsarClientException e) {
@@ -782,7 +783,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              * (2) However, other subscription2 should still be able to consume messages until it reaches to
              * maxUnAckPerDispatcher limit
              **/
-            ConsumerImpl consumerSub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            ConsumerImpl<byte[]> consumerSub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);

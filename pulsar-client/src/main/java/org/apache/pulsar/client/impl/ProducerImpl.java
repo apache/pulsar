@@ -19,9 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.lang.String.format;
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
@@ -44,6 +44,7 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
@@ -68,7 +69,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 
-public class ProducerImpl extends ProducerBase implements TimerTask {
+public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
 
     // Producer id, used to identify a producer within a single connection
     private final long producerId;
@@ -107,8 +108,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
     public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer> producerCreatedFuture, int partitionIndex) {
-        super(client, topic, conf, producerCreatedFuture);
+                        CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema) {
+        super(client, topic, conf, producerCreatedFuture, schema);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
         this.partitionIndex = partitionIndex;

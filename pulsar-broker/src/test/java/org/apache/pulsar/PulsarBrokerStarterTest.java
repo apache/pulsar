@@ -328,23 +328,6 @@ public class PulsarBrokerStarterTest {
     }
 
     /**
-     * Verifies that the main throws {@link IllegalArgumentException} when malformed config file for bookie is given.
-     */
-    @Test
-    public void testMainRunBookieEmptyConfig() throws Exception {
-        try {
-            File testConfigFile = createValidBrokerConfigFile();
-            String[] args = {"-c", testConfigFile.getAbsolutePath(),
-                "-ra", "-rb", "-bc", testConfigFile.getAbsolutePath()};
-            PulsarBrokerStarter.main(args);
-            Assert.fail("Effectively empty config file for bookie should've raised NoWritableLedgerDirException!");
-        } catch (LedgerDirsManager.NoWritableLedgerDirException e) {
-            // code should reach here
-            // Since empty config file will have empty ledgerDirs, it should raise exception when bookie init.
-        }
-    }
-
-    /**
      * Verifies that the main throws {@link IllegalArgumentException} when no config file for bookie .
      */
     @Test

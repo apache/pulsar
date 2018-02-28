@@ -48,6 +48,7 @@
     <dependency>
       <groupId>com.google.protobuf</groupId>
       <artifactId>protobuf-java</artifactId>
+      <version>2.4.1</version>
     </dependency>
 
     <dependency>
@@ -66,9 +67,9 @@
     </dependency>
     
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-checksum</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>circe-checksum</artifactId>
+      <version>${bookkeeper.version}</version>
     </dependency>
     
     <dependency>
