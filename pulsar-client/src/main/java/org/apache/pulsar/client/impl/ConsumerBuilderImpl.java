@@ -84,7 +84,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public CompletableFuture<Consumer<T>> subscribeAsync() {
-        if (conf.getTopicNames().isEmpty()) {
+        if (conf.getTopicNames().isEmpty() && conf.getTopicsPattern() == null) {
             return FutureUtil
                     .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
         }
@@ -112,14 +112,14 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder topicsPattern(Pattern topicsPattern) {
+    public ConsumerBuilder<T> topicsPattern(Pattern topicsPattern) {
         checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
         conf.setTopicsPattern(topicsPattern);
         return this;
     }
 
     @Override
-    public ConsumerBuilder topicsPattern(String topicsPattern) {
+    public ConsumerBuilder<T> topicsPattern(String topicsPattern) {
         checkArgument(conf.getTopicsPattern() == null, "Pattern has already been set.");
         conf.setTopicsPattern(Pattern.compile(topicsPattern));
         return this;
