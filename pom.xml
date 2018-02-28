@@ -109,7 +109,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.91-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.7.0-SNAPSHOT</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -538,6 +538,12 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>io.prometheus</groupId>
         <artifactId>simpleclient_servlet</artifactId>
         <version>${prometheus.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.carrotsearch</groupId>
+        <artifactId>hppc</artifactId>
+        <version>0.7.3</version>
       </dependency>
 
       <dependency>
@@ -983,10 +989,6 @@ flexible messaging model and an intuitive client API.</description>
       <id>central</id>
       <layout>default</layout>
       <url>http://repo1.maven.org/maven2</url>
-    </repository>
-    <repository>
-      <id>bookkeeper-yahoo-mvn-repo</id>
-      <url>https://raw.githubusercontent.com/yahoo/bookkeeper/mvn-repo</url>
     </repository>
     <repository>
       <snapshots>

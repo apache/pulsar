@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.util.SafeRunnable;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.KeeperException.Code;
@@ -84,14 +84,14 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final AsyncLoadingCache<String, Entry<Object, Stat>> dataCache;
     protected final Cache<String, Set<String>> childrenCache;
     protected final Cache<String, Boolean> existsCache;
-    private final OrderedSafeExecutor executor;
+    private final OrderedScheduler executor;
     private final ScheduledExecutorService scheduledExecutor;
     private boolean shouldShutdownExecutor = false;
     public static final int cacheTimeOutInSec = 30;
 
     protected AtomicReference<ZooKeeper> zkSession = new AtomicReference<ZooKeeper>(null);
 
-    public ZooKeeperCache(ZooKeeper zkSession, OrderedSafeExecutor executor, ScheduledExecutorService scheduledExecutor) {
+    public ZooKeeperCache(ZooKeeper zkSession, OrderedScheduler executor, ScheduledExecutorService scheduledExecutor) {
         checkNotNull(executor);
         checkNotNull(scheduledExecutor);
         this.executor = executor;
@@ -106,7 +106,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public ZooKeeperCache(ZooKeeper zkSession) {
-        this(zkSession, new OrderedSafeExecutor(1, "zk-cache-executor"),
+        this(zkSession, OrderedScheduler.newSchedulerBuilder().numThreads(1).name("zk-cache-executor").build(),
                 Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory("zk-cache-callback-executor")));
         this.shouldShutdownExecutor = true;
     }
@@ -316,12 +316,12 @@ public abstract class ZooKeeperCache implements Watcher {
                     } else {
                         exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                     }
-                }, null);                
+                }, null);
             } catch (Exception e) {
                 LOG.warn("Failed to access zkSession for {} {}", path, e.getMessage(), e);
                 zkFuture.completeExceptionally(e);
             }
-            
+
             return zkFuture;
         }).thenAccept(result -> {
             if (result != null) {
@@ -405,7 +405,7 @@ public abstract class ZooKeeperCache implements Watcher {
             }
         }
     }
-    
+
     public void stop() {
         if (shouldShutdownExecutor) {
             this.executor.shutdown();

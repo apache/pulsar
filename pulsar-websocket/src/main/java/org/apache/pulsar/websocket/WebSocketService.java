@@ -30,7 +30,7 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -70,8 +70,8 @@ public class WebSocketService implements Closeable {
     private final ScheduledExecutorService executor = Executors
             .newScheduledThreadPool(WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS,
                     new DefaultThreadFactory("pulsar-websocket"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(
-            WebSocketProxyConfiguration.GLOBAL_ZK_THREADS, "pulsar-websocket-ordered");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
+            .numThreads(WebSocketProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-websocket-ordered").build();
     private GlobalZooKeeperCache globalZkCache;
     private ZooKeeperClientFactory zkClientFactory;
     private ServiceConfiguration config;

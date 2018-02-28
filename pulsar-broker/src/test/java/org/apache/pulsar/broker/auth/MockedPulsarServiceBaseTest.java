@@ -216,7 +216,7 @@ public abstract class MockedPulsarServiceBaseTest {
     private static class NonClosableMockBookKeeper extends MockBookKeeper {
 
         public NonClosableMockBookKeeper(ClientConfiguration conf, ZooKeeper zk) throws Exception {
-            super(conf, zk);
+            super(zk);
         }
 
         @Override
