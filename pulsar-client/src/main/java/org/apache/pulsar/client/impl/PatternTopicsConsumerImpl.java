@@ -20,14 +20,15 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Lists;
+import io.netty.util.Timeout;
+import io.netty.util.TimerTask;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -39,10 +40,10 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PatternTopicsConsumerImpl extends TopicsConsumerImpl {
+public class PatternTopicsConsumerImpl extends TopicsConsumerImpl implements TimerTask {
     private final Pattern topicsPattern;
-    private ScheduledExecutorService scheduledExecutor;
     private final TopicsChangedListener topicsChangeListener;
+    private volatile Timeout recheckPatternTimeout = null;
 
     public PatternTopicsConsumerImpl(Pattern topicsPattern,
                               PulsarClientImpl client,
@@ -58,17 +59,20 @@ public class PatternTopicsConsumerImpl extends TopicsConsumerImpl {
         checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
-        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
-        scheduledExecutor.scheduleAtFixedRate(() -> recheckTopics(),
-            1, Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
+        recheckPatternTimeout = client.timer().newTimeout(this, Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
     }
 
     public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {
         return TopicName.get(pattern.pattern()).getNamespaceObject();
     }
 
-    // recheck topics change, and trigger subscribe/unsubscribe based on the change.
-    public CompletableFuture<Void> recheckTopics() {
+    // TimerTask to recheck topics change, and trigger subscribe/unsubscribe based on the change.
+    @Override
+    public void run(Timeout timeout) throws Exception {
+        if (timeout.isCancelled()) {
+            return;
+        }
+
         CompletableFuture<Void> recheckFuture = new CompletableFuture<>();
         List<CompletableFuture<Void>> futures = Lists.newArrayListWithExpectedSize(2);
 
@@ -80,7 +84,7 @@ public class PatternTopicsConsumerImpl extends TopicsConsumerImpl {
             }
 
             List<String> newTopics = PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
-            List<String> oldTopics = this.getTopics();
+            List<String> oldTopics = PatternTopicsConsumerImpl.this.getTopics();
 
             futures.add(topicsChangeListener.onTopicsAdded(topicsListsMinus(newTopics, oldTopics)));
             futures.add(topicsChangeListener.onTopicsRemoved(topicsListsMinus(oldTopics, newTopics)));
@@ -93,7 +97,9 @@ public class PatternTopicsConsumerImpl extends TopicsConsumerImpl {
                 });
         });
 
-        return recheckFuture;
+        // schedule the next re-check task
+        client.timer().newTimeout(PatternTopicsConsumerImpl.this,
+            Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
     }
 
     public Pattern getPattern() {
@@ -160,10 +166,17 @@ public class PatternTopicsConsumerImpl extends TopicsConsumerImpl {
 
     @Override
     public CompletableFuture<Void> closeAsync() {
-        if (scheduledExecutor != null) {
-            scheduledExecutor.shutdownNow();
+        Timeout timeout = recheckPatternTimeout;
+        if (timeout != null) {
+            timeout.cancel();
+            recheckPatternTimeout = null;
         }
         return super.closeAsync();
+    }
+
+    @VisibleForTesting
+    Timeout getRecheckPatternTimeout() {
+        return recheckPatternTimeout;
     }
 
     private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImpl.class);

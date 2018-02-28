@@ -308,7 +308,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 5. call recheckTopics to subscribe each added topics above
         log.debug("recheck topics change");
-        ((PatternTopicsConsumerImpl) consumer).recheckTopics().get();
+        PatternTopicsConsumerImpl consumer1 = ((PatternTopicsConsumerImpl) consumer);
+        consumer1.run(consumer1.getRecheckPatternTimeout());
+        Thread.sleep(100);
 
         // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
         assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
@@ -415,7 +417,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");
-        ((PatternTopicsConsumerImpl) consumer).recheckTopics().get();
+        PatternTopicsConsumerImpl consumer1 = ((PatternTopicsConsumerImpl) consumer);
+        consumer1.run(consumer1.getRecheckPatternTimeout());
+        Thread.sleep(100);
         assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 10);
         assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 10);
         assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 4);
@@ -515,7 +519,9 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
         log.debug("recheck topics change");
-        ((PatternTopicsConsumerImpl) consumer).recheckTopics().get();
+        PatternTopicsConsumerImpl consumer1 = ((PatternTopicsConsumerImpl) consumer);
+        consumer1.run(consumer1.getRecheckPatternTimeout());
+        Thread.sleep(100);
         assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 2);
         assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 2);
         assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 1);
