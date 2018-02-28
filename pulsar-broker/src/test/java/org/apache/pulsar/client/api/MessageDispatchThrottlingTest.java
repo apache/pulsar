@@ -246,7 +246,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(byteRate));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() != initValue) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
