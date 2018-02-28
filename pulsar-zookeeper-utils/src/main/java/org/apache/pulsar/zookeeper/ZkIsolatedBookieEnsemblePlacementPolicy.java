@@ -22,15 +22,18 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 
 import org.apache.bookkeeper.client.BKException.BKNotEnoughBookiesException;
-import org.apache.bookkeeper.client.EnsemblePlacementPolicy;
 import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicy;
+import org.apache.bookkeeper.client.RackawareEnsemblePlacementPolicyImpl;
 import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.feature.FeatureProvider;
 import org.apache.bookkeeper.net.BookieSocketAddress;
-import org.apache.bookkeeper.util.ZkUtils;
-import org.apache.bookkeeper.zookeeper.ZooKeeperWatcherBase;
+import org.apache.bookkeeper.net.DNSToSwitchMapping;
+import org.apache.bookkeeper.stats.StatsLogger;
+import org.apache.bookkeeper.zookeeper.ZooKeeperClient;
 import org.apache.commons.configuration.Configuration;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperCache.Deserializer;
@@ -41,6 +44,8 @@ import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+
+import io.netty.util.HashedWheelTimer;
 
 public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePlacementPolicy
         implements Deserializer<Map<String, Map<BookieSocketAddress, BookieInfo>>> {
@@ -60,7 +65,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     }
 
     @Override
-    public EnsemblePlacementPolicy initialize(Configuration conf) {
+    public RackawareEnsemblePlacementPolicyImpl initialize(ClientConfiguration conf,
+            Optional<DNSToSwitchMapping> optionalDnsResolver, HashedWheelTimer timer, FeatureProvider featureProvider,
+            StatsLogger statsLogger) {
         if (conf.getProperty(ISOLATION_BOOKIE_GROUPS) != null) {
             String isolationGroupsString = (String) conf.getProperty(ISOLATION_BOOKIE_GROUPS);
             if (!isolationGroupsString.isEmpty()) {
@@ -70,8 +77,8 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
                 bookieMappingCache = getAndSetZkCache(conf);
             }
         }
-        super.initialize(conf);
-        return this;
+
+        return super.initialize(conf, optionalDnsResolver, timer, featureProvider, statsLogger);
     }
 
     private ZooKeeperCache getAndSetZkCache(Configuration conf) {
@@ -84,10 +91,9 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
             if (conf instanceof ClientConfiguration) {
                 zkTimeout = ((ClientConfiguration) conf).getZkTimeout();
                 zkServers = ((ClientConfiguration) conf).getZkServers();
-                ZooKeeperWatcherBase w = new ZooKeeperWatcherBase(zkTimeout) {
-                };
                 try {
-                    ZooKeeper zkClient = ZkUtils.createConnectedZookeeperClient(zkServers, w);
+                    ZooKeeper zkClient = ZooKeeperClient.newBuilder().connectString(zkServers)
+                            .sessionTimeoutMs(zkTimeout).build();
                     zkCache = new ZooKeeperCache(zkClient) {
                     };
                     conf.addProperty(ZooKeeperCache.ZK_CACHE_INSTANCE, zkCache);
@@ -102,26 +108,29 @@ public class ZkIsolatedBookieEnsemblePlacementPolicy extends RackawareEnsemblePl
     }
 
     @Override
-    public ArrayList<BookieSocketAddress> newEnsemble(int ensembleSize, int writeQuorumSize,
-            Set<BookieSocketAddress> excludeBookies) throws BKNotEnoughBookiesException {
-        Set<BookieSocketAddress> blacklistedBookies = getBlacklistedBookies();
-        if (excludeBookies == null) {
-            excludeBookies = new HashSet<BookieSocketAddress>();
-        }
-        excludeBookies.addAll(blacklistedBookies);
-        return super.newEnsemble(ensembleSize, writeQuorumSize, excludeBookies);
-    }
-
-    @Override
-    public BookieSocketAddress replaceBookie(BookieSocketAddress bookieToReplace,
-            Set<BookieSocketAddress> currentEnsemble, Set<BookieSocketAddress> excludeBookies)
+    public ArrayList<BookieSocketAddress> newEnsemble(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
+            Map<String, byte[]> customMetadata, Set<BookieSocketAddress> excludeBookies)
             throws BKNotEnoughBookiesException {
         Set<BookieSocketAddress> blacklistedBookies = getBlacklistedBookies();
         if (excludeBookies == null) {
             excludeBookies = new HashSet<BookieSocketAddress>();
         }
         excludeBookies.addAll(blacklistedBookies);
-        return super.replaceBookie(bookieToReplace, currentEnsemble, excludeBookies);
+        return super.newEnsemble(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, excludeBookies);
+    }
+
+    @Override
+    public BookieSocketAddress replaceBookie(int ensembleSize, int writeQuorumSize, int ackQuorumSize,
+            Map<String, byte[]> customMetadata, Set<BookieSocketAddress> currentEnsemble,
+            BookieSocketAddress bookieToReplace, Set<BookieSocketAddress> excludeBookies)
+            throws BKNotEnoughBookiesException {
+        Set<BookieSocketAddress> blacklistedBookies = getBlacklistedBookies();
+        if (excludeBookies == null) {
+            excludeBookies = new HashSet<BookieSocketAddress>();
+        }
+        excludeBookies.addAll(blacklistedBookies);
+        return super.replaceBookie(ensembleSize, writeQuorumSize, ackQuorumSize, customMetadata, currentEnsemble,
+                bookieToReplace, excludeBookies);
     }
 
     private Set<BookieSocketAddress> getBlacklistedBookies() {

@@ -19,10 +19,9 @@
 package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 import static java.lang.String.format;
-import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
@@ -42,13 +41,14 @@ import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerCryptoFailureAction;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.CryptoException;
+import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -69,7 +69,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 
-public class ProducerImpl extends ProducerBase implements TimerTask {
+public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
 
     // Producer id, used to identify a producer within a single connection
     private final long producerId;
@@ -107,9 +107,9 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
-    public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf,
-            CompletableFuture<Producer> producerCreatedFuture, int partitionIndex) {
-        super(client, topic, conf, producerCreatedFuture);
+    public ProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
+                        CompletableFuture<Producer<T>> producerCreatedFuture, int partitionIndex, Schema<T> schema) {
+        super(client, topic, conf, producerCreatedFuture, schema);
         this.producerId = client.newProducerId();
         this.producerName = conf.getProducerName();
         this.partitionIndex = partitionIndex;
@@ -119,8 +119,8 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         this.compressor = CompressionCodecProvider
                 .getCompressionCodec(convertCompressionType(conf.getCompressionType()));
 
-        if (conf.getInitialSequenceId().isPresent()) {
-            long initialSequenceId = conf.getInitialSequenceId().get();
+        if (conf.getInitialSequenceId() != null) {
+            long initialSequenceId = conf.getInitialSequenceId();
             this.lastSequenceIdPublished = initialSequenceId;
             this.msgIdGenerator = initialSequenceId + 1;
         } else {
@@ -151,7 +151,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
         }
 
         this.createProducerTimeout = System.currentTimeMillis() + client.getConfiguration().getOperationTimeoutMs();
-        if (conf.getBatchingEnabled()) {
+        if (conf.isBatchingEnabled()) {
             this.maxNumMessagesInBatch = conf.getBatchingMaxMessages();
             this.batchMessageContainer = new BatchMessageContainer(maxNumMessagesInBatch,
                     convertCompressionType(conf.getCompressionType()), topic, producerName);
@@ -175,7 +175,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
     }
 
     private boolean isBatchMessagingEnabled() {
-        return conf.getBatchingEnabled();
+        return conf.isBatchingEnabled();
     }
 
     @Override
@@ -421,7 +421,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
 
     private boolean canEnqueueRequest(SendCallback callback) {
         try {
-            if (conf.getBlockIfQueueFull()) {
+            if (conf.isBlockIfQueueFull()) {
                 semaphore.acquire();
             } else {
                 if (!semaphore.tryAcquire()) {
@@ -843,15 +843,15 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                             this.producerName = producerName;
                         }
 
-                        if (this.lastSequenceIdPublished == -1 && !conf.getInitialSequenceId().isPresent()) {
+                        if (this.lastSequenceIdPublished == -1 && conf.getInitialSequenceId() == null) {
                             this.lastSequenceIdPublished = lastSequenceId;
                             this.msgIdGenerator = lastSequenceId + 1;
                         }
 
                         if (!producerCreatedFuture.isDone() && isBatchMessagingEnabled()) {
                             // schedule the first batch message task
-                            client.timer().newTimeout(batchMessageAndSendTask, conf.getBatchingMaxPublishDelayMs(),
-                                    TimeUnit.MILLISECONDS);
+                            client.timer().newTimeout(batchMessageAndSendTask, conf.getBatchingMaxPublishDelayMicros(),
+                                    TimeUnit.MICROSECONDS);
                         }
                         resendMessages(cnx);
                     }
@@ -1139,7 +1139,7 @@ public class ProducerImpl extends ProducerBase implements TimerTask {
                 batchMessageAndSend();
             }
             // schedule the next batch message task
-            client.timer().newTimeout(this, conf.getBatchingMaxPublishDelayMs(), TimeUnit.MILLISECONDS);
+            client.timer().newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
         }
     };
 

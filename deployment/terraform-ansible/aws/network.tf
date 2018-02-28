@@ -59,7 +59,7 @@ resource "aws_route_table_association" "default" {
 
 /* Misc */
 resource "aws_eip" "default" {
-  vpc = true
+  vpc        = true
   depends_on = ["aws_internet_gateway.default"]
 }
 
@@ -90,10 +90,10 @@ resource "aws_route" "internet_access" {
 
 /* Load balancer */
 resource "aws_elb" "default" {
-  name               = "pulsar-elb"
-  instances          = ["${aws_instance.pulsar.*.id}"]
-  security_groups    = ["${aws_security_group.elb.id}"]
-  subnets            = ["${aws_subnet.default.id}"]
+  name            = "pulsar-elb"
+  instances       = ["${aws_instance.pulsar.*.id}"]
+  security_groups = ["${aws_security_group.elb.id}"]
+  subnets         = ["${aws_subnet.default.id}"]
 
   listener {
     instance_port     = 8080

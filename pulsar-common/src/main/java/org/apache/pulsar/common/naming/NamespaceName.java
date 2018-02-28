@@ -123,23 +123,23 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     public String getPersistentTopicName(String localTopic) {
-        return getDestinationName(DestinationDomain.persistent, localTopic);
+        return getTopicName(TopicDomain.persistent, localTopic);
     }
 
     /**
-     * Compose the destination name from namespace + destination
+     * Compose the topic name from namespace + topic
      *
      * @param domain
-     * @param destination
+     * @param topic
      * @return
      */
-    String getDestinationName(DestinationDomain domain, String destination) {
+    String getTopicName(TopicDomain domain, String topic) {
         try {
             checkNotNull(domain);
-            NamedEntity.checkName(destination);
-            return String.format("%s://%s/%s", domain.toString(), namespace, destination);
+            NamedEntity.checkName(topic);
+            return String.format("%s://%s/%s", domain.toString(), namespace, topic);
         } catch (NullPointerException e) {
-            throw new IllegalArgumentException("Null pointer is invalid as domain for destination.", e);
+            throw new IllegalArgumentException("Null pointer is invalid as domain for topic.", e);
         }
     }
 
@@ -203,8 +203,7 @@ public class NamespaceName implements ServiceUnitId {
     }
 
     @Override
-    public boolean includes(DestinationName dn) {
-        return this.equals(dn.getNamespaceObject());
+    public boolean includes(TopicName topicName) {
+        return this.equals(topicName.getNamespaceObject());
     }
-
 }

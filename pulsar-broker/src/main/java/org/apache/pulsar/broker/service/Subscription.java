@@ -42,7 +42,7 @@ public interface Subscription {
 
     void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties);
 
-    String getDestination();
+    String getTopicName();
 
     Dispatcher getDispatcher();
 

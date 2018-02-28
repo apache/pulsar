@@ -19,7 +19,7 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkNotNull;
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
@@ -39,7 +39,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -468,10 +468,10 @@ public class Producer {
     }
 
     public void checkPermissions() {
-        DestinationName destination = DestinationName.get(topic.getName());
+        TopicName topicName = TopicName.get(topic.getName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canProduce(destination, appId,
+                if (cnx.getBrokerService().getAuthorizationService().canProduce(topicName, appId,
                         authenticationData)) {
                     return;
                 }
@@ -479,14 +479,14 @@ public class Producer {
                 log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, topic.getName(), e.getMessage(),
                         e);
             }
-            log.info("[{}] is not allowed to produce from destination [{}] anymore", appId, topic.getName());
+            log.info("[{}] is not allowed to produce on topic [{}] anymore", appId, topic.getName());
             disconnect();
         }
     }
 
     public void checkEncryption() {
         if (topic.isEncryptionRequired() && !isEncrypted) {
-            log.info("[{}] [{}] Unencrypted producer is not allowed to produce from destination [{}] anymore",
+            log.info("[{}] [{}] Unencrypted producer is not allowed to produce on topic [{}] anymore",
                     producerId, producerName, topic.getName());
             disconnect();
         }

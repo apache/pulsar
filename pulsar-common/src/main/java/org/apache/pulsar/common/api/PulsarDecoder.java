@@ -20,8 +20,10 @@ package org.apache.pulsar.common.api;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
@@ -30,6 +32,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
@@ -51,7 +55,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
@@ -253,6 +256,35 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
                 handleReachedEndOfTopic(cmd.getReachedEndOfTopic());
                 cmd.getReachedEndOfTopic().recycle();
                 break;
+
+            case GET_LAST_MESSAGE_ID:
+                checkArgument(cmd.hasGetLastMessageId());
+                handleGetLastMessageId(cmd.getGetLastMessageId());
+                cmd.getGetLastMessageId().recycle();
+                break;
+
+            case GET_LAST_MESSAGE_ID_RESPONSE:
+                checkArgument(cmd.hasGetLastMessageIdResponse());
+                handleGetLastMessageIdSuccess(cmd.getGetLastMessageIdResponse());
+                cmd.getGetLastMessageIdResponse().recycle();
+                break;
+
+            case ACTIVE_CONSUMER_CHANGE:
+                handleActiveConsumerChange(cmd.getActiveConsumerChange());
+                cmd.getActiveConsumerChange().recycle();
+                break;
+
+            case GET_TOPICS_OF_NAMESPACE:
+                checkArgument(cmd.hasGetTopicsOfNamespace());
+                handleGetTopicsOfNamespace(cmd.getGetTopicsOfNamespace());
+                cmd.getGetTopicsOfNamespace().recycle();
+                break;
+
+            case GET_TOPICS_OF_NAMESPACE_RESPONSE:
+                checkArgument(cmd.hasGetTopicsOfNamespaceResponse());
+                handleGetTopicsOfNamespaceSuccess(cmd.getGetTopicsOfNamespaceResponse());
+                cmd.getGetTopicsOfNamespaceResponse().recycle();
+                break;
             }
         } finally {
             if (cmdBuilder != null) {
@@ -337,6 +369,10 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
         throw new UnsupportedOperationException();
     }
 
+    protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
+        throw new UnsupportedOperationException();
+    }
+
     protected void handleSuccess(CommandSuccess success) {
         throw new UnsupportedOperationException();
     }
@@ -374,6 +410,21 @@ public abstract class PulsarDecoder extends ChannelInboundHandlerAdapter {
     }
 
     protected void handleReachedEndOfTopic(CommandReachedEndOfTopic commandReachedEndOfTopic) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetLastMessageId(PulsarApi.CommandGetLastMessageId getLastMessageId) {
+        throw new UnsupportedOperationException();
+    }
+    protected void handleGetLastMessageIdSuccess(PulsarApi.CommandGetLastMessageIdResponse success) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        throw new UnsupportedOperationException();
+    }
+
+    protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse response) {
         throw new UnsupportedOperationException();
     }
 

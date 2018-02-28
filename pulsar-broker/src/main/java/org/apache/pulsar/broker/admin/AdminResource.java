@@ -39,7 +39,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -103,7 +103,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     /**
-     * Get the domain of the destination (whether it's queue or topic)
+     * Get the domain of the topic (whether it's persistent or non-persistent)
      */
     protected String domain() {
         if (uri.getPath().startsWith("persistent/")) {
@@ -237,28 +237,28 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected DestinationName destinationName;
+    protected TopicName topicName;
 
-    protected void validateDestinationName(String property, String namespace, String encodedTopic) {
+    protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
-            this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+            this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
                     topic, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
 
-        this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+        this.topicName = TopicName.get(domain(), namespaceName, topic);
     }
 
     @Deprecated
-    protected void validateDestinationName(String property, String cluster, String namespace, String encodedTopic) {
+    protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
-            this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+            this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
                     namespace, topic, e);
@@ -358,30 +358,30 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().failureDomainListCache();
     }
 
-    protected PartitionedTopicMetadata getPartitionedTopicMetadata(DestinationName destinationName,
+    protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
             boolean authoritative) {
-        validateClusterOwnership(destinationName.getCluster());
+        validateClusterOwnership(topicName.getCluster());
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        validateGlobalNamespaceOwnership(destinationName.getNamespaceObject());
+        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
 
         try {
-            checkConnect(destinationName);
+            checkConnect(topicName);
         } catch (WebApplicationException e) {
-            validateAdminAccessOnProperty(destinationName.getProperty());
+            validateAdminAccessOnProperty(topicName.getProperty());
         } catch (Exception e) {
             // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing lookup. destination={}, role={}. Error: {}", destinationName,
+            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
                     clientAppId(), e.getMessage(), e);
             throw new RestException(e);
         }
 
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), destinationName.getEncodedLocalName());
+        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), topicName.getEncodedLocalName());
         PartitionedTopicMetadata partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), destinationName,
+            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), topicName,
                     partitionMetadata.partitions);
         }
         return partitionMetadata;

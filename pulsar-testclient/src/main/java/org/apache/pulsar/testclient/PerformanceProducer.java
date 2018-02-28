@@ -86,7 +86,7 @@ public class PerformanceProducer {
         public String confFile;
 
         @Parameter(description = "persistent://prop/cluster/ns/my-topic", required = true)
-        public List<String> destinations;
+        public List<String> topics;
 
         @Parameter(names = { "-r", "--rate" }, description = "Publish rate msg/s across topics")
         public int msgRate = 100;
@@ -174,7 +174,7 @@ public class PerformanceProducer {
             System.exit(-1);
         }
 
-        if (arguments.destinations.size() != 1) {
+        if (arguments.topics.size() != 1) {
             System.out.println("Only one topic name is allowed");
             jc.usage();
             System.exit(-1);
@@ -230,8 +230,8 @@ public class PerformanceProducer {
         }
 
         // Now processing command line arguments
-        String prefixTopicName = arguments.destinations.get(0);
-        List<Future<Producer>> futures = Lists.newArrayList();
+        String prefixTopicName = arguments.topics.get(0);
+        List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setConnectionsPerBroker(arguments.maxConnections);
@@ -289,15 +289,15 @@ public class PerformanceProducer {
 
         for (int i = 0; i < arguments.numTopics; i++) {
             String topic = (arguments.numTopics == 1) ? prefixTopicName : String.format("%s-%d", prefixTopicName, i);
-            log.info("Adding {} publishers on destination {}", arguments.numProducers, topic);
+            log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
             for (int j = 0; j < arguments.numProducers; j++) {
                 futures.add(client.createProducerAsync(topic, producerConf));
             }
         }
 
-        final List<Producer> producers = Lists.newArrayListWithCapacity(futures.size());
-        for (Future<Producer> future : futures) {
+        final List<Producer<byte[]>> producers = Lists.newArrayListWithCapacity(futures.size());
+        for (Future<Producer<byte[]>> future : futures) {
             producers.add(future.get());
         }
 
@@ -321,7 +321,7 @@ public class PerformanceProducer {
                 // Send messages on all topics/producers
                 long totalSent = 0;
                 while (true) {
-                    for (Producer producer : producers) {
+                    for (Producer<byte[]> producer : producers) {
                         if (arguments.testTime > 0) {
                             if (System.currentTimeMillis() - startTime > arguments.testTime) {
                                 log.info("------------------- DONE -----------------------");

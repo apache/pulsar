@@ -24,6 +24,7 @@ import static org.apache.pulsar.client.impl.HttpClient.getPulsarClientVersion;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
 import java.nio.channels.ClosedChannelException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
@@ -33,17 +34,21 @@ import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.TimeoutException;
 import org.apache.pulsar.client.impl.BinaryProtoLookupService.LookupDataResult;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageIdResponse;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespaceResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandMessage;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse;
@@ -52,9 +57,9 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandReachedEndOfTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
-import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -76,6 +81,11 @@ public class ClientCnx extends PulsarHandler {
             16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(
             16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<MessageIdData>> pendingGetLastMessageIdRequests = new ConcurrentLongHashMap<>(
+        16, 1);
+    private final ConcurrentLongHashMap<CompletableFuture<List<String>>> pendingGetTopicsRequests = new ConcurrentLongHashMap<>(
+        16, 1);
+
     private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
     private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
 
@@ -101,7 +111,7 @@ public class ClientCnx extends PulsarHandler {
         None, SentConnectFrame, Ready, Failed
     }
 
-    public ClientCnx(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
+    public ClientCnx(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         super(30, TimeUnit.SECONDS);
         this.pendingLookupRequestSemaphore = new Semaphore(conf.getConcurrentLookupRequest(), true);
         this.authentication = conf.getAuthentication();
@@ -158,6 +168,8 @@ public class ClientCnx extends PulsarHandler {
         // Fail out all the pending ops
         pendingRequests.forEach((key, future) -> future.completeExceptionally(e));
         pendingLookupRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingGetLastMessageIdRequests.forEach((key, future) -> future.completeExceptionally(e));
+        pendingGetTopicsRequests.forEach((key, future) -> future.completeExceptionally(e));
 
         // Notify all attached producers/consumers so they have a chance to reconnect
         producers.forEach((id, producer) -> producer.connectionClosed(this));
@@ -190,14 +202,14 @@ public class ClientCnx extends PulsarHandler {
 
     @Override
     protected void handleConnected(CommandConnected connected) {
-        
+
         if (isTlsHostnameVerificationEnable && remoteHostName != null && !verifyTlsHostName(remoteHostName, ctx)) {
             // close the connection if host-verification failed with the broker
             log.warn("[{}] Failed to verify hostname of {}", ctx.channel(), remoteHostName);
             ctx.close();
             return;
         }
-        
+
         checkArgument(state == State.SentConnectFrame);
 
         if (log.isDebugEnabled()) {
@@ -248,6 +260,19 @@ public class ClientCnx extends PulsarHandler {
     }
 
     @Override
+    protected void handleActiveConsumerChange(CommandActiveConsumerChange change) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received a consumer group change message from the server : {}", ctx.channel(), change);
+        }
+        ConsumerImpl consumer = consumers.get(change.getConsumerId());
+        if (consumer != null) {
+            consumer.activeConsumerChanged(change.getIsActive());
+        }
+    }
+
+    @Override
     protected void handleSuccess(CommandSuccess success) {
         checkArgument(state == State.Ready);
 
@@ -258,6 +283,22 @@ public class ClientCnx extends PulsarHandler {
         CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.complete(null);
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
+        }
+    }
+
+    @Override
+    protected void handleGetLastMessageIdSuccess(CommandGetLastMessageIdResponse success) {
+        checkArgument(state == State.Ready);
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received success GetLastMessageId response from server: {}", ctx.channel(), success.getRequestId());
+        }
+        long requestId = success.getRequestId();
+        CompletableFuture<MessageIdData> requestFuture = pendingGetLastMessageIdRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(success.getLastMessageId());
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -478,6 +519,42 @@ public class ClientCnx extends PulsarHandler {
         return future;
     }
 
+    public CompletableFuture<List<String>> newGetTopicsOfNamespace(ByteBuf request, long requestId) {
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+
+        pendingGetTopicsRequests.put(requestId, future);
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send request {} to broker: {}", ctx.channel(), requestId,
+                    writeFuture.cause().getMessage());
+                pendingGetTopicsRequests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+
+        return future;
+    }
+
+    @Override
+    protected void handleGetTopicsOfNamespaceSuccess(CommandGetTopicsOfNamespaceResponse success) {
+        checkArgument(state == State.Ready);
+
+        long requestId = success.getRequestId();
+        List<String> topics = success.getTopicsList();
+
+        if (log.isDebugEnabled()) {
+            log.debug("{} Received get topics of namespace success response from server: {} - topics.size: {}",
+                ctx.channel(), success.getRequestId(), topics.size());
+        }
+
+        CompletableFuture<List<String>> requestFuture = pendingGetTopicsRequests.remove(requestId);
+        if (requestFuture != null) {
+            requestFuture.complete(topics);
+        } else {
+            log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
+        }
+    }
+
     Promise<Void> newPromise() {
         return ctx.newPromise();
     }
@@ -508,6 +585,22 @@ public class ClientCnx extends PulsarHandler {
                 future.completeExceptionally(writeFuture.cause());
             }
         });
+        return future;
+    }
+
+    public CompletableFuture<MessageIdData> sendGetLastMessageId(ByteBuf request, long requestId) {
+        CompletableFuture<MessageIdData> future = new CompletableFuture<>();
+
+        pendingGetLastMessageIdRequests.put(requestId, future);
+
+        ctx.writeAndFlush(request).addListener(writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                log.warn("{} Failed to send GetLastMessageId request to broker: {}", ctx.channel(), writeFuture.cause().getMessage());
+                pendingGetLastMessageIdRequests.remove(requestId);
+                future.completeExceptionally(writeFuture.cause());
+            }
+        });
+
         return future;
     }
 
@@ -542,9 +635,9 @@ public class ClientCnx extends PulsarHandler {
 
     /**
      * verifies host name provided in x509 Certificate in tls session
-     * 
+     *
      * it matches hostname with below scenarios
-     * 
+     *
      * <pre>
      *  1. Supports IPV4 and IPV6 host matching
      *  2. Supports wild card matching for DNS-name
@@ -554,7 +647,7 @@ public class ClientCnx extends PulsarHandler {
      * 2.  localhost                    local*       PASS
      * 3.  pulsar1-broker.com           pulsar*.com  PASS
      * </pre>
-     * 
+     *
      * @param ctx
      * @return true if hostname is verified else return false
      */
@@ -597,7 +690,7 @@ public class ClientCnx extends PulsarHandler {
      void setRemoteHostName(String remoteHostName) {
         this.remoteHostName = remoteHostName;
     }
-    
+
     private PulsarClientException getPulsarClientException(ServerError error, String errorMsg) {
         switch (error) {
         case AuthenticationError:

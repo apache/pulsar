@@ -25,7 +25,7 @@ import org.apache.pulsar.client.admin.Lookup;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.lookup.data.LookupData;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 
 public class LookupImpl extends BaseResource implements Lookup {
 
@@ -47,26 +47,26 @@ public class LookupImpl extends BaseResource implements Lookup {
     }
 
     @Override
-    public String lookupDestination(String destination) throws PulsarAdminException {
+    public String lookupTopic(String topic) throws PulsarAdminException {
         try {
-            DestinationName destName = DestinationName.get(destination);
-            return doDestinationLookup(v2lookup.path("/destination"), destName);
+            TopicName topicName = TopicName.get(topic);
+            return doTopicLookup(v2lookup.path("/destination"), topicName);
         } catch (Exception e) {
             throw getLookupApiException(e);
         }
     }
 
     @Override
-    public String getBundleRange(String destination) throws PulsarAdminException {
+    public String getBundleRange(String topic) throws PulsarAdminException {
         try {
-            DestinationName destName = DestinationName.get(destination);
+            TopicName destName = TopicName.get(topic);
             return request(v2lookup.path("/destination").path(destName.getLookupName()).path("bundle")).get(String.class);
         } catch (Exception e) {
             throw getLookupApiException(e);
         }
     }
 
-    private String doDestinationLookup(WebTarget lookupResource, DestinationName destName) throws PulsarAdminException {
+    private String doTopicLookup(WebTarget lookupResource, TopicName destName) throws PulsarAdminException {
         LookupData lookupData = request(lookupResource.path(destName.getLookupName())).get(LookupData.class);
         if (useTls) {
             return lookupData.getBrokerUrlTls();

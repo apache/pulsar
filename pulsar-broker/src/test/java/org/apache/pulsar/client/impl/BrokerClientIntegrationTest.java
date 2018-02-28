@@ -64,7 +64,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.HandlerBase.State;
 import org.apache.pulsar.common.api.PulsarHandler;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
@@ -126,12 +126,12 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(ns1);
         admin.namespaces().createNamespace(ns2);
 
-        final String dn1 = "persistent://" + ns1 + "/my-topic";
-        final String dn2 = "persistent://" + ns2 + "/my-topic";
-        ConsumerImpl cons1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name",
+        final String topic1 = "persistent://" + ns1 + "/my-topic";
+        final String topic2 = "persistent://" + ns2 + "/my-topic";
+        ConsumerImpl cons1 = (ConsumerImpl) pulsarClient.subscribe(topic1, "my-subscriber-name",
                 new ConsumerConfiguration());
-        ProducerImpl prod1 = (ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration());
-        ProducerImpl prod2 = (ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration());
+        ProducerImpl prod1 = (ProducerImpl) pulsarClient.createProducer(topic1, new ProducerConfiguration());
+        ProducerImpl prod2 = (ProducerImpl) pulsarClient.createProducer(topic2, new ProducerConfiguration());
         ConsumerImpl consumer1 = spy(cons1);
         doAnswer(invocationOnMock -> cons1.getState()).when(consumer1).getState();
         doAnswer(invocationOnMock -> cons1.getClientCnx()).when(consumer1).getClientCnx();
@@ -178,8 +178,8 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         // disable this broker to avoid any new requests
         pulsar.getLoadManager().get().disableBroker();
 
-        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn1));
-        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(DestinationName.get(dn2));
+        NamespaceBundle bundle1 = pulsar.getNamespaceService().getBundle(TopicName.get(topic1));
+        NamespaceBundle bundle2 = pulsar.getNamespaceService().getBundle(TopicName.get(topic2));
 
         // unload ns-bundle:1
         pulsar.getNamespaceService().unloadNamespaceBundle((NamespaceBundle) bundle1);
@@ -245,13 +245,13 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(ns1);
         admin.namespaces().createNamespace(ns2);
 
-        final String dn1 = "persistent://" + ns1 + "/my-topic";
-        final String dn2 = "persistent://" + ns2 + "/my-topic";
+        final String topic1 = "persistent://" + ns1 + "/my-topic";
+        final String topic2 = "persistent://" + ns2 + "/my-topic";
 
-        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(dn1, "my-subscriber-name",
+        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topic1, "my-subscriber-name",
                 new ConsumerConfiguration());
-        ProducerImpl producer1 = (ProducerImpl) pulsarClient.createProducer(dn1, new ProducerConfiguration());
-        ProducerImpl producer2 = (ProducerImpl) pulsarClient.createProducer(dn2, new ProducerConfiguration());
+        ProducerImpl producer1 = (ProducerImpl) pulsarClient.createProducer(topic1, new ProducerConfiguration());
+        ProducerImpl producer2 = (ProducerImpl) pulsarClient.createProducer(topic2, new ProducerConfiguration());
 
         // unload all other namespace
         pulsar.getBrokerService().close();
@@ -376,7 +376,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
     @Test(timeOut = 10000, dataProvider = "subType")
     public void testResetCursor(SubscriptionType subType) throws Exception {
         final RetentionPolicies policy = new RetentionPolicies(60, 52 * 1024);
-        final DestinationName destName = DestinationName.get("persistent://my-property/use/my-ns/unacked-topic");
+        final TopicName destName = TopicName.get("persistent://my-property/use/my-ns/unacked-topic");
         final int warmup = 20;
         final int testSize = 150;
         final List<Message> received = new ArrayList<Message>();
@@ -602,7 +602,7 @@ public class BrokerClientIntegrationTest extends ProducerConsumerBase {
             ClientCnx cnx = producer.cnx();
             assertTrue(cnx.channel().isActive());
             ExecutorService executor = Executors.newFixedThreadPool(concurrentLookupRequests);
-            List<CompletableFuture<Producer>> futures = Lists.newArrayList();
+            List<CompletableFuture<Producer<byte[]>>> futures = Lists.newArrayList();
             final int totalProducers = 10;
             CountDownLatch latch = new CountDownLatch(totalProducers);
             final ProducerConfiguration config1 = new ProducerConfiguration();

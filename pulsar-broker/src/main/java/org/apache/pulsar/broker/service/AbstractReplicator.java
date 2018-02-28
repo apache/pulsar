@@ -18,17 +18,21 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.web.PulsarWebResource.path;
+
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 
-import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.Position;
+import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -43,7 +47,7 @@ public abstract class AbstractReplicator {
     protected volatile ProducerImpl producer;
 
     protected final int producerQueueSize;
-    protected final ProducerConfiguration producerConfiguration;
+    protected final ProducerBuilder<byte[]> producerBuilder;
 
     protected final Backoff backOff = new Backoff(100, TimeUnit.MILLISECONDS, 1, TimeUnit.MINUTES, 0 ,TimeUnit.MILLISECONDS);
 
@@ -57,8 +61,9 @@ public abstract class AbstractReplicator {
         Stopped, Starting, Started, Stopping
     }
 
-    public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster,
-            String remoteCluster, BrokerService brokerService) {
+    public AbstractReplicator(String topicName, String replicatorPrefix, String localCluster, String remoteCluster,
+            BrokerService brokerService) throws NamingException {
+        validatePartitionedTopic(topicName, brokerService);
         this.brokerService = brokerService;
         this.topicName = topicName;
         this.replicatorPrefix = replicatorPrefix;
@@ -68,24 +73,20 @@ public abstract class AbstractReplicator {
         this.producer = null;
         this.producerQueueSize = brokerService.pulsar().getConfiguration().getReplicationProducerQueueSize();
 
-        this.producerConfiguration = new ProducerConfiguration();
-        this.producerConfiguration.setSendTimeout(0, TimeUnit.SECONDS);
-        this.producerConfiguration.setMaxPendingMessages(producerQueueSize);
-        this.producerConfiguration.setProducerName(getReplicatorName(replicatorPrefix, localCluster));
+        this.producerBuilder = client.newProducer() //
+                .topic(topicName).sendTimeout(0, TimeUnit.SECONDS) //
+                .maxPendingMessages(producerQueueSize) //
+                .producerName(getReplicatorName(replicatorPrefix, localCluster));
         STATE_UPDATER.set(this, State.Stopped);
     }
 
-    protected abstract void readEntries(org.apache.pulsar.client.api.Producer producer);
+    protected abstract void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer);
 
     protected abstract Position getReplicatorReadPosition();
 
     protected abstract long getNumberOfEntriesInBacklog();
 
     protected abstract void disableReplicatorRead();
-
-    public ProducerConfiguration getProducerConfiguration() {
-        return producerConfiguration;
-    }
 
     public String getRemoteCluster() {
         return remoteCluster;
@@ -121,7 +122,7 @@ public abstract class AbstractReplicator {
         }
 
         log.info("[{}][{} -> {}] Starting replicator", topicName, localCluster, remoteCluster);
-        client.createProducerAsync(topicName, producerConfiguration).thenAccept(producer -> {
+        producerBuilder.createAsync().thenAccept(producer -> {
             readEntries(producer);
         }).exceptionally(ex -> {
             if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Stopped)) {
@@ -212,6 +213,43 @@ public abstract class AbstractReplicator {
 
     public static String getReplicatorName(String replicatorPrefix, String cluster) {
         return (replicatorPrefix + "." + cluster).intern();
+    }
+
+    /**
+     * Replication can't be started on root-partitioned-topic to avoid producer startup conflict.
+     *
+     * <pre>
+     * eg:
+     * if topic : persistent://prop/cluster/ns/my-topic is a partitioned topic with 2 partitions then
+     * broker explicitly creates replicator producer for: "my-topic-partition-1" and "my-topic-partition-2".
+     *
+     * However, if broker tries to start producer with root topic "my-topic" then client-lib internally creates individual
+     * producers for "my-topic-partition-1" and "my-topic-partition-2" which creates conflict with existing
+     * replicator producers.
+     * </pre>
+     *
+     * Therefore, replicator can't be started on root-partition topic which can internally create multiple partitioned
+     * producers.
+     *
+     * @param topic
+     * @param brokerService
+     */
+    private void validatePartitionedTopic(String topic, BrokerService brokerService) throws NamingException {
+        TopicName topicName = TopicName.get(topic);
+        String partitionedTopicPath = path(AdminResource.PARTITIONED_TOPIC_PATH_ZNODE,
+                topicName.getNamespace().toString(), topicName.getDomain().toString(),
+                topicName.getEncodedLocalName());
+        boolean isPartitionedTopic = false;
+        try {
+            isPartitionedTopic = brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(partitionedTopicPath).isPresent();
+        } catch (Exception e) {
+            log.warn("Failed to verify partitioned topic {}-{}", topicName, e.getMessage());
+        }
+        if (isPartitionedTopic) {
+            throw new NamingException(
+                    topicName + " is a partitioned-topic and replication can't be started for partitioned-producer ");
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(AbstractReplicator.class);

@@ -54,8 +54,8 @@ import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.MessageIdImpl;
-import org.apache.pulsar.common.naming.DestinationDomain;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.FailureDomain;
 import org.apache.pulsar.common.policies.data.NonPersistentTopicStats;
@@ -78,8 +78,6 @@ import com.google.common.collect.Sets;
 import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 
 public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
-
-    private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest2.class);
 
     private MockedPulsarService mockPulsarSetup;
 
@@ -111,8 +109,8 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
     @DataProvider(name = "topicType")
     public Object[][] topicTypeProvider() {
-        return new Object[][] { { DestinationDomain.persistent.value() },
-                { DestinationDomain.non_persistent.value() } };
+        return new Object[][] { { TopicDomain.persistent.value() },
+                { TopicDomain.non_persistent.value() } };
     }
 
     @DataProvider(name = "namespaceNames")
@@ -170,7 +168,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions,
                 newPartitions);
         // (2) No Msg loss: verify new partitions have the same existing subscription names
-        final String newPartitionTopicName = DestinationName.get(partitionedTopicName).getPartition(startPartitions + 1)
+        final String newPartitionTopicName = TopicName.get(partitionedTopicName).getPartition(startPartitions + 1)
                 .toString();
 
         // (3) produce messages to all partitions including newly created partitions (RoundRobin)
@@ -212,7 +210,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         assertEquals(topicStats.partitions.keySet(), partitionSet);
         for (int i = 0; i < newPartitions; i++) {
             PersistentTopicStats partitionStats = topicStats.partitions
-                    .get(DestinationName.get(partitionedTopicName).getPartition(i).toString());
+                    .get(TopicName.get(partitionedTopicName).getPartition(i).toString());
             assertEquals(partitionStats.publishers.size(), 1);
             assertEquals(partitionStats.subscriptions.get(subName2).consumers.size(), 1);
             assertEquals(partitionStats.subscriptions.get(subName2).msgBacklog, 2, 1);
@@ -235,7 +233,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String topicName = "nonPersistentTopic";
 
         final String persistentTopicName = "non-persistent://prop-xyz/use/ns1/" + topicName;
-        // Force to create a destination
+        // Force to create a topic
         publishMessagesOnTopic("non-persistent://prop-xyz/use/ns1/" + topicName, 0, 0);
 
         // create consumer and subscription

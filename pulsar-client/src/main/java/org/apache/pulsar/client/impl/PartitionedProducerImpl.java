@@ -30,28 +30,29 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageRouter;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.TopicMetadata;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
-public class PartitionedProducerImpl extends ProducerBase {
+public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
-    private List<ProducerImpl> producers;
+    private List<ProducerImpl<T>> producers;
     private MessageRouter routerPolicy;
     private final ProducerStats stats;
     private final TopicMetadata topicMetadata;
 
-    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfiguration conf, int numPartitions,
-            CompletableFuture<Producer> producerCreatedFuture) {
-        super(client, topic, conf, producerCreatedFuture);
+    public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
+        super(client, topic, conf, producerCreatedFuture, schema);
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
@@ -67,7 +68,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         MessageRouter messageRouter;
 
         MessageRoutingMode messageRouteMode = conf.getMessageRoutingMode();
-        MessageRouter customMessageRouter = conf.getMessageRouter();
+        MessageRouter customMessageRouter = conf.getCustomMessageRouter();
 
         switch (messageRouteMode) {
         case CustomPartition:
@@ -102,9 +103,9 @@ public class PartitionedProducerImpl extends ProducerBase {
         AtomicReference<Throwable> createFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger();
         for (int partitionIndex = 0; partitionIndex < topicMetadata.numPartitions(); partitionIndex++) {
-            String partitionName = DestinationName.get(topic).getPartition(partitionIndex).toString();
-            ProducerImpl producer = new ProducerImpl(client, partitionName, conf, new CompletableFuture<Producer>(),
-                    partitionIndex);
+            String partitionName = TopicName.get(topic).getPartition(partitionIndex).toString();
+            ProducerImpl<T> producer = new ProducerImpl<>(client, partitionName, conf, new CompletableFuture<>(),
+                    partitionIndex, schema);
             producers.add(producer);
             producer.producerCreatedFuture().handle((prod, createException) -> {
                 if (createException != null) {
@@ -138,7 +139,7 @@ public class PartitionedProducerImpl extends ProducerBase {
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(Message message) {
+    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
 
         switch (getState()) {
         case Ready:
@@ -180,7 +181,7 @@ public class PartitionedProducerImpl extends ProducerBase {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(topicMetadata.numPartitions());
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Producer producer : producers) {
+        for (Producer<T> producer : producers) {
             if (producer != null) {
                 producer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {

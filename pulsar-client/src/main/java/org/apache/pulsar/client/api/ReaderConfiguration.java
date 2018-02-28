@@ -18,27 +18,29 @@
  */
 package org.apache.pulsar.client.api;
 
+import org.apache.commons.lang3.StringUtils;
+
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
 
+import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
+
+/**
+ *
+ * @deprecated Use {@link PulsarClient#newReader()} to construct and configure a {@link Reader} instance
+ */
+@Deprecated
 public class ReaderConfiguration implements Serializable {
 
-    private int receiverQueueSize = 1000;
-
-    private ReaderListener readerListener;
-
-    private String readerName = null;
-
-    private CryptoKeyReader cryptoKeyReader = null;
-    private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
+    private final ReaderConfigurationData<byte[]> conf = new ReaderConfigurationData<>();
 
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
-    public ReaderListener getReaderListener() {
-        return this.readerListener;
+    public ReaderListener<byte[]> getReaderListener() {
+        return conf.getReaderListener();
     }
 
     /**
@@ -50,9 +52,9 @@ public class ReaderConfiguration implements Serializable {
      * @param readerListener
      *            the listener object
      */
-    public ReaderConfiguration setReaderListener(ReaderListener readerListener) {
+    public ReaderConfiguration setReaderListener(ReaderListener<byte[]> readerListener) {
         checkNotNull(readerListener);
-        this.readerListener = readerListener;
+        conf.setReaderListener(readerListener);
         return this;
     }
 
@@ -60,14 +62,14 @@ public class ReaderConfiguration implements Serializable {
      * @return the configure receiver queue size value
      */
     public int getReceiverQueueSize() {
-        return this.receiverQueueSize;
+        return conf.getReceiverQueueSize();
     }
 
     /**
      * @return the CryptoKeyReader
      */
     public CryptoKeyReader getCryptoKeyReader() {
-        return this.cryptoKeyReader;
+        return conf.getCryptoKeyReader();
     }
 
     /**
@@ -78,24 +80,25 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
-        this.cryptoKeyReader = cryptoKeyReader;
+        conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      * 
-     * @param The consumer action
+     * @param action
+     *            The action to take when the decoding fails
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
-        cryptoFailureAction = action;
+        conf.setCryptoFailureAction(action);
     }
 
     /**
      * @return The ConsumerCryptoFailureAction
      */
     public ConsumerCryptoFailureAction getCryptoFailureAction() {
-        return this.cryptoFailureAction;
+        return conf.getCryptoFailureAction();
     }
 
     /**
@@ -112,7 +115,7 @@ public class ReaderConfiguration implements Serializable {
      */
     public ReaderConfiguration setReceiverQueueSize(int receiverQueueSize) {
         checkArgument(receiverQueueSize >= 0, "Receiver queue size cannot be negative");
-        this.receiverQueueSize = receiverQueueSize;
+        conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }
 
@@ -120,7 +123,7 @@ public class ReaderConfiguration implements Serializable {
      * @return the consumer name
      */
     public String getReaderName() {
-        return readerName;
+        return conf.getReaderName();
     }
 
     /**
@@ -129,9 +132,31 @@ public class ReaderConfiguration implements Serializable {
      * @param readerName
      */
     public ReaderConfiguration setReaderName(String readerName) {
-        checkArgument(readerName != null && !readerName.equals(""));
-        this.readerName = readerName;
+        checkArgument(StringUtils.isNotBlank(readerName));
+        conf.setReaderName(readerName);
         return this;
+    }
+
+    /**
+     * @return the subscription role prefix for subscription auth
+     */
+    public String getSubscriptionRolePrefix() {
+        return conf.getSubscriptionRolePrefix();
+    }
+
+    /**
+     * Set the subscription role prefix for subscription auth. The default prefix is "reader".
+     *
+     * @param subscriptionRolePrefix
+     */
+    public ReaderConfiguration setSubscriptionRolePrefix(String subscriptionRolePrefix) {
+        checkArgument(StringUtils.isNotBlank(subscriptionRolePrefix));
+        conf.setSubscriptionRolePrefix(subscriptionRolePrefix);
+        return this;
+    }
+
+    public ReaderConfigurationData<byte[]> getReaderConfigurationData() {
+        return conf;
     }
 
     private static final long serialVersionUID = 1L;

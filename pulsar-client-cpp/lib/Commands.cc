@@ -381,6 +381,9 @@ std::string Commands::messageType(BaseCommand_Type type) {
         case BaseCommand::SEEK:
             return "SEEK";
             break;
+        case BaseCommand::ACTIVE_CONSUMER_CHANGE:
+            return "ACTIVE_CONSUMER_CHANGE";
+            break;
     };
 }
 

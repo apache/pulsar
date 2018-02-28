@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.websocket.WebSocketService;
@@ -63,7 +63,7 @@ public class ProxyStats {
         topicStats.clear();
 
         service.getProducers().forEach((topic, handlers) -> {
-            final String namespaceName = DestinationName.get(topic).getNamespace();
+            final String namespaceName = TopicName.get(topic).getNamespace();
             ProxyNamespaceStats nsStat = topicStats.computeIfAbsent(namespaceName, ns -> new ProxyNamespaceStats());
             handlers.forEach(handler -> {
                 nsStat.numberOfMsgPublished += handler.getAndResetNumMsgsSent();
@@ -78,7 +78,7 @@ public class ProxyStats {
             });
         });
         service.getConsumers().forEach((topic, handlers) -> {
-            final String namespaceName = DestinationName.get(topic).getNamespace();
+            final String namespaceName = TopicName.get(topic).getNamespace();
             ProxyNamespaceStats nsStat = topicStats.computeIfAbsent(namespaceName, ns -> new ProxyNamespaceStats());
             handlers.forEach(handler -> {
                 nsStat.numberOfMsgDelivered += handler.getAndResetNumMsgsAcked();

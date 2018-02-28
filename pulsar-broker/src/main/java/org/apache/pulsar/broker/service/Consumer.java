@@ -44,7 +44,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
@@ -150,6 +150,21 @@ public class Consumer {
 
     public String consumerName() {
         return consumerName;
+    }
+
+    void notifyActiveConsumerChange(Consumer activeConsumer) {
+        if (!Commands.peerSupportsActiveConsumerListener(cnx.getRemoteEndpointProtocolVersion())) {
+            // if the client is older than `v12`, we don't need to send consumer group changes.
+            return;
+        }
+
+        if (log.isDebugEnabled()) {
+            log.debug("notify consumer {} - that [{}] for subscription {} has new active consumer : {}",
+                consumerId, topicName, subscription.getName(), activeConsumer);
+        }
+        cnx.ctx().writeAndFlush(
+            Commands.newActiveConsumerChange(consumerId, this == activeConsumer),
+            cnx.ctx().voidPromise());
     }
 
     public boolean readCompacted() {
@@ -466,19 +481,18 @@ public class Consumer {
     }
 
     public void checkPermissions() {
-        DestinationName destination = DestinationName.get(subscription.getDestination());
+        TopicName topicName = TopicName.get(subscription.getTopicName());
         if (cnx.getBrokerService().getAuthorizationService() != null) {
             try {
-                if (cnx.getBrokerService().getAuthorizationService().canConsume(destination, appId, authenticationData,
+                if (cnx.getBrokerService().getAuthorizationService().canConsume(topicName, appId, authenticationData,
                         subscription.getName())) {
                     return;
                 }
             } catch (Exception e) {
-                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getDestination(),
+                log.warn("[{}] Get unexpected error while autorizing [{}]  {}", appId, subscription.getTopicName(),
                         e.getMessage(), e);
             }
-            log.info("[{}] is not allowed to consume from Destination" + " [{}] anymore", appId,
-                    subscription.getDestination());
+            log.info("[{}] is not allowed to consume from topic [{}] anymore", appId, subscription.getTopicName());
             disconnect();
         }
     }

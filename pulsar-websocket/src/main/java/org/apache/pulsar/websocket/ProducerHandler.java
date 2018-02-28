@@ -41,8 +41,10 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConfiguration.HashingScheme;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededError;
+import org.apache.pulsar.client.api.PulsarClientException.ProducerBlockedQuotaExceededException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ProducerAck;
 import org.apache.pulsar.websocket.data.ProducerMessage;
@@ -66,7 +68,7 @@ import com.google.common.base.Enums;
 
 public class ProducerHandler extends AbstractWebSocketHandler {
 
-    private Producer producer;
+    private Producer<byte[]> producer;
     private final LongAdder numMsgsSent;
     private final LongAdder numMsgsFailed;
     private final LongAdder numBytesSent;
@@ -85,7 +87,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         this.numMsgsFailed = new LongAdder();
         this.publishLatencyStatsUSec = new StatsBuckets(ENTRY_LATENCY_BUCKETS_USEC);
 
-        if (!authResult) {
+        if (!checkAuth(response)) {
             return;
         }
 
@@ -114,6 +116,8 @@ public class ProducerHandler extends AbstractWebSocketHandler {
             return HttpServletResponse.SC_BAD_REQUEST;
         } else if (e instanceof ProducerBusyException) {
             return HttpServletResponse.SC_CONFLICT;
+        } else if (e instanceof ProducerBlockedQuotaExceededError || e instanceof ProducerBlockedQuotaExceededException) {
+            return HttpServletResponse.SC_SERVICE_UNAVAILABLE;
         } else {
             return HttpServletResponse.SC_INTERNAL_SERVER_ERROR;
         }
@@ -174,7 +178,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         if (sendRequest.replicationClusters != null) {
             builder.setReplicationClusters(sendRequest.replicationClusters);
         }
-        Message msg = builder.build();
+        Message<byte[]> msg = builder.build();
 
         final long now = System.nanoTime();
         producer.sendAsync(msg).thenAccept(msgId -> {
@@ -222,7 +226,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canProduce(DestinationName.get(topic), authRole, authenticationData);
+        return service.getAuthorizationService().canProduce(TopicName.get(topic), authRole, authenticationData);
     }
 
     private void sendAckResponse(ProducerAck response) {

@@ -39,15 +39,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.SafeRun;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ProducerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicBusyException;
@@ -64,7 +66,7 @@ import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
@@ -106,7 +108,7 @@ public class NonPersistentTopic implements Topic {
             .newUpdater(NonPersistentTopic.class, "usageCount");
     private volatile long usageCount = 0;
 
-    private final OrderedSafeExecutor executor;
+    private final OrderedScheduler executor;
 
     private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock();
 
@@ -170,7 +172,7 @@ public class NonPersistentTopic implements Topic {
 
         try {
             Policies policies = brokerService.pulsar().getConfigurationCache().policiesCache()
-                    .get(AdminResource.path(POLICIES, DestinationName.get(topic).getNamespace()))
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
                     .orElseThrow(() -> new KeeperException.NoNodeException());
             isEncryptionRequired = policies.encryption_required;
         } catch (Exception e) {
@@ -232,6 +234,11 @@ public class NonPersistentTopic implements Topic {
                 throw new TopicFencedException("Topic is temporarily unavailable");
             }
 
+            if (isProducersExceeded()) {
+                log.warn("[{}] Attempting to add producer to topic which reached max producers limit", topic);
+                throw new ProducerBusyException("Topic reached max producers limit");
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug("[{}] {} Got request to create producer ", topic, producer.getProducerName());
             }
@@ -250,6 +257,24 @@ public class NonPersistentTopic implements Topic {
         } finally {
             lock.readLock().unlock();
         }
+    }
+
+    private boolean isProducersExceeded() {
+        Policies policies;
+        try {
+            policies =  brokerService.pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxProducers = policies.max_producers_per_topic > 0 ?
+                policies.max_producers_per_topic :
+                brokerService.pulsar().getConfiguration().getMaxProducersPerTopic();
+        if (maxProducers > 0 && maxProducers <= producers.size()) {
+            return true;
+        }
+        return false;
     }
 
     @Override
@@ -480,7 +505,7 @@ public class NonPersistentTopic implements Topic {
 
     @Override
     public CompletableFuture<Void> checkReplication() {
-        DestinationName name = DestinationName.get(topic);
+        TopicName name = TopicName.get(topic);
         if (!name.isGlobal()) {
             return CompletableFuture.completedFuture(null);
         }
@@ -518,7 +543,12 @@ public class NonPersistentTopic implements Topic {
             }
 
             if (!replicators.containsKey(cluster)) {
-                startReplicator(cluster);
+                if (!startReplicator(cluster)) {
+                    // it happens when global topic is a partitioned topic and replicator can't start on original
+                    // non partitioned-topic (topic without partition prefix)
+                    return FutureUtil
+                            .failedFuture(new NamingException(topic + " failed to start replicator for " + cluster));
+                }
             }
         }
 
@@ -533,11 +563,28 @@ public class NonPersistentTopic implements Topic {
         return FutureUtil.waitForAll(futures);
     }
 
-    void startReplicator(String remoteCluster) {
+    boolean startReplicator(String remoteCluster) {
         log.info("[{}] Starting replicator to remote: {}", topic, remoteCluster);
         String localCluster = brokerService.pulsar().getConfiguration().getClusterName();
-        replicators.computeIfAbsent(remoteCluster,
-                r -> new NonPersistentReplicator(NonPersistentTopic.this, localCluster, remoteCluster, brokerService));
+        return addReplicationCluster(remoteCluster,NonPersistentTopic.this, localCluster);
+    }
+
+    protected boolean addReplicationCluster(String remoteCluster, NonPersistentTopic nonPersistentTopic, String localCluster) {
+        AtomicBoolean isReplicatorStarted = new AtomicBoolean(true);
+        replicators.computeIfAbsent(remoteCluster, r -> {
+            try {
+                return new NonPersistentReplicator(NonPersistentTopic.this, localCluster, remoteCluster, brokerService);
+            } catch (NamingException e) {
+                isReplicatorStarted.set(false);
+                log.error("[{}] Replicator startup failed due to partitioned-topic {}", topic, remoteCluster);
+            }
+            return null;
+        });
+        // clean up replicator if startup is failed
+        if (!isReplicatorStarted.get()) {
+            replicators.remove(remoteCluster);
+        }
+        return isReplicatorStarted.get();
     }
 
     CompletableFuture<Void> removeReplicator(String remoteCluster) {
@@ -589,6 +636,14 @@ public class NonPersistentTopic implements Topic {
         return producers;
     }
 
+    public int getNumberOfConsumers() {
+        int count = 0;
+        for (NonPersistentSubscription subscription : subscriptions.values()) {
+            count += subscription.getConsumers().size();
+        }
+        return count;
+    }
+
     @Override
     public ConcurrentOpenHashMap<String, NonPersistentSubscription> getSubscriptions() {
         return subscriptions;
@@ -617,7 +672,7 @@ public class NonPersistentTopic implements Topic {
         return topic;
     }
 
-    public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream destStatsStream,
+    public void updateRates(NamespaceStats nsStats, NamespaceBundleStats bundleStats, StatsOutputStream topicStatsStream,
             ClusterReplicationMetrics replStats, String namespace) {
 
         TopicStats topicStats = threadLocalTopicStats.get();
@@ -627,7 +682,7 @@ public class NonPersistentTopic implements Topic {
 
         nsStats.producerCount += producers.size();
         bundleStats.producerCount += producers.size();
-        destStatsStream.startObject(topic);
+        topicStatsStream.startObject(topic);
 
         producers.forEach(producer -> {
             producer.updateRates();
@@ -642,18 +697,18 @@ public class NonPersistentTopic implements Topic {
         });
 
         // Creating publishers object for backward compatibility
-        destStatsStream.startList("publishers");
-        destStatsStream.endList();
+        topicStatsStream.startList("publishers");
+        topicStatsStream.endList();
 
         // Start replicator stats
-        destStatsStream.startObject("replication");
+        topicStatsStream.startObject("replication");
         nsStats.replicatorCount += topicStats.remotePublishersStats.size();
 
         // Close replication
-        destStatsStream.endObject();
+        topicStatsStream.endObject();
 
         // Start subscription stats
-        destStatsStream.startObject("subscriptions");
+        topicStatsStream.startObject("subscriptions");
         nsStats.subsCount += subscriptions.size();
 
         subscriptions.forEach((subscriptionName, subscription) -> {
@@ -663,12 +718,12 @@ public class NonPersistentTopic implements Topic {
 
             // Start subscription name & consumers
             try {
-                destStatsStream.startObject(subscriptionName);
+                topicStatsStream.startObject(subscriptionName);
                 Object[] consumers = subscription.getConsumers().array();
                 nsStats.consumerCount += consumers.length;
                 bundleStats.consumerCount += consumers.length;
 
-                destStatsStream.startList("consumers");
+                topicStatsStream.startList("consumers");
 
                 subscription.getDispatcher().getMesssageDropRate().calculateRate();
                 for (Object consumerObj : consumers) {
@@ -681,43 +736,43 @@ public class NonPersistentTopic implements Topic {
                     subMsgRateRedeliver += consumerStats.msgRateRedeliver;
 
                     // Populate consumer specific stats here
-                    destStatsStream.startObject();
-                    destStatsStream.writePair("address", consumerStats.address);
-                    destStatsStream.writePair("consumerName", consumerStats.consumerName);
-                    destStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    destStatsStream.writePair("connectedSince", consumerStats.connectedSince);
-                    destStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
-                    destStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
-                    destStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
+                    topicStatsStream.startObject();
+                    topicStatsStream.writePair("address", consumerStats.address);
+                    topicStatsStream.writePair("consumerName", consumerStats.consumerName);
+                    topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
+                    topicStatsStream.writePair("connectedSince", consumerStats.connectedSince);
+                    topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
+                    topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
+                    topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
 
                     if (SubType.Shared.equals(subscription.getType())) {
-                        destStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
-                        destStatsStream.writePair("blockedConsumerOnUnackedMsgs",
+                        topicStatsStream.writePair("unackedMessages", consumerStats.unackedMessages);
+                        topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
                                 consumerStats.blockedConsumerOnUnackedMsgs);
                     }
                     if (consumerStats.clientVersion != null) {
-                        destStatsStream.writePair("clientVersion", consumerStats.clientVersion);
+                        topicStatsStream.writePair("clientVersion", consumerStats.clientVersion);
                     }
-                    destStatsStream.endObject();
+                    topicStatsStream.endObject();
                 }
 
                 // Close Consumer stats
-                destStatsStream.endList();
+                topicStatsStream.endList();
 
                 // Populate subscription specific stats here
-                destStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
-                destStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
-                destStatsStream.writePair("msgRateOut", subMsgRateOut);
-                destStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
-                destStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
-                destStatsStream.writePair("type", subscription.getTypeString());
+                topicStatsStream.writePair("msgBacklog", subscription.getNumberOfEntriesInBacklog());
+                topicStatsStream.writePair("msgRateExpired", subscription.getExpiredMessageRate());
+                topicStatsStream.writePair("msgRateOut", subMsgRateOut);
+                topicStatsStream.writePair("msgThroughputOut", subMsgThroughputOut);
+                topicStatsStream.writePair("msgRateRedeliver", subMsgRateRedeliver);
+                topicStatsStream.writePair("type", subscription.getTypeString());
                 if (subscription.getDispatcher() != null) {
-                    destStatsStream.writePair("msgDropRate",
+                    topicStatsStream.writePair("msgDropRate",
                             subscription.getDispatcher().getMesssageDropRate().getRate());
                 }
 
                 // Close consumers
-                destStatsStream.endObject();
+                topicStatsStream.endObject();
 
                 topicStats.aggMsgRateOut += subMsgRateOut;
                 topicStats.aggMsgThroughputOut += subMsgThroughputOut;
@@ -729,17 +784,17 @@ public class NonPersistentTopic implements Topic {
         });
 
         // Close subscription
-        destStatsStream.endObject();
+        topicStatsStream.endObject();
 
         // Remaining dest stats.
         topicStats.averageMsgSize = topicStats.aggMsgRateIn == 0.0 ? 0.0
                 : (topicStats.aggMsgThroughputIn / topicStats.aggMsgRateIn);
-        destStatsStream.writePair("producerCount", producers.size());
-        destStatsStream.writePair("averageMsgSize", topicStats.averageMsgSize);
-        destStatsStream.writePair("msgRateIn", topicStats.aggMsgRateIn);
-        destStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
-        destStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
-        destStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
+        topicStatsStream.writePair("producerCount", producers.size());
+        topicStatsStream.writePair("averageMsgSize", topicStats.averageMsgSize);
+        topicStatsStream.writePair("msgRateIn", topicStats.aggMsgRateIn);
+        topicStatsStream.writePair("msgRateOut", topicStats.aggMsgRateOut);
+        topicStatsStream.writePair("msgThroughputIn", topicStats.aggMsgThroughputIn);
+        topicStatsStream.writePair("msgThroughputOut", topicStats.aggMsgThroughputOut);
 
         nsStats.msgRateIn += topicStats.aggMsgRateIn;
         nsStats.msgRateOut += topicStats.aggMsgRateOut;
@@ -752,7 +807,7 @@ public class NonPersistentTopic implements Topic {
         bundleStats.msgThroughputOut += topicStats.aggMsgThroughputOut;
 
         // Close topic object
-        destStatsStream.endObject();
+        topicStatsStream.endObject();
     }
 
     public NonPersistentTopicStats getStats() {
@@ -817,7 +872,7 @@ public class NonPersistentTopic implements Topic {
     }
 
     public boolean isActive() {
-        if (DestinationName.get(topic).isGlobal()) {
+        if (TopicName.get(topic).isGlobal()) {
             // No local consumers and no local producers
             return !subscriptions.isEmpty() || hasLocalProducers();
         }
@@ -831,7 +886,7 @@ public class NonPersistentTopic implements Topic {
         } else {
             if (System.nanoTime() - lastActive > TimeUnit.SECONDS.toNanos(gcIntervalInSeconds)) {
 
-                if (DestinationName.get(topic).isGlobal()) {
+                if (TopicName.get(topic).isGlobal()) {
                     // For global namespace, close repl producers first.
                     // Once all repl producers are closed, we can delete the topic,
                     // provided no remote producers connected to the broker.
@@ -907,16 +962,23 @@ public class NonPersistentTopic implements Topic {
         return CompletableFuture.completedFuture(null);
     }
 
+    @Override
+    public Position getLastMessageId() {
+        throw new UnsupportedOperationException("getLastMessageId is not supported on non-persistent topic");
+    }
+
     public void markBatchMessagePublished() {
         this.hasBatchMessagePublished = true;
     }
+
+
 
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
     public CompletableFuture<SchemaAndMetadata> getSchema() {
-        String base = DestinationName.get(getName()).getPartitionedTopicName();
-        DestinationName destination = DestinationName.get(base);
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        TopicName destination = TopicName.get(base);
         String schema = destination.getProperty()
             + "_" + destination.getCluster()
             + "_" + destination.getNamespacePortion()

@@ -186,7 +186,7 @@ public class LoadSimulationController {
                 for (final Map.Entry<String, NamespaceBundleStats> entry : loadReport.getBundleStats().entrySet()) {
                     final String bundle = entry.getKey();
                     final String namespace = bundle.substring(0, bundle.lastIndexOf('/'));
-                    final String destination = String.format("%s/%s", namespace, "t");
+                    final String topic = String.format("%s/%s", namespace, "t");
                     final NamespaceBundleStats stats = entry.getValue();
 
                     // Approximate total message rate via average between in/out.
@@ -199,7 +199,7 @@ public class LoadSimulationController {
                     arguments.rate = messageRate;
                     arguments.size = messageSize;
                     // Try to modify the topic if it already exists. Otherwise, create it.
-                    changeOrCreate(arguments, destination);
+                    changeOrCreate(arguments, topic);
                 }
             } catch (Exception ex) {
                 throw new RuntimeException(ex);
@@ -285,15 +285,15 @@ public class LoadSimulationController {
         return bundleData;
     }
 
-    // Makes a destination string from a tenant name, namespace name, and topic
+    // Makes a topic string from a tenant name, namespace name, and topic
     // name.
-    private String makeDestination(final String tenant, final String namespace, final String topic) {
+    private String makeTopic(final String tenant, final String namespace, final String topic) {
         return String.format("persistent://%s/%s/%s/%s", tenant, cluster, namespace, topic);
     }
 
     // Write options that are common to modifying and creating topics.
     private void writeProducerOptions(final DataOutputStream outputStream, final ShellArguments arguments,
-            final String destination) throws Exception {
+            final String topic) throws Exception {
         if (!arguments.rangeString.isEmpty()) {
             // If --rand-rate was specified, extract the bounds by splitting on
             // the comma and parsing the resulting
@@ -309,44 +309,44 @@ public class LoadSimulationController {
             final double max = Math.max(first, second);
             arguments.rate = random.nextDouble() * (max - min) + min;
         }
-        outputStream.writeUTF(destination);
+        outputStream.writeUTF(topic);
         outputStream.writeInt(arguments.size);
         outputStream.writeDouble(arguments.rate);
     }
 
-    // Change producer settings for a given destination and JCommander arguments.
-    private void change(final ShellArguments arguments, final String destination, final int client) throws Exception {
+    // Change producer settings for a given topic and JCommander arguments.
+    private void change(final ShellArguments arguments, final String topic, final int client) throws Exception {
         outputStreams[client].write(LoadSimulationClient.CHANGE_COMMAND);
-        writeProducerOptions(outputStreams[client], arguments, destination);
+        writeProducerOptions(outputStreams[client], arguments, topic);
         outputStreams[client].flush();
     }
 
     // Change an existing topic, or create it if it does not exist.
-    private int changeOrCreate(final ShellArguments arguments, final String destination) throws Exception {
-        final int client = find(destination);
+    private int changeOrCreate(final ShellArguments arguments, final String topic) throws Exception {
+        final int client = find(topic);
         if (client == -1) {
-            trade(arguments, destination, random.nextInt(clients.length));
+            trade(arguments, topic, random.nextInt(clients.length));
         } else {
-            change(arguments, destination, client);
+            change(arguments, topic, client);
         }
         return client;
     }
 
     // Find a topic and change it if it exists.
-    private int changeIfExists(final ShellArguments arguments, final String destination) throws Exception {
-        final int client = find(destination);
+    private int changeIfExists(final ShellArguments arguments, final String topic) throws Exception {
+        final int client = find(topic);
         if (client != -1) {
-            change(arguments, destination, client);
+            change(arguments, topic, client);
         }
         return client;
     }
 
     // Attempt to find a topic on the clients.
-    private int find(final String destination) throws Exception {
+    private int find(final String topic) throws Exception {
         int clientWithTopic = -1;
         for (int i = 0; i < clients.length; ++i) {
             outputStreams[i].write(LoadSimulationClient.FIND_COMMAND);
-            outputStreams[i].writeUTF(destination);
+            outputStreams[i].writeUTF(topic);
         }
         for (int i = 0; i < clients.length; ++i) {
             if (inputStreams[i].readBoolean()) {
@@ -356,13 +356,13 @@ public class LoadSimulationController {
         return clientWithTopic;
     }
 
-    // Trade using the arguments parsed via JCommander and the destination name.
-    private synchronized void trade(final ShellArguments arguments, final String destination, final int client)
+    // Trade using the arguments parsed via JCommander and the topic name.
+    private synchronized void trade(final ShellArguments arguments, final String topic, final int client)
             throws Exception {
         // Decide which client to send to randomly to preserve statelessness of
         // the controller.
         outputStreams[client].write(LoadSimulationClient.TRADE_COMMAND);
-        writeProducerOptions(outputStreams[client], arguments, destination);
+        writeProducerOptions(outputStreams[client], arguments, topic);
         outputStreams[client].flush();
     }
 
@@ -371,10 +371,10 @@ public class LoadSimulationController {
         final List<String> commandArguments = arguments.commandArguments;
         // Change expects three application arguments: tenant name, namespace name, and topic name.
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
-            final String destination = makeDestination(commandArguments.get(1), commandArguments.get(2),
+            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
                     commandArguments.get(3));
-            if (changeIfExists(arguments, destination) == -1) {
-                log.info("Topic {} not found", destination);
+            if (changeIfExists(arguments, topic) == -1) {
+                log.info("Topic {} not found", topic);
             }
         }
     }
@@ -444,7 +444,7 @@ public class LoadSimulationController {
                             throw new RuntimeException(e);
                         }
                         try {
-                            trade(arguments, makeDestination(tenantName, mangledNamespace, "t"), j);
+                            trade(arguments, makeTopic(tenantName, mangledNamespace, "t"), j);
                         } catch (Exception e) {
                             throw new RuntimeException(e);
                         }
@@ -482,7 +482,7 @@ public class LoadSimulationController {
                     final String newAPIPath = bundle.replace(QUOTA_ROOT, BUNDLE_DATA_ROOT);
                     final ResourceQuota quota = entry.getValue();
                     final int tenantStart = QUOTA_ROOT.length() + 1;
-                    final String destination = String.format("persistent://%s/t", bundle.substring(tenantStart));
+                    final String topic = String.format("persistent://%s/t", bundle.substring(tenantStart));
                     final BundleData bundleData = initializeBundleData(quota, arguments);
                     // Put the bundle data in the new ZooKeeper.
                     try {
@@ -498,7 +498,7 @@ public class LoadSimulationController {
                         throw new RuntimeException(e);
                     }
                     try {
-                        trade(arguments, destination, j);
+                        trade(arguments, topic, j);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -518,11 +518,11 @@ public class LoadSimulationController {
         // Stop expects three application arguments: tenant name, namespace
         // name, and topic name.
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
-            final String destination = makeDestination(commandArguments.get(1), commandArguments.get(2),
+            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
                     commandArguments.get(3));
             for (DataOutputStream outputStream : outputStreams) {
                 outputStream.write(LoadSimulationClient.STOP_COMMAND);
-                outputStream.writeUTF(destination);
+                outputStream.writeUTF(topic);
                 outputStream.flush();
             }
         }
@@ -550,9 +550,9 @@ public class LoadSimulationController {
         // Trade expects three application arguments: tenant, namespace, and
         // topic.
         if (checkAppArgs(commandArguments.size() - 1, 3)) {
-            final String destination = makeDestination(commandArguments.get(1), commandArguments.get(2),
+            final String topic = makeTopic(commandArguments.get(1), commandArguments.get(2),
                     commandArguments.get(3));
-            trade(arguments, destination, random.nextInt(clients.length));
+            trade(arguments, topic, random.nextInt(clients.length));
         }
     }
 
@@ -607,9 +607,9 @@ public class LoadSimulationController {
                     // by using the group name and the
                     // namespace index, and then create the topic by using the
                     // topic index. Then just call trade.
-                    final String destination = makeDestination(tenant, String.format("%s-%d", group, i),
+                    final String topic = makeTopic(tenant, String.format("%s-%d", group, i),
                             Integer.toString(j));
-                    trade(arguments, destination, random.nextInt(clients.length));
+                    trade(arguments, topic, random.nextInt(clients.length));
                     Thread.sleep(arguments.separation);
                 }
             }
@@ -618,7 +618,7 @@ public class LoadSimulationController {
 
     /**
      * Read the user-submitted arguments as commands to send to clients.
-     * 
+     *
      * @param args
      *            Arguments split on whitespace from user input.
      */
@@ -704,7 +704,7 @@ public class LoadSimulationController {
 
     /**
      * Start a controller with command line arguments.
-     * 
+     *
      * @param args
      *            Arguments to pass in.
      */

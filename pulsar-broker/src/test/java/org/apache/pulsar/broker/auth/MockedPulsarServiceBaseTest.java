@@ -44,6 +44,7 @@ import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.schema.DefaultSchemaRegistryService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -99,6 +100,7 @@ public abstract class MockedPulsarServiceBaseTest {
         this.conf.setActiveConsumerFailoverDelayTimeMillis(0);
         this.conf.setDefaultNumberOfNamespaceBundles(1);
         this.conf.setZookeeperServers("localhost:2181");
+        this.conf.setGlobalZookeeperServers("localhost:3181");
     }
 
     protected final void internalSetup() throws Exception {
@@ -125,7 +127,7 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected final void init() throws Exception {
         mockZookKeeper = createMockZooKeeper();
-        mockBookKeeper = new NonClosableMockBookKeeper(new ClientConfiguration(), mockZookKeeper);
+        mockBookKeeper = createMockBookKeeper(mockZookKeeper);
 
         sameThreadOrderedSafeExecutor = new SameThreadOrderedSafeExecutor();
 
@@ -209,11 +211,15 @@ public abstract class MockedPulsarServiceBaseTest {
         return zk;
     }
 
+    public static NonClosableMockBookKeeper createMockBookKeeper(ZooKeeper zookeeper) throws Exception {
+        return new NonClosableMockBookKeeper(new ClientConfiguration(), zookeeper);
+    }
+
     // Prevent the MockBookKeeper instance from being closed when the broker is restarted within a test
     private static class NonClosableMockBookKeeper extends MockBookKeeper {
 
         public NonClosableMockBookKeeper(ClientConfiguration conf, ZooKeeper zk) throws Exception {
-            super(conf, zk);
+            super(zk);
         }
 
         @Override

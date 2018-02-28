@@ -24,9 +24,9 @@
 #include "BinaryProtoLookupService.h"
 #include "ConnectionPool.h"
 #include "LookupDataResult.h"
-#include "DestinationName.h"
 #include <boost/shared_ptr.hpp>
 #include <boost/thread/mutex.hpp>
+#include <lib/TopicName.h>
 #include "ProducerImplBase.h"
 #include "ConsumerImplBase.h"
 
@@ -83,15 +83,15 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
 
    private:
     void handleCreateProducer(const Result result, const LookupDataResultPtr partitionMetadata,
-                              DestinationNamePtr dn, ProducerConfiguration conf,
+                              TopicNamePtr topicName, ProducerConfiguration conf,
                               CreateProducerCallback callback);
 
     void handleSubscribe(const Result result, const LookupDataResultPtr partitionMetadata,
-                         DestinationNamePtr dn, const std::string& consumerName, ConsumerConfiguration conf,
+                         TopicNamePtr topicName, const std::string& consumerName, ConsumerConfiguration conf,
                          SubscribeCallback callback);
 
     void handleReaderMetadataLookup(const Result result, const LookupDataResultPtr partitionMetadata,
-                                    DestinationNamePtr dn, BatchMessageId startMessageId,
+                                    TopicNamePtr topicName, BatchMessageId startMessageId,
                                     ReaderConfiguration conf, ReaderCallback callback);
 
     void handleProducerCreated(Result result, ProducerImplBaseWeakPtr producerWeakPtr,

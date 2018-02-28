@@ -38,6 +38,7 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.service.AbstractReplicator;
 import org.apache.pulsar.broker.service.BrokerService;
+import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.impl.Backoff;
@@ -89,7 +90,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     private final ReplicatorStats stats = new ReplicatorStats();
 
     public PersistentReplicator(PersistentTopic topic, ManagedCursor cursor, String localCluster, String remoteCluster,
-            BrokerService brokerService) {
+            BrokerService brokerService) throws NamingException {
         super(topic.getName(), topic.replicatorPrefix, localCluster, remoteCluster, brokerService);
         this.topic = topic;
         this.cursor = cursor;
@@ -104,7 +105,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     @Override
-    protected void readEntries(org.apache.pulsar.client.api.Producer producer) {
+    protected void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
         cursor.rewind();
 

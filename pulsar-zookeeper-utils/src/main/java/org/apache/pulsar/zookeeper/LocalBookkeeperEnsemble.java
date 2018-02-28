@@ -69,6 +69,11 @@ public class LocalBookkeeperEnsemble {
 
     public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
             String bkDataDirName, boolean clearOldData) {
+        this(numberOfBookies, zkPort, bkBasePort, zkDataDirName, bkDataDirName, clearOldData, null);
+    }
+
+    public LocalBookkeeperEnsemble(int numberOfBookies, int zkPort, int bkBasePort, String zkDataDirName,
+            String bkDataDirName, boolean clearOldData, String advertisedAddress) {
         this.numberOfBookies = numberOfBookies;
         this.HOSTPORT = "127.0.0.1:" + zkPort;
         this.ZooKeeperDefaultPort = zkPort;
@@ -76,10 +81,12 @@ public class LocalBookkeeperEnsemble {
         this.zkDataDirName = zkDataDirName;
         this.bkDataDirName = bkDataDirName;
         this.clearOldData = clearOldData;
-        LOG.info("Running " + this.numberOfBookies + " bookie(s).");
+        this.advertisedAddress = null == advertisedAddress ? "127.0.0.1" : advertisedAddress;
+        LOG.info("Running {} bookie(s) and advertised them at {}.", this.numberOfBookies, advertisedAddress);
     }
 
     private final String HOSTPORT;
+    private final String advertisedAddress;
     NIOServerCnxnFactory serverFactory;
     ZooKeeperServer zks;
     ZooKeeper zkc;
@@ -224,7 +231,7 @@ public class LocalBookkeeperEnsemble {
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 64);
         conf.setFlushInterval(60000);
         conf.setProperty("journalMaxGroupWaitMSec", 1L);
-        conf.setAdvertisedAddress("127.0.0.1");
+        conf.setAdvertisedAddress(advertisedAddress);
 
         runZookeeper(1000);
         initializeZookeper();

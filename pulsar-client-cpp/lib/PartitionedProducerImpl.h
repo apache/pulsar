@@ -18,13 +18,13 @@
  */
 #include "ProducerImpl.h"
 #include "ClientImpl.h"
-#include "DestinationName.h"
 #include <vector>
 #include <boost/shared_ptr.hpp>
 #include <boost/scoped_ptr.hpp>
 #include <boost/thread/mutex.hpp>
 #include <pulsar/MessageRoutingPolicy.h>
 #include <pulsar/TopicMetadata.h>
+#include <lib/TopicName.h>
 
 namespace pulsar {
 
@@ -43,8 +43,8 @@ class PartitionedProducerImpl : public ProducerImplBase,
 
     typedef boost::unique_lock<boost::mutex> Lock;
 
-    PartitionedProducerImpl(ClientImplPtr ptr, const DestinationNamePtr destinationName,
-                            const unsigned int numPartitions, const ProducerConfiguration& config);
+    PartitionedProducerImpl(ClientImplPtr ptr, const TopicNamePtr topicName, const unsigned int numPartitions,
+                            const ProducerConfiguration& config);
     virtual ~PartitionedProducerImpl();
 
     virtual void sendAsync(const Message& msg, SendCallback callback);
@@ -84,7 +84,7 @@ class PartitionedProducerImpl : public ProducerImplBase,
    private:
     const ClientImplPtr client_;
 
-    const DestinationNamePtr destinationName_;
+    const TopicNamePtr topicName_;
     const std::string topic_;
 
     boost::scoped_ptr<TopicMetadata> topicMetadata_;

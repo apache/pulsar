@@ -22,63 +22,43 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import java.io.Serializable;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
-import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullError;
-import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
+import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
-import com.google.common.base.Objects;
+import lombok.EqualsAndHashCode;
 
 /**
  * Producer's configuration
  *
+ * @deprecated use {@link PulsarClient#newProducer()} to construct and configure a {@link Producer} instance
  */
+@Deprecated
+@EqualsAndHashCode
 public class ProducerConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;
-    private String producerName = null;
-    private long sendTimeoutMs = 30000;
-    private boolean blockIfQueueFull = false;
-    private int maxPendingMessages = 1000;
-    private int maxPendingMessagesAcrossPartitions = 50000;
-    private MessageRoutingMode messageRouteMode = MessageRoutingMode.SinglePartition;
-    private HashingScheme hashingScheme = HashingScheme.JavaStringHash;
-    private MessageRouter customMessageRouter = null;
-    private long batchingMaxPublishDelayMs = 10;
-    private int batchingMaxMessages = 1000;
-    private boolean batchingEnabled = false; // disabled by default
 
-    private CryptoKeyReader cryptoKeyReader;
-    private ConcurrentOpenHashSet<String> encryptionKeys;
-
-    private CompressionType compressionType = CompressionType.NONE;
-
-    // Cannot use Optional<Long> since it's not serializable
-    private Long initialSequenceId = null;
-
-    private final Map<String, String> properties = new HashMap<>();
+    private final ProducerConfigurationData conf = new ProducerConfigurationData();
 
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
     }
 
     public enum HashingScheme {
-        JavaStringHash,
-        Murmur3_32Hash
+        JavaStringHash, Murmur3_32Hash
     }
-
-    private ProducerCryptoFailureAction cryptoFailureAction = ProducerCryptoFailureAction.FAIL;
 
     /**
      * @return the configured custom producer name or null if no custom name was specified
      * @since 1.20.0
      */
     public String getProducerName() {
-        return producerName;
+        return conf.getProducerName();
     }
 
     /**
@@ -98,14 +78,14 @@ public class ProducerConfiguration implements Serializable {
      * @since 1.20.0
      */
     public void setProducerName(String producerName) {
-        this.producerName = producerName;
+        conf.setProducerName(producerName);
     }
 
     /**
      * @return the message send timeout in ms
      */
     public long getSendTimeoutMs() {
-        return sendTimeoutMs;
+        return conf.getSendTimeoutMs();
     }
 
     /**
@@ -120,7 +100,7 @@ public class ProducerConfiguration implements Serializable {
      */
     public ProducerConfiguration setSendTimeout(int sendTimeout, TimeUnit unit) {
         checkArgument(sendTimeout >= 0);
-        this.sendTimeoutMs = unit.toMillis(sendTimeout);
+        conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
         return this;
     }
 
@@ -128,7 +108,7 @@ public class ProducerConfiguration implements Serializable {
      * @return the maximum number of messages allowed in the outstanding messages queue for the producer
      */
     public int getMaxPendingMessages() {
-        return maxPendingMessages;
+        return conf.getMaxPendingMessages();
     }
 
     /**
@@ -142,16 +122,16 @@ public class ProducerConfiguration implements Serializable {
      */
     public ProducerConfiguration setMaxPendingMessages(int maxPendingMessages) {
         checkArgument(maxPendingMessages > 0);
-        this.maxPendingMessages = maxPendingMessages;
+        conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
 
     public HashingScheme getHashingScheme() {
-        return hashingScheme;
+        return HashingScheme.valueOf(conf.getHashingScheme().toString());
     }
 
     public ProducerConfiguration setHashingScheme(HashingScheme hashingScheme) {
-        this.hashingScheme = hashingScheme;
+        conf.setHashingScheme(org.apache.pulsar.client.api.HashingScheme.valueOf(hashingScheme.toString()));
         return this;
     }
 
@@ -160,7 +140,7 @@ public class ProducerConfiguration implements Serializable {
      * @return the maximum number of pending messages allowed across all the partitions
      */
     public int getMaxPendingMessagesAcrossPartitions() {
-        return maxPendingMessagesAcrossPartitions;
+        return conf.getMaxPendingMessagesAcrossPartitions();
     }
 
     /**
@@ -172,8 +152,8 @@ public class ProducerConfiguration implements Serializable {
      * @param maxPendingMessagesAcrossPartitions
      */
     public void setMaxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions) {
-        checkArgument(maxPendingMessagesAcrossPartitions >= maxPendingMessages);
-        this.maxPendingMessagesAcrossPartitions = maxPendingMessagesAcrossPartitions;
+        checkArgument(maxPendingMessagesAcrossPartitions >= conf.getMaxPendingMessages());
+        conf.setMaxPendingMessagesAcrossPartitions(maxPendingMessagesAcrossPartitions);
     }
 
     /**
@@ -182,7 +162,7 @@ public class ProducerConfiguration implements Serializable {
      *         pending queue is full
      */
     public boolean getBlockIfQueueFull() {
-        return blockIfQueueFull;
+        return conf.isBlockIfQueueFull();
     }
 
     /**
@@ -197,7 +177,7 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setBlockIfQueueFull(boolean blockIfQueueFull) {
-        this.blockIfQueueFull = blockIfQueueFull;
+        conf.setBlockIfQueueFull(blockIfQueueFull);
         return this;
     }
 
@@ -209,7 +189,8 @@ public class ProducerConfiguration implements Serializable {
      */
     public ProducerConfiguration setMessageRoutingMode(MessageRoutingMode messageRouteMode) {
         checkNotNull(messageRouteMode);
-        this.messageRouteMode = messageRouteMode;
+        conf.setMessageRoutingMode(
+                org.apache.pulsar.client.api.MessageRoutingMode.valueOf(messageRouteMode.toString()));
         return this;
     }
 
@@ -219,7 +200,7 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public MessageRoutingMode getMessageRoutingMode() {
-        return messageRouteMode;
+        return MessageRoutingMode.valueOf(conf.getMessageRoutingMode().toString());
     }
 
     /**
@@ -239,7 +220,7 @@ public class ProducerConfiguration implements Serializable {
      *        compress messages.
      */
     public ProducerConfiguration setCompressionType(CompressionType compressionType) {
-        this.compressionType = compressionType;
+        conf.setCompressionType(compressionType);
         return this;
     }
 
@@ -247,7 +228,7 @@ public class ProducerConfiguration implements Serializable {
      * @return the configured compression type for this producer
      */
     public CompressionType getCompressionType() {
-        return compressionType;
+        return conf.getCompressionType();
     }
 
     /**
@@ -259,7 +240,7 @@ public class ProducerConfiguration implements Serializable {
     public ProducerConfiguration setMessageRouter(MessageRouter messageRouter) {
         checkNotNull(messageRouter);
         setMessageRoutingMode(MessageRoutingMode.CustomPartition);
-        customMessageRouter = messageRouter;
+        conf.setCustomMessageRouter(messageRouter);
         return this;
     }
 
@@ -268,12 +249,12 @@ public class ProducerConfiguration implements Serializable {
      *
      * @return message router.
      * @deprecated since 1.22.0-incubating. <tt>numPartitions</tt> is already passed as parameter in
-     * {@link MessageRouter#choosePartition(Message, TopicMetadata)}.
+     *             {@link MessageRouter#choosePartition(Message, TopicMetadata)}.
      * @see MessageRouter
      */
     @Deprecated
     public MessageRouter getMessageRouter(int numPartitions) {
-        return customMessageRouter;
+        return conf.getCustomMessageRouter();
     }
 
     /**
@@ -282,7 +263,7 @@ public class ProducerConfiguration implements Serializable {
      * @return message router set by {@link #setMessageRouter(MessageRouter)}.
      */
     public MessageRouter getMessageRouter() {
-        return customMessageRouter;
+        return conf.getCustomMessageRouter();
     }
 
     /**
@@ -290,7 +271,7 @@ public class ProducerConfiguration implements Serializable {
      */
 
     public boolean getBatchingEnabled() {
-        return batchingEnabled;
+        return conf.isBatchingEnabled();
     }
 
     /**
@@ -310,7 +291,7 @@ public class ProducerConfiguration implements Serializable {
      */
 
     public ProducerConfiguration setBatchingEnabled(boolean batchMessagesEnabled) {
-        this.batchingEnabled = batchMessagesEnabled;
+        conf.setBatchingEnabled(batchMessagesEnabled);
         return this;
     }
 
@@ -318,7 +299,7 @@ public class ProducerConfiguration implements Serializable {
      * @return the CryptoKeyReader
      */
     public CryptoKeyReader getCryptoKeyReader() {
-        return this.cryptoKeyReader;
+        return conf.getCryptoKeyReader();
     }
 
     /**
@@ -329,7 +310,7 @@ public class ProducerConfiguration implements Serializable {
      */
     public ProducerConfiguration setCryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
         checkNotNull(cryptoKeyReader);
-        this.cryptoKeyReader = cryptoKeyReader;
+        conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
@@ -338,8 +319,8 @@ public class ProducerConfiguration implements Serializable {
      * @return encryptionKeys
      *
      */
-    public  ConcurrentOpenHashSet<String> getEncryptionKeys() {
-        return this.encryptionKeys;
+    public Set<String> getEncryptionKeys() {
+        return conf.getEncryptionKeys();
     }
 
     /**
@@ -348,46 +329,41 @@ public class ProducerConfiguration implements Serializable {
      *
      */
     public boolean isEncryptionEnabled() {
-        return (this.encryptionKeys != null) && !this.encryptionKeys.isEmpty() && (this.cryptoKeyReader != null);
+        return conf.isEncryptionEnabled();
     }
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.
      *
-     * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys.
-     * If keys are found, a callback getKey(String keyName) is invoked against each key to load
-     * the values of the key. Application should implement this callback to return the key in pkcs8 format.
-     * If compression is enabled, message is encrypted after compression.
-     * If batch messaging is enabled, the batched message is encrypted.
+     * At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys. If keys are
+     * found, a callback getKey(String keyName) is invoked against each key to load the values of the key. Application
+     * should implement this callback to return the key in pkcs8 format. If compression is enabled, message is encrypted
+     * after compression. If batch messaging is enabled, the batched message is encrypted.
      *
      */
     public void addEncryptionKey(String key) {
-        if (this.encryptionKeys == null) {
-            this.encryptionKeys = new ConcurrentOpenHashSet<String>(16,1);
-        }
-        this.encryptionKeys.add(key);
+        conf.getEncryptionKeys().add(key);
     }
 
     public void removeEncryptionKey(String key) {
-        if (this.encryptionKeys != null) {
-            this.encryptionKeys.remove(key);
-        }
+        conf.getEncryptionKeys().remove(key);
     }
 
     /**
      * Sets the ProducerCryptoFailureAction to the value specified
      *
-     * @param The producer action
+     * @param action
+     *            The producer action
      */
     public void setCryptoFailureAction(ProducerCryptoFailureAction action) {
-        cryptoFailureAction = action;
+        conf.setCryptoFailureAction(action);
     }
 
     /**
      * @return The ProducerCryptoFailureAction
      */
     public ProducerCryptoFailureAction getCryptoFailureAction() {
-        return this.cryptoFailureAction;
+        return conf.getCryptoFailureAction();
     }
 
     /**
@@ -396,7 +372,7 @@ public class ProducerConfiguration implements Serializable {
      * @see ProducerConfiguration#setBatchingMaxPublishDelay(long, TimeUnit)
      */
     public long getBatchingMaxPublishDelayMs() {
-        return batchingMaxPublishDelayMs;
+        return TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros());
     }
 
     /**
@@ -418,7 +394,7 @@ public class ProducerConfiguration implements Serializable {
     public ProducerConfiguration setBatchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
         long delayInMs = timeUnit.toMillis(batchDelay);
         checkArgument(delayInMs >= 1, "configured value for batch delay must be at least 1ms");
-        this.batchingMaxPublishDelayMs = delayInMs;
+        conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
         return this;
     }
 
@@ -427,7 +403,7 @@ public class ProducerConfiguration implements Serializable {
      * @return the maximum number of messages permitted in a batch.
      */
     public int getBatchingMaxMessages() {
-        return batchingMaxMessages;
+        return conf.getBatchingMaxMessages();
     }
 
     /**
@@ -443,12 +419,12 @@ public class ProducerConfiguration implements Serializable {
      */
     public ProducerConfiguration setBatchingMaxMessages(int batchMessagesMaxMessagesPerBatch) {
         checkArgument(batchMessagesMaxMessagesPerBatch > 0);
-        this.batchingMaxMessages = batchMessagesMaxMessagesPerBatch;
+        conf.setBatchingMaxMessages(batchMessagesMaxMessagesPerBatch);
         return this;
     }
 
     public Optional<Long> getInitialSequenceId() {
-        return initialSequenceId != null ? Optional.of(initialSequenceId) : Optional.empty();
+        return Optional.ofNullable(conf.getInitialSequenceId());
     }
 
     /**
@@ -461,12 +437,13 @@ public class ProducerConfiguration implements Serializable {
      * @return
      */
     public ProducerConfiguration setInitialSequenceId(long initialSequenceId) {
-        this.initialSequenceId = initialSequenceId;
+        conf.setInitialSequenceId(initialSequenceId);
         return this;
     }
 
     /**
      * Set a name/value property with this producer.
+     *
      * @param key
      * @param value
      * @return
@@ -474,36 +451,26 @@ public class ProducerConfiguration implements Serializable {
     public ProducerConfiguration setProperty(String key, String value) {
         checkArgument(key != null);
         checkArgument(value != null);
-        properties.put(key, value);
+        conf.getProperties().put(key, value);
         return this;
     }
 
     /**
      * Add all the properties in the provided map
+     *
      * @param properties
      * @return
      */
     public ProducerConfiguration setProperties(Map<String, String> properties) {
-        if (properties != null) {
-            this.properties.putAll(properties);
-        }
+        conf.getProperties().putAll(properties);
         return this;
     }
 
     public Map<String, String> getProperties() {
-        return properties;
+        return conf.getProperties();
     }
 
-    @Override
-    public boolean equals(Object obj) {
-        if (obj instanceof ProducerConfiguration) {
-            ProducerConfiguration other = (ProducerConfiguration) obj;
-            return Objects.equal(this.sendTimeoutMs, other.sendTimeoutMs)
-                    && Objects.equal(maxPendingMessages, other.maxPendingMessages)
-                    && Objects.equal(this.messageRouteMode, other.messageRouteMode)
-                    && Objects.equal(this.hashingScheme, other.hashingScheme);
-        }
-
-        return false;
+    public ProducerConfigurationData getProducerConfigurationData() {
+        return conf;
     }
 }
