@@ -42,13 +42,13 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         final int MESSAGE_SIZE = 16 * 1024 + 1;
         log.info("-- message size --", MESSAGE_SIZE);
 
-        internalSetUpForClient();
+        internalSetUpForClient(true);
         internalSetUpForNamespace();
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient
-                .subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name", conf);
+        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
+                conf);
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -70,5 +70,30 @@ public class TlsProducerConsumerTest extends TlsProducerConsumerBase {
         consumer.acknowledgeCumulative(msg);
         consumer.close();
         log.info("-- Exiting {} test --", methodName);
+    }
+
+    /**
+     * Test verifies that the broker throws an error when client tries to connect without a valid certificate.
+     *
+     * @throws Exception
+     */
+    @Test(timeOut = 30000)
+    public void testTlsClientAuth() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+
+        final int MESSAGE_SIZE = 16 * 1024 + 1;
+        log.info("-- message size --", MESSAGE_SIZE);
+
+        internalSetUpForClient(false);
+        internalSetUpForNamespace();
+        try {
+            ConsumerConfiguration conf = new ConsumerConfiguration();
+            conf.setSubscriptionType(SubscriptionType.Exclusive);
+            Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic1",
+                    "my-subscriber-name", conf);
+            Assert.fail("Server should have failed the TLS handshake since client didn't .");
+        } catch (Exception ex) {
+            // OK
+        }
     }
 }
