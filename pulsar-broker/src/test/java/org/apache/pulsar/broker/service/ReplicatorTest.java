@@ -51,7 +51,6 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.checksum.utils.Crc32cChecksum;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -63,9 +62,9 @@ import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
@@ -81,6 +80,8 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
+
 import io.netty.buffer.ByteBuf;
 
 /**
@@ -95,7 +96,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         methodName = m.getName();
     }
 
-    
+
     @Override
     @BeforeClass(timeOut = 30000)
     void setup() throws Exception {
@@ -118,7 +119,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     public Object[][] partitionedTopicProvider() {
         return new Object[][] { { Boolean.TRUE }, { Boolean.FALSE } };
     }
-    
+
     @Test(enabled = true, timeOut = 30000)
     public void testConfigChange() throws Exception {
         log.info("--- Starting ReplicatorTest::testConfigChange ---");
@@ -865,7 +866,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         assertTrue(Commands.hasChecksum(b));
         int parsedChecksum = Commands.readChecksum(b).intValue();
-        int computedChecksum = Crc32cChecksum.computeChecksum(b);
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
 
         assertEquals(parsedChecksum, computedChecksum);
 
@@ -875,7 +876,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
     /**
      * It verifies that broker should not start replicator for partitioned-topic (topic without -partition postfix)
-     * 
+     *
      * @param isPartitionedTopic
      * @throws Exception
      */
@@ -928,7 +929,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         }
 
     }
-    
+
     private static final Logger log = LoggerFactory.getLogger(ReplicatorTest.class);
 
 }
