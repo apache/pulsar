@@ -51,7 +51,7 @@ import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
+import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
@@ -447,10 +447,8 @@ public class CmdFunctions extends CmdBase {
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
             }
-            try (ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
-                "LocalRunnerThreadGroup",
-                serviceUrl,
-                stateStorageServiceUrl)) {
+            try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
+                    serviceUrl, null, null, null)) {
 
                 InstanceConfig instanceConfig = new InstanceConfig();
                 instanceConfig.setFunctionConfig(functionConfig);
