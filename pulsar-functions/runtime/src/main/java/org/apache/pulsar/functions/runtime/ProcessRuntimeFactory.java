@@ -23,6 +23,8 @@ import com.google.common.annotations.VisibleForTesting;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 
+import java.nio.file.Paths;
+
 /**
  * Thread based function container factory implementation.
  */
@@ -44,6 +46,39 @@ public class ProcessRuntimeFactory implements RuntimeFactory {
         this.javaInstanceJarFile = javaInstanceJarFile;
         this.pythonInstanceFile = pythonInstanceFile;
         this.logDirectory = logDirectory;
+
+        // if things are not specified, try to figure out by env properties
+        if (this.javaInstanceJarFile == null) {
+            String envJavaInstanceJarLocation = System.getProperty("pulsar.functions.java.instance.jar");
+            if (null != envJavaInstanceJarLocation) {
+                log.info("Java instance jar location is not defined,"
+                        + " using the location defined in system environment : {}", envJavaInstanceJarLocation);
+                this.javaInstanceJarFile = envJavaInstanceJarLocation;
+            } else {
+                throw new RuntimeException("No JavaInstanceJar specified");
+            }
+        }
+
+        if (this.pythonInstanceFile == null) {
+            String envPythonInstanceLocation = System.getProperty("pulsar.functions.python.instance.file");
+            if (null != envPythonInstanceLocation) {
+                log.info("Python instance file location is not defined"
+                        + " using the location defined in system environment : {}", envPythonInstanceLocation);
+                this.pythonInstanceFile = envPythonInstanceLocation;
+            } else {
+                throw new RuntimeException("No PythonInstanceFile specified");
+            }
+        }
+
+        if (this.logDirectory == null) {
+            String envProcessContainerLogDirectory = System.getProperty("pulsar.functions.process.container.log.dir");
+            if (null != envProcessContainerLogDirectory) {
+                this.logDirectory = envProcessContainerLogDirectory;
+            } else {
+                // use a default location
+                this.logDirectory = Paths.get("logs").toFile().getAbsolutePath();
+            }
+        }
     }
 
     @Override

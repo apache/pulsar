@@ -22,7 +22,6 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
-import java.nio.file.Paths;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -60,40 +59,6 @@ public class FunctionWorkerStarter {
             workerConfig = new WorkerConfig();
         } else {
             workerConfig = WorkerConfig.load(workerArguments.configFile);
-        }
-        // searching the java instance location if it is not defined
-        if (null != workerConfig.getProcessContainerFactory()
-            && null == workerConfig.getProcessContainerFactory().getJavaInstanceJarLocation()) {
-
-            String envJavaInstanceJarLocation = System.getProperty("pulsar.functions.java.instance.jar");
-            if (null != envJavaInstanceJarLocation) {
-                log.info("Java instance jar location is not defined in worker config yml."
-                    + " Use the location defined in system environment : {}", envJavaInstanceJarLocation);
-                workerConfig.getProcessContainerFactory().setJavaInstanceJarLocation(envJavaInstanceJarLocation);
-            }
-        }
-        if (null != workerConfig.getProcessContainerFactory()
-            && null == workerConfig.getProcessContainerFactory().getPythonInstanceLocation()) {
-
-            String envPythonInstanceLocation = System.getProperty("pulsar.functions.python.instance.file");
-            if (null != envPythonInstanceLocation) {
-                log.info("Python instance file location is not defined in worker config yml."
-                    + " Use the location defined in system environment : {}", envPythonInstanceLocation);
-                workerConfig.getProcessContainerFactory().setPythonInstanceLocation(envPythonInstanceLocation);
-            }
-        }
-        // config the log directory
-        if (null != workerConfig.getProcessContainerFactory()
-            && null == workerConfig.getProcessContainerFactory().getLogDirectory()) {
-
-            String envProcessContainerLogDirectory = System.getProperty("pulsar.functions.process.container.log.dir");
-            if (null != envProcessContainerLogDirectory) {
-                workerConfig.getProcessContainerFactory().setLogDirectory(envProcessContainerLogDirectory);
-            } else {
-                // use a default location
-                workerConfig.getProcessContainerFactory().setLogDirectory(
-                    Paths.get("logs").toFile().getAbsolutePath());
-            }
         }
 
         final Worker worker = new Worker(workerConfig);
