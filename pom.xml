@@ -97,6 +97,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
     <module>all</module>
+    <module>docker</module>
+    <module>tests</module>
   </modules>
 
   <issueManagement>
@@ -123,6 +125,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.version>1.55</bouncycastle.version>
     <jackson.version>2.8.4</jackson.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
+    <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
   </properties>
 
   <dependencyManagement>
@@ -981,6 +984,9 @@ flexible messaging model and an intuitive client API.</description>
           </plugin>
         </plugins>
       </reporting>
+    </profile>
+    <profile>
+      <id>docker</id>
     </profile>
   </profiles>
 
