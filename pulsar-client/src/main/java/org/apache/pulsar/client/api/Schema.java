@@ -16,29 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.storm;
+package org.apache.pulsar.client.api;
 
-import java.io.Serializable;
+public interface Schema<T> {
+    byte[] encode(T message);
+    T decode(byte[] bytes);
 
-import org.apache.pulsar.client.api.Message;
+    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
+        @Override
+        public byte[] encode(byte[] message) {
+            return message;
+        }
 
-import org.apache.storm.topology.OutputFieldsDeclarer;
-import org.apache.storm.tuple.Tuple;
-
-public interface TupleToMessageMapper extends Serializable {
-
-    /**
-     * Convert tuple to {@link org.apache.pulsar.client.api.Message}.
-     *
-     * @param tuple
-     * @return
-     */
-    public Message<byte[]> toMessage(Tuple tuple);
-
-    /**
-     * Declare the output schema for the bolt.
-     *
-     * @param declarer
-     */
-    public void declareOutputFields(OutputFieldsDeclarer declarer);
+        @Override
+        public byte[] decode(byte[] bytes) {
+            return bytes;
+        }
+    };
 }

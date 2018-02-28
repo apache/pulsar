@@ -193,7 +193,7 @@ public class PerformanceReader {
         clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
 
-        List<CompletableFuture<Reader>> futures = Lists.newArrayList();
+        List<CompletableFuture<Reader<byte[]>>> futures = Lists.newArrayList();
         ReaderConfiguration readerConfig = new ReaderConfiguration();
         readerConfig.setReaderListener(listener);
         readerConfig.setReceiverQueueSize(arguments.receiverQueueSize);

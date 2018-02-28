@@ -47,6 +47,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.NotFoundException;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.api.Commands;
@@ -761,7 +762,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 }
             }
 
-            return Lists.newArrayList(new MessageImpl(msgId, properties, data));
+            return Lists.newArrayList(new MessageImpl<>(msgId, properties, data, Schema.IDENTITY));
         } finally {
             if (stream != null) {
                 stream.close();
@@ -786,7 +787,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl(batchMsgId, properties, singleMessagePayload));
+                ret.add(new MessageImpl<>(batchMsgId, properties, singleMessagePayload, Schema.IDENTITY));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }

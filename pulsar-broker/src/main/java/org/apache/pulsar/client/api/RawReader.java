@@ -20,8 +20,6 @@ package org.apache.pulsar.client.api;
 
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.RawReaderImpl;
 
@@ -32,8 +30,9 @@ public interface RawReader {
     /**
      * Create a raw reader for a topic.
      */
+
     public static CompletableFuture<RawReader> create(PulsarClient client, String topic, String subscription) {
-        CompletableFuture<Consumer> future = new CompletableFuture<>();
+        CompletableFuture<Consumer<byte[]>> future = new CompletableFuture<>();
         RawReader r = new RawReaderImpl((PulsarClientImpl)client, topic, subscription, future);
         return future.thenCompose((consumer) -> r.seekAsync(MessageId.earliest)).thenApply((ignore) -> r);
     }

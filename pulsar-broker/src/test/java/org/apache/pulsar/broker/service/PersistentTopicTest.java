@@ -86,6 +86,7 @@ import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.PulsarClient;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -1213,14 +1214,22 @@ public class PersistentTopicTest {
                 .createProducerAsync(any(ProducerConfigurationData.class));
 
         replicator.startProducer();
-        verify(clientImpl).createProducerAsync(any(ProducerConfigurationData.class));
+        verify(clientImpl)
+            .createProducerAsync(
+                any(ProducerConfigurationData.class),
+                any(Schema.class)
+            );
 
         replicator.disconnect(false);
         replicator.disconnect(false);
 
         replicator.startProducer();
 
-        verify(clientImpl, Mockito.times(2)).createProducerAsync(any(ProducerConfigurationData.class));
+        verify(clientImpl, Mockito.times(2))
+            .createProducerAsync(
+                any(ProducerConfigurationData.class),
+                any(Schema.class)
+            );
     }
 
     @Test
