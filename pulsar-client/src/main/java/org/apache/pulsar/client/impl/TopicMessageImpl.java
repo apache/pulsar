@@ -98,4 +98,9 @@ public class TopicMessageImpl implements Message {
     public String getKey() {
         return msg.getKey();
     }
+
+    @Override
+    public Object getValue() {
+        return msg.getData();
+    }
 }

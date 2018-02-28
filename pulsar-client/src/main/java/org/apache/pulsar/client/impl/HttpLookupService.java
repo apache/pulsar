@@ -18,8 +18,11 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.collect.Lists;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Arrays;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
@@ -27,6 +30,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.lookup.data.LookupData;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -86,6 +90,29 @@ class HttpLookupService implements LookupService {
 
     public String getServiceUrl() {
     	return httpClient.url.toString();
+    }
+
+    @Override
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+        CompletableFuture<List<String>> future = new CompletableFuture<>();
+        httpClient
+            .get(String.format("admin/namespaces/%s/destinations", namespace), String[].class)
+            .thenAccept(topics -> {
+                List<String> result = Lists.newArrayList();
+                // do not keep partition part of topic name
+                Arrays.asList(topics).forEach(topic -> {
+                    String filtered = TopicName.get(topic).getPartitionedTopicName();
+                    if (!result.contains(filtered)) {
+                        result.add(filtered);
+                    }
+                });
+                future.complete(result);})
+            .exceptionally(ex -> {
+                log.warn("Failed to getTopicsUnderNamespace namespace: {}.", namespace, ex.getMessage());
+                future.completeExceptionally(ex);
+                return null;
+            });
+        return future;
     }
 
     @Override

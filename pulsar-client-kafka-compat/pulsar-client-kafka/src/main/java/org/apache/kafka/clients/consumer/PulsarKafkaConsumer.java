@@ -195,7 +195,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
     @Override
     public void subscribe(Collection<String> topics, ConsumerRebalanceListener callback) {
-        List<CompletableFuture<org.apache.pulsar.client.api.Consumer>> futures = new ArrayList<>();
+        List<CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>>> futures = new ArrayList<>();
 
         List<TopicPartition> topicPartitions = new ArrayList<>();
         try {
@@ -212,7 +212,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     conf.setConsumerName(ConsumerName.generateRandomName());
                     for (int i = 0; i < numberOfPartitions; i++) {
                         String partitionName = TopicName.get(topic).getPartition(i).toString();
-                        CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client
+                        CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = client
                                 .subscribeAsync(partitionName, groupId, conf);
                         int partitionIndex = i;
                         TopicPartition tp = new TopicPartition(topic, partitionIndex);
@@ -222,7 +222,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     }
                 } else {
                     // Topic has a single partition
-                    CompletableFuture<org.apache.pulsar.client.api.Consumer> future = client.subscribeAsync(topic,
+                    CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = client.subscribeAsync(topic,
                             groupId, conf);
                     TopicPartition tp = new TopicPartition(topic, 0);
                     future.thenAccept(consumer -> consumers.putIfAbsent(tp, consumer));

@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
@@ -31,7 +32,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @since 2.0.0
  */
-public interface ConsumerBuilder extends Serializable, Cloneable {
+public interface ConsumerBuilder<T> extends Serializable, Cloneable {
 
     /**
      * Create a copy of the current consumer builder.
@@ -49,7 +50,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * Consumer consumer2 = builder.clone().topic(TOPIC_2).subscribe();
      * </pre>
      */
-    ConsumerBuilder clone();
+    ConsumerBuilder<T> clone();
 
     /**
      * Finalize the {@link Consumer} creation by subscribing to the topic.
@@ -62,7 +63,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @throws PulsarClientException
      *             if the the subscribe operation fails
      */
-    Consumer subscribe() throws PulsarClientException;
+    Consumer<T> subscribe() throws PulsarClientException;
 
     /**
      * Finalize the {@link Consumer} creation by subscribing to the topic in asynchronous mode.
@@ -75,25 +76,42 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @throws PulsarClientException
      *             if the the subscribe operation fails
      */
-    CompletableFuture<Consumer> subscribeAsync();
+    CompletableFuture<Consumer<T>> subscribeAsync();
 
     /**
      * Specify the topics this consumer will subscribe on.
      * <p>
-     * This argument is required when constructing the consumer.
      *
      * @param topicNames
      */
-    ConsumerBuilder topic(String... topicNames);
+    ConsumerBuilder<T> topic(String... topicNames);
 
     /**
      * Specify a list of topics that this consumer will subscribe on.
      * <p>
-     * This argument is required when constructing the consumer.
      *
      * @param topicNames
      */
-    ConsumerBuilder topics(List<String> topicNames);
+    ConsumerBuilder<T> topics(List<String> topicNames);
+
+    /**
+     * Specify a pattern for topics that this consumer will subscribe on.
+     * <p>
+     *
+     * @param topicsPattern
+     */
+    ConsumerBuilder topicsPattern(Pattern topicsPattern);
+
+    /**
+     * Specify a pattern for topics that this consumer will subscribe on.
+     * It accepts regular expression and will be compiled into a pattern internally.
+     * Eg. "persistent://prop/use/ns-abc/pattern-topic-.*"
+     * <p>
+     *
+     * @param topicsPattern
+     *            given regular expression for topics pattern
+     */
+    ConsumerBuilder topicsPattern(String topicsPattern);
 
     /**
      * Specify the subscription name for this consumer.
@@ -102,7 +120,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      *
      * @param subscriptionName
      */
-    ConsumerBuilder subscriptionName(String subscriptionName);
+    ConsumerBuilder<T> subscriptionName(String subscriptionName);
 
     /**
      * Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
@@ -114,7 +132,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      *            unit in which the timeout is provided.
      * @return {@link ConsumerConfiguration}
      */
-    ConsumerBuilder ackTimeout(long ackTimeout, TimeUnit timeUnit);
+    ConsumerBuilder<T> ackTimeout(long ackTimeout, TimeUnit timeUnit);
 
     /**
      * Select the subscription type to be used when subscribing to the topic.
@@ -124,7 +142,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param subscriptionType
      *            the subscription type value
      */
-    ConsumerBuilder subscriptionType(SubscriptionType subscriptionType);
+    ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType);
 
     /**
      * Sets a {@link MessageListener} for the consumer
@@ -135,7 +153,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param messageListener
      *            the listener object
      */
-    ConsumerBuilder messageListener(MessageListener messageListener);
+    ConsumerBuilder<T> messageListener(MessageListener<T> messageListener);
 
     /**
      * Sets a {@link CryptoKeyReader}
@@ -143,7 +161,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
-    ConsumerBuilder cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+    ConsumerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
@@ -151,7 +169,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param action
      *            The consumer action
      */
-    ConsumerBuilder cryptoFailureAction(ConsumerCryptoFailureAction action);
+    ConsumerBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 
     /**
      * Sets the size of the consumer receive queue.
@@ -179,7 +197,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    ConsumerBuilder receiverQueueSize(int receiverQueueSize);
+    ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
      * Set the max total receiver queue size across partitons.
@@ -189,14 +207,14 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      *
      * @param maxTotalReceiverQueueSizeAcrossPartitions
      */
-    ConsumerBuilder maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
+    ConsumerBuilder<T> maxTotalReceiverQueueSizeAcrossPartitions(int maxTotalReceiverQueueSizeAcrossPartitions);
 
     /**
      * Set the consumer name.
      *
      * @param consumerName
      */
-    ConsumerBuilder consumerName(String consumerName);
+    ConsumerBuilder<T> consumerName(String consumerName);
 
     /**
      * If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
@@ -211,7 +229,16 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param readCompacted
      *            whether to read from the compacted topic
      */
-    ConsumerBuilder readCompacted(boolean readCompacted);
+    ConsumerBuilder<T> readCompacted(boolean readCompacted);
+
+    /**
+     * Set topics auto discovery period when using a pattern for topics consumer.
+     * The period is in minute, and default and minimum value is 1 minute.
+     *
+     * @param periodInMinutes
+     *            whether to read from the compacted topic
+     */
+    ConsumerBuilder patternAutoDiscoveryPeriod(int periodInMinutes);
 
     /**
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
@@ -233,7 +260,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      *
      * @param priorityLevel
      */
-    ConsumerBuilder priorityLevel(int priorityLevel);
+    ConsumerBuilder<T> priorityLevel(int priorityLevel);
 
     /**
      * Set a name/value property with this consumer.
@@ -242,7 +269,7 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param value
      * @return
      */
-    ConsumerBuilder property(String key, String value);
+    ConsumerBuilder<T> property(String key, String value);
 
     /**
      * Add all the properties in the provided map
@@ -250,6 +277,6 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      * @param properties
      * @return
      */
-    ConsumerBuilder properties(Map<String, String> properties);
+    ConsumerBuilder<T> properties(Map<String, String> properties);
 
 }

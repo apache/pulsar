@@ -91,7 +91,7 @@ public class LoadSimulationClient {
     // consumption as well as size may be changed at
     // any time, and the TradeUnit may also be stopped.
     private static class TradeUnit {
-        Future<Consumer> consumerFuture;
+        Future<Consumer<byte[]>> consumerFuture;
         final AtomicBoolean stop;
         final RateLimiter rateLimiter;
 

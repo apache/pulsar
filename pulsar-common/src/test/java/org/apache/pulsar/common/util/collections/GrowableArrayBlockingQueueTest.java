@@ -19,6 +19,7 @@
 package org.apache.pulsar.common.util.collections;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -28,6 +29,7 @@ import java.util.NoSuchElementException;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.testng.annotations.Test;
@@ -74,6 +76,12 @@ public class GrowableArrayBlockingQueueTest {
         assertEquals(queue.toString(), "[1, 2, 3]");
         queue.offer(4);
         assertEquals(queue.toString(), "[1, 2, 3, 4]");
+
+        AtomicInteger value = new AtomicInteger(1);
+        queue.forEach(v -> {
+            assertEquals(v.intValue(), value.get());
+            value.incrementAndGet();
+        });
 
         assertEquals(queue.size(), 4);
 
@@ -201,5 +209,75 @@ public class GrowableArrayBlockingQueueTest {
         queue.put(1);
 
         latch.await();
+    }
+
+    @Test
+    public void removeTest() throws Exception {
+        BlockingQueue<Integer> queue = new GrowableArrayBlockingQueue<>(4);
+
+        assertEquals(queue.poll(), null);
+
+        assertTrue(queue.offer(1));
+        assertTrue(queue.offer(2));
+        assertTrue(queue.offer(3));
+
+        assertEquals(queue.size(), 3);
+
+        assertFalse(queue.remove(4));
+        assertEquals(queue.size(), 3);
+        assertEquals(queue.toString(), "[1, 2, 3]");
+
+        assertTrue(queue.remove(2));
+        assertEquals(queue.size(), 2);
+        assertEquals(queue.toString(), "[1, 3]");
+
+        assertTrue(queue.remove(3));
+        assertEquals(queue.size(), 1);
+        assertEquals(queue.toString(), "[1]");
+
+        assertTrue(queue.remove(1));
+        assertEquals(queue.size(), 0);
+        assertEquals(queue.toString(), "[]");
+
+        // Test queue rollover
+        queue.offer(1);
+        queue.offer(2);
+        queue.offer(3);
+
+        assertEquals(queue.poll().intValue(), 1);
+        assertEquals(queue.poll().intValue(), 2);
+
+        assertTrue(queue.offer(4));
+        assertTrue(queue.offer(5));
+
+        assertTrue(queue.remove(5));
+        assertEquals(queue.size(), 2);
+        assertEquals(queue.toString(), "[3, 4]");
+
+        queue.offer(6);
+        queue.offer(7);
+        assertTrue(queue.remove(6));
+        assertEquals(queue.size(), 3);
+        assertEquals(queue.toString(), "[3, 4, 7]");
+
+        queue.offer(8);
+        assertTrue(queue.remove(8));
+        assertEquals(queue.size(), 3);
+        assertEquals(queue.toString(), "[3, 4, 7]");
+
+        queue.offer(8);
+        assertEquals(queue.toString(), "[3, 4, 7, 8]");
+
+        assertTrue(queue.remove(4));
+        assertEquals(queue.size(), 3);
+        assertEquals(queue.toString(), "[3, 7, 8]");
+
+        assertTrue(queue.remove(8));
+        assertEquals(queue.size(), 2);
+        assertEquals(queue.toString(), "[3, 7]");
+
+        assertTrue(queue.remove(7));
+        assertEquals(queue.size(), 1);
+        assertEquals(queue.toString(), "[3]");
     }
 }

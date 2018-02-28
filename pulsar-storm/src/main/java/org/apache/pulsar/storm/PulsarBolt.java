@@ -61,7 +61,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
     private String componentId;
     private String boltId;
     private OutputCollector collector;
-    private Producer producer;
+    private Producer<byte[]> producer;
     private volatile long messagesSent = 0;
     private volatile long messageSizeSent = 0;
 
@@ -107,7 +107,7 @@ public class PulsarBolt extends BaseRichBolt implements IMetric {
         try {
             if (producer != null) {
                 // a message key can be provided in the mapper
-                Message msg = pulsarBoltConf.getTupleToMessageMapper().toMessage(input);
+                Message<byte[]> msg = pulsarBoltConf.getTupleToMessageMapper().toMessage(input);
                 if (msg == null) {
                     if (LOG.isDebugEnabled()) {
                         LOG.debug("[{}] Cannot send null message, acking the collector", boltId);

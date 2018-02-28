@@ -96,16 +96,6 @@
 
     <dependency>
       <groupId>org.apache.bookkeeper.stats</groupId>
-      <artifactId>datasketches-metrics-provider</artifactId>
-      <exclusions>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-common</artifactId></exclusion>
-      </exclusions>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.bookkeeper.stats</groupId>
       <artifactId>prometheus-metrics-provider</artifactId>
     </dependency>
 
@@ -128,7 +118,7 @@
               <goal>single</goal>
             </goals>
             <configuration>
-              <attach>false</attach>
+              <attach>true</attach>
               <tarLongFileMode>posix</tarLongFileMode>
               <finalName>apache-pulsar-${project.version}</finalName>
               <descriptors>
@@ -138,6 +128,13 @@
             </configuration>
           </execution>
         </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
       </plugin>
     </plugins>
   </build>

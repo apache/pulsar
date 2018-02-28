@@ -39,15 +39,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.namespace.NamespaceEphemeralData;
-import org.apache.pulsar.broker.namespace.NamespaceService;
-import org.apache.pulsar.broker.namespace.OwnedBundle;
-import org.apache.pulsar.broker.namespace.OwnershipCache;
-import org.apache.pulsar.broker.namespace.ServiceUnitZkUtils;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -75,7 +70,7 @@ public class OwnershipCacheTest {
     private NamespaceBundleFactory bundleFactory;
     private NamespaceService nsService;
     private BrokerService brokerService;
-    private OrderedSafeExecutor executor;
+    private OrderedScheduler executor;
     private ScheduledExecutorService scheduledExecutor;
 
     @BeforeMethod
@@ -84,7 +79,7 @@ public class OwnershipCacheTest {
         selfBrokerUrl = "tcp://localhost:" + port;
         pulsar = mock(PulsarService.class);
         config = mock(ServiceConfiguration.class);
-        executor = new OrderedSafeExecutor(1, "test");
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
         scheduledExecutor = Executors.newScheduledThreadPool(2);
         zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
         localCache = spy(new LocalZooKeeperCacheService(zkCache, null));
@@ -92,7 +87,7 @@ public class OwnershipCacheTest {
         when(pulsar.getLocalZkCacheService()).thenReturn(localCache);
         when(localCache.policiesCache()).thenReturn(poilciesCache);
         doNothing().when(poilciesCache).registerListener(any());
-        
+
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
         nsService = mock(NamespaceService.class);
         brokerService = mock(BrokerService.class);
