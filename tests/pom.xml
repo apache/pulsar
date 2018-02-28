@@ -28,14 +28,21 @@
     <artifactId>pulsar</artifactId>
     <version>2.0.0-incubating-SNAPSHOT</version>
   </parent>
-  <groupId>org.apache.pulsar</groupId>
-  <artifactId>docker-images</artifactId>
-  <name>Apache Pulsar :: Docker Images</name>
-  <properties>
-    <docker.organization>apachepulsar</docker.organization>
-  </properties>
+  <groupId>org.apache.pulsar.tests</groupId>
+  <artifactId>tests-parent</artifactId>
+  <name>Apache Pulsar :: Tests</name>
   <modules>
-    <module>pulsar</module>
-    <module>grafana</module>
+    <module>docker-images</module>
   </modules>
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-deploy-plugin</artifactId>
+        <configuration>
+          <skip>true</skip>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>
