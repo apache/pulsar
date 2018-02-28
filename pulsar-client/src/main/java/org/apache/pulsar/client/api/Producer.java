@@ -78,7 +78,7 @@ public interface Producer<T> extends Closeable {
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
      */
-    MessageId send(Message message) throws PulsarClientException;
+    MessageId send(Message<T> message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
@@ -106,7 +106,7 @@ public interface Producer<T> extends Closeable {
      *            a message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(Message message);
+    CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     /**
      * Get the last sequence id that was published by this producer.

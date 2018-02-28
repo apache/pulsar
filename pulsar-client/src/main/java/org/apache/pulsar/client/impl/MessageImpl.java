@@ -190,7 +190,7 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     @Override
-    public T getEvent() {
+    public T getValue() {
         return schema.decode(getData());
     }
 

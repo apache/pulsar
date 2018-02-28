@@ -63,7 +63,7 @@ public interface Message<T> {
      */
     byte[] getData();
 
-    T getEvent();
+    T getValue();
 
     /**
      * Get the unique message ID associated with this message.

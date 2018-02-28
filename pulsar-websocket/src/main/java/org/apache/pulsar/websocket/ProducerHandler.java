@@ -178,7 +178,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         if (sendRequest.replicationClusters != null) {
             builder.setReplicationClusters(sendRequest.replicationClusters);
         }
-        Message msg = builder.build();
+        Message<byte[]> msg = builder.build();
 
         final long now = System.nanoTime();
         producer.sendAsync(msg).thenAccept(msgId -> {

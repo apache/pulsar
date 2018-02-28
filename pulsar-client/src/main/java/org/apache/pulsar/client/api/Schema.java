@@ -22,7 +22,7 @@ public interface Schema<T> {
     byte[] encode(T message);
     T decode(byte[] bytes);
 
-    class Identity implements Schema<byte[]> {
+    Schema<byte[]> IDENTITY = new Schema<byte[]>() {
         @Override
         public byte[] encode(byte[] message) {
             return message;
@@ -32,5 +32,5 @@ public interface Schema<T> {
         public byte[] decode(byte[] bytes) {
             return bytes;
         }
-    }
+    };
 }

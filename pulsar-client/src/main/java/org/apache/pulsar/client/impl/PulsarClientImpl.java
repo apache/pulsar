@@ -143,7 +143,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public ProducerBuilder<byte[]> newProducer() {
-        return new ProducerBuilderImpl<>(this, new Schema.Identity());
+        return new ProducerBuilderImpl<>(this, Schema.IDENTITY);
     }
 
     @Override
@@ -153,7 +153,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public ConsumerBuilder<byte[]> newConsumer() {
-        return new ConsumerBuilderImpl<>(this, new Schema.Identity());
+        return new ConsumerBuilderImpl<>(this, Schema.IDENTITY);
     }
 
     @Override
@@ -163,7 +163,7 @@ public class PulsarClientImpl implements PulsarClient {
 
     @Override
     public ReaderBuilder<byte[]> newReader() {
-        return new ReaderBuilderImpl<>(this, new Schema.Identity());
+        return new ReaderBuilderImpl<>(this, Schema.IDENTITY);
     }
 
     @Override
@@ -228,7 +228,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<Producer<byte[]>> createProducerAsync(ProducerConfigurationData conf) {
-        return createProducerAsync(conf, new Schema.Identity());
+        return createProducerAsync(conf, Schema.IDENTITY);
     }
 
     public <T> CompletableFuture<Producer<T>> createProducerAsync(ProducerConfigurationData conf, Schema<T> schema) {
@@ -320,7 +320,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {
-        return subscribeAsync(conf, new Schema.Identity());
+        return subscribeAsync(conf, Schema.IDENTITY);
     }
 
     public <T> CompletableFuture<Consumer<T>> subscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
@@ -416,7 +416,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<Consumer<byte[]>> patternTopicSubscribeAsync(ConsumerConfigurationData<byte[]> conf) {
-        return patternTopicSubscribeAsync(conf, new Schema.Identity());
+        return patternTopicSubscribeAsync(conf, Schema.IDENTITY);
     }
 
     private <T> CompletableFuture<Consumer<T>> patternTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
@@ -483,7 +483,7 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     public CompletableFuture<Reader<byte[]>> createReaderAsync(ReaderConfigurationData<byte[]> conf) {
-        return createReaderAsync(conf, new Schema.Identity());
+        return createReaderAsync(conf, Schema.IDENTITY);
     }
 
     public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {

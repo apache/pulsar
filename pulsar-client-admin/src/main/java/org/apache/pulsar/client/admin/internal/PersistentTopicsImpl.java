@@ -762,7 +762,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 }
             }
 
-            return Lists.newArrayList(new MessageImpl<>(msgId, properties, data, new Schema.Identity()));
+            return Lists.newArrayList(new MessageImpl<>(msgId, properties, data, Schema.IDENTITY));
         } finally {
             if (stream != null) {
                 stream.close();
@@ -787,7 +787,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                         properties.put(entry.getKey(), entry.getValue());
                     }
                 }
-                ret.add(new MessageImpl<>(batchMsgId, properties, singleMessagePayload, new Schema.Identity()));
+                ret.add(new MessageImpl<>(batchMsgId, properties, singleMessagePayload, Schema.IDENTITY));
             } catch (Exception ex) {
                 log.error("Exception occured while trying to get BatchMsgId: {}", batchMsgId, ex);
             }

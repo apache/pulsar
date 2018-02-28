@@ -100,7 +100,7 @@ public class TopicMessageImpl implements Message {
     }
 
     @Override
-    public Object getEvent() {
+    public Object getValue() {
         return msg.getData();
     }
 }

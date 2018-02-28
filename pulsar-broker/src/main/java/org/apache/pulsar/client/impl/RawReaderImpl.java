@@ -91,7 +91,7 @@ public class RawReaderImpl implements RawReader {
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf,
                 CompletableFuture<Consumer<byte[]>> consumerFuture) {
             super(client, conf.getSingleTopic(), conf, client.externalExecutorProvider().getExecutor(), -1,
-                    consumerFuture, SubscriptionMode.Durable, MessageId.earliest, new Schema.Identity());
+                    consumerFuture, SubscriptionMode.Durable, MessageId.earliest, Schema.IDENTITY);
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }

@@ -56,7 +56,7 @@ public abstract class ProducerBase<T> extends HandlerBase implements Producer<T>
     }
 
     @Override
-    public MessageId send(Message message) throws PulsarClientException {
+    public MessageId send(Message<T> message) throws PulsarClientException {
         try {
             return sendAsync(message).get();
         } catch (ExecutionException e) {
@@ -73,7 +73,7 @@ public abstract class ProducerBase<T> extends HandlerBase implements Producer<T>
     }
 
     @Override
-    abstract public CompletableFuture<MessageId> sendAsync(Message message);
+    abstract public CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     @Override
     public void close() throws PulsarClientException {

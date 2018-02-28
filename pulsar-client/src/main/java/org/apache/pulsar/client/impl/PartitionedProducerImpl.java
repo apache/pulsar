@@ -45,7 +45,7 @@ import com.google.common.collect.Lists;
 
 public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
-    private List<ProducerImpl> producers;
+    private List<ProducerImpl<T>> producers;
     private MessageRouter routerPolicy;
     private final ProducerStats stats;
     private final TopicMetadata topicMetadata;
@@ -139,7 +139,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(Message message) {
+    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
 
         switch (getState()) {
         case Ready:
@@ -181,7 +181,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         AtomicReference<Throwable> closeFail = new AtomicReference<Throwable>();
         AtomicInteger completed = new AtomicInteger(topicMetadata.numPartitions());
         CompletableFuture<Void> closeFuture = new CompletableFuture<>();
-        for (Producer<byte[]> producer : producers) {
+        for (Producer<T> producer : producers) {
             if (producer != null) {
                 producer.closeAsync().handle((closed, ex) -> {
                     if (ex != null) {
