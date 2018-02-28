@@ -231,20 +231,22 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                     }
                 }
 
-                // before processing the message, we have a producer connection setup for producing results.
-                Producer producer = null;
-                while (null == producer) {
-                    try {
-                        producer = sinkProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
-                    } catch (PulsarClientException e) {
-                        // `ProducerBusy` is thrown when an producer with same name is still connected.
-                        // This can happen when a active consumer is changed for a given source topic partition
-                        // so we need to wait until the old active consumer release the produce connection.
-                        if (!(e instanceof ProducerBusyException)) {
-                            log.error("Failed to get a producer for producing results computed from source topic {}",
-                                msg.getTopicName());
+                if (null != sinkProducer) {
+                    // before processing the message, we have a producer connection setup for producing results.
+                    Producer producer = null;
+                    while (null == producer) {
+                        try {
+                            producer = sinkProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
+                        } catch (PulsarClientException e) {
+                            // `ProducerBusy` is thrown when an producer with same name is still connected.
+                            // This can happen when a active consumer is changed for a given source topic partition
+                            // so we need to wait until the old active consumer release the produce connection.
+                            if (!(e instanceof ProducerBusyException)) {
+                                log.error("Failed to get a producer for producing results computed from source topic {}",
+                                    msg.getTopicName());
+                            }
+                            TimeUnit.MILLISECONDS.sleep(500);
                         }
-                        TimeUnit.MILLISECONDS.sleep(500);
                     }
                 }
 
@@ -320,20 +322,24 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     public void becameActive(Consumer consumer, int partitionId) {
         // if the instance becomes active for a given topic partition,
         // open a producer for the results computed from this topic partition.
-        try {
-            this.sinkProducer.getProducer(consumer.getTopic(), partitionId);
-        } catch (PulsarClientException e) {
-            // this can be ignored, because producer can be lazily created when accessing it.
-            log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
-                consumer.getTopic(), partitionId);
+        if (null != sinkProducer) {
+            try {
+                this.sinkProducer.getProducer(consumer.getTopic(), partitionId);
+            } catch (PulsarClientException e) {
+                // this can be ignored, because producer can be lazily created when accessing it.
+                log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
+                    consumer.getTopic(), partitionId);
+            }
         }
     }
 
     @Override
     public void becameInactive(Consumer consumer, int partitionId) {
-        // if I lost the ownership of a partition, close its corresponding topic partition.
-        // this is to allow the new active consumer be able to produce to the result topic.
-        this.sinkProducer.closeProducer(consumer.getTopic(), partitionId);
+        if (null != sinkProducer) {
+            // if I lost the ownership of a partition, close its corresponding topic partition.
+            // this is to allow the new active consumer be able to produce to the result topic.
+            this.sinkProducer.closeProducer(consumer.getTopic(), partitionId);
+        }
     }
 
     private void setupStateTable() throws Exception {
