@@ -204,9 +204,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     private Set<String> tlsCiphers = Sets.newTreeSet();
     // Specify whether Client certificates are required for TLS
-    // https://netty.io/4.0/api/io/netty/handler/ssl/ClientAuth.html
-    // Acceptable values:- [NONE, OPTIONAL, REQUIRE]
-    private String tlsClientAuth = ClientAuth.OPTIONAL.toString();
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsReqTrustedClientCertOnConnect = false;
     /***** --- Authentication --- ****/
     // Enable authentication
     private boolean authenticationEnabled = false;
@@ -1476,11 +1475,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.tlsCiphers = tlsCiphers;
     }
     
-    public ClientAuth getTlsClientAuth() {
-        return ClientAuth.valueOf(tlsClientAuth);
+    public boolean getTlsReqTrustedClientCertOnConnect() {
+        return tlsReqTrustedClientCertOnConnect;
     }
 
-    public void setTlsClientAuth(ClientAuth tlsClientAuth) {
-        this.tlsClientAuth = tlsClientAuth.toString();
+    public void setTlsReqTrustedClientCertOnConnect(boolean tlsReqTrustedClientCertOnConnect) {
+        this.tlsReqTrustedClientCertOnConnect = tlsReqTrustedClientCertOnConnect;
     }
 }

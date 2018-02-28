@@ -53,7 +53,8 @@ public class PulsarChannelInitializer extends ChannelInitializer<SocketChannel> 
             SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
                     serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
                     serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
-                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(), serviceConfig.getTlsClientAuth());
+                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
+                    serviceConfig.getTlsReqTrustedClientCertOnConnect());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
 
