@@ -114,7 +114,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
     <bookkeeper.version>4.7.0-SNAPSHOT</bookkeeper.version>
-    <zookeeper.version>3.4.10</zookeeper.version>
+    <zookeeper.version>3.5.3-beta</zookeeper.version>
     <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>
     <jetty.version>9.3.11.v20160721</jetty.version>
