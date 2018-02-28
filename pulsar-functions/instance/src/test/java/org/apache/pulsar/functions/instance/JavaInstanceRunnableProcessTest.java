@@ -78,6 +78,7 @@ import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
+import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.producers.Producers;
 import org.apache.pulsar.functions.instance.producers.SimpleOneSinkTopicProducers;
@@ -86,6 +87,7 @@ import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.testng.PowerMockObjectFactory;
 import org.powermock.reflect.Whitebox;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
@@ -96,7 +98,7 @@ import org.testng.annotations.Test;
  * Test the processing logic of a {@link JavaInstanceRunnable}.
  */
 @Slf4j
-@PrepareForTest({ JavaInstanceRunnable.class, StorageClientBuilder.class, MessageBuilder.class })
+@PrepareForTest({ JavaInstanceRunnable.class, StorageClientBuilder.class, MessageBuilder.class, Reflections.class })
 @PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*", "org.apache.logging.log4j.*" })
 public class JavaInstanceRunnableProcessTest {
 
@@ -129,6 +131,16 @@ public class JavaInstanceRunnableProcessTest {
                 throw new Exception("Failed to process message " + id);
             }
             return input + "!";
+        }
+    }
+
+    private static class TestVoidFunction implements PulsarFunction<String, Void> {
+
+        @Override
+        public Void process(String input, Context context) throws Exception {
+            log.info("process input '{}'", input);
+            voidFunctionQueue.put(input);
+            return null;
         }
     }
 
@@ -195,6 +207,7 @@ public class JavaInstanceRunnableProcessTest {
 
 
     private static final String TEST_STORAGE_SERVICE_URL = "127.0.0.1:4181";
+    private static final LinkedBlockingQueue<String> voidFunctionQueue = new LinkedBlockingQueue<>();
 
     private FunctionConfig fnConfig;
     private InstanceConfig config;
@@ -936,6 +949,58 @@ public class JavaInstanceRunnableProcessTest {
                 .acknowledgeCumulativeAsync(same(msgs[0]));
             verify(secondInstance.getConsumer(), times(0))
                 .acknowledgeCumulativeAsync(same(msgs[1]));
+        }
+    }
+
+    @Test
+    public void testVoidFunction() throws Exception {
+        FunctionConfig newFnConfig = FunctionConfig.newBuilder(fnConfig)
+            .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
+            .setClassName(TestVoidFunction.class.getName())
+            .build();
+        config.setFunctionConfig(newFnConfig);
+
+        @Cleanup("shutdown")
+        ExecutorService executorService = Executors.newSingleThreadExecutor();
+
+        try (JavaInstanceRunnable runnable = new JavaInstanceRunnable(
+            config,
+            fnCache,
+            "test-jar-file",
+            mockClient,
+            null)) {
+
+            executorService.submit(runnable);
+
+            Pair<String, String> consumerId = Pair.of(
+                newFnConfig.getInputs(0),
+                FunctionConfigUtils.getFullyQualifiedName(newFnConfig));
+            ConsumerInstance consumerInstance = mockConsumers.get(consumerId);
+            while (null == consumerInstance) {
+                TimeUnit.MILLISECONDS.sleep(20);
+                consumerInstance = mockConsumers.get(consumerId);
+            }
+
+            // once we get consumer id, simulate receiving 10 messages from consumer
+            for (int i = 0; i < 10; i++) {
+                Message msg = mock(Message.class);
+                when(msg.getData()).thenReturn(("message-" + i).getBytes(UTF_8));
+                when(msg.getMessageId())
+                    .thenReturn(new MessageIdImpl(1L, i, 0));
+                consumerInstance.addMessage(msg);
+                consumerInstance.getConf().getMessageListener()
+                    .received(consumerInstance.getConsumer(), msg);
+            }
+
+            // wait until all the messages are published
+            for (int i = 0; i < 10; i++) {
+                String msg = voidFunctionQueue.take();
+                log.info("Processed message {}", msg);
+                assertEquals("message-" + i, msg);
+            }
+
+            // no producer should be initialized
+            assertTrue(mockProducers.isEmpty());
         }
     }
 }
