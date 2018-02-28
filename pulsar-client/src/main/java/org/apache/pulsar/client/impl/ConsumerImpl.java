@@ -1313,7 +1313,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
         return booleanFuture;
     }
 
-    private CompletableFuture<MessageId> getLastMessageIdAsync() {
+    CompletableFuture<MessageId> getLastMessageIdAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
             return FutureUtil
                 .failedFuture(new PulsarClientException.AlreadyClosedException("Consumer was already closed"));

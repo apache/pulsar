@@ -17,22 +17,26 @@
 # under the License.
 #
 
-FROM openjdk:8-jdk
+Configuration:
+  name: test
 
-# Install some utilities
-RUN apt-get update && apt-get install -y netcat dnsutils
+  Appenders:
 
-ARG VERSION
+    # Console
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
 
-ADD apache-pulsar-${VERSION}-bin.tar.gz /
-RUN mv /apache-pulsar-${VERSION} /pulsar
+  Loggers:
 
-COPY scripts/apply-config-from-env.py /pulsar/bin
-COPY scripts/generate-zookeeper-config.sh /pulsar/bin
-COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
+    Root:
+      level: info
+      AppenderRef:
+        - ref: Console
 
-WORKDIR /pulsar
-
-VOLUME  ["/pulsar/conf", "/pulsar/data"]
-
-ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE
+    Logger:
+      name: org.apache.bookkeeper.mledger
+      level: info
+      additivity: false

@@ -17,12 +17,23 @@
 # under the License.
 #
 
-resource "random_id" "key_pair_name" {
-  byte_length = 4
-  prefix      = "${var.key_name_prefix}-"
-}
+FROM openjdk:8-jdk
 
-resource "aws_key_pair" "default" {
-  key_name   = "${random_id.key_pair_name.hex}"
-  public_key = "${file(var.public_key_path)}"
-}
+# Install some utilities
+RUN apt-get update && apt-get install -y netcat dnsutils python-kazoo
+
+ARG PULSAR_TARBALL
+
+ADD ${PULSAR_TARBALL} /
+RUN mv /apache-pulsar-* /pulsar
+
+COPY scripts/apply-config-from-env.py /pulsar/bin
+COPY scripts/generate-zookeeper-config.sh /pulsar/bin
+COPY scripts/pulsar-zookeeper-ruok.sh /pulsar/bin
+COPY scripts/watch-znode.py /pulsar/bin
+
+WORKDIR /pulsar
+
+VOLUME  ["/pulsar/conf", "/pulsar/data"]
+
+ENV PULSAR_ROOT_LOGGER=INFO,CONSOLE

@@ -61,6 +61,11 @@ public interface RawReader {
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId, Map<String,Long> properties);
 
     /**
+     * Get the last message id available immediately available for reading
+     */
+    CompletableFuture<MessageId> getLastMessageIdAsync();
+
+    /**
      * Close the raw reader.
      */
     CompletableFuture<Void> closeAsync();

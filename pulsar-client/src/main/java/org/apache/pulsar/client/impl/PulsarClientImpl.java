@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.impl;
 
+import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.google.common.collect.Lists;
@@ -35,6 +36,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -55,6 +57,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -122,13 +125,13 @@ public class PulsarClientImpl implements PulsarClient {
         this.conf = conf;
         conf.getAuthentication().start();
         this.cnxPool = cnxPool;
+        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
         if (conf.getServiceUrl().startsWith("http")) {
             lookup = new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls());
+            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
         }
         timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
-        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
         producers = Maps.newIdentityHashMap();
         consumers = Maps.newIdentityHashMap();
         state.set(State.Open);
@@ -330,7 +333,7 @@ public class PulsarClientImpl implements PulsarClient {
                     new PulsarClientException.InvalidConfigurationException("Consumer configuration undefined"));
         }
 
-        if (!conf.getTopicNames().stream().allMatch(topic -> TopicName.isValid(topic))) {
+        if (!conf.getTopicNames().stream().allMatch(TopicName::isValid)) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidTopicNameException("Invalid topic name"));
         }
 
@@ -352,7 +355,14 @@ public class PulsarClientImpl implements PulsarClient {
                     "Active consumer listener is only supported for failover subscription"));
         }
 
-        if (conf.getTopicNames().size() == 1) {
+        if (conf.getTopicsPattern() != null) {
+            // If use topicsPattern, we should not use topic(), and topics() method.
+            if (!conf.getTopicNames().isEmpty()){
+                return FutureUtil
+                    .failedFuture(new IllegalArgumentException("Topic names list must be null when use topicsPattern"));
+            }
+            return patternTopicSubscribeAsync(conf, schema);
+        } else if (conf.getTopicNames().size() == 1) {
             return singleTopicSubscribeAsync(conf, schema);
         } else {
             return multiTopicSubscribeAsync(conf, schema);
@@ -401,6 +411,46 @@ public class PulsarClientImpl implements PulsarClient {
         synchronized (consumers) {
             consumers.put(consumer, Boolean.TRUE);
         }
+
+        return consumerSubscribedFuture;
+    }
+
+    public CompletableFuture<Consumer<byte[]>> patternTopicSubscribeAsync(ConsumerConfigurationData<byte[]> conf) {
+        return patternTopicSubscribeAsync(conf, new Schema.Identity());
+    }
+
+    private <T> CompletableFuture<Consumer<T>> patternTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
+        String regex = conf.getTopicsPattern().pattern();
+        TopicName destination = TopicName.get(regex);
+        NamespaceName namespaceName = destination.getNamespaceObject();
+
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
+        lookup.getTopicsUnderNamespace(namespaceName)
+            .thenAccept(topics -> {
+                List<String> topicsList = topics.stream()
+                    .filter(topic -> {
+                        TopicName destinationName = TopicName.get(topic);
+                        checkState(destinationName.getNamespaceObject().equals(namespaceName));
+                        return conf.getTopicsPattern().matcher(destinationName.toString()).matches();
+                    })
+                    .collect(Collectors.toList());
+                conf.getTopicNames().addAll(topicsList);
+                ConsumerBase consumer = new PatternTopicsConsumerImpl<>(conf.getTopicsPattern(),
+                    PulsarClientImpl.this,
+                    conf,
+                    externalExecutorProvider.getExecutor(),
+                    consumerSubscribedFuture,
+                    schema);
+
+                synchronized (consumers) {
+                    consumers.put(consumer, Boolean.TRUE);
+                }
+            })
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to get topics under namespace", namespaceName);
+                consumerSubscribedFuture.completeExceptionally(ex);
+                return null;
+            });
 
         return consumerSubscribedFuture;
     }

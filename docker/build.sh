@@ -21,44 +21,6 @@
 ROOT_DIR=$(git rev-parse --show-toplevel)
 cd $ROOT_DIR/docker
 
-MVN_VERSION=`./get-version.sh`
+mvn package -Pdocker
+mvn -f ../dashboard/pom.xml package -Pdocker
 
-echo "Pulsar version: ${MVN_VERSION}"
-
-PULSAR_TGZ=$(dirname $PWD)/all/target/apache-pulsar-${MVN_VERSION}-bin.tar.gz
-
-if [ ! -f $PULSAR_TGZ ]; then
-    echo "Pulsar bin distribution not found at ${PULSAR_TGZ}"
-    exit 1
-fi
-
-LINKED_PULSAR_TGZ=apache-pulsar-${MVN_VERSION}-bin.tar.gz
-ln -f ${PULSAR_TGZ} $LINKED_PULSAR_TGZ
-
-echo "Using Pulsar binary package at ${PULSAR_TGZ}"
-
-# Build base image, reused by all other components
-docker build --build-arg VERSION=${MVN_VERSION} \
-             -t pulsar:latest .
-
-if [ $? != 0 ]; then
-    echo "Error: Failed to create Docker image for pulsar"
-    exit 1
-fi
-
-rm apache-pulsar-${MVN_VERSION}-bin.tar.gz
-
-
-# Build pulsar-grafana image
-docker build -t pulsar-grafana:latest grafana
-if [ $? != 0 ]; then
-    echo "Error: Failed to create Docker image for pulsar-grafana"
-    exit 1
-fi
-
-# Build dashboard docker image
-docker build -t pulsar-dashboard:latest ../dashboard
-if [ $? != 0 ]; then
-    echo "Error: Failed to create Docker image for pulsar-dashboard"
-    exit 1
-fi

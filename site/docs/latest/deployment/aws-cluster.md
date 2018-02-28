@@ -90,11 +90,11 @@ Variable name | Description | Default
 `public_key_path` | The path of the public key that you've generated. | `~/.ssh/id_rsa.pub`
 `region` | The AWS region in which the Pulsar cluster will run | `us-west-2`
 `availability_zone` | The AWS availability zone in which the Pulsar cluster will run | `us-west-2a`
-`ami` | The [Amazon Machine Image](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) (AMI) that will be used by the cluster | `ami-9fa343e7`
+`aws_ami` | The [Amazon Machine Image](http://docs.aws.amazon.com/AWSEC2/latest/UserGuide/AMIs.html) (AMI) that will be used by the cluster | `ami-9fa343e7`
 `num_zookeeper_nodes` | The number of [ZooKeeper](https://zookeeper.apache.org) nodes in the ZooKeeper cluster | 3
 `num_pulsar_brokers` | The number of Pulsar brokers and BookKeeper bookies that will run in the cluster | 3
 `base_cidr_block` | The root [CIDR](http://searchnetworking.techtarget.com/definition/CIDR) that will be used by network assets for the cluster | `10.0.0.0/16`
-`instance_types` | The EC2 instance types to be used. This variable is a map with two keys: `zookeeper` for the ZooKeeper instances and `pulsar` for the Pulsar brokers and BookKeeper bookies | `t2.small` (ZooKeeper) and `i3.3xlarge` (Pulsar/BookKeeper)
+`instance_types` | The EC2 instance types to be used. This variable is a map with two keys: `zookeeper` for the ZooKeeper instances and `pulsar` for the Pulsar brokers and BookKeeper bookies | `t2.small` (ZooKeeper) and `i3.xlarge` (Pulsar/BookKeeper)
 
 ### What is installed
 
@@ -122,7 +122,7 @@ pulsar://pulsar-elb-1800761694.us-west-2.elb.amazonaws.com:6650
 You can fetch that value at any time by running `terraform output pulsar_service_url` or parsing the `terraform.tstate` file (which is JSON, even though the filename doesn't reflect that):
 
 ```bash
-$ cat terraform.tfstate | jq '.modules | .[0].outputs.pulsar_connection_url.value'
+$ cat terraform.tfstate | jq .modules[0].outputs.pulsar_service_url.value
 ```
 
 ### Destroying your cluster
@@ -139,6 +139,7 @@ Once you've created the necessary AWS resources using Terraform, you can install
 
 ```bash
 $ ansible-playbook \
+  --user='ec2-user' \
   --inventory=`which terraform-inventory` \
   ../deploy-pulsar.yaml
 ```
@@ -147,6 +148,7 @@ If you've created a private SSH key at a location different from `~/.ssh/id_rsa`
 
 ```bash
 $ ansible-playbook \
+  --user='ec2-user' \
   --inventory=`which terraform-inventory` \
   --private-key="~/.ssh/some-non-default-key" \
   ../deploy-pulsar.yaml
