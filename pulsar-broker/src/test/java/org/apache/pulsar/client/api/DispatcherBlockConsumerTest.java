@@ -220,7 +220,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
-            List<ConsumerImpl> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
+            List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList(consumer1, consumer2, consumer3);
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -411,7 +411,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
             ConsumerImpl consumer3 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName, conf);
-            List<ConsumerImpl> consumers = Lists.newArrayList( consumer1, consumer2, consumer3 );
+            List<ConsumerImpl<byte[]>> consumers = Lists.newArrayList( consumer1, consumer2, consumer3 );
 
             ProducerConfiguration producerConf = new ProducerConfiguration();
 
@@ -783,7 +783,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              * (2) However, other subscription2 should still be able to consume messages until it reaches to
              * maxUnAckPerDispatcher limit
              **/
-            ConsumerImpl consumerSub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
+            ConsumerImpl<byte[]> consumerSub2 = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriberName2, conf);
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);

@@ -30,6 +30,7 @@ import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
@@ -43,12 +44,12 @@ import io.netty.buffer.ByteBuf;
 public class RawReaderImpl implements RawReader {
 
     final static int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
-    private final ConsumerConfigurationData consumerConfiguration;
+    private final ConsumerConfigurationData<byte[]> consumerConfiguration;
     private RawConsumerImpl consumer;
 
     public RawReaderImpl(PulsarClientImpl client, String topic, String subscription,
                          CompletableFuture<Consumer<byte[]>> consumerFuture) {
-        consumerConfiguration = new ConsumerConfigurationData();
+        consumerConfiguration = new ConsumerConfigurationData<>();
         consumerConfiguration.getTopicNames().add(topic);
         consumerConfiguration.setSubscriptionName(subscription);
         consumerConfiguration.setSubscriptionType(SubscriptionType.Exclusive);
@@ -78,14 +79,14 @@ public class RawReaderImpl implements RawReader {
         return consumer.closeAsync();
     }
 
-    static class RawConsumerImpl extends ConsumerImpl {
+    static class RawConsumerImpl extends ConsumerImpl<byte[]> {
         final BlockingQueue<RawMessageAndCnx> incomingRawMessages;
         final Queue<CompletableFuture<RawMessage>> pendingRawReceives;
 
         RawConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData conf,
                 CompletableFuture<Consumer<byte[]>> consumerFuture) {
             super(client, conf.getSingleTopic(), conf, client.externalExecutorProvider().getExecutor(), -1,
-                    consumerFuture, SubscriptionMode.Durable, MessageId.earliest);
+                    consumerFuture, SubscriptionMode.Durable, MessageId.earliest, new Schema.Identity());
             incomingRawMessages = new GrowableArrayBlockingQueue<>();
             pendingRawReceives = new ConcurrentLinkedQueue<>();
         }

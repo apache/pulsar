@@ -34,6 +34,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ConsumerName;
@@ -42,7 +43,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[]> {
+public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -51,16 +52,17 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
     protected final String subscription;
     protected final ConsumerConfigurationData conf;
     protected final String consumerName;
-    protected final CompletableFuture<Consumer<byte[]>> subscribeFuture;
-    protected final MessageListener listener;
+    protected final CompletableFuture<Consumer<T>> subscribeFuture;
+    protected final MessageListener<T> listener;
     protected final ConsumerEventListener consumerEventListener;
     protected final ExecutorService listenerExecutor;
-    final BlockingQueue<Message<byte[]>> incomingMessages;
-    protected final ConcurrentLinkedQueue<CompletableFuture<Message<byte[]>>> pendingReceives;
+    final BlockingQueue<Message<T>> incomingMessages;
+    protected final ConcurrentLinkedQueue<CompletableFuture<Message<T>>> pendingReceives;
     protected int maxReceiverQueueSize;
+    protected Schema<T> schema;
 
-    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData conf, int receiverQueueSize,
-            ExecutorService listenerExecutor, CompletableFuture<Consumer<byte[]>> subscribeFuture) {
+    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf, int receiverQueueSize,
+                           ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS));
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
@@ -77,10 +79,11 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
 
         this.listenerExecutor = listenerExecutor;
         this.pendingReceives = Queues.newConcurrentLinkedQueue();
+        this.schema = schema;
     }
 
     @Override
-    public Message receive() throws PulsarClientException {
+    public Message<T> receive() throws PulsarClientException {
         if (listener != null) {
             throw new PulsarClientException.InvalidConfigurationException(
                     "Cannot use receive() when a listener has been set");
@@ -106,7 +109,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
     }
 
     @Override
-    public CompletableFuture<Message<byte[]>> receiveAsync() {
+    public CompletableFuture<Message<T>> receiveAsync() {
 
         if (listener != null) {
             return FutureUtil.failedFuture(new PulsarClientException.InvalidConfigurationException(
@@ -130,12 +133,12 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
         return internalReceiveAsync();
     }
 
-    abstract protected Message internalReceive() throws PulsarClientException;
+    abstract protected Message<T> internalReceive() throws PulsarClientException;
 
-    abstract protected CompletableFuture<Message<byte[]>> internalReceiveAsync();
+    abstract protected CompletableFuture<Message<T>> internalReceiveAsync();
 
     @Override
-    public Message receive(int timeout, TimeUnit unit) throws PulsarClientException {
+    public Message<T> receive(int timeout, TimeUnit unit) throws PulsarClientException {
         if (conf.getReceiverQueueSize() == 0) {
             throw new PulsarClientException.InvalidConfigurationException(
                     "Can't use receive with timeout, if the queue size is 0");
@@ -162,7 +165,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
         return internalReceive(timeout, unit);
     }
 
-    abstract protected Message internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
+    abstract protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     @Override
     public void acknowledge(Message message) throws PulsarClientException {
@@ -319,7 +322,7 @@ public abstract class ConsumerBase extends HandlerBase implements Consumer<byte[
 
     abstract public int numMessagesInQueue();
 
-    public CompletableFuture<Consumer<byte[]>> subscribeFuture() {
+    public CompletableFuture<Consumer<T>> subscribeFuture() {
         return subscribeFuture;
     }
 

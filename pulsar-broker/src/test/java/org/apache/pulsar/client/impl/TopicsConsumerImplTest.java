@@ -368,7 +368,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 8. Simulate ackTimeout
         ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
-        ((TopicsConsumerImpl) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+        ((TopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 9. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {

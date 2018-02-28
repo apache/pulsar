@@ -79,8 +79,8 @@ public class PulsarClientImpl implements PulsarClient {
     }
 
     private AtomicReference<State> state = new AtomicReference<>();
-    private final IdentityHashMap<ProducerBase, Boolean> producers;
-    private final IdentityHashMap<ConsumerBase, Boolean> consumers;
+    private final IdentityHashMap<ProducerBase<?>, Boolean> producers;
+    private final IdentityHashMap<ConsumerBase<?>, Boolean> consumers;
 
     private final AtomicLong producerIdGenerator = new AtomicLong();
     private final AtomicLong consumerIdGenerator = new AtomicLong();
@@ -316,16 +316,11 @@ public class PulsarClientImpl implements PulsarClient {
         return subscribeAsync(confData);
     }
 
-    <T> CompletableFuture<Consumer<T>> subscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
-        final TypedConsumerConfigAdapter<T> adaptedConfig = new TypedConsumerConfigAdapter<>(conf, schema);
-        return subscribeAsync(adaptedConfig).thenApply(consumer -> {
-            TypedConsumerImpl<T> adaptedConsumer = new TypedConsumerImpl<>(consumer, schema);
-            adaptedConfig.setTypedConsumer(adaptedConsumer);
-            return adaptedConsumer;
-        });
+    public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {
+        return subscribeAsync(conf, new Schema.Identity());
     }
 
-    public CompletableFuture<Consumer<byte[]>> subscribeAsync(ConsumerConfigurationData<byte[]> conf) {
+    public <T> CompletableFuture<Consumer<T>> subscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -358,14 +353,14 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         if (conf.getTopicNames().size() == 1) {
-            return singleTopicSubscribeAsync(conf);
+            return singleTopicSubscribeAsync(conf, schema);
         } else {
-            return multiTopicSubscribeAsync(conf);
+            return multiTopicSubscribeAsync(conf, schema);
         }
     }
 
-    private CompletableFuture<Consumer<byte[]>> singleTopicSubscribeAsync(ConsumerConfigurationData conf) {
-        CompletableFuture<Consumer<byte[]>> consumerSubscribedFuture = new CompletableFuture<>();
+    private <T> CompletableFuture<Consumer<T>> singleTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
         String topic = conf.getSingleTopic();
 
@@ -374,15 +369,15 @@ public class PulsarClientImpl implements PulsarClient {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
 
-            ConsumerBase consumer;
+            ConsumerBase<T> consumer;
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             if (metadata.partitions > 1) {
-                consumer = new PartitionedConsumerImpl(PulsarClientImpl.this, conf, metadata.partitions, listenerThread,
-                        consumerSubscribedFuture);
+                consumer = new PartitionedConsumerImpl<>(PulsarClientImpl.this, conf, metadata.partitions, listenerThread,
+                        consumerSubscribedFuture, schema);
             } else {
-                consumer = new ConsumerImpl(PulsarClientImpl.this, topic, conf, listenerThread, -1,
-                        consumerSubscribedFuture);
+                consumer = new ConsumerImpl<>(PulsarClientImpl.this, topic, conf, listenerThread, -1,
+                        consumerSubscribedFuture, schema);
             }
 
             synchronized (consumers) {
@@ -397,11 +392,11 @@ public class PulsarClientImpl implements PulsarClient {
         return consumerSubscribedFuture;
     }
 
-    private CompletableFuture<Consumer<byte[]>> multiTopicSubscribeAsync(ConsumerConfigurationData conf) {
-        CompletableFuture<Consumer<byte[]>> consumerSubscribedFuture = new CompletableFuture<>();
+    private <T> CompletableFuture<Consumer<T>> multiTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
+        CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
-        ConsumerBase consumer = new TopicsConsumerImpl(PulsarClientImpl.this, conf,
-                externalExecutorProvider.getExecutor(), consumerSubscribedFuture);
+        ConsumerBase<T> consumer = new TopicsConsumerImpl<>(PulsarClientImpl.this, conf,
+                externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema);
 
         synchronized (consumers) {
             consumers.put(consumer, Boolean.TRUE);
@@ -437,16 +432,11 @@ public class PulsarClientImpl implements PulsarClient {
         return createReaderAsync(confData);
     }
 
-    <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
-        TypedReaderConfigAdapter<T> adaptedConfig = new TypedReaderConfigAdapter<>(conf, schema);
-        return createReaderAsync(adaptedConfig).thenApply(reader -> {
-            TypedReaderImpl<T> adaptedReader = new TypedReaderImpl<>(reader, schema);
-            adaptedConfig.setTypedReader(adaptedReader);
-            return adaptedReader;
-        });
+    public CompletableFuture<Reader<byte[]>> createReaderAsync(ReaderConfigurationData<byte[]> conf) {
+        return createReaderAsync(conf, new Schema.Identity());
     }
 
-    public CompletableFuture<Reader<byte[]>> createReaderAsync(ReaderConfigurationData<byte[]> conf) {
+    public <T> CompletableFuture<Reader<T>> createReaderAsync(ReaderConfigurationData<T> conf, Schema<T> schema) {
         if (state.get() != State.Open) {
             return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
         }
@@ -467,7 +457,7 @@ public class PulsarClientImpl implements PulsarClient {
                     .failedFuture(new PulsarClientException.InvalidConfigurationException("Invalid startMessageId"));
         }
 
-        CompletableFuture<Reader<byte[]>> readerFuture = new CompletableFuture<>();
+        CompletableFuture<Reader<T>> readerFuture = new CompletableFuture<>();
 
         getPartitionedTopicMetadata(topic).thenAccept(metadata -> {
             if (log.isDebugEnabled()) {
@@ -480,10 +470,10 @@ public class PulsarClientImpl implements PulsarClient {
                 return;
             }
 
-            CompletableFuture<Consumer<byte[]>> consumerSubscribedFuture = new CompletableFuture<>();
+            CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
-            ReaderImpl reader = new ReaderImpl(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture);
+            ReaderImpl<T> reader = new ReaderImpl<>(PulsarClientImpl.this, conf, listenerThread, consumerSubscribedFuture, schema);
 
             synchronized (consumers) {
                 consumers.put(reader.getConsumer(), Boolean.TRUE);
