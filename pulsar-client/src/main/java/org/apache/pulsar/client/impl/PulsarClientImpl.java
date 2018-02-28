@@ -19,6 +19,7 @@
 package org.apache.pulsar.client.impl;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
+import static com.google.common.base.Preconditions.checkState;
 
 import java.util.IdentityHashMap;
 import java.util.List;
@@ -30,6 +31,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
@@ -49,6 +52,7 @@ import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 import org.apache.pulsar.client.util.ExecutorProvider;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicDomain;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -124,13 +128,13 @@ public class PulsarClientImpl implements PulsarClient {
         this.conf = conf;
         conf.getAuthentication().start();
         this.cnxPool = cnxPool;
+        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
         if (conf.getServiceUrl().startsWith("http")) {
             lookup = new HttpLookupService(conf, eventLoopGroup);
         } else {
-            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls());
+            lookup = new BinaryProtoLookupService(this, conf.getServiceUrl(), conf.isUseTls(), externalExecutorProvider.getExecutor());
         }
         timer = new HashedWheelTimer(new DefaultThreadFactory("pulsar-timer"), 1, TimeUnit.MILLISECONDS);
-        externalExecutorProvider = new ExecutorProvider(conf.getNumListenerThreads(), "pulsar-external-listener");
         producers = Maps.newIdentityHashMap();
         consumers = Maps.newIdentityHashMap();
         state.set(State.Open);
@@ -218,7 +222,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         if (state.get() != State.Open) {
-            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed : state = " + state.get()));
         }
 
         String topic = conf.getTopicName();
@@ -331,7 +335,14 @@ public class PulsarClientImpl implements PulsarClient {
                     "Active consumer listener is only supported for failover subscription"));
         }
 
-        if (conf.getTopicNames().size() == 1) {
+        if (conf.getTopicsPattern() != null) {
+            // If use topicsPattern, we should not use topic(), and topics() method.
+            if (!conf.getTopicNames().isEmpty()){
+                return FutureUtil
+                    .failedFuture(new IllegalArgumentException("Topic names list must be null when use topicsPattern"));
+            }
+            return patternTopicSubscribeAsync(conf);
+        } else if (conf.getTopicNames().size() == 1) {
             return singleTopicSubscribeAsysnc(conf);
         } else {
             return multiTopicSubscribeAsync(conf);
@@ -382,6 +393,52 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         return consumerSubscribedFuture;
+    }
+
+    public CompletableFuture<Consumer> patternTopicSubscribeAsync(ConsumerConfigurationData conf) {
+        String regex = conf.getTopicsPattern().pattern();
+        TopicName destination = TopicName.get(regex);
+        NamespaceName namespaceName = destination.getNamespaceObject();
+
+        CompletableFuture<Consumer> consumerSubscribedFuture = new CompletableFuture<>();
+        lookup.getTopicsUnderNamespace(namespaceName)
+            .thenAccept(topics -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("Get topics under namespace {}, topics.size: {}", namespaceName.toString(), topics.size());
+                    topics.forEach(topicName ->
+                        log.debug("Get topics under namespace {}, topic: {}", namespaceName.toString(), topicName));
+                }
+
+                List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
+                conf.getTopicNames().addAll(topicsList);
+                ConsumerBase consumer = new PatternTopicsConsumerImpl(conf.getTopicsPattern(),
+                    PulsarClientImpl.this,
+                    conf,
+                    externalExecutorProvider.getExecutor(),
+                    consumerSubscribedFuture);
+
+                synchronized (consumers) {
+                    consumers.put(consumer, Boolean.TRUE);
+                }
+            })
+            .exceptionally(ex -> {
+                log.warn("[{}] Failed to get topics under namespace", namespaceName);
+                consumerSubscribedFuture.completeExceptionally(ex);
+                return null;
+            });
+
+        return consumerSubscribedFuture;
+    }
+
+    // get topics that match 'topicsPattern' from original topics list
+    // return result should contain only topic names, without partition part
+    public static List<String> topicsPatternFilter(List<String> original, Pattern topicsPattern) {
+        return original.stream()
+            .filter(topic -> {
+                TopicName destinationName = TopicName.get(topic);
+                return topicsPattern.matcher(destinationName.toString()).matches();
+            })
+            .collect(Collectors.toList());
     }
 
     @Override
@@ -545,7 +602,8 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
     }
 
-    protected Timer timer() {
+    /** visiable for pulsar-functions **/
+    public Timer timer() {
         return timer;
     }
 
@@ -571,6 +629,10 @@ public class PulsarClientImpl implements PulsarClient {
 
     public EventLoopGroup eventLoopGroup() {
         return eventLoopGroup;
+    }
+
+    public LookupService getLookup() {
+        return lookup;
     }
 
     public CompletableFuture<Integer> getNumberOfPartitions(String topic) {

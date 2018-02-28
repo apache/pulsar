@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * {@link ConsumerBuilder} is used to configure and create instances of {@link Consumer}.
@@ -80,7 +81,6 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
     /**
      * Specify the topics this consumer will subscribe on.
      * <p>
-     * This argument is required when constructing the consumer.
      *
      * @param topicNames
      */
@@ -89,11 +89,29 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
     /**
      * Specify a list of topics that this consumer will subscribe on.
      * <p>
-     * This argument is required when constructing the consumer.
      *
      * @param topicNames
      */
     ConsumerBuilder topics(List<String> topicNames);
+
+    /**
+     * Specify a pattern for topics that this consumer will subscribe on.
+     * <p>
+     *
+     * @param topicsPattern
+     */
+    ConsumerBuilder topicsPattern(Pattern topicsPattern);
+
+    /**
+     * Specify a pattern for topics that this consumer will subscribe on.
+     * It accepts regular expression and will be compiled into a pattern internally.
+     * Eg. "persistent://prop/use/ns-abc/pattern-topic-.*"
+     * <p>
+     *
+     * @param topicsPattern
+     *            given regular expression for topics pattern
+     */
+    ConsumerBuilder topicsPattern(String topicsPattern);
 
     /**
      * Specify the subscription name for this consumer.
@@ -212,6 +230,15 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
      *            whether to read from the compacted topic
      */
     ConsumerBuilder readCompacted(boolean readCompacted);
+
+    /**
+     * Set topics auto discovery period when using a pattern for topics consumer.
+     * The period is in minute, and default and minimum value is 1 minute.
+     *
+     * @param periodInMinutes
+     *            whether to read from the compacted topic
+     */
+    ConsumerBuilder patternAutoDiscoveryPeriod(int periodInMinutes);
 
     /**
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching

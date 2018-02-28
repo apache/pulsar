@@ -28,10 +28,8 @@ import static org.testng.Assert.assertEquals;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
-import org.apache.pulsar.broker.cache.ResourceQuotaCache;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceName;
@@ -53,13 +51,13 @@ public class ResourceQuotaCacheTest {
     private ZooKeeperCache zkCache;
     private LocalZooKeeperCacheService localCache;
     private NamespaceBundleFactory bundleFactory;
-    private OrderedSafeExecutor executor;
+    private OrderedScheduler executor;
     private ScheduledExecutorService scheduledExecutor;
 
     @BeforeMethod
     public void setup() throws Exception {
         pulsar = mock(PulsarService.class);
-        executor = new OrderedSafeExecutor(1, "test");
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
         zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
         localCache = new LocalZooKeeperCacheService(zkCache, null);

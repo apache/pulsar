@@ -67,9 +67,9 @@
     </dependency>
     
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-checksum</artifactId>
-      <version>${project.version}</version>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>circe-checksum</artifactId>
+      <version>${bookkeeper.version}</version>
     </dependency>
     
     <dependency>
