@@ -1609,8 +1609,8 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public CompletableFuture<SchemaAndMetadata> getSchema() {
-        String base = DestinationName.get(getName()).getPartitionedTopicName();
-        DestinationName destination = DestinationName.get(base);
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        TopicName destination = TopicName.get(base);
         String schema = destination.getProperty()
             + "_" + destination.getCluster()
             + "_" + destination.getNamespacePortion()
