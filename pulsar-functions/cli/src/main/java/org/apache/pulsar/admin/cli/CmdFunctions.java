@@ -434,15 +434,22 @@ public class CmdFunctions extends CmdBase {
         @Parameter(names = "--stateStorageServiceUrl", description = "state storage service url")
         protected String stateStorageServiceUrl;
 
+        @Parameter(names = "--brokerServiceUrl", description = "The pulsar broker  url")
+        protected String brokerServiceUrl;
+
         @Override
         void runCmd() throws Exception {
             if (!FunctionConfigUtils.areAllRequiredFieldsPresent(functionConfig)) {
                 throw new RuntimeException("Missing arguments");
             }
 
+            String serviceUrl = admin.getServiceUrl().toString();
+            if (brokerServiceUrl != null) {
+                serviceUrl = brokerServiceUrl;
+            }
             try (ThreadRuntimeFactory containerFactory = new ThreadRuntimeFactory(
                 "LocalRunnerThreadGroup",
-                admin.getServiceUrl().toString(),
+                serviceUrl,
                 stateStorageServiceUrl)) {
 
                 InstanceConfig instanceConfig = new InstanceConfig();
