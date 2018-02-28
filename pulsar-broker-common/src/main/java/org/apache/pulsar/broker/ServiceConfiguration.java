@@ -30,8 +30,6 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
 
-import io.netty.handler.ssl.ClientAuth;
-
 /**
  * Pulsar service configuration object.
  */

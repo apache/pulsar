@@ -27,8 +27,6 @@ import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 import com.google.common.collect.Sets;
 
-import io.netty.handler.ssl.ClientAuth;
-
 /**
  * Service Configuration to start :{@link DiscoveryServiceServlet}
  *

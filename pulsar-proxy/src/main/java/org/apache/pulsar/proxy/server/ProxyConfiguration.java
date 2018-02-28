@@ -26,8 +26,6 @@ import org.apache.pulsar.common.configuration.PulsarConfiguration;
 
 import com.google.common.collect.Sets;
 
-import io.netty.handler.ssl.ClientAuth;
-
 public class ProxyConfiguration implements PulsarConfiguration {
 
     // Local-Zookeeper quorum connection string
