@@ -16,36 +16,37 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.bookkeeper.client;
+package org.apache.pulsar.broker;
 
 import java.io.IOException;
-import org.apache.bookkeeper.conf.ClientConfiguration;
-import org.apache.zookeeper.KeeperException;
+
+import org.apache.bookkeeper.client.BKException;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.MockBookKeeper;
 import org.apache.zookeeper.ZooKeeper;
 
-/**
- * Test BookKeeperClient which allows access to members we don't wish to expose in the public API.
- */
-public class BookKeeperTestClient extends BookKeeper {
-    public BookKeeperTestClient(ClientConfiguration conf) throws IOException, InterruptedException, BKException {
-        super(conf);
+public class MockedBookKeeperClientFactory implements BookKeeperClientFactory {
+
+    private final BookKeeper mockedBk;
+
+    public MockedBookKeeperClientFactory() {
+        try {
+            mockedBk = new MockBookKeeper(null);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    public ZooKeeper getZkHandle() {
-        return super.getZkHandle();
+    @Override
+    public BookKeeper create(ServiceConfiguration conf, ZooKeeper zkClient) throws IOException {
+        return mockedBk;
     }
 
-    public ClientConfiguration getConf() {
-        return super.getConf();
-    }
-
-    /**
-     * Force a read to zookeeper to get list of bookies.
-     *
-     * @throws InterruptedException
-     * @throws KeeperException
-     */
-    public void readBookiesBlocking() throws InterruptedException, BKException {
-        bookieWatcher.initialBlockingBookieRead();
+    @Override
+    public void close() {
+        try {
+            mockedBk.close();
+        } catch (BKException | InterruptedException e) {
+        }
     }
 }

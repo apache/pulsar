@@ -37,6 +37,7 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
@@ -78,7 +79,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final ManagedLedgerFactoryConfig config;
     protected final ScheduledExecutorService executor = Executors.newScheduledThreadPool(16,
             new DefaultThreadFactory("bookkeeper-ml"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(16, "bookkeeper-ml-workers");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(16)
+            .name("bookkeeper-ml-workers").build();
 
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
