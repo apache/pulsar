@@ -61,10 +61,20 @@ public class CompactedTopicImpl implements CompactedTopic {
     }
 
     @Override
-    public void newCompactedLedger(Position p, long compactedLedgerId) {
+    public CompletableFuture<?> newCompactedLedger(Position p, long compactedLedgerId) {
         synchronized (this) {
             compactionHorizon = (PositionImpl)p;
+
+            CompletableFuture<CompactedTopicContext> previousContext = compactedTopicContext;
             compactedTopicContext = openCompactedLedger(bk, compactedLedgerId);
+
+            // delete the ledger from the old context once the new one is open
+            if (previousContext != null) {
+                return compactedTopicContext.thenCompose((res) -> previousContext)
+                    .thenCompose((res) -> tryDeleteCompactedLedger(bk, res.ledger.getId()));
+            } else {
+                return compactedTopicContext;
+            }
         }
     }
 
@@ -180,6 +190,21 @@ public class CompactedTopicImpl implements CompactedTopic {
                            }, null);
         return promise.thenApply((ledger) -> new CompactedTopicContext(
                                          ledger, createCache(ledger, DEFAULT_STARTPOINT_CACHE_SIZE)));
+    }
+
+    private static CompletableFuture<Void> tryDeleteCompactedLedger(BookKeeper bk, long id) {
+        CompletableFuture<Void> promise = new CompletableFuture<>();
+        bk.asyncDeleteLedger(id,
+                             (rc, ctx) -> {
+                                 if (rc != BKException.Code.OK) {
+                                     log.warn("Error deleting compacted topic ledger {}",
+                                              id, BKException.create(rc));
+                                 } else {
+                                     log.debug("Compacted topic ledger deleted successfully");
+                                 }
+                                 promise.complete(null); // don't propagate any error
+                             }, null);
+        return promise;
     }
 
     private static CompletableFuture<List<Entry>> readEntries(LedgerHandle lh, long from, long to) {
