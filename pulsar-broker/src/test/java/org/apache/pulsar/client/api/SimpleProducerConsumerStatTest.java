@@ -346,7 +346,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         int batchSize = 5;
         ConsumerConfiguration consumerConf = new ConsumerConfiguration();
         consumerConf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
+        Consumer<byte[]> consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setBatchingMaxMessages(batchSize);
         producerConf.setBatchingEnabled(true);
@@ -359,7 +359,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
             while (runTest.get()) {
                 r.acquire();
                 producer.sendAsync("Hello World".getBytes());
-                consumer.receiveAsync().thenAccept(message -> consumer.acknowledgeAsync(message));
+                consumer.receiveAsync().thenAccept(consumer::acknowledgeAsync);
             }
         });
         t1.start();

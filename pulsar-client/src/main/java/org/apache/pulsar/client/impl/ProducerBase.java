@@ -27,33 +27,36 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
-public abstract class ProducerBase extends HandlerBase implements Producer {
+public abstract class ProducerBase<T> extends HandlerBase implements Producer<T> {
 
-    protected final CompletableFuture<Producer> producerCreatedFuture;
+    protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
+    protected final Schema<T> schema;
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
-            CompletableFuture<Producer> producerCreatedFuture) {
+            CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
         super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS,
                 Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
+        this.schema = schema;
     }
 
     @Override
-    public MessageId send(byte[] message) throws PulsarClientException {
-        return send(MessageBuilder.create().setContent(message).build());
+    public MessageId send(T message) throws PulsarClientException {
+        return send(MessageBuilder.create(schema).setValue(message).build());
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(byte[] message) {
-        return sendAsync(MessageBuilder.create().setContent(message).build());
+    public CompletableFuture<MessageId> sendAsync(T message) {
+        return sendAsync(MessageBuilder.create(schema).setValue(message).build());
     }
 
     @Override
-    public MessageId send(Message message) throws PulsarClientException {
+    public MessageId send(Message<T> message) throws PulsarClientException {
         try {
             return sendAsync(message).get();
         } catch (ExecutionException e) {
@@ -70,7 +73,7 @@ public abstract class ProducerBase extends HandlerBase implements Producer {
     }
 
     @Override
-    abstract public CompletableFuture<MessageId> sendAsync(Message message);
+    abstract public CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     @Override
     public void close() throws PulsarClientException {
@@ -103,7 +106,7 @@ public abstract class ProducerBase extends HandlerBase implements Producer {
         return conf;
     }
 
-    public CompletableFuture<Producer> producerCreatedFuture() {
+    public CompletableFuture<Producer<T>> producerCreatedFuture() {
         return producerCreatedFuture;
     }
 

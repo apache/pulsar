@@ -497,10 +497,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.brokers().updateDynamicConfiguration("brokerShutdownTimeoutMs", Long.toString(shutdownTime));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() != initValue) {
+            if (pulsar.getConfiguration().getBrokerShutdownTimeoutMs() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
+
         // verify value is updated
         assertEquals(pulsar.getConfiguration().getBrokerShutdownTimeoutMs(), shutdownTime);
     }
@@ -1487,7 +1488,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         try {
             admin.properties().createProperty("test-property", cpa);
         } catch (Exception e) {
-            fail("Should not happen.");
+            fail("Should not happen : ", e);
         }
     }
 

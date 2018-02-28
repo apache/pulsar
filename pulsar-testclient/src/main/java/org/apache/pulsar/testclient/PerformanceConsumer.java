@@ -246,7 +246,7 @@ public class PerformanceConsumer {
                 return null;
             }
         }
-        List<Future<Consumer>> futures = Lists.newArrayList();
+        List<Future<Consumer<byte[]>>> futures = Lists.newArrayList();
         ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
         consumerConfig.setMessageListener(listener);
         consumerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
@@ -275,7 +275,7 @@ public class PerformanceConsumer {
             }
         }
 
-        for (Future<Consumer> future : futures) {
+        for (Future<Consumer<byte[]>> future : futures) {
             future.get();
         }
 

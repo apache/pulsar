@@ -50,12 +50,12 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -79,6 +79,7 @@ import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
@@ -143,7 +144,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
-    private final OrderedSafeExecutor topicOrderedExecutor;
+    private final OrderedScheduler topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
     private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = prepareDynamicConfigurationMap();
@@ -197,7 +198,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
-        this.topicOrderedExecutor = new OrderedSafeExecutor(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic(), "broker-np-topic-workers");
+        this.topicOrderedExecutor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
+                .name("broker-np-topic-workers").build();
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
         final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
@@ -1296,7 +1299,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     }
 
-    public OrderedSafeExecutor getTopicOrderedExecutor() {
+    public OrderedScheduler getTopicOrderedExecutor() {
         return topicOrderedExecutor;
     }
 

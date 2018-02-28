@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -216,7 +217,7 @@ public abstract class MockedPulsarServiceBaseTest {
     private static class NonClosableMockBookKeeper extends MockBookKeeper {
 
         public NonClosableMockBookKeeper(ClientConfiguration conf, ZooKeeper zk) throws Exception {
-            super(conf, zk);
+            super(zk);
         }
 
         @Override

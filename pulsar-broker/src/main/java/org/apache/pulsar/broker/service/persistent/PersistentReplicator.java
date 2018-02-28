@@ -105,7 +105,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     @Override
-    protected void readEntries(org.apache.pulsar.client.api.Producer producer) {
+    protected void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
         cursor.rewind();
 
