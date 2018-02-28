@@ -55,13 +55,25 @@ public class MessageImpl<T> implements Message<T> {
     transient private Map<String, String> properties;
 
     // Constructor for out-going message
-    static MessageImpl create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload) {
-        MessageImpl msg = RECYCLER.get();
+    static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
+        MessageImpl<T> msg = RECYCLER.get();
         msg.msgMetadataBuilder = msgMetadataBuilder;
         msg.messageId = null;
         msg.cnx = null;
         msg.payload = Unpooled.wrappedBuffer(payload);
         msg.properties = null;
+        msg.schema = schema;
+        return msg;
+    }
+
+    static MessageImpl<byte[]> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload) {
+        MessageImpl<byte[]> msg = RECYCLER.get();
+        msg.msgMetadataBuilder = msgMetadataBuilder;
+        msg.messageId = null;
+        msg.cnx = null;
+        msg.payload = Unpooled.wrappedBuffer(payload);
+        msg.properties = null;
+        msg.schema = Schema.IDENTITY;
         return msg;
     }
 

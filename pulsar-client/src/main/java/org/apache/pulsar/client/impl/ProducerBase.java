@@ -47,12 +47,12 @@ public abstract class ProducerBase<T> extends HandlerBase implements Producer<T>
 
     @Override
     public MessageId send(T message) throws PulsarClientException {
-        return send(MessageBuilder.create().setContent(schema.encode(message)).build());
+        return send(MessageBuilder.create(schema).setValue(message).build());
     }
 
     @Override
     public CompletableFuture<MessageId> sendAsync(T message) {
-        return sendAsync(MessageBuilder.create().setContent(schema.encode(message)).build());
+        return sendAsync(MessageBuilder.create(schema).setValue(message).build());
     }
 
     @Override

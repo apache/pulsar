@@ -97,9 +97,11 @@ public interface PulsarClient extends Closeable {
      * Example:
      *
      * <code>
-     * Producer producer = client.newProducer().topic(myTopic).create();
+     * Producer producer = client.newProducer(mySchema).topic(myTopic).create();
      * </code>
      *
+     * @param schema
+     *          provide a way to convert between serialized data and domain objects
      *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
      *
@@ -119,7 +121,8 @@ public interface PulsarClient extends Closeable {
     /**
      * Create a producer with default for publishing on a specific topic
      *
-     * @param schema a schema
+     * @param schema
+     *          provide a way to convert between serialized data and domain objects
      *
      * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
      *
@@ -144,6 +147,9 @@ public interface PulsarClient extends Closeable {
      * <p>
      * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
      * subscription. Reader can only work on non-partitioned topics.
+     *
+     * @param schema
+     *          provide a way to convert between serialized data and domain objects
      *
      * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
      *
