@@ -37,6 +37,8 @@ import org.testng.annotations.BeforeMethod;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import io.netty.handler.ssl.ClientAuth;
+
 public class TlsProducerConsumerBase extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerBase.class);
 
@@ -69,7 +71,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setClusterName(clusterName);
-        conf.setTlsClientAuth("REQUIRE");
+        conf.setTlsClientAuth(ClientAuth.REQUIRE);
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);

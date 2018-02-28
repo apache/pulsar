@@ -27,6 +27,8 @@ import org.apache.pulsar.discovery.service.web.DiscoveryServiceServlet;
 
 import com.google.common.collect.Sets;
 
+import io.netty.handler.ssl.ClientAuth;
+
 /**
  * Service Configuration to start :{@link DiscoveryServiceServlet}
  *
@@ -91,7 +93,7 @@ public class ServiceConfig implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // https://netty.io/4.0/api/io/netty/handler/ssl/ClientAuth.html
     // Acceptable values:- [NONE, OPTIONAL, REQUIRE]
-    private String tlsClientAuth = "OPTIONAL";
+    private String tlsClientAuth = ClientAuth.OPTIONAL.toString();
     
     private Properties properties = new Properties();
 
@@ -271,11 +273,11 @@ public class ServiceConfig implements PulsarConfiguration {
         this.tlsCiphers = tlsCiphers;
     }
     
-    public String getTlsClientAuth() {
-        return tlsClientAuth;
+    public ClientAuth getTlsClientAuth() {
+        return ClientAuth.valueOf(tlsClientAuth);
     }
 
-    public void setTlsClientAuth(String tlsClientAuth) {
-        this.tlsClientAuth = tlsClientAuth;
+    public void setTlsClientAuth(ClientAuth tlsClientAuth) {
+        this.tlsClientAuth = tlsClientAuth.toString();
     }
 }
