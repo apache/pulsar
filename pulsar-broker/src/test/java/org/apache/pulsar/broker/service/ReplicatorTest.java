@@ -24,6 +24,7 @@ import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 import io.netty.buffer.ByteBuf;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -51,12 +52,10 @@ import org.apache.pulsar.broker.namespace.OwnershipCache;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.persistent.PersistentReplicator;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.checksum.utils.Crc32cChecksum;
 import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedException;
 import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
@@ -869,7 +868,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         assertTrue(Commands.hasChecksum(b));
         int parsedChecksum = Commands.readChecksum(b).intValue();
-        int computedChecksum = Crc32cChecksum.computeChecksum(b);
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
 
         assertEquals(parsedChecksum, computedChecksum);
 

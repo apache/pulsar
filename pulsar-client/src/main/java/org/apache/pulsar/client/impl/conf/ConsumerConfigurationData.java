@@ -73,6 +73,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean readCompacted = false;
 
+    private int patternAutoDiscoveryPeriod = 1;
+
     @JsonIgnore
     public String getSingleTopic() {
         checkArgument(topicNames.size() == 1);

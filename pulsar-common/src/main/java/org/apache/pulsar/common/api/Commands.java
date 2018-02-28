@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.common.api;
 
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.computeChecksum;
-import static org.apache.pulsar.checksum.utils.Crc32cChecksum.resumeChecksum;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
+import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 
 import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;

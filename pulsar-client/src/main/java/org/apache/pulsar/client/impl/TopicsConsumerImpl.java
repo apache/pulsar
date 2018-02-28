@@ -38,7 +38,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -65,7 +64,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final ConcurrentHashMap<String, ConsumerImpl<T>> consumers;
 
     // Map <topic, partitionNumber>, store partition number for each topic
-    private final ConcurrentHashMap<String, Integer> topics;
+    protected final ConcurrentHashMap<String, Integer> topics;
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
@@ -147,8 +146,8 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     // - every topic has same namespace,
     // - topic names are unique.
     private static boolean topicNamesValid(Collection<String> topics) {
-        checkState(topics != null && topics.size() > 1,
-            "topics should should contain more than 1 topics");
+        checkState(topics != null && topics.size() >= 1,
+            "topics should should contain more than 1 topic");
 
         final String namespace = TopicName.get(topics.stream().findFirst().get()).getNamespace();
 
@@ -690,8 +689,8 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                             consumers.values().stream()
                                 .filter(consumer1 -> {
                                     String consumerTopicName = consumer1.getTopic();
-                                    if (TopicName.get(consumerTopicName)
-                                        .getPartitionedTopicName().equals(topicName)) {
+                                    if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(
+                                        TopicName.get(topicName).getPartitionedTopicName().toString())) {
                                         return true;
                                     } else {
                                         return false;
