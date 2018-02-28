@@ -18,18 +18,19 @@
  */
 package org.apache.pulsar;
 
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
+
 import java.io.IOException;
 
 import org.apache.bookkeeper.client.BookKeeperAdmin;
-import org.apache.bookkeeper.conf.ClientConfiguration;
+import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
-import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory.SessionType;
+import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.KeeperException.NodeExistsException;
 import org.apache.zookeeper.ZooDefs;
@@ -96,7 +97,7 @@ public class PulsarClusterMetadataSetup {
                 arguments.globalZookeeper);
 
         // Format BookKeeper metadata
-        ClientConfiguration bkConf = new ClientConfiguration();
+        ServerConfiguration bkConf = new ServerConfiguration();
         bkConf.setLedgerManagerFactoryClass(HierarchicalLedgerManagerFactory.class);
         bkConf.setZkServers(arguments.zookeeper);
         if (!BookKeeperAdmin.format(bkConf, false /* interactive */, false /* force */)) {
