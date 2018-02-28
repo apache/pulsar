@@ -232,6 +232,15 @@ public interface ConsumerBuilder extends Serializable, Cloneable {
     ConsumerBuilder readCompacted(boolean readCompacted);
 
     /**
+     * Set topics auto discovery period when using a pattern for topics consumer.
+     * The period is in minute, and default and minimum value is 1 minute.
+     *
+     * @param periodInMinutes
+     *            whether to read from the compacted topic
+     */
+    ConsumerBuilder patternAutoDiscoveryPeriod(int periodInMinutes);
+
+    /**
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
      * messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..) </br>
      * In Shared subscription mode, broker will first dispatch messages to max priority-level consumers if they have

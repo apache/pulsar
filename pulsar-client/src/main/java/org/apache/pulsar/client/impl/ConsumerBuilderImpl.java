@@ -201,4 +201,11 @@ public class ConsumerBuilderImpl implements ConsumerBuilder {
         conf.setReadCompacted(readCompacted);
         return this;
     }
+
+    @Override
+    public ConsumerBuilder patternAutoDiscoveryPeriod(int periodInMinutes) {
+        conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
+        return this;
+    }
+
 }
