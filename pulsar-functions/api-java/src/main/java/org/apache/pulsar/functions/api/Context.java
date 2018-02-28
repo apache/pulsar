@@ -105,9 +105,9 @@ public interface Context {
     Logger getLogger();
 
     /**
-     * The counter object that can be used for counting.
-     *
-     * @return the counter object.
+     * Increment the builtin distributed counter refered by key
+     * @param key The name of the key
+     * @param amount The amount to be incremented
      */
     void incrCounter(String key, long amount);
 
@@ -130,7 +130,7 @@ public interface Context {
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published
      * @param serDeClassName The class name of the class that needs to be used to serialize the object before publishing
-     * @return
+     * @return A future that completes when the framework is done publishing the message
      */
     <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
 
@@ -138,9 +138,16 @@ public interface Context {
      * Publish an object using DefaultSerDe for serializing to the topic
      * @param topicName The name of the topic for publishing
      * @param object The object that needs to be published
-     * @return
+     * @return A future that completes when the framework is done publishing the message
      */
     <O> CompletableFuture<Void> publish(String topicName, O object);
 
+    /**
+     * By default acknowledgement management is done transparently by Pulsar Functions framework.
+     * However users can disable that and do ack management by themselves by using this API.
+     * @param messageId The messageId that needs to be acknowledged
+     * @param topic The topic name that the message belongs to that  needs to be acknowledged
+     * @return A future that completes when the framework is done acking the message
+     */
     CompletableFuture<Void> ack(byte[] messageId, String topic);
 }
