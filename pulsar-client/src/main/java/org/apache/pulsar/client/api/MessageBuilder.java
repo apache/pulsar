@@ -28,7 +28,7 @@ import org.apache.pulsar.client.impl.MessageBuilderImpl;
  * Message builder factory. Use this class to create messages to be send to the Pulsar producer
  *
  */
-public interface MessageBuilder {
+public interface MessageBuilder<T> {
     /**
      * Create a new message builder instance.
      * <p>
@@ -36,8 +36,12 @@ public interface MessageBuilder {
      *
      * @return a new message builder
      */
-    public static MessageBuilder create() {
-        return new MessageBuilderImpl();
+    static <T> MessageBuilder<T> create(Schema<T> schema) {
+        return new MessageBuilderImpl<>(schema);
+    }
+
+    static MessageBuilder<byte[]> create() {
+        return create(Schema.IDENTITY);
     }
 
     /**
@@ -45,7 +49,15 @@ public interface MessageBuilder {
      *
      * @return a {@link Message} ready to be sent through a {@link Producer}
      */
-    Message build();
+    Message<T> build();
+
+    /**
+     * Set a domain object on the message
+     *
+     * @param value
+     *            the domain object
+     */
+    MessageBuilder<T> setValue(T value);
 
     /**
      * Set the content of the message
@@ -53,7 +65,7 @@ public interface MessageBuilder {
      * @param data
      *            array containing the payload
      */
-    MessageBuilder setContent(byte[] data);
+    MessageBuilder<T> setContent(byte[] data);
 
     /**
      * Set the content of the message
@@ -65,7 +77,7 @@ public interface MessageBuilder {
      * @param length
      *            length of the payload starting from the above offset
      */
-    MessageBuilder setContent(byte[] data, int offet, int length);
+    MessageBuilder<T> setContent(byte[] data, int offset, int length);
 
     /**
      * Set the content of the message
@@ -73,7 +85,7 @@ public interface MessageBuilder {
      * @param buf
      *            a {@link ByteBuffer} with the payload of the message
      */
-    MessageBuilder setContent(ByteBuffer buf);
+    MessageBuilder<T> setContent(ByteBuffer buf);
 
     /**
      * Sets a new property on a message.
@@ -83,19 +95,19 @@ public interface MessageBuilder {
      * @param value
      *            the associated value
      */
-    MessageBuilder setProperty(String name, String value);
+    MessageBuilder<T> setProperty(String name, String value);
 
     /**
      * Add all the properties in the provided map
      */
-    MessageBuilder setProperties(Map<String, String> properties);
+    MessageBuilder<T> setProperties(Map<String, String> properties);
 
     /**
      * Sets the key of the message for routing policy
      *
      * @param key
      */
-    MessageBuilder setKey(String key);
+    MessageBuilder<T> setKey(String key);
 
     /**
      * Set the event time for a given message.
@@ -107,7 +119,7 @@ public interface MessageBuilder {
      *
      * @since 1.20.0
      */
-    MessageBuilder setEventTime(long timestamp);
+    MessageBuilder<T> setEventTime(long timestamp);
 
     /**
      * Specify a custom sequence id for the message being published.
@@ -125,17 +137,17 @@ public interface MessageBuilder {
      *            the sequence id to assign to the current message
      * @since 1.20.0
      */
-    MessageBuilder setSequenceId(long sequenceId);
+    MessageBuilder<T> setSequenceId(long sequenceId);
 
     /**
      * Override the replication clusters for this message.
      *
      * @param clusters
      */
-    MessageBuilder setReplicationClusters(List<String> clusters);
+    MessageBuilder<T> setReplicationClusters(List<String> clusters);
 
     /**
      * Disable replication for this message.
      */
-    MessageBuilder disableReplication();
+    MessageBuilder<T> disableReplication();
 }

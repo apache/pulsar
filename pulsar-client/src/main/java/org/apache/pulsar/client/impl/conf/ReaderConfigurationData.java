@@ -28,14 +28,14 @@ import org.apache.pulsar.client.api.ReaderListener;
 import lombok.Data;
 
 @Data
-public class ReaderConfigurationData implements Serializable, Cloneable {
+public class ReaderConfigurationData<T> implements Serializable, Cloneable {
 
     private String topicName;
     private MessageId startMessageId;
 
     private int receiverQueueSize = 1000;
 
-    private ReaderListener readerListener;
+    private ReaderListener<T> readerListener;
 
     private String readerName = null;
     private String subscriptionRolePrefix = null;
@@ -43,9 +43,9 @@ public class ReaderConfigurationData implements Serializable, Cloneable {
     private CryptoKeyReader cryptoKeyReader = null;
     private ConsumerCryptoFailureAction cryptoFailureAction = ConsumerCryptoFailureAction.FAIL;
 
-    public ReaderConfigurationData clone() {
+    public ReaderConfigurationData<T> clone() {
         try {
-            return (ReaderConfigurationData) super.clone();
+            return (ReaderConfigurationData<T>) super.clone();
         } catch (CloneNotSupportedException e) {
             throw new RuntimeException("Failed to clone ReaderConfigurationData");
         }

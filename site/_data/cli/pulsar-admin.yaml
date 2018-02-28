@@ -27,7 +27,8 @@ commands:
     description: Dump allocator stats
     argument: allocator-name
   - name: destinations
-    description: Dump destination stats
+    deprecated: true
+    description: Dump topic stats
     options:
     - flags: -i, --indent
       description: Indent JSON output
@@ -40,6 +41,12 @@ commands:
       default: 'false'
   - name: monitoring-metrics
     description: dump metrics for Monitoring
+    options:
+    - flags: -i, --indent
+      description: Indent JSON output
+      default: 'false'
+  - name: topics
+    description: Dump topic stats
     options:
     - flags: -i, --indent
       description: Indent JSON output
@@ -67,6 +74,8 @@ commands:
     description: Get list of updatable configuration name
   - name: get-all-dynamic-config
     description: Get all overridden dynamic-configuration values
+  - name: get-internal-config
+    description: Get internal configuration information
 - name: clusters
   description: Operations about clusters
   subcommands:
@@ -392,6 +401,16 @@ commands:
 - name: non-persistent
   description: Operations on persistent topics
   subcommands:
+  - name: create-partitioned-topic
+    description: Create a partitioned topic. A partitioned non-persistent topic must be created before producers can publish to it.
+    argument: non-persistent://property/cluster/namespace/topic
+    options:
+    - flags: -p, --partitions
+      description: The number of partitions for the topic
+      default: 0
+  - name: lookup
+    description: Look up a non-persistent topic on the current serving broker
+    argument: non-persistent://property/cluster/namespace/topic
   - name: stats
     description: Get the stats for the topic and its connected producers and consumers. All rates are computed over a 1-minute window and are relative to the last completed 1-minute period.
     argument: non-persistent://property/cluster/namespace/topic
@@ -401,9 +420,15 @@ commands:
   - name: get-partitioned-topic-metadata
     description: Get the partitioned topic metadata. If the topic is not created or is a non-partitioned topic, this will return an empty topic with zero partitions.
     argument: non-persistent://property/cluster/namespace/topic
-  - name: unload
-    description: Unload a topic
-    argument: non-persistent://property/cluster/namespace/topic
+  - name: list
+    description: Get a list of non-persistent topics under a namespace
+    argument: property/cluster/namespace
+  - name: list-in-bundle
+    description: Get a list of non-persistent topics present under a namespace bundle
+    argument: property/cluster/namespace
+    options:
+    - flags: -b, --bundle
+      description: The bundle range
 - name: properties
   description: Operations about properties
   subcommands:
