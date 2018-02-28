@@ -221,7 +221,7 @@ public class PulsarClientImpl implements PulsarClient {
         }
 
         if (state.get() != State.Open) {
-            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed"));
+            return FutureUtil.failedFuture(new PulsarClientException.AlreadyClosedException("Client already closed : state = " + state.get()));
         }
 
         String topic = conf.getTopicName();
@@ -590,7 +590,8 @@ public class PulsarClientImpl implements PulsarClient {
                 .thenCompose(pair -> cnxPool.getConnection(pair.getLeft(), pair.getRight()));
     }
 
-    protected Timer timer() {
+    /** visiable for pulsar-functions **/
+    public Timer timer() {
         return timer;
     }
 
