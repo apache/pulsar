@@ -26,6 +26,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -57,8 +58,9 @@ public class PatternTopicsConsumerImpl extends TopicsConsumerImpl {
         checkArgument(getNameSpaceFromPattern(topicsPattern).toString().equals(this.namespaceName.toString()));
 
         this.topicsChangeListener = new PatternTopicsChangedListener();
-        scheduledExecutor = (ScheduledExecutorService)listenerExecutor;
-        scheduledExecutor.scheduleAtFixedRate(() -> recheckTopics(), 60, 30, TimeUnit.SECONDS);
+        scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
+        scheduledExecutor.scheduleAtFixedRate(() -> recheckTopics(),
+            1, Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
     }
 
     public static NamespaceName getNameSpaceFromPattern(Pattern pattern) {

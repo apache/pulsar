@@ -151,6 +151,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         Consumer consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
+            .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -279,6 +280,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 2. Create consumer, this should success, but with empty sub-consumser internal
         Consumer consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
+            .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -371,6 +373,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         Consumer consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
+            .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -471,6 +474,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         Consumer consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
+            .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
             .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
