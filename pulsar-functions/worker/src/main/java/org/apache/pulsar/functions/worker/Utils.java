@@ -19,7 +19,6 @@
 package org.apache.pulsar.functions.worker;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
 import org.apache.distributedlog.api.DistributedLogManager;
@@ -32,7 +31,6 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.worker.dlog.DLInputStream;
 import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
-import org.apache.zookeeper.KeeperException.Code;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -45,6 +43,7 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.UUID;
+import org.apache.zookeeper.KeeperException.Code;
 
 @Slf4j
 public final class Utils {

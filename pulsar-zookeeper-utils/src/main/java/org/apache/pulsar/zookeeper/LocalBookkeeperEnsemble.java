@@ -39,6 +39,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
+import org.apache.bookkeeper.bookie.SortedLedgerStorage;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
@@ -211,7 +212,8 @@ public class LocalBookkeeperEnsemble {
         ServerConfiguration conf = new ServerConfiguration();
         conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         // Use minimal configuration requiring less memory for unit tests
-        conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
+        // conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
+        conf.setLedgerStorageClass(SortedLedgerStorage.class.getName());
         conf.setProperty("dbStorage_writeCacheMaxSizeMb", 2);
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 1);
         conf.setProperty("dbStorage_rocksDB_writeBufferSizeMB", 1);
@@ -228,7 +230,8 @@ public class LocalBookkeeperEnsemble {
         LOG.debug("Local ZK/BK starting ...");
         ServerConfiguration conf = new ServerConfiguration();
         conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
-        conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
+        // conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
+        conf.setLedgerStorageClass(SortedLedgerStorage.class.getName());
         conf.setProperty("dbStorage_writeCacheMaxSizeMb", 256);
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 64);
         conf.setFlushInterval(60000);
