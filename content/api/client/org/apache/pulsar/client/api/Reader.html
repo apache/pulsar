@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface Reader" class="title">Interface Reader</h2>
+<h2 title="Interface Reader" class="title">Interface Reader&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">Reader</span>
+<pre>public interface <span class="typeNameLabel">Reader&lt;T&gt;</span>
 extends Closeable</pre>
 <div class="block">A Reader can be used to scan through all the messages currently available in a topic.</div>
 </li>
@@ -153,20 +153,20 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext--">readNext</a></span>()</code>
 <div class="block">Read the next message in the topic</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext-int-java.util.concurrent.TimeUnit-">readNext</a></span>(int&nbsp;timeout,
         TimeUnit&nbsp;unit)</code>
 <div class="block">Read the next message in the topic.</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNextAsync--">readNextAsync</a></span>()</code>&nbsp;</td>
 </tr>
 </table>
@@ -210,8 +210,8 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readNext</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;readNext()
-          throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;&nbsp;readNext()
+             throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Read the next message in the topic</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
@@ -227,9 +227,9 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readNext</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;readNext(int&nbsp;timeout,
-                 TimeUnit&nbsp;unit)
-          throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;&nbsp;readNext(int&nbsp;timeout,
+                    TimeUnit&nbsp;unit)
+             throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Read the next message in the topic.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
@@ -245,7 +245,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readNextAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&gt;&nbsp;readNextAsync()</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;&gt;&nbsp;readNextAsync()</pre>
 </li>
 </ul>
 <a name="closeAsync--">

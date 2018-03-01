@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":6,"i19":6,"i20":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface ConsumerBuilder" class="title">Interface ConsumerBuilder</h2>
+<h2 title="Interface ConsumerBuilder" class="title">Interface ConsumerBuilder&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">ConsumerBuilder</span>
+<pre>public interface <span class="typeNameLabel">ConsumerBuilder&lt;T&gt;</span>
 extends Serializable, Cloneable</pre>
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a>.</div>
 <dl>
@@ -131,124 +131,130 @@ extends Serializable, Cloneable</pre>
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#ackTimeout-long-java.util.concurrent.TimeUnit-">ackTimeout</a></span>(long&nbsp;ackTimeout,
           TimeUnit&nbsp;timeUnit)</code>
 <div class="block">Set the timeout for unacked messages, truncated to the nearest millisecond.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#clone--">clone</a></span>()</code>
 <div class="block">Create a copy of the current consumer builder.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#consumerName-java.lang.String-">consumerName</a></span>(String&nbsp;consumerName)</code>
 <div class="block">Set the consumer name.</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#cryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">cryptoFailureAction</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</code>
 <div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#cryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">cryptoKeyReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#maxTotalReceiverQueueSizeAcrossPartitions-int-">maxTotalReceiverQueueSizeAcrossPartitions</a></span>(int&nbsp;maxTotalReceiverQueueSizeAcrossPartitions)</code>
 <div class="block">Set the max total receiver queue size across partitons.</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#messageListener-org.apache.pulsar.client.api.MessageListener-">messageListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a>&nbsp;messageListener)</code>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#messageListener-org.apache.pulsar.client.api.MessageListener-">messageListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;messageListener)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> for the consumer</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#patternAutoDiscoveryPeriod-int-">patternAutoDiscoveryPeriod</a></span>(int&nbsp;periodInMinutes)</code>
+<div class="block">Set topics auto discovery period when using a pattern for topics consumer.</div>
+</td>
+</tr>
+<tr id="i8" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#priorityLevel-int-">priorityLevel</a></span>(int&nbsp;priorityLevel)</code>
 <div class="block">Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
  messages.</div>
 </td>
 </tr>
-<tr id="i8" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i9" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#properties-java.util.Map-">properties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
-<tr id="i9" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i10" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#property-java.lang.String-java.lang.String-">property</a></span>(String&nbsp;key,
         String&nbsp;value)</code>
 <div class="block">Set a name/value property with this consumer.</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i11" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#readCompacted-boolean-">readCompacted</a></span>(boolean&nbsp;readCompacted)</code>
 <div class="block">If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
  of the topic.</div>
 </td>
 </tr>
-<tr id="i11" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i12" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#receiverQueueSize-int-">receiverQueueSize</a></span>(int&nbsp;receiverQueueSize)</code>
 <div class="block">Sets the size of the consumer receive queue.</div>
 </td>
 </tr>
-<tr id="i12" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
+<tr id="i13" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscribe--">subscribe</a></span>()</code>
 <div class="block">Finalize the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic.</div>
 </td>
 </tr>
-<tr id="i13" class="rowColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
+<tr id="i14" class="altColor">
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscribeAsync--">subscribeAsync</a></span>()</code>
 <div class="block">Finalize the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic in asynchronous mode.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i15" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionName-java.lang.String-">subscriptionName</a></span>(String&nbsp;subscriptionName)</code>
 <div class="block">Specify the subscription name for this consumer.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i16" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionType-org.apache.pulsar.client.api.SubscriptionType-">subscriptionType</a></span>(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a>&nbsp;subscriptionType)</code>
 <div class="block">Select the subscription type to be used when subscribing to the topic.</div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i17" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topic-java.lang.String...-">topic</a></span>(String...&nbsp;topicNames)</code>
 <div class="block">Specify the topics this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<tr id="i18" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topics-java.util.List-">topics</a></span>(List&lt;String&gt;&nbsp;topicNames)</code>
 <div class="block">Specify a list of topics that this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
+<tr id="i19" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.util.regex.Pattern-">topicsPattern</a></span>(java.util.regex.Pattern&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
 </td>
 </tr>
-<tr id="i19" class="rowColor">
+<tr id="i20" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.lang.String-">topicsPattern</a></span>(String&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
@@ -275,7 +281,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>clone</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;clone()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;clone()</pre>
 <div class="block">Create a copy of the current consumer builder.
  <p>
  Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
@@ -298,8 +304,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>subscribe</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;subscribe()
-            throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;subscribe()
+               throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Finalize the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic.
 
  <p>
@@ -319,7 +325,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>subscribeAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;&nbsp;subscribeAsync()</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&gt;&nbsp;subscribeAsync()</pre>
 <div class="block">Finalize the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> creation by subscribing to the topic in asynchronous mode.
 
  <p>
@@ -339,7 +345,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>topic</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topic(String...&nbsp;topicNames)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;topic(String...&nbsp;topicNames)</pre>
 <div class="block">Specify the topics this consumer will subscribe on.
  <p></div>
 <dl>
@@ -354,7 +360,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>topics</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topics(List&lt;String&gt;&nbsp;topicNames)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;topics(List&lt;String&gt;&nbsp;topicNames)</pre>
 <div class="block">Specify a list of topics that this consumer will subscribe on.
  <p></div>
 <dl>
@@ -401,7 +407,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>subscriptionName</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;subscriptionName(String&nbsp;subscriptionName)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;subscriptionName(String&nbsp;subscriptionName)</pre>
 <div class="block">Specify the subscription name for this consumer.
  <p>
  This argument is required when constructing the consumer.</div>
@@ -417,8 +423,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>ackTimeout</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;ackTimeout(long&nbsp;ackTimeout,
-                           TimeUnit&nbsp;timeUnit)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;ackTimeout(long&nbsp;ackTimeout,
+                              TimeUnit&nbsp;timeUnit)</pre>
 <div class="block">Set the timeout for unacked messages, truncated to the nearest millisecond. The timeout needs to be greater than
  10 seconds.</div>
 <dl>
@@ -436,7 +442,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>subscriptionType</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;subscriptionType(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a>&nbsp;subscriptionType)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;subscriptionType(<a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a>&nbsp;subscriptionType)</pre>
 <div class="block">Select the subscription type to be used when subscribing to the topic.
  <p>
  Default is <a href="../../../../../org/apache/pulsar/client/api/SubscriptionType.html#Exclusive"><code>SubscriptionType.Exclusive</code></a></div>
@@ -452,7 +458,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>messageListener</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;messageListener(<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a>&nbsp;messageListener)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;messageListener(<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;messageListener)</pre>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> for the consumer
  <p>
  When a <a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> is set, application will receive messages through it. Calls to
@@ -469,7 +475,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>cryptoKeyReader</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;cryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;cryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -483,7 +489,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>cryptoFailureAction</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;cryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;cryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</pre>
 <div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -497,7 +503,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>receiverQueueSize</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;receiverQueueSize(int&nbsp;receiverQueueSize)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;receiverQueueSize(int&nbsp;receiverQueueSize)</pre>
 <div class="block">Sets the size of the consumer receive queue.
  <p>
  The consumer receive queue controls how many messages can be accumulated by the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> before the
@@ -531,7 +537,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>maxTotalReceiverQueueSizeAcrossPartitions</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;maxTotalReceiverQueueSizeAcrossPartitions(int&nbsp;maxTotalReceiverQueueSizeAcrossPartitions)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;maxTotalReceiverQueueSizeAcrossPartitions(int&nbsp;maxTotalReceiverQueueSizeAcrossPartitions)</pre>
 <div class="block">Set the max total receiver queue size across partitons.
  <p>
  This setting will be used to reduce the receiver queue size for individual partitions
@@ -548,7 +554,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>consumerName</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;consumerName(String&nbsp;consumerName)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;consumerName(String&nbsp;consumerName)</pre>
 <div class="block">Set the consumer name.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -562,7 +568,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readCompacted</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;readCompacted(boolean&nbsp;readCompacted)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;readCompacted(boolean&nbsp;readCompacted)</pre>
 <div class="block">If enabled, the consumer will read messages from the compacted topic rather than reading the full message backlog
  of the topic. This means that, if the topic has been compacted, the consumer will only see the latest value for
  each key in the topic, up until the point in the topic message backlog that has been compacted. Beyond that
@@ -577,13 +583,28 @@ extends Serializable, Cloneable</pre>
 </dl>
 </li>
 </ul>
+<a name="patternAutoDiscoveryPeriod-int-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>patternAutoDiscoveryPeriod</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;patternAutoDiscoveryPeriod(int&nbsp;periodInMinutes)</pre>
+<div class="block">Set topics auto discovery period when using a pattern for topics consumer.
+ The period is in minute, and default and minimum value is 1 minute.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>periodInMinutes</code> - whether to read from the compacted topic</dd>
+</dl>
+</li>
+</ul>
 <a name="priorityLevel-int-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>priorityLevel</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;priorityLevel(int&nbsp;priorityLevel)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;priorityLevel(int&nbsp;priorityLevel)</pre>
 <div class="block">Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching
  messages. Here, broker follows descending priorities. (eg: 0=max-priority, 1, 2,..) </br>
  In Shared subscription mode, broker will first dispatch messages to max priority-level consumers if they have
@@ -612,8 +633,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>property</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;property(String&nbsp;key,
-                         String&nbsp;value)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;property(String&nbsp;key,
+                            String&nbsp;value)</pre>
 <div class="block">Set a name/value property with this consumer.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -629,7 +650,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>properties</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;properties(Map&lt;String,String&gt;&nbsp;properties)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;properties(Map&lt;String,String&gt;&nbsp;properties)</pre>
 <div class="block">Add all the properties in the provided map</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

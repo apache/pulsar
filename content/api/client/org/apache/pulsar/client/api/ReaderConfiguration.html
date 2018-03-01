@@ -172,13 +172,13 @@ implements Serializable</pre>
 &nbsp;</td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code>ReaderConfigurationData</code></td>
+<td class="colFirst"><code>&lt;any&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html#getReaderConfigurationData--">getReaderConfigurationData</a></span>()</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 &nbsp;</td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html#getReaderListener--">getReaderListener</a></span>()</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 &nbsp;</td>
@@ -217,7 +217,7 @@ implements Serializable</pre>
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html#setReaderListener-org.apache.pulsar.client.api.ReaderListener-">setReaderListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html#setReaderListener-org.apache.pulsar.client.api.ReaderListener-">setReaderListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;byte[]&gt;&nbsp;readerListener)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
 </td>
@@ -289,7 +289,7 @@ implements Serializable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>getReaderListener</h4>
-<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;getReaderListener()</pre>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;byte[]&gt;&nbsp;getReaderListener()</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
@@ -303,7 +303,7 @@ implements Serializable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>setReaderListener</h4>
-<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;setReaderListener(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</pre>
+<pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;setReaderListener(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;byte[]&gt;&nbsp;readerListener)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader
  <p>
@@ -472,7 +472,7 @@ implements Serializable</pre>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>getReaderConfigurationData</h4>
-<pre>public&nbsp;ReaderConfigurationData&nbsp;getReaderConfigurationData()</pre>
+<pre>public&nbsp;&lt;any&gt;&nbsp;getReaderConfigurationData()</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 </li>
 </ul>

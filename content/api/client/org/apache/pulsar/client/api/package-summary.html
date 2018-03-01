@@ -97,13 +97,13 @@
 </td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">An interface that abstracts behavior of Pulsar's consumer.</div>
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ConsumerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a>.</div>
 </td>
@@ -123,13 +123,13 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">The message abstraction used in Pulsar.</div>
 </td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api">MessageBuilder</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">Message builder factory.</div>
 </td>
@@ -144,7 +144,7 @@
 </td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api">MessageListener</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">A listener that will be called in order for every message received.</div>
 </td>
@@ -154,13 +154,13 @@
 <td class="colLast">&nbsp;</td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">Producer object.</div>
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
 </td>
@@ -172,24 +172,28 @@
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">A Reader can be used to scan through all the messages currently available in a topic.</div>
 </td>
 </tr>
 <tr class="rowColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a>.</div>
 </td>
 </tr>
 <tr class="altColor">
-<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a></td>
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;T&gt;</td>
 <td class="colLast">
 <div class="block">A listener that will be called in order for every message received.</div>
 </td>
 </tr>
 <tr class="rowColor">
+<td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;</td>
+<td class="colLast">&nbsp;</td>
+</tr>
+<tr class="altColor">
 <td class="colFirst"><a href="../../../../../org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api">TopicMetadata</a></td>
 <td class="colLast">
 <div class="block">Metadata of a topic that can be used for message routing.</div>

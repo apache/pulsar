@@ -148,10 +148,10 @@
 <li type="circle">Closeable
 <ul>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Authentication</span></a> (also extends Serializable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Consumer</span></a></li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Producer</span></a></li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Consumer</span></a>&lt;T&gt;</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Producer</span></a>&lt;T&gt;</li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClient.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">PulsarClient</span></a></li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Reader</span></a></li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Reader</span></a>&lt;T&gt;</li>
 </ul>
 </li>
 </ul>
@@ -159,9 +159,9 @@
 <li type="circle">Cloneable
 <ul>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ClientBuilder</span></a> (also extends Serializable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerBuilder</span></a> (also extends Serializable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerBuilder</span></a> (also extends Serializable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderBuilder</span></a> (also extends Serializable)</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerBuilder</span></a>&lt;T&gt; (also extends Serializable)</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerBuilder</span></a>&lt;T&gt; (also extends Serializable)</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderBuilder</span></a>&lt;T&gt; (also extends Serializable)</li>
 </ul>
 </li>
 <li type="circle">Comparable&lt;T&gt;
@@ -172,19 +172,20 @@
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerEventListener</span></a></li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">CryptoKeyReader</span></a></li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/EncodedAuthenticationParameterSupport.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">EncodedAuthenticationParameterSupport</span></a></li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Message</span></a></li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageBuilder</span></a></li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Message</span></a>&lt;T&gt;</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageBuilder</span></a>&lt;T&gt;</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Schema</span></a>&lt;T&gt;</li>
 <li type="circle">Serializable
 <ul>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Authentication.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">Authentication</span></a> (also extends Closeable)</li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/AuthenticationDataProvider.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">AuthenticationDataProvider</span></a></li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ClientBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ClientBuilder</span></a> (also extends Cloneable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerBuilder</span></a> (also extends Cloneable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageListener</span></a></li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ConsumerBuilder</span></a>&lt;T&gt; (also extends Cloneable)</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageListener</span></a>&lt;T&gt;</li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">MessageRouter</span></a></li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerBuilder</span></a> (also extends Cloneable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderBuilder</span></a> (also extends Cloneable)</li>
-<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderListener</span></a></li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ProducerBuilder</span></a>&lt;T&gt; (also extends Cloneable)</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderBuilder</span></a>&lt;T&gt; (also extends Cloneable)</li>
+<li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">ReaderListener</span></a>&lt;T&gt;</li>
 </ul>
 </li>
 <li type="circle">org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api"><span class="typeNameLink">TopicMetadata</span></a></li>

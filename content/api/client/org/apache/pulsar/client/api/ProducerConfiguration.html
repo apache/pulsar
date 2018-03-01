@@ -353,7 +353,7 @@ implements Serializable</pre>
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-">setBlockIfQueueFull</a></span>(boolean&nbsp;blockIfQueueFull)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
-<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
+<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations should block when the outgoing
  message queue is full.</div>
 </td>
 </tr>
@@ -588,7 +588,7 @@ implements Serializable</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
  <p>
- When the queue is full, by default, all calls to <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> will fail
+ When the queue is full, by default, all calls to <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> will fail
  unless blockIfQueueFull is set to true. Use <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-"><code>setBlockIfQueueFull(boolean)</code></a> to change the blocking behavior.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -659,7 +659,7 @@ implements Serializable</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>whether the producer will block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations when the
+<dd>whether the producer will block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations when the
          pending queue is full</dd>
 </dl>
 </li>
@@ -672,14 +672,14 @@ implements Serializable</pre>
 <h4>setBlockIfQueueFull</h4>
 <pre>public&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;setBlockIfQueueFull(boolean&nbsp;blockIfQueueFull)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;</div>
-<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
+<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations should block when the outgoing
  message queue is full.
  <p>
  Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
  <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a> when there is no space left in pending queue.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>blockIfQueueFull</code> - whether to block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations on queue full</dd>
+<dd><code>blockIfQueueFull</code> - whether to block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations on queue full</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>

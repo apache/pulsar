@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface MessageListener" class="title">Interface MessageListener</h2>
+<h2 title="Interface MessageListener" class="title">Interface MessageListener&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">MessageListener</span>
+<pre>public interface <span class="typeNameLabel">MessageListener&lt;T&gt;</span>
 extends Serializable</pre>
 <div class="block">A listener that will be called in order for every message received.</div>
 </li>
@@ -126,14 +126,14 @@ extends Serializable</pre>
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>default void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html#reachedEndOfTopic-org.apache.pulsar.client.api.Consumer-">reachedEndOfTopic</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html#reachedEndOfTopic-org.apache.pulsar.client.api.Consumer-">reachedEndOfTopic</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="type parameter in MessageListener">T</a>&gt;&nbsp;consumer)</code>
 <div class="block">Get the notification when a topic is terminated</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html#received-org.apache.pulsar.client.api.Consumer-org.apache.pulsar.client.api.Message-">received</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer,
-        <a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;msg)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageListener.html#received-org.apache.pulsar.client.api.Consumer-org.apache.pulsar.client.api.Message-">received</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="type parameter in MessageListener">T</a>&gt;&nbsp;consumer,
+        <a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="type parameter in MessageListener">T</a>&gt;&nbsp;msg)</code>
 <div class="block">This method is called whenever a new message is received.</div>
 </td>
 </tr>
@@ -158,8 +158,8 @@ extends Serializable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>received</h4>
-<pre>void&nbsp;received(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer,
-              <a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;msg)</pre>
+<pre>void&nbsp;received(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="type parameter in MessageListener">T</a>&gt;&nbsp;consumer,
+              <a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="type parameter in MessageListener">T</a>&gt;&nbsp;msg)</pre>
 <div class="block">This method is called whenever a new message is received.
 
  Messages are guaranteed to be delivered in order and from the same thread for a single consumer
@@ -180,7 +180,7 @@ extends Serializable</pre>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>reachedEndOfTopic</h4>
-<pre>default&nbsp;void&nbsp;reachedEndOfTopic(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer)</pre>
+<pre>default&nbsp;void&nbsp;reachedEndOfTopic(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageListener.html" title="type parameter in MessageListener">T</a>&gt;&nbsp;consumer)</pre>
 <div class="block">Get the notification when a topic is terminated</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

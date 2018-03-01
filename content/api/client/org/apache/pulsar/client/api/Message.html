@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6};
+var methods = {"i0":6,"i1":6,"i2":6,"i3":6,"i4":6,"i5":6,"i6":6,"i7":6,"i8":6,"i9":6,"i10":6,"i11":6};
 var tabs = {65535:["t0","All Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface Message" class="title">Interface Message</h2>
+<h2 title="Interface Message" class="title">Interface Message&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -99,7 +99,7 @@ var activeTableTab = "activeTableTab";
 <li class="blockList">
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">Message</span></pre>
+<pre>public interface <span class="typeNameLabel">Message&lt;T&gt;</span></pre>
 <div class="block">The message abstraction used in Pulsar.</div>
 </li>
 </ul>
@@ -174,12 +174,16 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i9" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="type parameter in Message">T</a></code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#getValue--">getValue</a></span>()</code>&nbsp;</td>
+</tr>
+<tr id="i10" class="altColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasKey--">hasKey</a></span>()</code>
 <div class="block">Check whether the message has a key</div>
 </td>
 </tr>
-<tr id="i10" class="altColor">
+<tr id="i11" class="rowColor">
 <td class="colFirst"><code>boolean</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Message.html#hasProperty-java.lang.String-">hasProperty</a></span>(String&nbsp;name)</code>
 <div class="block">Check whether the message has a specific property attached.</div>
@@ -260,6 +264,15 @@ var activeTableTab = "activeTableTab";
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>the byte array with the message payload</dd>
 </dl>
+</li>
+</ul>
+<a name="getValue--">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>getValue</h4>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="type parameter in Message">T</a>&nbsp;getValue()</pre>
 </li>
 </ul>
 <a name="getMessageId--">

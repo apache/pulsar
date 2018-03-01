@@ -17,7 +17,7 @@
     catch(err) {
     }
 //-->
-var methods = {"i0":17,"i1":6,"i2":6,"i3":49,"i4":49,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":6,"i12":6,"i13":6,"i14":6,"i15":38,"i16":38,"i17":38,"i18":38};
+var methods = {"i0":17,"i1":6,"i2":6,"i3":49,"i4":49,"i5":38,"i6":38,"i7":38,"i8":38,"i9":38,"i10":38,"i11":6,"i12":6,"i13":6,"i14":6,"i15":6,"i16":6,"i17":6,"i18":38,"i19":38,"i20":38,"i21":38};
 var tabs = {65535:["t0","All Methods"],1:["t1","Static Methods"],2:["t2","Instance Methods"],4:["t3","Abstract Methods"],16:["t5","Default Methods"],32:["t6","Deprecated Methods"]};
 var altColor = "altColor";
 var rowColor = "rowColor";
@@ -163,7 +163,7 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-">createProducer</a></span>(String&nbsp;topic)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
 <div class="block"><span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>newProducer()</code></a> to build a new producer</span></div>
@@ -171,7 +171,7 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createProducer-java.lang.String-org.apache.pulsar.client.api.ProducerConfiguration-">createProducer</a></span>(String&nbsp;topic,
               <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;conf)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -180,7 +180,7 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createProducerAsync-java.lang.String-">createProducerAsync</a></span>(String&nbsp;topic)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
 <div class="block"><span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>newProducer()</code></a> to build a new producer</span></div>
@@ -188,7 +188,7 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i8" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createProducerAsync-java.lang.String-org.apache.pulsar.client.api.ProducerConfiguration-">createProducerAsync</a></span>(String&nbsp;topic,
                    <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;conf)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -197,7 +197,7 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createReader-java.lang.String-org.apache.pulsar.client.api.MessageId-org.apache.pulsar.client.api.ReaderConfiguration-">createReader</a></span>(String&nbsp;topic,
             <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId,
             <a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;conf)</code>
@@ -207,7 +207,7 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#createReaderAsync-java.lang.String-org.apache.pulsar.client.api.MessageId-org.apache.pulsar.client.api.ReaderConfiguration-">createReaderAsync</a></span>(String&nbsp;topic,
                  <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId,
                  <a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;conf)</code>
@@ -217,31 +217,49 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--">newConsumer</a></span>()</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
 <tr id="i12" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer</a></span>()</code>
+<td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer-org.apache.pulsar.client.api.Schema-">newConsumer</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;byte[]&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--">newProducer</a></span>()</code>
+<div class="block">Create a producer with default for publishing on a specific topic</div>
+</td>
+</tr>
+<tr id="i14" class="altColor">
+<td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer-org.apache.pulsar.client.api.Schema-">newProducer</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
+<div class="block">Create a producer with default for publishing on a specific topic</div>
+</td>
+</tr>
+<tr id="i15" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--">newReader</a></span>()</code>
 <div class="block">Create a topic reader for reading messages from the specified topic.</div>
 </td>
 </tr>
-<tr id="i14" class="altColor">
+<tr id="i16" class="altColor">
+<td class="colFirst"><code>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;</code></td>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader-org.apache.pulsar.client.api.Schema-">newReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</code>
+<div class="block">Create a topic reader for reading messages from the specified topic.</div>
+</td>
+</tr>
+<tr id="i17" class="rowColor">
 <td class="colFirst"><code>void</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#shutdown--">shutdown</a></span>()</code>
 <div class="block">Perform immediate shutdown of PulsarClient.</div>
 </td>
 </tr>
-<tr id="i15" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
+<tr id="i18" class="altColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-">subscribe</a></span>(String&nbsp;topic,
          String&nbsp;subscription)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -249,8 +267,8 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i16" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a></code></td>
+<tr id="i19" class="rowColor">
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribe-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribe</a></span>(String&nbsp;topic,
          String&nbsp;subscription,
          <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</code>
@@ -259,8 +277,8 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i17" class="rowColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
+<tr id="i20" class="altColor">
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-">subscribeAsync</a></span>(String&nbsp;topic,
               String&nbsp;subscription)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
@@ -268,8 +286,8 @@ extends Closeable</pre>
 </div>
 </td>
 </tr>
-<tr id="i18" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;</code></td>
+<tr id="i21" class="rowColor">
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#subscribeAsync-java.lang.String-java.lang.String-org.apache.pulsar.client.api.ConsumerConfiguration-">subscribeAsync</a></span>(String&nbsp;topic,
               String&nbsp;subscription,
               <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</code>
@@ -361,7 +379,7 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <ul class="blockList">
 <li class="blockList">
 <h4>newProducer</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;newProducer()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;byte[]&gt;&nbsp;newProducer()</pre>
 <div class="block">Create a producer with default for publishing on a specific topic
  <p>
  Example:
@@ -377,15 +395,57 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 </dl>
 </li>
 </ul>
+<a name="newProducer-org.apache.pulsar.client.api.Schema-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>newProducer</h4>
+<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;T&gt;&nbsp;newProducer(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
+<div class="block">Create a producer with default for publishing on a specific topic
+ <p>
+ Example:
+
+ <code>
+ Producer producer = client.newProducer(mySchema).topic(myTopic).create();
+ </code></div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>schema</code> - provide a way to convert between serialized data and domain objects</dd>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>2.0.0</dd>
+</dl>
+</li>
+</ul>
 <a name="newConsumer--">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>newConsumer</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;newConsumer()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;byte[]&gt;&nbsp;newConsumer()</pre>
 <div class="block">Create a producer with default for publishing on a specific topic</div>
 <dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>2.0.0</dd>
+</dl>
+</li>
+</ul>
+<a name="newConsumer-org.apache.pulsar.client.api.Schema-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>newConsumer</h4>
+<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;T&gt;&nbsp;newConsumer(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
+<div class="block">Create a producer with default for publishing on a specific topic</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>schema</code> - provide a way to convert between serialized data and domain objects</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> object to configure and construct the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance</dd>
 <dt><span class="simpleTagLabel">Since:</span></dt>
@@ -399,12 +459,33 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <ul class="blockList">
 <li class="blockList">
 <h4>newReader</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;newReader()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;byte[]&gt;&nbsp;newReader()</pre>
 <div class="block">Create a topic reader for reading messages from the specified topic.
  <p>
  The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
  subscription. Reader can only work on non-partitioned topics.</div>
 <dl>
+<dt><span class="returnLabel">Returns:</span></dt>
+<dd>a <a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> that can be used to configure and construct a <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance</dd>
+<dt><span class="simpleTagLabel">Since:</span></dt>
+<dd>2.0.0</dd>
+</dl>
+</li>
+</ul>
+<a name="newReader-org.apache.pulsar.client.api.Schema-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>newReader</h4>
+<pre>&lt;T&gt;&nbsp;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;T&gt;&nbsp;newReader(<a href="../../../../../org/apache/pulsar/client/api/Schema.html" title="interface in org.apache.pulsar.client.api">Schema</a>&lt;T&gt;&nbsp;schema)</pre>
+<div class="block">Create a topic reader for reading messages from the specified topic.
+ <p>
+ The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
+ subscription. Reader can only work on non-partitioned topics.</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>schema</code> - provide a way to convert between serialized data and domain objects</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dd>a <a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> that can be used to configure and construct a <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance</dd>
 <dt><span class="simpleTagLabel">Since:</span></dt>
@@ -419,8 +500,8 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <li class="blockList">
 <h4>createProducer</h4>
 <pre>@Deprecated
-<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&nbsp;createProducer(String&nbsp;topic)
-                             throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;&nbsp;createProducer(String&nbsp;topic)
+                                     throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>newProducer()</code></a> to build a new producer</span></div>
 <div class="block">Create a producer with default <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api"><code>ProducerConfiguration</code></a> for publishing on a specific topic</div>
 <dl>
@@ -444,7 +525,7 @@ static&nbsp;<a href="../../../../../org/apache/pulsar/client/api/PulsarClient.ht
 <li class="blockList">
 <h4>createProducerAsync</h4>
 <pre>@Deprecated
-CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&gt;&nbsp;createProducerAsync(String&nbsp;topic)</pre>
+CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;&gt;&nbsp;createProducerAsync(String&nbsp;topic)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>newProducer()</code></a> to build a new producer</span></div>
 <div class="block">Asynchronously create a producer with default <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api"><code>ProducerConfiguration</code></a> for publishing on a specific topic</div>
 <dl>
@@ -462,9 +543,9 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Produc
 <li class="blockList">
 <h4>createProducer</h4>
 <pre>@Deprecated
-<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&nbsp;createProducer(String&nbsp;topic,
-                                    <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;conf)
-                             throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;&nbsp;createProducer(String&nbsp;topic,
+                                            <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;conf)
+                                     throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>newProducer()</code></a> to build a new producer</span></div>
 <div class="block">Create a producer with given <code>ProducerConfiguration</code> for publishing on a specific topic</div>
 <dl>
@@ -486,8 +567,8 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Produc
 <li class="blockList">
 <h4>createProducerAsync</h4>
 <pre>@Deprecated
-CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&gt;&nbsp;createProducerAsync(String&nbsp;topic,
-                                                            <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;conf)</pre>
+CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;byte[]&gt;&gt;&nbsp;createProducerAsync(String&nbsp;topic,
+                                                                    <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html" title="class in org.apache.pulsar.client.api">ProducerConfiguration</a>&nbsp;conf)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newProducer--"><code>newProducer()</code></a> to build a new producer</span></div>
 <div class="block">Asynchronously create a producer with given <code>ProducerConfiguration</code> for publishing on a specific topic</div>
 <dl>
@@ -506,9 +587,9 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Produc
 <li class="blockList">
 <h4>subscribe</h4>
 <pre>@Deprecated
-<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;subscribe(String&nbsp;topic,
-                               String&nbsp;subscription)
-                        throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&nbsp;subscribe(String&nbsp;topic,
+                                       String&nbsp;subscription)
+                                throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>newConsumer()</code></a> to build a new consumer</span></div>
 <div class="block">Subscribe to the given topic and subscription combination with default <code>ConsumerConfiguration</code></div>
 <dl>
@@ -530,8 +611,8 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Produc
 <li class="blockList">
 <h4>subscribeAsync</h4>
 <pre>@Deprecated
-CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;&nbsp;subscribeAsync(String&nbsp;topic,
-                                                       String&nbsp;subscription)</pre>
+CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&gt;&nbsp;subscribeAsync(String&nbsp;topic,
+                                                               String&nbsp;subscription)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>newConsumer()</code></a> to build a new consumer</span></div>
 <div class="block">Asynchronously subscribe to the given topic and subscription combination using default
  <code>ConsumerConfiguration</code></div>
@@ -551,10 +632,10 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consum
 <li class="blockList">
 <h4>subscribe</h4>
 <pre>@Deprecated
-<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;subscribe(String&nbsp;topic,
-                               String&nbsp;subscription,
-                               <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)
-                        throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&nbsp;subscribe(String&nbsp;topic,
+                                       String&nbsp;subscription,
+                                       <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)
+                                throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>newConsumer()</code></a> to build a new consumer</span></div>
 <div class="block">Subscribe to the given topic and subscription combination with given <code>ConsumerConfiguration</code></div>
 <dl>
@@ -576,9 +657,9 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consum
 <li class="blockList">
 <h4>subscribeAsync</h4>
 <pre>@Deprecated
-CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&gt;&nbsp;subscribeAsync(String&nbsp;topic,
-                                                       String&nbsp;subscription,
-                                                       <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</pre>
+CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;byte[]&gt;&gt;&nbsp;subscribeAsync(String&nbsp;topic,
+                                                               String&nbsp;subscription,
+                                                               <a href="../../../../../org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a>&nbsp;conf)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>newConsumer()</code></a> to build a new consumer</span></div>
 <div class="block">Asynchronously subscribe to the given topic and subscription combination using given
  <code>ConsumerConfiguration</code></div>
@@ -599,10 +680,10 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consum
 <li class="blockList">
 <h4>createReader</h4>
 <pre>@Deprecated
-<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&nbsp;createReader(String&nbsp;topic,
-                                <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId,
-                                <a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;conf)
-                         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;byte[]&gt;&nbsp;createReader(String&nbsp;topic,
+                                        <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId,
+                                        <a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;conf)
+                                 throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>newReader()</code></a> to build a new reader</span></div>
 <div class="block">Create a topic reader with given <code>ReaderConfiguration</code> for reading messages from the specified topic.
  <p>
@@ -637,9 +718,9 @@ CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Consum
 <li class="blockList">
 <h4>createReaderAsync</h4>
 <pre>@Deprecated
-CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&gt;&nbsp;createReaderAsync(String&nbsp;topic,
-                                                        <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId,
-                                                        <a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;conf)</pre>
+CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;byte[]&gt;&gt;&nbsp;createReaderAsync(String&nbsp;topic,
+                                                                <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId,
+                                                                <a href="../../../../../org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a>&nbsp;conf)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">Use <a href="../../../../../org/apache/pulsar/client/api/PulsarClient.html#newReader--"><code>newReader()</code></a> to build a new reader</span></div>
 <div class="block">Asynchronously create a topic reader with given <code>ReaderConfiguration</code> for reading messages from the
  specified topic.

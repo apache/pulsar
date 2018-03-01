@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface Consumer" class="title">Interface Consumer</h2>
+<h2 title="Interface Consumer" class="title">Interface Consumer&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">Consumer</span>
+<pre>public interface <span class="typeNameLabel">Consumer&lt;T&gt;</span>
 extends Closeable</pre>
 <div class="block">An interface that abstracts behavior of Pulsar's consumer.</div>
 </li>
@@ -126,7 +126,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledge-org.apache.pulsar.client.api.Message-">acknowledge</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledge-org.apache.pulsar.client.api.Message-">acknowledge</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)</code>
 <div class="block">Acknowledge the consumption of a single message</div>
 </td>
 </tr>
@@ -138,7 +138,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i2" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledgeAsync-org.apache.pulsar.client.api.Message-">acknowledgeAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledgeAsync-org.apache.pulsar.client.api.Message-">acknowledgeAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)</code>
 <div class="block">Asynchronously acknowledge the consumption of a single message</div>
 </td>
 </tr>
@@ -150,7 +150,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i4" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledgeCumulative-org.apache.pulsar.client.api.Message-">acknowledgeCumulative</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledgeCumulative-org.apache.pulsar.client.api.Message-">acknowledgeCumulative</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)</code>
 <div class="block">Acknowledge the reception of all the messages in the stream up to (and including) the provided message.</div>
 </td>
 </tr>
@@ -162,7 +162,7 @@ extends Closeable</pre>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;Void&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledgeCumulativeAsync-org.apache.pulsar.client.api.Message-">acknowledgeCumulativeAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#acknowledgeCumulativeAsync-org.apache.pulsar.client.api.Message-">acknowledgeCumulativeAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)</code>
 <div class="block">Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
  message.</div>
 </td>
@@ -218,20 +218,20 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i14" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="type parameter in Consumer">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#receive--">receive</a></span>()</code>
 <div class="block">Receives a single message.</div>
 </td>
 </tr>
 <tr id="i15" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="type parameter in Consumer">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#receive-int-java.util.concurrent.TimeUnit-">receive</a></span>(int&nbsp;timeout,
        TimeUnit&nbsp;unit)</code>
 <div class="block">Receive a single message</div>
 </td>
 </tr>
 <tr id="i16" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="type parameter in Consumer">T</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#receiveAsync--">receiveAsync</a></span>()</code>
 <div class="block">Receive a single message</div>
 </td>
@@ -346,8 +346,8 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>receive</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;receive()
-         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="type parameter in Consumer">T</a>&gt;&nbsp;receive()
+            throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Receives a single message.
  <p>
  This calls blocks until a message is available.</div>
@@ -367,7 +367,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>receiveAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&gt;&nbsp;receiveAsync()</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="type parameter in Consumer">T</a>&gt;&gt;&nbsp;receiveAsync()</pre>
 <div class="block">Receive a single message
  <p>
  Retrieves a message when it will be available and completes <code>CompletableFuture</code> with received message.
@@ -388,9 +388,9 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>receive</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;receive(int&nbsp;timeout,
-                TimeUnit&nbsp;unit)
-         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="type parameter in Consumer">T</a>&gt;&nbsp;receive(int&nbsp;timeout,
+                   TimeUnit&nbsp;unit)
+            throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Receive a single message
  <p>
  Retrieves a message, waiting up to the specified wait time if necessary.</div>
@@ -413,7 +413,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>acknowledge</h4>
-<pre>void&nbsp;acknowledge(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)
+<pre>void&nbsp;acknowledge(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)
           throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Acknowledge the consumption of a single message</div>
 <dl>
@@ -449,7 +449,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>acknowledgeCumulative</h4>
-<pre>void&nbsp;acknowledgeCumulative(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)
+<pre>void&nbsp;acknowledgeCumulative(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)
                     throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Acknowledge the reception of all the messages in the stream up to (and including) the provided message.
 
@@ -499,7 +499,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>acknowledgeAsync</h4>
-<pre>CompletableFuture&lt;Void&gt;&nbsp;acknowledgeAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</pre>
+<pre>CompletableFuture&lt;Void&gt;&nbsp;acknowledgeAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)</pre>
 <div class="block">Asynchronously acknowledge the consumption of a single message</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -531,7 +531,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>acknowledgeCumulativeAsync</h4>
-<pre>CompletableFuture&lt;Void&gt;&nbsp;acknowledgeCumulativeAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</pre>
+<pre>CompletableFuture&lt;Void&gt;&nbsp;acknowledgeCumulativeAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;message)</pre>
 <div class="block">Asynchronously Acknowledge the reception of all the messages in the stream up to (and including) the provided
  message.
 

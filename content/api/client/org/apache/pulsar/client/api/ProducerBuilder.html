@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface ProducerBuilder" class="title">Interface ProducerBuilder</h2>
+<h2 title="Interface ProducerBuilder" class="title">Interface ProducerBuilder&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">ProducerBuilder</span>
+<pre>public interface <span class="typeNameLabel">ProducerBuilder&lt;T&gt;</span>
 extends Serializable, Cloneable</pre>
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a>.</div>
 <dl>
@@ -129,7 +129,7 @@ extends Serializable, Cloneable</pre>
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#addEncryptionKey-java.lang.String-">addEncryptionKey</a></span>(String&nbsp;key)</code>
 <div class="block">Add public encryption key, used by producer to encrypt the data key.</div>
 </td>
@@ -141,7 +141,7 @@ extends Serializable, Cloneable</pre>
 </td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxPublishDelay-long-java.util.concurrent.TimeUnit-">batchingMaxPublishDelay</a></span>(long&nbsp;batchDelay,
                        TimeUnit&nbsp;timeUnit)</code>
 <div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
@@ -149,118 +149,118 @@ extends Serializable, Cloneable</pre>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#blockIfQueueFull-boolean-">blockIfQueueFull</a></span>(boolean&nbsp;blockIfQueueFull)</code>
-<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
+<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations should block when the outgoing
  message queue is full.</div>
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#clone--">clone</a></span>()</code>
 <div class="block">Create a copy of the current <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a>.</div>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#compressionType-org.apache.pulsar.client.api.CompressionType-">compressionType</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api">CompressionType</a>&nbsp;compressionType)</code>
 <div class="block">Set the compression type for the producer.</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#create--">create</a></span>()</code>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance.</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#createAsync--">createAsync</a></span>()</code>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance in asynchronous mode.</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#cryptoFailureAction-org.apache.pulsar.client.api.ProducerCryptoFailureAction-">cryptoFailureAction</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a>&nbsp;action)</code>
 <div class="block">Sets the ProducerCryptoFailureAction to the value specified</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#cryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">cryptoKeyReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </td>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#enableBatching-boolean-">enableBatching</a></span>(boolean&nbsp;enableBatching)</code>
 <div class="block">Control whether automatic batching of messages is enabled for the producer.</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#hashingScheme-org.apache.pulsar.client.api.HashingScheme-">hashingScheme</a></span>(<a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api">HashingScheme</a>&nbsp;hashingScheme)</code>
 <div class="block">Change the <a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api"><code>HashingScheme</code></a> used to chose the partition on where to publish a particular message.</div>
 </td>
 </tr>
 <tr id="i12" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#initialSequenceId-long-">initialSequenceId</a></span>(long&nbsp;initialSequenceId)</code>
 <div class="block">Set the baseline for the sequence ids for messages published by the producer.</div>
 </td>
 </tr>
 <tr id="i13" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessages-int-">maxPendingMessages</a></span>(int&nbsp;maxPendingMessages)</code>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.</div>
 </td>
 </tr>
 <tr id="i14" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#maxPendingMessagesAcrossPartitions-int-">maxPendingMessagesAcrossPartitions</a></span>(int&nbsp;maxPendingMessagesAcrossPartitions)</code>
 <div class="block">Set the number of max pending messages across all the partitions</div>
 </td>
 </tr>
 <tr id="i15" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRouter-org.apache.pulsar.client.api.MessageRouter-">messageRouter</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a>&nbsp;messageRouter)</code>
 <div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
 </td>
 </tr>
 <tr id="i16" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#messageRoutingMode-org.apache.pulsar.client.api.MessageRoutingMode-">messageRoutingMode</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</code>
 <div class="block">Set the message routing mode for the partitioned producer.</div>
 </td>
 </tr>
 <tr id="i17" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#producerName-java.lang.String-">producerName</a></span>(String&nbsp;producerName)</code>
 <div class="block">Specify a name for the producer</div>
 </td>
 </tr>
 <tr id="i18" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#properties-java.util.Map-">properties</a></span>(Map&lt;String,String&gt;&nbsp;properties)</code>
 <div class="block">Add all the properties in the provided map</div>
 </td>
 </tr>
 <tr id="i19" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#property-java.lang.String-java.lang.String-">property</a></span>(String&nbsp;key,
         String&nbsp;value)</code>
 <div class="block">Set a name/value property with this producer.</div>
 </td>
 </tr>
 <tr id="i20" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#sendTimeout-int-java.util.concurrent.TimeUnit-">sendTimeout</a></span>(int&nbsp;sendTimeout,
            TimeUnit&nbsp;unit)</code>
 <div class="block">Set the send timeout <i>(default: 30 seconds)</i></div>
 </td>
 </tr>
 <tr id="i21" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
 <div class="block">Specify the topic this producer will be publishing on.</div>
 </td>
@@ -286,8 +286,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>create</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&nbsp;create()
-         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;create()
+            throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance.
  <p>
  This method will block until the producer is created successfully.</div>
@@ -306,7 +306,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>createAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&gt;&nbsp;createAsync()</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api">Producer</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&gt;&nbsp;createAsync()</pre>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="interface in org.apache.pulsar.client.api"><code>Producer</code></a> instance in asynchronous mode.
  <p>
  This method will return a <code>CompletableFuture</code> that can be used to access the instance when it's ready.</div>
@@ -325,7 +325,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>clone</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;clone()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;clone()</pre>
 <div class="block">Create a copy of the current <a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ProducerBuilder</code></a>.
  <p>
  Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
@@ -345,7 +345,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>topic</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;topic(String&nbsp;topicName)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;topic(String&nbsp;topicName)</pre>
 <div class="block">Specify the topic this producer will be publishing on.
  <p>
  This argument is required when constructing the produce.</div>
@@ -361,7 +361,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>producerName</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;producerName(String&nbsp;producerName)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;producerName(String&nbsp;producerName)</pre>
 <div class="block">Specify a name for the producer
  <p>
  If not assigned, the system will generate a globally unique name which can be access with
@@ -382,8 +382,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>sendTimeout</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;sendTimeout(int&nbsp;sendTimeout,
-                            TimeUnit&nbsp;unit)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;sendTimeout(int&nbsp;sendTimeout,
+                               TimeUnit&nbsp;unit)</pre>
 <div class="block">Set the send timeout <i>(default: 30 seconds)</i>
  <p>
  If a message is not acknowledged by the server before the sendTimeout expires, an error will be reported.</div>
@@ -400,10 +400,10 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>maxPendingMessages</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;maxPendingMessages(int&nbsp;maxPendingMessages)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;maxPendingMessages(int&nbsp;maxPendingMessages)</pre>
 <div class="block">Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
  <p>
- When the queue is full, by default, all calls to <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> will fail
+ When the queue is full, by default, all calls to <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> will fail
  unless blockIfQueueFull is set to true. Use <code>#setBlockIfQueueFull</code> to change the blocking behavior.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -418,7 +418,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>maxPendingMessagesAcrossPartitions</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;maxPendingMessagesAcrossPartitions(int&nbsp;maxPendingMessagesAcrossPartitions)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;maxPendingMessagesAcrossPartitions(int&nbsp;maxPendingMessagesAcrossPartitions)</pre>
 <div class="block">Set the number of max pending messages across all the partitions
  <p>
  This setting will be used to lower the max pending messages for each partition
@@ -435,15 +435,15 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>blockIfQueueFull</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;blockIfQueueFull(boolean&nbsp;blockIfQueueFull)</pre>
-<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations should block when the outgoing
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;blockIfQueueFull(boolean&nbsp;blockIfQueueFull)</pre>
+<div class="block">Set whether the <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations should block when the outgoing
  message queue is full.
  <p>
  Default is <code>false</code>. If set to <code>false</code>, send operations will immediately fail with
  <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a> when there is no space left in pending queue.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>blockIfQueueFull</code> - whether to block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-"><code>Producer.send(byte[])</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-"><code>Producer.sendAsync(byte[])</code></a> operations on queue full</dd>
+<dd><code>blockIfQueueFull</code> - whether to block <a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-"><code>Producer.send(T)</code></a> and <a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-"><code>Producer.sendAsync(T)</code></a> operations on queue full</dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 </dl>
 </li>
@@ -454,7 +454,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>messageRoutingMode</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;messageRoutingMode(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;messageRoutingMode(<a href="../../../../../org/apache/pulsar/client/api/MessageRoutingMode.html" title="enum in org.apache.pulsar.client.api">MessageRoutingMode</a>&nbsp;messageRoutingMode)</pre>
 <div class="block">Set the message routing mode for the partitioned producer.
 
  Default routing mode for messages to partition.
@@ -473,7 +473,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>hashingScheme</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;hashingScheme(<a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api">HashingScheme</a>&nbsp;hashingScheme)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;hashingScheme(<a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api">HashingScheme</a>&nbsp;hashingScheme)</pre>
 <div class="block">Change the <a href="../../../../../org/apache/pulsar/client/api/HashingScheme.html" title="enum in org.apache.pulsar.client.api"><code>HashingScheme</code></a> used to chose the partition on where to publish a particular message.
 
  Standard hashing functions available are:
@@ -496,7 +496,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>compressionType</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;compressionType(<a href="../../../../../org/apache/pulsar/client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api">CompressionType</a>&nbsp;compressionType)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;compressionType(<a href="../../../../../org/apache/pulsar/client/api/CompressionType.html" title="enum in org.apache.pulsar.client.api">CompressionType</a>&nbsp;compressionType)</pre>
 <div class="block">Set the compression type for the producer.
  <p>
  By default, message payloads are not compressed. Supported compression types are:
@@ -517,7 +517,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>messageRouter</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;messageRouter(<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a>&nbsp;messageRouter)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;messageRouter(<a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a>&nbsp;messageRouter)</pre>
 <div class="block">Set a custom message routing policy by passing an implementation of MessageRouter</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -531,7 +531,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>enableBatching</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;enableBatching(boolean&nbsp;enableBatching)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;enableBatching(boolean&nbsp;enableBatching)</pre>
 <div class="block">Control whether automatic batching of messages is enabled for the producer. <i>default: false [No batching]</i>
 
  When batching is enabled, multiple calls to Producer.sendAsync can result in a single batch to be sent to the
@@ -552,7 +552,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>cryptoKeyReader</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;cryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;cryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -566,7 +566,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>addEncryptionKey</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;addEncryptionKey(String&nbsp;key)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;addEncryptionKey(String&nbsp;key)</pre>
 <div class="block">Add public encryption key, used by producer to encrypt the data key.
 
  At the time of producer creation, Pulsar client checks if there are keys added to encryptionKeys. If keys are
@@ -581,11 +581,11 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>cryptoFailureAction</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;cryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a>&nbsp;action)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;cryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a>&nbsp;action)</pre>
 <div class="block">Sets the ProducerCryptoFailureAction to the value specified</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
-<dd><code>The</code> - producer action</dd>
+<dd><code>action</code> - producer action</dd>
 </dl>
 </li>
 </ul>
@@ -595,8 +595,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>batchingMaxPublishDelay</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;batchingMaxPublishDelay(long&nbsp;batchDelay,
-                                        TimeUnit&nbsp;timeUnit)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;batchingMaxPublishDelay(long&nbsp;batchDelay,
+                                           TimeUnit&nbsp;timeUnit)</pre>
 <div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
  enabled. If set to a non zero value, messages will be queued until this time interval or until</div>
 <dl>
@@ -605,9 +605,9 @@ extends Serializable, Cloneable</pre>
 <dd><code>timeUnit</code> - the time unit of the <code>batchDelay</code></dd>
 <dt><span class="returnLabel">Returns:</span></dt>
 <dt><span class="seeLabel">See Also:</span></dt>
-<dd><code>threshold is reached; all messages will be published as a single
+<dd><a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#getBatchingMaxMessages--"><code>threshold is reached; all messages will be published as a single
       batch message. The consumer will be delivered individual messages in the batch in the same order they were
-      enqueued</code></dd>
+      enqueued</code></a></dd>
 </dl>
 </li>
 </ul>
@@ -637,7 +637,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>initialSequenceId</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;initialSequenceId(long&nbsp;initialSequenceId)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;initialSequenceId(long&nbsp;initialSequenceId)</pre>
 <div class="block">Set the baseline for the sequence ids for messages published by the producer.
  <p>
  First message will be using (initialSequenceId + 1) as its sequence id and subsequent messages will be assigned
@@ -655,8 +655,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>property</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;property(String&nbsp;key,
-                         String&nbsp;value)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;property(String&nbsp;key,
+                            String&nbsp;value)</pre>
 <div class="block">Set a name/value property with this producer.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -672,7 +672,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>properties</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;properties(Map&lt;String,String&gt;&nbsp;properties)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;properties(Map&lt;String,String&gt;&nbsp;properties)</pre>
 <div class="block">Add all the properties in the provided map</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface ReaderBuilder" class="title">Interface ReaderBuilder</h2>
+<h2 title="Interface ReaderBuilder" class="title">Interface ReaderBuilder&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">ReaderBuilder</span>
+<pre>public interface <span class="typeNameLabel">ReaderBuilder&lt;T&gt;</span>
 extends Serializable, Cloneable</pre>
 <div class="block"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a> is used to configure and create instances of <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a>.</div>
 <dl>
@@ -131,67 +131,67 @@ extends Serializable, Cloneable</pre>
 <th class="colLast" scope="col">Method and Description</th>
 </tr>
 <tr id="i0" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#clone--">clone</a></span>()</code>
 <div class="block">Create a copy of the current <a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a>.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#create--">create</a></span>()</code>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance.</div>
 </td>
 </tr>
 <tr id="i2" class="altColor">
-<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#createAsync--">createAsync</a></span>()</code>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance in asynchronous mode.</div>
 </td>
 </tr>
 <tr id="i3" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#cryptoFailureAction-org.apache.pulsar.client.api.ConsumerCryptoFailureAction-">cryptoFailureAction</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</code>
 <div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
 </td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#cryptoKeyReader-org.apache.pulsar.client.api.CryptoKeyReader-">cryptoKeyReader</a></span>(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
 </td>
 </tr>
 <tr id="i6" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readerName-java.lang.String-">readerName</a></span>(String&nbsp;readerName)</code>
 <div class="block">Set the reader name.</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#receiverQueueSize-int-">receiverQueueSize</a></span>(int&nbsp;receiverQueueSize)</code>
 <div class="block">Sets the size of the consumer receive queue.</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#startMessageId-org.apache.pulsar.client.api.MessageId-">startMessageId</a></span>(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId)</code>
 <div class="block">The initial reader positioning is done by specifying a message id.</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#subscriptionRolePrefix-java.lang.String-">subscriptionRolePrefix</a></span>(String&nbsp;subscriptionRolePrefix)</code>
 <div class="block">Set the subscription role prefix.</div>
 </td>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#topic-java.lang.String-">topic</a></span>(String&nbsp;topicName)</code>
 <div class="block">Specify the topic this consumer will subscribe on.</div>
 </td>
@@ -217,8 +217,8 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>create</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&nbsp;create()
-       throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;create()
+          throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance.
 
  <p>
@@ -237,7 +237,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>createAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&gt;&nbsp;createAsync()</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&gt;&nbsp;createAsync()</pre>
 <div class="block">Finalize the creation of the <a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api"><code>Reader</code></a> instance in asynchronous mode.
 
  <p>
@@ -256,7 +256,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>clone</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;clone()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;clone()</pre>
 <div class="block">Create a copy of the current <a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api"><code>ReaderBuilder</code></a>.
  <p>
  Cloning the builder can be used to share an incomplete configuration and specialize it multiple times. For
@@ -276,7 +276,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>topic</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;topic(String&nbsp;topicName)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;topic(String&nbsp;topicName)</pre>
 <div class="block">Specify the topic this consumer will subscribe on.
  <p>
  This argument is required when constructing the consumer.</div>
@@ -292,7 +292,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>startMessageId</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;startMessageId(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;startMessageId(<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;startMessageId)</pre>
 <div class="block">The initial reader positioning is done by specifying a message id. The options are:
  <ul>
  <li><code>MessageId.earliest</code> : Start reading from the earliest message available in the topic
@@ -309,7 +309,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readerListener</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;readerListener(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerListener(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</pre>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader
  <p>
  When a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> is set, application will receive messages through it. Calls to
@@ -326,7 +326,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>cryptoKeyReader</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;cryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;cryptoKeyReader(<a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api">CryptoKeyReader</a>&nbsp;cryptoKeyReader)</pre>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/CryptoKeyReader.html" title="interface in org.apache.pulsar.client.api"><code>CryptoKeyReader</code></a></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -340,7 +340,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>cryptoFailureAction</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;cryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;cryptoFailureAction(<a href="../../../../../org/apache/pulsar/client/api/ConsumerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ConsumerCryptoFailureAction</a>&nbsp;action)</pre>
 <div class="block">Sets the ConsumerCryptoFailureAction to the value specified</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -354,7 +354,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>receiverQueueSize</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;receiverQueueSize(int&nbsp;receiverQueueSize)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;receiverQueueSize(int&nbsp;receiverQueueSize)</pre>
 <div class="block">Sets the size of the consumer receive queue.
  <p>
  The consumer receive queue controls how many messages can be accumulated by the <a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api"><code>Consumer</code></a> before the
@@ -374,7 +374,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readerName</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;readerName(String&nbsp;readerName)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerName(String&nbsp;readerName)</pre>
 <div class="block">Set the reader name.</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -388,7 +388,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockListLast">
 <li class="blockList">
 <h4>subscriptionRolePrefix</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&nbsp;subscriptionRolePrefix(String&nbsp;subscriptionRolePrefix)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;subscriptionRolePrefix(String&nbsp;subscriptionRolePrefix)</pre>
 <div class="block">Set the subscription role prefix. The default prefix is "reader".</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

@@ -91,7 +91,7 @@ var activeTableTab = "activeTableTab";
 <!-- ======== START OF CLASS DATA ======== -->
 <div class="header">
 <div class="subTitle">org.apache.pulsar.client.api</div>
-<h2 title="Interface Producer" class="title">Interface Producer</h2>
+<h2 title="Interface Producer" class="title">Interface Producer&lt;T&gt;</h2>
 </div>
 <div class="contentContainer">
 <div class="description">
@@ -103,7 +103,7 @@ var activeTableTab = "activeTableTab";
 </dl>
 <hr>
 <br>
-<pre>public interface <span class="typeNameLabel">Producer</span>
+<pre>public interface <span class="typeNameLabel">Producer&lt;T&gt;</span>
 extends Closeable</pre>
 <div class="block">Producer object.
 
@@ -166,25 +166,25 @@ extends Closeable</pre>
 </tr>
 <tr id="i6" class="altColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-byte:A-">send</a></span>(byte[]&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
 <div class="block">Send a message</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a></code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-org.apache.pulsar.client.api.Message-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#send-T-">send</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Send a message</div>
 </td>
 </tr>
 <tr id="i8" class="altColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-byte:A-">sendAsync</a></span>(byte[]&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</code>
 <div class="block">Send a message asynchronously</div>
 </td>
 </tr>
 <tr id="i9" class="rowColor">
 <td class="colFirst"><code>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-org.apache.pulsar.client.api.Message-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#sendAsync-T-">sendAsync</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</code>
 <div class="block">Send a message asynchronously</div>
 </td>
 </tr>
@@ -229,13 +229,15 @@ extends Closeable</pre>
 </dl>
 </li>
 </ul>
-<a name="send-byte:A-">
+<a name="send-java.lang.Object-">
+<!--   -->
+</a><a name="send-T-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>send</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(byte[]&nbsp;message)
+<pre><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)
         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Send a message</div>
 <dl>
@@ -250,16 +252,18 @@ extends Closeable</pre>
 </dl>
 </li>
 </ul>
-<a name="sendAsync-byte:A-">
+<a name="sendAsync-java.lang.Object-">
+<!--   -->
+</a><a name="sendAsync-T-">
 <!--   -->
 </a>
 <ul class="blockList">
 <li class="blockList">
 <h4>sendAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(byte[]&nbsp;message)</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&nbsp;message)</pre>
 <div class="block">Send a message asynchronously
  <p>
- When the producer queue is full, by default this method will complete the future with an exception <code>PulsarClientException#ProducerQueueIsFullError</code>
+ When the producer queue is full, by default this method will complete the future with an exception <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a>
  <p>
  See <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-"><code>ProducerConfiguration.setMaxPendingMessages(int)</code></a> to configure the producer queue size and
  <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-"><code>ProducerConfiguration.setBlockIfQueueFull(boolean)</code></a> to change the blocking behavior.</div>
@@ -277,7 +281,7 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>send</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)
+<pre><a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&nbsp;send(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)
         throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
 <div class="block">Send a message</div>
 <dl>
@@ -297,10 +301,10 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>sendAsync</h4>
-<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;message)</pre>
+<pre>CompletableFuture&lt;<a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api">MessageId</a>&gt;&nbsp;sendAsync(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Producer.html" title="type parameter in Producer">T</a>&gt;&nbsp;message)</pre>
 <div class="block">Send a message asynchronously
  <p>
- When the returned <code>CompletatableFuture</code> is marked as completed successfully, the provided message will
+ When the returned <code>CompletableFuture</code> is marked as completed successfully, the provided message will
  contain the <a href="../../../../../org/apache/pulsar/client/api/MessageId.html" title="interface in org.apache.pulsar.client.api"><code>MessageId</code></a> assigned by the broker to the published message.
  <p>
  Example:
@@ -314,7 +318,7 @@ extends Closeable</pre>
  });</code>
  </pre>
  <p>
- When the producer queue is full, by default this method will complete the future with an exception <code>PulsarClientException#ProducerQueueIsFullError</code>
+ When the producer queue is full, by default this method will complete the future with an exception <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.ProducerQueueIsFullError.html" title="class in org.apache.pulsar.client.api"><code>PulsarClientException.ProducerQueueIsFullError</code></a>
  <p>
  See <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setMaxPendingMessages-int-"><code>ProducerConfiguration.setMaxPendingMessages(int)</code></a> to configure the producer queue size and
  <a href="../../../../../org/apache/pulsar/client/api/ProducerConfiguration.html#setBlockIfQueueFull-boolean-"><code>ProducerConfiguration.setBlockIfQueueFull(boolean)</code></a> to change the blocking behavior.</div>
