@@ -326,30 +326,12 @@ public final class PulsarApi {
       Protobuf(1, 2),
       Thrift(2, 3),
       Avro(3, 4),
-      Reserved1(4, 5),
-      Reserved2(5, 6),
-      Reserved3(6, 7),
-      Reserved4(7, 8),
-      Reserved5(8, 9),
-      Reserved6(9, 10),
-      Reserved7(10, 11),
-      Reserved8(11, 12),
-      Reserved9(12, 13),
       ;
       
       public static final int Json_VALUE = 1;
       public static final int Protobuf_VALUE = 2;
       public static final int Thrift_VALUE = 3;
       public static final int Avro_VALUE = 4;
-      public static final int Reserved1_VALUE = 5;
-      public static final int Reserved2_VALUE = 6;
-      public static final int Reserved3_VALUE = 7;
-      public static final int Reserved4_VALUE = 8;
-      public static final int Reserved5_VALUE = 9;
-      public static final int Reserved6_VALUE = 10;
-      public static final int Reserved7_VALUE = 11;
-      public static final int Reserved8_VALUE = 12;
-      public static final int Reserved9_VALUE = 13;
       
       
       public final int getNumber() { return value; }
@@ -360,15 +342,6 @@ public final class PulsarApi {
           case 2: return Protobuf;
           case 3: return Thrift;
           case 4: return Avro;
-          case 5: return Reserved1;
-          case 6: return Reserved2;
-          case 7: return Reserved3;
-          case 8: return Reserved4;
-          case 9: return Reserved5;
-          case 10: return Reserved6;
-          case 11: return Reserved7;
-          case 12: return Reserved8;
-          case 13: return Reserved9;
           default: return null;
         }
       }
