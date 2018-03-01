@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.api;
 
-import static com.google.protobuf.ByteString.copyFrom;
 import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
@@ -30,7 +29,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import org.apache.pulsar.common.api.data.SchemaInfo;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -73,7 +71,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -191,34 +188,6 @@ public class Commands {
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUCCESS).setSuccess(success));
         successBuilder.recycle();
         success.recycle();
-        return res;
-    }
-
-    public static ByteBuf newSuccess(long requestId, SchemaInfo schemaInfo) {
-        CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
-        successBuilder.setRequestId(requestId);
-        PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schemaInfo != null && !schemaInfo.schema.isDeleted) {
-            Schema schema = schemaInfo.schema;
-            schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setName(schemaInfo.name);
-            schemaBuilder.setVersion(copyFrom(schemaInfo.version.bytes()));
-            schemaBuilder.setSchemaData(copyFrom(schema.data));
-            schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                .setKey("type").setValue(schema.type.toString()));
-            for (Map.Entry<String, String> entry : schema.props.entrySet()) {
-                schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                    .setKey(entry.getKey()).setValue(entry.getValue()));
-            }
-            successBuilder.setSchema(schemaBuilder.build());
-        }
-        CommandSuccess success = successBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUCCESS).setSuccess(success));
-        successBuilder.recycle();
-        success.recycle();
-        if (schemaBuilder != null) {
-            schemaBuilder.recycle();
-        }
         return res;
     }
 
