@@ -37,7 +37,7 @@ import com.beust.jcommander.Parameter;
 public class PulsarAdminTool {
     protected final Map<String, Class> commandMap;
     private final JCommander jcommander;
-    private final ClientConfiguration config;
+    protected final ClientConfiguration config;
 
     @Parameter(names = { "--admin-url" }, description = "Admin Service URL to which to connect.")
     String serviceUrl = null;
