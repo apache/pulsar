@@ -17,19 +17,25 @@
 # under the License.
 #
 
-# Format is "<default threshold> (, <appender>)+
+Configuration:
+  name: test
 
-# DEFAULT: console appender only, level INFO
-log4j.rootLogger=INFO,CONSOLE
+  Appenders:
 
-#
-# Log INFO level and above messages to the console
-#
-log4j.appender.CONSOLE=org.apache.log4j.ConsoleAppender
-log4j.appender.CONSOLE.layout=org.apache.log4j.PatternLayout
-log4j.appender.CONSOLE.layout.ConversionPattern=%d{ISO8601} - %-5p - [%t:%C{1}@%L] - %m%n
+    # Console
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
 
-#disable zookeeper logging
-log4j.logger.org.apache.zookeeper=OFF
-log4j.logger.org.apache.bookkeeper.bookie=INFO
-log4j.logger.org.apache.bookkeeper.meta=INFO
+  Loggers:
+
+    Root:
+      level: warn
+      AppenderRef:
+        - ref: Console
+
+    Logger:
+      name: org.apache.pulsar
+      level: info
