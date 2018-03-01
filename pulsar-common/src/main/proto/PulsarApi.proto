@@ -408,6 +408,7 @@ message CommandProducerSuccess {
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
+	optional bytes schema_version = 4;
 }
 
 message CommandError {
