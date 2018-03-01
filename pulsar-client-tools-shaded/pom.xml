@@ -60,7 +60,7 @@
               <artifactSet>
                 <includes>
                   <include>org.apache.pulsar:pulsar-common</include>
-                  <include>org.apache.bokkeeper:circe-checksum</include>
+                  <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
                   <include>org.apache.pulsar:pulsar-client-tools</include>

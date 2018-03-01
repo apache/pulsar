@@ -206,7 +206,7 @@ message CommandSubscribe {
 
     optional bool read_compacted = 11;
 
-	optional int64 schema_version = 12;
+	optional Schema schema = 12;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -400,7 +400,6 @@ message CommandProducerSuccess {
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
-	optional Schema schema = 4;
 }
 
 message CommandError {
