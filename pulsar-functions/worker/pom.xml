@@ -120,9 +120,10 @@
       <version>1.14.6</version>
     </dependency>
 
+    <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
     <dependency>
       <groupId>org.apache.distributedlog</groupId>
-      <artifactId>distributedlog-core</artifactId>
+      <artifactId>distributedlog-core-shaded</artifactId>
       <version>${bookkeeper.version}</version>
     </dependency>
   </dependencies>
