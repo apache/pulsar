@@ -299,7 +299,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     }
 
     private void loadJars() throws Exception {
-        log.info("Loading JAR files for function {}", instanceConfig);
+        log.info("Loading JAR files for function {} from jarFile {}", instanceConfig, jarFile);
         // create the function class loader
         fnCache.registerFunctionInstance(
             instanceConfig.getFunctionId(),

@@ -18,6 +18,9 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.nio.file.FileAlreadyExistsException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
@@ -118,23 +121,55 @@ public class FunctionActioner implements AutoCloseable {
                         File.separatorChar));
         pkgDir.mkdirs();
 
-        File pkgFile = new File(pkgDir, new File(FunctionConfigUtils.getDownloadFileName(functionMetaData.getFunctionConfig())).getName());
-        if (pkgFile.exists()) {
-            pkgFile.delete();
+        int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
+
+        File pkgFile = new File(
+            pkgDir,
+            new File(FunctionConfigUtils.getDownloadFileName(functionMetaData.getFunctionConfig())).getName());
+
+        if (!pkgFile.exists()) {
+            // download only when the package file doesn't exist
+            File tempPkgFile;
+            while (true) {
+                tempPkgFile = new File(
+                    pkgDir,
+                    pkgFile.getName() + "." + instanceId + "." + UUID.randomUUID().toString());
+                if (!tempPkgFile.exists() && tempPkgFile.createNewFile()) {
+                    break;
+                }
+            }
+            try {
+                log.info("Function package file {} will be downloaded from {}",
+                    tempPkgFile, functionMetaData.getPackageLocation());
+                Utils.downloadFromBookkeeper(
+                    dlogNamespace,
+                    new FileOutputStream(tempPkgFile),
+                    functionMetaData.getPackageLocation().getPackagePath());
+
+                // create a hardlink, if there are two concurrent createLink operations, one will fail.
+                // this ensures one instance will successfully download the package.
+                try {
+                    Files.createLink(
+                        Paths.get(pkgFile.toURI()),
+                        Paths.get(tempPkgFile.toURI()));
+                    log.info("Function package file is linked from {} to {}",
+                        tempPkgFile, pkgFile);
+                } catch (FileAlreadyExistsException faee) {
+                    // file already exists
+                    log.warn("Function package has been downloaded from {} and saved at {}",
+                        functionMetaData.getPackageLocation(), pkgFile);
+                }
+            } finally {
+                tempPkgFile.delete();
+            }
         }
-        log.info("Function package file {} will be downloaded from {}",
-                pkgFile, functionMetaData.getPackageLocation());
-        Utils.downloadFromBookkeeper(
-                dlogNamespace,
-                new FileOutputStream(pkgFile),
-                functionMetaData.getPackageLocation().getPackagePath());
 
         InstanceConfig instanceConfig = new InstanceConfig();
         instanceConfig.setFunctionConfig(functionMetaData.getFunctionConfig());
         // TODO: set correct function id and version when features implemented
         instanceConfig.setFunctionId(UUID.randomUUID().toString());
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-        instanceConfig.setInstanceId(String.valueOf(functionRuntimeInfo.getFunctionInstance().getInstanceId()));
+        instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(), runtimeFactory,
                 metricsSink, metricsCollectionInterval);
