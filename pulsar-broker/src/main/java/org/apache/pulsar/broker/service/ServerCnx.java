@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 import static org.apache.pulsar.broker.admin.impl.PersistentTopicsBase.getPartitionedTopicMetadata;
 import static org.apache.pulsar.broker.lookup.TopicLookup.lookupTopicAsync;
@@ -39,6 +38,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.Position;
@@ -51,7 +51,6 @@ import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
-import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.BatchMessageIdImpl;
@@ -60,7 +59,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
-import org.apache.pulsar.common.api.data.SchemaInfo;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
@@ -88,6 +87,8 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -697,6 +698,36 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
+        switch (protocolType) {
+            case Json:
+                return SchemaType.JSON;
+            case Avro:
+                return SchemaType.AVRO;
+            case Thrift:
+                return SchemaType.THRIFT;
+            case Protobuf:
+                return SchemaType.PROTOBUF;
+            default:
+                return SchemaType.NONE;
+        }
+    }
+
+    private static Schema getSchema(PulsarApi.Schema protocolSchema) {
+        return Schema.builder()
+            .data(protocolSchema.getSchemaData().toByteArray())
+            .isDeleted(false)
+            .timestamp(System.currentTimeMillis())
+            .props(protocolSchema.getPropertiesList().stream().collect(
+                Collectors.toMap(
+                    PulsarApi.KeyValue::getKey,
+                    PulsarApi.KeyValue::getValue
+                )
+            ))
+            .type(getType(protocolSchema.getType()))
+            .build();
+    }
+
     @Override
     protected void handleProducer(final CommandProducer cmdProducer) {
         checkArgument(state == State.Connected);
@@ -806,7 +837,7 @@ public class ServerCnx extends PulsarHandler {
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
                             Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
-                                    isEncrypted, metadata);
+                                    isEncrypted, metadata, getSchema(cmdProducer.getSchema()));
 
                             try {
                                 topic.addProducer(producer);

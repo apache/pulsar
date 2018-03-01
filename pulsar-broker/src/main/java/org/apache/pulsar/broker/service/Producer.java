@@ -42,6 +42,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,8 +84,10 @@ public class Producer {
 
     private final Map<String, String> metadata;
 
+    private final CompletableFuture<SchemaVersion> schemaVersion;
+
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-        boolean isEncrypted, Map<String, String> metadata) {
+                    boolean isEncrypted, Map<String, String> metadata, Schema schema) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -110,6 +114,8 @@ public class Producer {
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
 
         this.isEncrypted = isEncrypted;
+
+        this.schemaVersion = topic.addSchema(schema);
     }
 
     @Override

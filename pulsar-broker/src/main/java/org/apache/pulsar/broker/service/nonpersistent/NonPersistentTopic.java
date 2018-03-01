@@ -77,6 +77,8 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats.CursorStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -971,20 +973,23 @@ public class NonPersistentTopic implements Topic {
         this.hasBatchMessagePublished = true;
     }
 
-
-
     private static final Logger log = LoggerFactory.getLogger(NonPersistentTopic.class);
 
     @Override
     public CompletableFuture<SchemaAndMetadata> getSchema() {
         String base = TopicName.get(getName()).getPartitionedTopicName();
-        TopicName destination = TopicName.get(base);
-        String schema = destination.getProperty()
-            + "_" + destination.getCluster()
-            + "_" + destination.getNamespacePortion()
-            + "_" + destination.getLocalName();
+        String schema = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .getSchema(schema);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> addSchema(Schema schema) {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .putSchema(id, schema);
     }
 }
