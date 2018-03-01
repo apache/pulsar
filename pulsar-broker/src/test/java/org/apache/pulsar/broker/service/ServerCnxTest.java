@@ -62,6 +62,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.bookkeeper.tools.cli.helpers.Command;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -80,6 +81,7 @@ import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
 import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
@@ -209,6 +211,24 @@ public class ServerCnxTest {
         channel.finish();
     }
 
+    private static ByteBuf newConnect(AuthMethod authMethod, String authData, int protocolVersion) {
+        PulsarApi.CommandConnect.Builder connectBuilder = PulsarApi.CommandConnect.newBuilder();
+        connectBuilder.setClientVersion("Pulsar Client");
+        connectBuilder.setAuthMethod(authMethod);
+        connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
+        connectBuilder.setProtocolVersion(protocolVersion);
+        PulsarApi.CommandConnect connect = connectBuilder.build();
+        ByteBuf res = Commands.serializeWithSize(PulsarApi.BaseCommand.newBuilder().setType(PulsarApi.BaseCommand.Type.CONNECT).setConnect(connect));
+        connect.recycle();
+        connectBuilder.recycle();
+        return res;
+    }
+
+    /**
+     * Ensure that old clients may still connect to new servers
+     *
+     * @throws Exception
+     */
     @Test(timeOut = 30000)
     public void testConnectCommandWithEnum() throws Exception {
         resetChannel();
@@ -216,8 +236,7 @@ public class ServerCnxTest {
         assertEquals(serverCnx.getState(), State.Start);
 
         // test server response to CONNECT
-        @SuppressWarnings("deprecation") // We're actually testing that the deprecated method still works
-        ByteBuf clientCommand = Commands.newConnect(AuthMethod.AuthMethodNone, "");
+        ByteBuf clientCommand = newConnect(AuthMethod.AuthMethodNone, "", Commands.getCurrentProtocolVersion());
         channel.writeInbound(clientCommand);
 
         assertEquals(serverCnx.getState(), State.Connected);

@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -16,17 +16,19 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.common.api.data;
 
-import java.util.Map;
-import lombok.Builder;
+import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaVersion;
 
-@Builder
-public class Schema {
-    public final SchemaType type;
-    public final boolean isDeleted;
-    public final long timestamp;
-    public final String user;
-    public final byte[] data;
-    public final Map<String, String> props;
+public class SchemaInfo {
+    public final String name;
+    public final SchemaVersion version;
+    public final Schema schema;
+
+    public SchemaInfo(String name, SchemaVersion version, Schema schema) {
+        this.name = name;
+        this.version = version;
+        this.schema = schema;
+    }
 }
