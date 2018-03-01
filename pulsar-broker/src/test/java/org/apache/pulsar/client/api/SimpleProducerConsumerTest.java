@@ -54,10 +54,10 @@ import java.util.stream.Collectors;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.PulsarDecoder;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
@@ -2464,9 +2464,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // second create consumers
         ConsumerConfiguration conf = new ConsumerConfiguration();
         Consumer defaultConsumer = pulsarClient.subscribe(topic, "test-subscription-default");
-        conf.setSubscriptionInitialPosition(InitialPosition.Latest);
+        conf.setSubscriptionInitialPosition(SubscriptionInitialPosition.Latest);
         Consumer latestConsumer = pulsarClient.subscribe(topic, "test-subscription-latest", conf);
-        conf.setSubscriptionInitialPosition(InitialPosition.Earliest);
+        conf.setSubscriptionInitialPosition(SubscriptionInitialPosition.Earliest);
         Consumer earlistConsumer = pulsarClient.subscribe(topic, "test-subscription-earliest", conf);
 
         // third produce 5 messages
@@ -2483,5 +2483,5 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         latestConsumer.close();
         earlistConsumer.close();
         log.info("-- Exiting {} test --", methodName);
-    }
+    }    
 }

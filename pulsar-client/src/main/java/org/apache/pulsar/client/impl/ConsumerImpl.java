@@ -53,6 +53,7 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
@@ -151,7 +152,8 @@ public class ConsumerImpl extends ConsumerBase {
         this.priorityLevel = conf.getPriorityLevel();
         this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
         this.readCompacted = conf.isReadCompacted();
-        this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
+        this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition() == SubscriptionInitialPosition.Latest 
+            ? InitialPosition.Latest: InitialPosition.Earliest;
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStats(client, conf, this);

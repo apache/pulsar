@@ -21,6 +21,7 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.*;
 
 import com.google.common.base.Charsets;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -2155,30 +2156,36 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
 
     @Test
     public void testOpenCursorOnLatestAndEarliest() throws Exception {
-        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger");
-
-        Field cacheField = ManagedLedgerImpl.class.getDeclaredField("entryCache");
-        cacheField.setAccessible(true);
-        EntryCacheImpl entryCache = (EntryCacheImpl) cacheField.get(ledger);
-
+        final int MAX_ENTRY_PER_LEDGER = 2;
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(MAX_ENTRY_PER_LEDGER);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger", config);
+        // ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger");
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {
-            String content = "entry"; // 5 bytes
+            String content = "entry" + i; // 5 bytes
             ledger.addEntry(content.getBytes());
         }
-
         // Open Cursor also adds cursor into activeCursor-container
-        ManagedCursor cursor1 = ledger.openCursor("c1", InitialPosition.Latest);
-        ManagedCursor cursor2 = ledger.openCursor("c2", InitialPosition.Earliest);
+        ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest);
+        ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest);
 
         // Since getReadPosition returns the next position, we decrease the entryId by 1
-        PositionImpl p1 = (PositionImpl) cursor1.getReadPosition();
-        PositionImpl p2 = (PositionImpl) cursor2.getReadPosition();
-        
-        Position latest = new PositionImpl(p1.getLedgerId(), p1.getEntryId() - 1);
-        Position earliest = new PositionImpl(p2.getLedgerId(), p2.getEntryId() - 1);
-        assertEquals(latest, ledger.getLastPosition());
-        assertEquals(earliest, ledger.getFirstPosition());
+        PositionImpl p1 = (PositionImpl) latestCursor.getReadPosition();
+        PositionImpl p2 = (PositionImpl) earliestCursor.getReadPosition();
+
+        Pair<PositionImpl, Long> latestPositionAndCounter = ledger.getLastPositionAndCounter();
+        Pair<PositionImpl, Long> earliestPositionAndCounter = ledger.getFirstPositionAndCounter();
+
+        assertEquals(latestPositionAndCounter.first.getNext(), p1);
+        assertEquals(earliestPositionAndCounter.first.getNext(), p2);
+
+        assertEquals(latestPositionAndCounter.second.longValue(), totalInsertedEntries);
+        assertEquals(earliestPositionAndCounter.second.longValue(), 0);
+
+        assertEquals(latestCursor.getNumberOfEntriesInBacklog(), 0);
+        assertEquals(earliestCursor.getNumberOfEntriesInBacklog(), totalInsertedEntries);
+
+        assertEquals(ledger.getNumberOfEntries(), latestPositionAndCounter.second.longValue());
         ledger.close();
     }
 }

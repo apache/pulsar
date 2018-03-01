@@ -2045,13 +2045,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
 
         do {
             pos = getFirstPosition();
-            lastPositionAndCounter = getLastPositionAndCounter();
-            entries = getNumberOfEntries();
-            count = lastPositionAndCounter.second - entries;
-            // Ensure no entry was written while reading the two values
-        } while (pos.compareTo(getFirstPosition()) != 0 && lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
-
-        return Pair.create(pos, count);
+        } while (pos.compareTo(getFirstPosition()) != 0);
+        return Pair.create(pos, 0L);
     }
 
     public void activateCursor(ManagedCursor cursor) {
