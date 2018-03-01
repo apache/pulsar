@@ -23,6 +23,10 @@ PULSAR_HOME=`cd $BINDIR/..;pwd`
 
 DEFAULT_CLIENT_CONF=$PULSAR_HOME/conf/client.conf
 DEFAULT_LOG_CONF=$PULSAR_HOME/conf/log4j2.yml
+DEFAULT_JAVA_INSTANCE_JAR=$PULSAR_HOME/instances/java-instance.jar
+JAVA_INSTANCE_JAR=${PULSAR_JAVA_INSTANCE_JAR:-"${DEFAULT_JAVA_INSTANCE_JAR}"}
+DEFAULT_PY_INSTANCE_FILE=$PULSAR_HOME/instances/python-instance/python_instance_main.py
+PY_INSTANCE_FILE=${PULSAR_PY_INSTANCE_FILE:-"${DEFAULT_PY_INSTANCE_FILE}"}
 
 if [ -f "$PULSAR_HOME/conf/pulsar_tools_env.sh" ]
 then
@@ -41,18 +45,19 @@ else
 fi
 
 # exclude tests jar
-RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1` 
+RELEASE_JAR=`ls $PULSAR_HOME/lib/*pulsar-functions-cli*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
     PULSAR_JAR=$RELEASE_JAR
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/cli/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
-if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then 
-    echo "\nCouldn't find pulsar jar.";
-    echo "Make sure you've run 'mvn package'\n";
-    exit 1;
-elif [ -e "$BUILT_JAR" ]; then
+if [ -z "$PULSAR_JAR" ]; then
+    BUILT_JAR=`ls $PULSAR_HOME/cli/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+    if [ -z "${BUILT_JAR}" ]; then 
+        echo "\nCouldn't find pulsar jar.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
     PULSAR_JAR=$BUILT_JAR
 fi
 
