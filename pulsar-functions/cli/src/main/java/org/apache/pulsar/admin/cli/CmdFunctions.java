@@ -59,6 +59,8 @@ import org.apache.pulsar.functions.utils.Reflections;
 
 import java.io.File;
 import java.lang.reflect.Type;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
@@ -449,30 +451,37 @@ public class CmdFunctions extends CmdBase {
             }
             try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
                     serviceUrl, null, null, null)) {
-
-                InstanceConfig instanceConfig = new InstanceConfig();
-                instanceConfig.setFunctionConfig(functionConfig);
-                // TODO: correctly implement function version and id
-                instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
-                instanceConfig.setFunctionId(UUID.randomUUID().toString());
-                instanceConfig.setInstanceId("0");
-                instanceConfig.setMaxBufferedTuples(1024);
-                RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
-                    instanceConfig,
-                    userCodeFile,
-                    containerFactory,
-                    null,
-                    0);
+                List<RuntimeSpawner> spawners = new LinkedList<>();
+                for (int i = 0; i < functionConfig.getParallelism(); ++i) {
+                    InstanceConfig instanceConfig = new InstanceConfig();
+                    instanceConfig.setFunctionConfig(functionConfig);
+                    // TODO: correctly implement function version and id
+                    instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
+                    instanceConfig.setFunctionId(UUID.randomUUID().toString());
+                    instanceConfig.setInstanceId(Integer.toString(i));
+                    instanceConfig.setMaxBufferedTuples(1024);
+                    RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
+                            instanceConfig,
+                            userCodeFile,
+                            containerFactory,
+                            null,
+                            0);
+                    spawners.add(runtimeSpawner);
+                    runtimeSpawner.start();
+                }
                 Runtime.getRuntime().addShutdownHook(new Thread() {
                     public void run() {
                         log.info("Shutting down the localrun runtimeSpawner ...");
-                        runtimeSpawner.close();
-                        log.info("The localrun runtimeSpawner is closed.");
+                        for (RuntimeSpawner spawner : spawners) {
+                            spawner.close();
+                        }
                     }
                 });
-                runtimeSpawner.start();
-                runtimeSpawner.join();
-                log.info("RuntimeSpawner is quitting.");
+                for (RuntimeSpawner spawner : spawners) {
+                    spawner.join();
+                    log.info("RuntimeSpawner quit because of {}", spawner.getRuntime().getDeathException());
+                }
+
             }
         }
     }
