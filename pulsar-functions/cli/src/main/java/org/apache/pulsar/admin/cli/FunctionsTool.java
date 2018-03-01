@@ -20,6 +20,7 @@ package org.apache.pulsar.admin.cli;
 
 import java.net.URL;
 import java.util.function.BiFunction;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 
@@ -36,6 +37,11 @@ public class FunctionsTool extends PulsarAdminTool {
     FunctionsTool(Properties properties) throws Exception {
         super(properties);
         commandMap.put("functions", CmdFunctions.class);
+
+        // in pulsar functions tool, webServiceUrl points to functions rest endpoint,
+        // which can not be used for constructing pulsar client. we have to use
+        // `serviceUrl` defined in the properties file.
+        config.setServiceUrl(properties.getProperty("serviceUrl"));
     }
 
     public static void main(String[] args) throws Exception {
