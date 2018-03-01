@@ -34,8 +34,13 @@ import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
+
+import lombok.Data;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -75,7 +80,7 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private boolean readCompacted = false;
 
     private int patternAutoDiscoveryPeriod = 1;
-    private InitialPosition subscriptionInitialPosition = InitialPosition.Latest;
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     @JsonIgnore
     public String getSingleTopic() {
