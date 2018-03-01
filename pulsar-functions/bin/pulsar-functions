@@ -73,7 +73,7 @@ add_maven_deps_to_classpath() {
     f="${PULSAR_HOME}/cli/target/classpath_shaded.txt"
     if [ ! -f "${f}" ]
     then
-	${MVN} -f "${PULSAR_HOME}/cli/pom.xml" dependency:build-classpath -Dmdep.outputFile="${f}" &> /dev/null
+	${MVN} -f "${PULSAR_HOME}/cli/pom.xml" dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile="${f}" &> /dev/null
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }
