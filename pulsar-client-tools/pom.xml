@@ -102,20 +102,6 @@
 			<artifactId>mockito-core</artifactId>
 			<scope>test</scope>
 		</dependency>
-
-        <dependency>
-          <groupId>org.apache.bookkeeper</groupId>
-          <artifactId>bookkeeper-server</artifactId>
-          <version>${bookkeeper.version}</version>
-          <classifier>tests</classifier>
-          <scope>test</scope>
-          <exclusions>
-            <exclusion>
-              <groupId>org.slf4j</groupId>
-              <artifactId>slf4j-log4j12</artifactId>
-            </exclusion>
-          </exclusions>
-        </dependency>
 	</dependencies>
 
 </project>
