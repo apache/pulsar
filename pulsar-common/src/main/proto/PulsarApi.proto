@@ -23,10 +23,27 @@ option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
 message Schema {
+	enum Type {
+		Json = 1;
+		Protobuf = 2;
+		Thrift = 3;
+		Avro = 4;
+		Reserved1 = 5;
+		Reserved2 = 6;
+		Reserved3 = 7;
+		Reserved4 = 8;
+		Reserved5 = 9;
+		Reserved6 = 10;
+		Reserved7 = 11;
+		Reserved8 = 12;
+		Reserved9 = 13;
+	}
+
     required string name = 1;
     required bytes version = 2;
     required bytes schema_data = 3;
-    repeated KeyValue properties = 4;
+	required Type type = 4;
+    repeated KeyValue properties = 5;
 }
 
 message MessageIdData {
