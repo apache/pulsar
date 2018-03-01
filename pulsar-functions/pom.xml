@@ -42,6 +42,7 @@
     <module>cli</module>
     <module>java-examples</module>
     <module>api-composition-java</module>
+    <module>dist</module>
   </modules>
 
   <dependencyManagement>

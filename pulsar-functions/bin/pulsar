@@ -45,18 +45,19 @@ else
 fi
 
 # exclude tests jar
-RELEASE_JAR=`ls $PULSAR_HOME/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+RELEASE_JAR=`ls $PULSAR_HOME/lib/*pulsar-functions-worker*.jar 2> /dev/null | grep -v tests | tail -1`
 if [ $? == 0 ]; then
     PULSAR_JAR=$RELEASE_JAR
 fi
 
 # exclude tests jar
-BUILT_JAR=`ls $PULSAR_HOME/worker/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
-if [ $? != 0 ] && [ ! -e "$PULSAR_JAR" ]; then
-    echo "\nCouldn't find pulsar jar.";
-    echo "Make sure you've run 'mvn package'\n";
-    exit 1;
-elif [ -e "$BUILT_JAR" ]; then
+if [ -z "$PULSAR_JAR" ]; then
+    BUILT_JAR=`ls $PULSAR_HOME/worker/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+    if [ -z "${BUILT_JAR}" ]; then
+        echo "\nCouldn't find pulsar jar.";
+        echo "Make sure you've run 'mvn package'\n";
+        exit 1;
+    fi
     PULSAR_JAR=$BUILT_JAR
 fi
 
@@ -64,26 +65,24 @@ fi
 if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
     # didn't find a released jar, then search the built jar
     BUILT_JAVA_INSTANCE_JAR="${PULSAR_HOME}/runtime/target/java-instance.jar"
-    if [ -f "${BUILT_JAVA_INSTANCE_JAR}" ]; then
-        JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
-    else
+    if [ -z "${BUILT_JAVA_INSTANCE_JAR}" ]; then
         echo "\nCouldn't find pulsar java instance jar.";
         echo "Make sure you've run 'mvn package'\n";
         exit 1;
     fi
+    JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
 fi
 
 # find the python instance location
 if [ ! -f "${PY_INSTANCE_FILE}" ]; then
     # didn't find a released python instance, then search the built python instance
     BUILT_PY_INSTANCE_FILE="${PULSAR_HOME}/runtime/target/python-instance/python_instance_main.py"
-    if [ -f "${BUILT_PY_INSTANCE_FILE}" ]; then
-        PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
-    else
+    if [ -z "${BUILT_PY_INSTANCE_FILE}" ]; then
         echo "\nCouldn't find pulsar python instance.";
         echo "Make sure you've run 'mvn package'\n";
         exit 1;
     fi
+    PY_INSTANCE_FILE=${BUILT_PY_INSTANCE_FILE}
 fi
 
 pulsar_help() {
