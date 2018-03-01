@@ -211,6 +211,22 @@ public class ServerCnxTest {
     }
 
     @Test(timeOut = 30000)
+    public void testConnectCommandWithEnum() throws Exception {
+        resetChannel();
+        assertTrue(channel.isActive());
+        assertEquals(serverCnx.getState(), State.Start);
+
+        // test server response to CONNECT
+        @SuppressWarnings("deprecation") // We're actually testing that the deprecated method still works
+        ByteBuf clientCommand = Commands.newConnect(AuthMethod.AuthMethodNone, "");
+        channel.writeInbound(clientCommand);
+
+        assertEquals(serverCnx.getState(), State.Connected);
+        assertTrue(getResponse() instanceof CommandConnected);
+        channel.finish();
+    }
+
+    @Test(timeOut = 30000)
     public void testConnectCommandWithProtocolVersion() throws Exception {
         resetChannel();
         assertTrue(channel.isActive());
