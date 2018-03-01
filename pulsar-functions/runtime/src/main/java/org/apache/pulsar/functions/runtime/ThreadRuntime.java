@@ -39,13 +39,13 @@ import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 class ThreadRuntime implements Runtime {
 
     // The thread that invokes the function
-    @Getter
-    private final Thread fnThread;
+    private Thread fnThread;
 
     @Getter
     private InstanceConfig instanceConfig;
     private JavaInstanceRunnable javaInstanceRunnable;
     private Exception startupException;
+    private ThreadGroup threadGroup;
 
     ThreadRuntime(InstanceConfig instanceConfig,
                   FunctionCacheManager fnCache,
@@ -63,8 +63,7 @@ class ThreadRuntime implements Runtime {
             jarFile,
             pulsarClient,
             stateStorageServiceUrl);
-        this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
-                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+        this.threadGroup = threadGroup;
     }
 
     /**
@@ -74,6 +73,8 @@ class ThreadRuntime implements Runtime {
     public void start() {
         log.info("ThreadContainer starting function with instance config {}", instanceConfig);
         startupException = null;
+        this.fnThread = new Thread(threadGroup, javaInstanceRunnable,
+                FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
         this.fnThread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
             @Override
             public void uncaughtException(Thread t, Throwable e) {
@@ -85,18 +86,22 @@ class ThreadRuntime implements Runtime {
 
     @Override
     public void join() throws Exception {
-        this.fnThread.join();
+        if (this.fnThread != null) {
+            this.fnThread.join();
+        }
     }
 
     @Override
     public void stop() {
-        // interrupt the instance thread
-        fnThread.interrupt();
-        javaInstanceRunnable.close();
-        try {
-            fnThread.join();
-        } catch (InterruptedException e) {
-            // ignore this
+        if (fnThread != null) {
+            // interrupt the instance thread
+            fnThread.interrupt();
+            javaInstanceRunnable.close();
+            try {
+                fnThread.join();
+            } catch (InterruptedException e) {
+                // ignore this
+            }
         }
     }
 
@@ -119,7 +124,11 @@ class ThreadRuntime implements Runtime {
 
     @Override
     public boolean isAlive() {
-        return this.fnThread.isAlive();
+        if (this.fnThread != null) {
+            return this.fnThread.isAlive();
+        } else {
+            return false;
+        }
     }
 
     @Override
