@@ -18374,6 +18374,10 @@ public final class PulsarApi {
     // optional int64 last_sequence_id = 3 [default = -1];
     boolean hasLastSequenceId();
     long getLastSequenceId();
+    
+    // optional bytes schema_version = 4;
+    boolean hasSchemaVersion();
+    com.google.protobuf.ByteString getSchemaVersion();
   }
   public static final class CommandProducerSuccess extends
       com.google.protobuf.GeneratedMessageLite
@@ -18464,10 +18468,21 @@ public final class PulsarApi {
       return lastSequenceId_;
     }
     
+    // optional bytes schema_version = 4;
+    public static final int SCHEMA_VERSION_FIELD_NUMBER = 4;
+    private com.google.protobuf.ByteString schemaVersion_;
+    public boolean hasSchemaVersion() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public com.google.protobuf.ByteString getSchemaVersion() {
+      return schemaVersion_;
+    }
+    
     private void initFields() {
       requestId_ = 0L;
       producerName_ = "";
       lastSequenceId_ = -1L;
+      schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -18503,6 +18518,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeInt64(3, lastSequenceId_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeBytes(4, schemaVersion_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -18522,6 +18540,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt64Size(3, lastSequenceId_);
+      }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBytesSize(4, schemaVersion_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -18642,6 +18664,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         lastSequenceId_ = -1L;
         bitField0_ = (bitField0_ & ~0x00000004);
+        schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+        bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
       
@@ -18687,6 +18711,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000004;
         }
         result.lastSequenceId_ = lastSequenceId_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.schemaVersion_ = schemaVersion_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -18701,6 +18729,9 @@ public final class PulsarApi {
         }
         if (other.hasLastSequenceId()) {
           setLastSequenceId(other.getLastSequenceId());
+        }
+        if (other.hasSchemaVersion()) {
+          setSchemaVersion(other.getSchemaVersion());
         }
         return this;
       }
@@ -18752,6 +18783,11 @@ public final class PulsarApi {
             case 24: {
               bitField0_ |= 0x00000004;
               lastSequenceId_ = input.readInt64();
+              break;
+            }
+            case 34: {
+              bitField0_ |= 0x00000008;
+              schemaVersion_ = input.readBytes();
               break;
             }
           }
@@ -18834,6 +18870,30 @@ public final class PulsarApi {
       public Builder clearLastSequenceId() {
         bitField0_ = (bitField0_ & ~0x00000004);
         lastSequenceId_ = -1L;
+        
+        return this;
+      }
+      
+      // optional bytes schema_version = 4;
+      private com.google.protobuf.ByteString schemaVersion_ = com.google.protobuf.ByteString.EMPTY;
+      public boolean hasSchemaVersion() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public com.google.protobuf.ByteString getSchemaVersion() {
+        return schemaVersion_;
+      }
+      public Builder setSchemaVersion(com.google.protobuf.ByteString value) {
+        if (value == null) {
+    throw new NullPointerException();
+  }
+  bitField0_ |= 0x00000008;
+        schemaVersion_ = value;
+        
+        return this;
+      }
+      public Builder clearSchemaVersion() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        schemaVersion_ = getDefaultInstance().getSchemaVersion();
         
         return this;
       }
