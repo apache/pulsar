@@ -103,11 +103,9 @@ public class FunctionApiV1Resource extends FunctionApiResource {
                 .setCreateTime(System.currentTimeMillis())
                 .setVersion(0);
 
-        WorkerConfig workerConfig = worker().getWorkerConfig();
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
                 .setPackagePath(String.format(
-            // TODO: dlog 0.5.0 doesn't support filesystem path
-            "%s_%s_%s_%s",
+            "%s/%s/%s/%s",
             tenant,
             namespace,
             functionName,
@@ -156,8 +154,7 @@ public class FunctionApiV1Resource extends FunctionApiResource {
 
         PackageLocationMetaData.Builder packageLocationMetaDataBuilder = PackageLocationMetaData.newBuilder()
                 .setPackagePath(String.format(
-                        // TODO: dlog 0.5.0 doesn't support filesystem path
-                        "%s_%s_%s_%s",
+                        "%s/%s/%s/%s",
                         tenant,
                         namespace,
                         functionName,
