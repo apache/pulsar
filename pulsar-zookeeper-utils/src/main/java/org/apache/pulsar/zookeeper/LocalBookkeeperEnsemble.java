@@ -39,7 +39,6 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.bookie.BookieException.InvalidCookieException;
-import org.apache.bookkeeper.bookie.SortedLedgerStorage;
 import org.apache.bookkeeper.bookie.storage.ldb.DbLedgerStorage;
 import org.apache.bookkeeper.conf.ServerConfiguration;
 import org.apache.bookkeeper.proto.BookieServer;
@@ -230,8 +229,6 @@ public class LocalBookkeeperEnsemble {
         ServerConfiguration conf = new ServerConfiguration();
         conf.setLedgerManagerFactoryClassName("org.apache.bookkeeper.meta.HierarchicalLedgerManagerFactory");
         conf.setLedgerStorageClass(DbLedgerStorage.class.getName());
-        conf.setDiskUsageThreshold(0.99999f);
-        conf.setDiskUsageWarnThreshold(0.9999f);
         conf.setProperty("dbStorage_writeCacheMaxSizeMb", 256);
         conf.setProperty("dbStorage_readAheadCacheMaxSizeMb", 64);
         conf.setFlushInterval(60000);
