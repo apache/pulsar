@@ -23,12 +23,16 @@ import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.MoreObjects;
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Recycler;
+import io.netty.util.Recycler.Handle;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
-
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.TopicClosedException;
@@ -42,18 +46,10 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.NonPersistentPublisherStats;
 import org.apache.pulsar.common.policies.data.PublisherStats;
-import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.MoreObjects;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Recycler;
-import io.netty.util.Recycler.Handle;
 
 /**
  * Represents a currently connected producer
@@ -84,10 +80,10 @@ public class Producer {
 
     private final Map<String, String> metadata;
 
-    private final CompletableFuture<SchemaVersion> schemaVersion;
+    private final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-                    boolean isEncrypted, Map<String, String> metadata, Schema schema) {
+                    boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;
@@ -114,8 +110,7 @@ public class Producer {
         this.remoteCluster = isRemote ? producerName.split("\\.")[2] : null;
 
         this.isEncrypted = isEncrypted;
-
-        this.schemaVersion = topic.addSchema(schema);
+        this.schemaVersion = schemaVersion;
     }
 
     @Override
@@ -496,6 +491,10 @@ public class Producer {
                     producerId, producerName, topic.getName());
             disconnect();
         }
+    }
+
+    public SchemaVersion getSchemaVersion() {
+        return schemaVersion;
     }
 
     private static final Logger log = LoggerFactory.getLogger(Producer.class);
