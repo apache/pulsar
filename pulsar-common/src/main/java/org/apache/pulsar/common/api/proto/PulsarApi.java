@@ -274,7 +274,11 @@ public final class PulsarApi {
     boolean hasSchemaData();
     com.google.protobuf.ByteString getSchemaData();
     
-    // repeated .pulsar.proto.KeyValue properties = 4;
+    // required .pulsar.proto.Schema.Type type = 4;
+    boolean hasType();
+    org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type getType();
+    
+    // repeated .pulsar.proto.KeyValue properties = 5;
     java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> 
         getPropertiesList();
     org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getProperties(int index);
@@ -314,6 +318,80 @@ public final class PulsarApi {
     
     public Schema getDefaultInstanceForType() {
       return defaultInstance;
+    }
+    
+    public enum Type
+        implements com.google.protobuf.Internal.EnumLite {
+      Json(0, 1),
+      Protobuf(1, 2),
+      Thrift(2, 3),
+      Avro(3, 4),
+      Reserved1(4, 5),
+      Reserved2(5, 6),
+      Reserved3(6, 7),
+      Reserved4(7, 8),
+      Reserved5(8, 9),
+      Reserved6(9, 10),
+      Reserved7(10, 11),
+      Reserved8(11, 12),
+      Reserved9(12, 13),
+      ;
+      
+      public static final int Json_VALUE = 1;
+      public static final int Protobuf_VALUE = 2;
+      public static final int Thrift_VALUE = 3;
+      public static final int Avro_VALUE = 4;
+      public static final int Reserved1_VALUE = 5;
+      public static final int Reserved2_VALUE = 6;
+      public static final int Reserved3_VALUE = 7;
+      public static final int Reserved4_VALUE = 8;
+      public static final int Reserved5_VALUE = 9;
+      public static final int Reserved6_VALUE = 10;
+      public static final int Reserved7_VALUE = 11;
+      public static final int Reserved8_VALUE = 12;
+      public static final int Reserved9_VALUE = 13;
+      
+      
+      public final int getNumber() { return value; }
+      
+      public static Type valueOf(int value) {
+        switch (value) {
+          case 1: return Json;
+          case 2: return Protobuf;
+          case 3: return Thrift;
+          case 4: return Avro;
+          case 5: return Reserved1;
+          case 6: return Reserved2;
+          case 7: return Reserved3;
+          case 8: return Reserved4;
+          case 9: return Reserved5;
+          case 10: return Reserved6;
+          case 11: return Reserved7;
+          case 12: return Reserved8;
+          case 13: return Reserved9;
+          default: return null;
+        }
+      }
+      
+      public static com.google.protobuf.Internal.EnumLiteMap<Type>
+          internalGetValueMap() {
+        return internalValueMap;
+      }
+      private static com.google.protobuf.Internal.EnumLiteMap<Type>
+          internalValueMap =
+            new com.google.protobuf.Internal.EnumLiteMap<Type>() {
+              public Type findValueByNumber(int number) {
+                return Type.valueOf(number);
+              }
+            };
+      
+      private final int value;
+      
+      private Type(int index, int value) {
+        this.value = value;
+      }
+      
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.Schema.Type)
     }
     
     private int bitField0_;
@@ -369,8 +447,18 @@ public final class PulsarApi {
       return schemaData_;
     }
     
-    // repeated .pulsar.proto.KeyValue properties = 4;
-    public static final int PROPERTIES_FIELD_NUMBER = 4;
+    // required .pulsar.proto.Schema.Type type = 4;
+    public static final int TYPE_FIELD_NUMBER = 4;
+    private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type type_;
+    public boolean hasType() {
+      return ((bitField0_ & 0x00000008) == 0x00000008);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type getType() {
+      return type_;
+    }
+    
+    // repeated .pulsar.proto.KeyValue properties = 5;
+    public static final int PROPERTIES_FIELD_NUMBER = 5;
     private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_;
     public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getPropertiesList() {
       return properties_;
@@ -394,6 +482,7 @@ public final class PulsarApi {
       name_ = "";
       version_ = com.google.protobuf.ByteString.EMPTY;
       schemaData_ = com.google.protobuf.ByteString.EMPTY;
+      type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
       properties_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -410,6 +499,10 @@ public final class PulsarApi {
         return false;
       }
       if (!hasSchemaData()) {
+        memoizedIsInitialized = 0;
+        return false;
+      }
+      if (!hasType()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -440,8 +533,11 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeBytes(3, schemaData_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        output.writeEnum(4, type_.getNumber());
+      }
       for (int i = 0; i < properties_.size(); i++) {
-        output.writeMessage(4, properties_.get(i));
+        output.writeMessage(5, properties_.get(i));
       }
     }
     
@@ -463,9 +559,13 @@ public final class PulsarApi {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(3, schemaData_);
       }
+      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(4, type_.getNumber());
+      }
       for (int i = 0; i < properties_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(4, properties_.get(i));
+          .computeMessageSize(5, properties_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -586,8 +686,10 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         schemaData_ = com.google.protobuf.ByteString.EMPTY;
         bitField0_ = (bitField0_ & ~0x00000004);
-        properties_ = java.util.Collections.emptyList();
+        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
         bitField0_ = (bitField0_ & ~0x00000008);
+        properties_ = java.util.Collections.emptyList();
+        bitField0_ = (bitField0_ & ~0x00000010);
         return this;
       }
       
@@ -633,9 +735,13 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000004;
         }
         result.schemaData_ = schemaData_;
-        if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000008;
+        }
+        result.type_ = type_;
+        if (((bitField0_ & 0x00000010) == 0x00000010)) {
           properties_ = java.util.Collections.unmodifiableList(properties_);
-          bitField0_ = (bitField0_ & ~0x00000008);
+          bitField0_ = (bitField0_ & ~0x00000010);
         }
         result.properties_ = properties_;
         result.bitField0_ = to_bitField0_;
@@ -653,10 +759,13 @@ public final class PulsarApi {
         if (other.hasSchemaData()) {
           setSchemaData(other.getSchemaData());
         }
+        if (other.hasType()) {
+          setType(other.getType());
+        }
         if (!other.properties_.isEmpty()) {
           if (properties_.isEmpty()) {
             properties_ = other.properties_;
-            bitField0_ = (bitField0_ & ~0x00000008);
+            bitField0_ = (bitField0_ & ~0x00000010);
           } else {
             ensurePropertiesIsMutable();
             properties_.addAll(other.properties_);
@@ -676,6 +785,10 @@ public final class PulsarApi {
           return false;
         }
         if (!hasSchemaData()) {
+          
+          return false;
+        }
+        if (!hasType()) {
           
           return false;
         }
@@ -725,7 +838,16 @@ public final class PulsarApi {
               schemaData_ = input.readBytes();
               break;
             }
-            case 34: {
+            case 32: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type value = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00000008;
+                type_ = value;
+              }
+              break;
+            }
+            case 42: {
               org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.KeyValue.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addProperties(subBuilder.buildPartial());
@@ -821,13 +943,37 @@ public final class PulsarApi {
         return this;
       }
       
-      // repeated .pulsar.proto.KeyValue properties = 4;
+      // required .pulsar.proto.Schema.Type type = 4;
+      private org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+      public boolean hasType() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type getType() {
+        return type_;
+      }
+      public Builder setType(org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00000008;
+        type_ = value;
+        
+        return this;
+      }
+      public Builder clearType() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        type_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.Type.Json;
+        
+        return this;
+      }
+      
+      // repeated .pulsar.proto.KeyValue properties = 5;
       private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> properties_ =
         java.util.Collections.emptyList();
       private void ensurePropertiesIsMutable() {
-        if (!((bitField0_ & 0x00000008) == 0x00000008)) {
+        if (!((bitField0_ & 0x00000010) == 0x00000010)) {
           properties_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue>(properties_);
-          bitField0_ |= 0x00000008;
+          bitField0_ |= 0x00000010;
          }
       }
       
@@ -899,7 +1045,7 @@ public final class PulsarApi {
       }
       public Builder clearProperties() {
         properties_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000010);
         
         return this;
       }
