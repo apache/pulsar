@@ -97,6 +97,7 @@ import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -1610,13 +1611,18 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public CompletableFuture<SchemaAndMetadata> getSchema() {
         String base = TopicName.get(getName()).getPartitionedTopicName();
-        TopicName destination = TopicName.get(base);
-        String schema = destination.getProperty()
-            + "_" + destination.getCluster()
-            + "_" + destination.getNamespacePortion()
-            + "_" + destination.getLocalName();
+        String schema = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
             .getSchema(schema);
+    }
+
+    @Override
+    public CompletableFuture<SchemaVersion> addSchema(Schema schema) {
+        String base = TopicName.get(getName()).getPartitionedTopicName();
+        String id = TopicName.get(base).getSchemaName();
+        return brokerService.pulsar()
+            .getSchemaRegistryService()
+            .putSchema(id, schema);
     }
 }

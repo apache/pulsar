@@ -288,6 +288,13 @@ public class TopicName implements ServiceUnitId {
         return cluster == null || Constants.GLOBAL_CLUSTER.equalsIgnoreCase(cluster);
     }
 
+    public String getSchemaName() {
+        return getProperty()
+            + "_" + getCluster()
+            + "_" + getNamespacePortion()
+            + "_" + getLocalName();
+    }
+
     @Override
     public String toString() {
         return completeTopicName;
