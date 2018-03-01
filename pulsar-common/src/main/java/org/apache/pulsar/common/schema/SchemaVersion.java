@@ -20,6 +20,7 @@ package org.apache.pulsar.common.schema;
 
 public interface SchemaVersion {
     SchemaVersion Latest = new LatestVersion();
+    SchemaVersion Empty = new EmptyVersion();
 
     byte[] bytes();
 }
