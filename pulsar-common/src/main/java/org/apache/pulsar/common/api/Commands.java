@@ -136,33 +136,6 @@ public class Commands {
         return res;
     }
 
-    /**
-     * @deprecated AuthMethod has been deprecated. Use {@link #newConnect(String authMethodName, String authData)}
-     *             instead.
-     */
-    @Deprecated
-    public static ByteBuf newConnect(AuthMethod authMethod, String authData) {
-        return newConnect(authMethod, authData, getCurrentProtocolVersion());
-    }
-
-    /**
-     * @deprecated AuthMethod has been deprecated. Use
-     *             {@link #newConnect(String authMethodName, String authData, int protocolVersion)} instead.
-     */
-    @Deprecated
-    public static ByteBuf newConnect(AuthMethod authMethod, String authData, int protocolVersion) {
-        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
-        connectBuilder.setClientVersion("Pulsar Client");
-        connectBuilder.setAuthMethod(authMethod);
-        connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
-        connectBuilder.setProtocolVersion(protocolVersion);
-        CommandConnect connect = connectBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
-        connect.recycle();
-        connectBuilder.recycle();
-        return res;
-    }
-
     public static ByteBuf newConnected(int clientProtocolVersion) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server");
