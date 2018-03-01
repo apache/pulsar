@@ -56,6 +56,7 @@ public class FunctionMetadataSetup {
                 admin.clusters().getClusters();
                 break;
             } catch (PulsarAdminException e) {
+                log.warn("Failed to retrieve clusters from pulsar service", e);
                 log.warn("Retry to connect to Pulsar service at {}", workerConfig.getPulsarWebServiceUrl());
                 if (retries >= maxRetries) {
                     log.error("Failed to connect to Pulsar service at {} after {} attempts",

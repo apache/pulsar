@@ -74,7 +74,7 @@ add_maven_deps_to_classpath() {
 }
 
 if [ -d "$PULSAR_HOME/lib" ]; then
-	PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
+    PULSAR_CLASSPATH="$PULSAR_CLASSPATH:$PULSAR_HOME/lib/*"
 else
     add_maven_deps_to_classpath
 fi
