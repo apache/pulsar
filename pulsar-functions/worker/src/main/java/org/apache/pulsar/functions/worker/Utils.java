@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import dlshade.org.apache.zookeeper.KeeperException.Code;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.AppendOnlyStreamWriter;
 import org.apache.distributedlog.DistributedLogConfiguration;
@@ -43,7 +44,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URL;
 import java.util.UUID;
-import org.apache.zookeeper.KeeperException.Code;
 
 @Slf4j
 public final class Utils {
@@ -141,7 +141,7 @@ public final class Utils {
     public static DistributedLogConfiguration getDlogConf(WorkerConfig workerConfig) {
         int numReplicas = workerConfig.getNumFunctionPackageReplicas();
 
-        return new DistributedLogConfiguration()
+        DistributedLogConfiguration conf = new DistributedLogConfiguration()
                 .setWriteLockEnabled(false)
                 .setOutputBufferSize(256 * 1024)                  // 256k
                 .setPeriodicFlushFrequencyMilliSeconds(0)         // disable periodical flush
@@ -154,6 +154,9 @@ public final class Utils {
                 .setWriteQuorumSize(numReplicas)
                 .setAckQuorumSize(numReplicas)
                 .setUseDaemonThread(true);
+        conf.setProperty("bkc.allowShadedLedgerManagerFactoryClass", true);
+        conf.setProperty("bkc.shadedLedgerManagerFactoryClassPrefix", "dlshade.");
+        return conf;
     }
 
     public static URI initializeDlogNamespace(String zkServers, String ledgersRootPath) throws IOException {
