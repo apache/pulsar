@@ -77,7 +77,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setTlsProtocols(tlsProtocols);
     }
 
-    protected void internalSetUpForClient(boolean addCertificates) throws Exception {
+    protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
         ClientConfiguration clientConf = new ClientConfiguration();
         clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         clientConf.setUseTls(true);
@@ -88,7 +88,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
             authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
             clientConf.setAuthentication(AuthenticationTls.class.getName(), authParams);
         }
-        String lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT_TLS).toString();
         pulsarClient = PulsarClient.create(lookupUrl, clientConf);
     }
 

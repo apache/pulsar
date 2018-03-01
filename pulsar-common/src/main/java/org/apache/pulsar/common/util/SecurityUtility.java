@@ -49,6 +49,8 @@ import javax.net.ssl.SSLException;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+
 import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
 import io.netty.handler.ssl.SslContextBuilder;
@@ -243,5 +245,21 @@ public class SecurityUtility {
         } else {
             builder.clientAuth(ClientAuth.OPTIONAL);
         }
+    }
+
+    public static SslContextFactory createSslContextFactory(boolean tlsAllowInsecureConnection,
+            String tlsTrustCertsFilePath, String tlsCertificateFilePath, String tlsKeyFilePath,
+            boolean tlsReqTrustedClientCertOnConnect) throws GeneralSecurityException {
+        SslContextFactory sslCtxFactory = new SslContextFactory();
+        SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath, tlsCertificateFilePath,
+                tlsKeyFilePath);
+        sslCtxFactory.setSslContext(sslCtx);
+        if (tlsReqTrustedClientCertOnConnect) {
+            sslCtxFactory.setNeedClientAuth(true);
+        } else {
+            sslCtxFactory.setWantClientAuth(true);
+        }
+        sslCtxFactory.setTrustAll(true);
+        return sslCtxFactory;
     }
 }

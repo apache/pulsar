@@ -77,5 +77,11 @@
       <artifactId>netty-tcnative-boringssl-static</artifactId>
       <version>2.0.7.Final</version>
     </dependency>
+
+	<dependency>
+		<groupId>org.eclipse.jetty</groupId>
+		<artifactId>jetty-server</artifactId>
+	</dependency>
+    
   </dependencies>
 </project>
