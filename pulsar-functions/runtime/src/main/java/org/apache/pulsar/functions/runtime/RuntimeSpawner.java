@@ -27,6 +27,7 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatus;
@@ -42,6 +43,7 @@ public class RuntimeSpawner implements AutoCloseable {
     private final RuntimeFactory runtimeFactory;
     private final String codeFile;
 
+    @Getter
     private Runtime runtime;
     private MetricsSink metricsSink;
     private int metricsCollectionInterval;
