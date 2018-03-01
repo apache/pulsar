@@ -165,12 +165,12 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         }
 
         static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info) {
-            return Schema.newBuilder()
+            return Schema.builder()
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
                 .data(info.getSchema().toByteArray())
                 .isDeleted(info.getDeleted())
-                .properties(toMap(info.getPropsList()))
+                .props(toMap(info.getPropsList()))
                 .build();
         }
 

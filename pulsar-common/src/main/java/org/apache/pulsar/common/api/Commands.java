@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import org.apache.pulsar.common.api.data.SchemaInfo;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -73,7 +74,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.Schema;
-import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -223,10 +223,10 @@ public class Commands {
     }
 
     public static ByteBuf newProducerSuccess(long requestId, String producerName) {
-        return newProducerSuccess(requestId, producerName, -1, null);
+        return newProducerSuccess(requestId, producerName, -1);
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, SchemaInfo schemaInfo) {
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
@@ -234,26 +234,8 @@ public class Commands {
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
-        PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schemaInfo != null && !schemaInfo.schema.isDeleted) {
-            Schema schema = schemaInfo.schema;
-            schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setName(schemaInfo.name);
-            schemaBuilder.setVersion(copyFrom(schemaInfo.version.bytes()));
-            schemaBuilder.setSchemaData(copyFrom(schema.data));
-            schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                .setKey("type").setValue(schema.type.toString()));
-            for (Map.Entry<String, String> entry : schema.props.entrySet()) {
-                schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                    .setKey(entry.getKey()).setValue(entry.getValue()));
-            }
-            producerSuccessBuilder.setSchema(schemaBuilder.build());
-        }
         producerSuccess.recycle();
         producerSuccessBuilder.recycle();
-        if (schemaBuilder != null) {
-            schemaBuilder.recycle();
-        }
         return res;
     }
 
@@ -1054,15 +1036,4 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 
-    public static class SchemaInfo {
-        public final String name;
-        public final SchemaVersion version;
-        public final Schema schema;
-
-        public SchemaInfo(String name, SchemaVersion version, Schema schema) {
-            this.name = name;
-            this.version = version;
-            this.schema = schema;
-        }
-    }
 }

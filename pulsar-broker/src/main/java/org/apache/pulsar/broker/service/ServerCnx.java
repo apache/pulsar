@@ -60,6 +60,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.data.SchemaInfo;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
@@ -696,33 +697,6 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
-    private static class TopicAndSchema {
-        final Topic topic;
-        final SchemaAndMetadata schema;
-
-        TopicAndSchema(Topic topic, SchemaAndMetadata schema) {
-            this.topic = topic;
-            this.schema = schema;
-        }
-    }
-
-    static CompletableFuture<TopicAndSchema> getSchema(Topic topic) {
-        return topic.getSchema().thenApply(schema ->
-            new TopicAndSchema(topic, schema)
-        );
-    }
-
-    static Commands.SchemaInfo toInfo(SchemaAndMetadata schemaAndMetadata) {
-        if (isNull(schemaAndMetadata)) {
-            return null;
-        }
-        return new Commands.SchemaInfo(
-            schemaAndMetadata.id,
-            schemaAndMetadata.version,
-            schemaAndMetadata.schema
-        );
-    }
-
     @Override
     protected void handleProducer(final CommandProducer cmdProducer) {
         checkArgument(state == State.Connected);
@@ -800,10 +774,9 @@ public class ServerCnx extends PulsarHandler {
 
                         log.info("[{}][{}] Creating producer. producerId={}", remoteAddress, topicName, producerId);
 
-                        service.getTopic(topicName.toString()).thenCompose(ServerCnx::getSchema).thenAccept(tas -> {
+                        service.getTopic(topicName.toString()).thenAccept((Topic topic) -> {
                             // Before creating producer, check if backlog quota exceeded
                             // on topic
-                            Topic topic = tas.topic;
                             if (topic.isBacklogQuotaExceeded(producerName)) {
                                 IllegalStateException illegalStateException = new IllegalStateException(
                                         "Cannot create producer on topic with backlog quota exceeded");
@@ -842,7 +815,7 @@ public class ServerCnx extends PulsarHandler {
                                     if (producerFuture.complete(producer)) {
                                         log.info("[{}] Created new producer: {}", remoteAddress, producer);
                                         ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                                producer.getLastSequenceId(), toInfo(tas.schema)));
+                                                producer.getLastSequenceId()));
                                         return;
                                     } else {
                                         // The producer's future was completed before by
