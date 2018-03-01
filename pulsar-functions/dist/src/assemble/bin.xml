@@ -42,7 +42,7 @@
     </fileSet>
     <fileSet>
       <directory>${basedir}/../runtime/target/python-instance</directory>
-      <outputDirectory>instances</outputDirectory>
+      <outputDirectory>instances/python-instance</outputDirectory>
     </fileSet>
   </fileSets>
   <files>
