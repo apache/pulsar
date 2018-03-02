@@ -41,6 +41,7 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -87,11 +88,11 @@ public class SchedulerManager implements AutoCloseable {
 
         this.executorService =
                 new ThreadPoolExecutor(1, 1, 0L, TimeUnit.MILLISECONDS,
-                        new LinkedBlockingQueue<Runnable>());
+                        new LinkedBlockingQueue<>());
     }
 
-    public void schedule() {
-        executorService.submit(() -> {
+    public Future<?> schedule() {
+        return executorService.submit(() -> {
             synchronized (SchedulerManager.this) {
                 boolean isLeader = membershipManager.isLeader();
                 if (isLeader) {
@@ -164,6 +165,7 @@ public class SchedulerManager implements AutoCloseable {
 
         // wait for assignment update to go throw the pipeline
         while (this.functionRuntimeManager.getCurrentAssignmentVersion() < assignmentVersion) {
+            log.info("Waiting for assignments to propagate...");
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
