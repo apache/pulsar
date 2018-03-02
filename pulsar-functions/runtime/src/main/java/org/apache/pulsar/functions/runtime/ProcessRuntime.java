@@ -181,10 +181,12 @@ class ProcessRuntime implements Runtime {
     public void start() {
         java.lang.Runtime.getRuntime().addShutdownHook(new Thread(() -> process.destroy()));
         startProcess();
-        channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
-                .usePlaintext(true)
-                .build();
-        stub = InstanceControlGrpc.newFutureStub(channel);
+        if (channel == null && stub == null) {
+            channel = ManagedChannelBuilder.forAddress("127.0.0.1", instancePort)
+                    .usePlaintext(true)
+                    .build();
+            stub = InstanceControlGrpc.newFutureStub(channel);
+        }
     }
 
     @Override
@@ -201,6 +203,10 @@ class ProcessRuntime implements Runtime {
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
         ListenableFuture<FunctionStatus> response = stub.getFunctionStatus(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
@@ -226,6 +232,10 @@ class ProcessRuntime implements Runtime {
     @Override
     public CompletableFuture<InstanceCommunication.MetricsData> getAndResetMetrics() {
         CompletableFuture<InstanceCommunication.MetricsData> retval = new CompletableFuture<>();
+        if (stub == null) {
+            retval.completeExceptionally(new RuntimeException("Not alive"));
+            return retval;
+        }
         ListenableFuture<InstanceCommunication.MetricsData> response = stub.getAndResetMetrics(Empty.newBuilder().build());
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override
@@ -276,7 +286,7 @@ class ProcessRuntime implements Runtime {
 
     @Override
     public boolean isAlive() {
-        return process.isAlive();
+        return process != null && process.isAlive();
     }
 
     @Override
