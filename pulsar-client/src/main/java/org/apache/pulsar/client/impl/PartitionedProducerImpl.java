@@ -161,14 +161,8 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     @Override
     public boolean isConnected() {
-        for (ProducerImpl producer : producers) {
-            // returns false if any of the partition is not connected
-            if (!producer.isConnected()) {
-                return false;
-            }
-        }
-
-        return true;
+        // returns false if any of the partition is not connected
+        return producers.stream().allMatch(ProducerImpl::isConnected);
     }
 
     @Override

@@ -20,7 +20,8 @@ package org.apache.pulsar.client.kafka.compat;
 
 import java.util.Properties;
 
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 
 public class PulsarProducerKafkaConfig {
 
@@ -33,32 +34,32 @@ public class PulsarProducerKafkaConfig {
     public static final String BATCHING_ENABLED = "pulsar.producer.batching.enabled";
     public static final String BATCHING_MAX_MESSAGES = "pulsar.producer.batching.max.messages";
 
-    public static ProducerConfiguration getProducerConfiguration(Properties properties) {
-        ProducerConfiguration conf = new ProducerConfiguration();
+    public static ProducerBuilder<byte[]> getProducerBuilder(PulsarClient client, Properties properties) {
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer();
 
         if (properties.containsKey(PRODUCER_NAME)) {
-            conf.setProducerName(properties.getProperty(PRODUCER_NAME));
+            producerBuilder.producerName(properties.getProperty(PRODUCER_NAME));
         }
 
         if (properties.containsKey(INITIAL_SEQUENCE_ID)) {
-            conf.setInitialSequenceId(Long.parseLong(properties.getProperty(INITIAL_SEQUENCE_ID)));
+            producerBuilder.initialSequenceId(Long.parseLong(properties.getProperty(INITIAL_SEQUENCE_ID)));
         }
 
         if (properties.containsKey(MAX_PENDING_MESSAGES)) {
-            conf.setMaxPendingMessages(Integer.parseInt(properties.getProperty(MAX_PENDING_MESSAGES)));
+            producerBuilder.maxPendingMessages(Integer.parseInt(properties.getProperty(MAX_PENDING_MESSAGES)));
         }
 
         if (properties.containsKey(MAX_PENDING_MESSAGES_ACROSS_PARTITIONS)) {
-            conf.setMaxPendingMessagesAcrossPartitions(
+            producerBuilder.maxPendingMessagesAcrossPartitions(
                     Integer.parseInt(properties.getProperty(MAX_PENDING_MESSAGES_ACROSS_PARTITIONS)));
         }
 
-        conf.setBatchingEnabled(Boolean.parseBoolean(properties.getProperty(BATCHING_ENABLED, "true")));
+        producerBuilder.enableBatching(Boolean.parseBoolean(properties.getProperty(BATCHING_ENABLED, "true")));
 
         if (properties.containsKey(BATCHING_MAX_MESSAGES)) {
-            conf.setBatchingMaxMessages(Integer.parseInt(properties.getProperty(BATCHING_MAX_MESSAGES)));
+            producerBuilder.batchingMaxMessages(Integer.parseInt(properties.getProperty(BATCHING_MAX_MESSAGES)));
         }
 
-        return conf;
+        return producerBuilder;
     }
 }

@@ -99,7 +99,7 @@ public interface ReaderBuilder<T> extends Serializable, Cloneable {
      * @param readerListener
      *            the listener object
      */
-    ReaderBuilder<T> readerListener(ReaderListener readerListener);
+    ReaderBuilder<T> readerListener(ReaderListener<T> readerListener);
 
     /**
      * Sets a {@link CryptoKeyReader}
