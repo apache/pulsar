@@ -30,6 +30,7 @@ import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -160,6 +161,9 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
         }
 
         static List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> toPairs(Map<String, String> map) {
+            if (isNull(map)) {
+                return Collections.emptyList();
+            }
             List<SchemaRegistryFormat.SchemaInfo.KeyValuePair> pairs = new ArrayList<>(map.size());
             for (Map.Entry<String, String> entry : map.entrySet()) {
                 SchemaRegistryFormat.SchemaInfo.KeyValuePair.Builder builder =

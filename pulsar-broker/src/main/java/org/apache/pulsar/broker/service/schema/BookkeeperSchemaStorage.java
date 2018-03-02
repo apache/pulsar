@@ -235,7 +235,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 .addAllIndex(Functions.buildIndex(
                     locator.getIndexList(),
                     position,
-                    nextVersion)
+                    nextVersion,
+                    hash)
                 ).build(), locatorEntry.zkZnodeVersion
         ).thenApply(ignore -> nextVersion);
     }
@@ -457,7 +458,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         static Iterable<SchemaStorageFormat.IndexEntry> buildIndex(
             List<SchemaStorageFormat.IndexEntry> index,
             SchemaStorageFormat.PositionInfo position,
-            long version
+            long version,
+            byte[] hash
         ) {
             List<SchemaStorageFormat.IndexEntry> entries = new ArrayList<>(index.size());
             Collections.copy(index, entries);
@@ -465,6 +467,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 SchemaStorageFormat.IndexEntry.newBuilder()
                     .setPosition(position)
                     .setVersion(version)
+                    .setHash(copyFrom(hash))
                     .build()
             );
             entries.sort(comparingLong(SchemaStorageFormat.IndexEntry::getVersion));
