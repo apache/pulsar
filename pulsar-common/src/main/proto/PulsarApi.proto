@@ -22,6 +22,21 @@ package pulsar.proto;
 option java_package = "org.apache.pulsar.common.api.proto";
 option optimize_for = LITE_RUNTIME;
 
+message Schema {
+	enum Type {
+		Json = 1;
+		Protobuf = 2;
+		Thrift = 3;
+		Avro = 4;
+	}
+
+    required string name = 1;
+    required bytes version = 2;
+    required bytes schema_data = 3;
+	required Type type = 4;
+    repeated KeyValue properties = 5;
+}
+
 message MessageIdData {
 	required uint64 ledgerId = 1;
 	required uint64 entryId  = 2;
@@ -81,6 +96,7 @@ message MessageMetadata {
 	optional string encryption_algo = 14;
 	// Additional parameters required by encryption
 	optional bytes encryption_param = 15;
+	optional bytes schema_version = 16;
 }
 
 
@@ -197,6 +213,8 @@ message CommandSubscribe {
     repeated KeyValue metadata = 10;
 
     optional bool read_compacted = 11;
+
+	optional Schema schema = 12;
 }
 
 message CommandPartitionedTopicMetadata {
@@ -275,6 +293,8 @@ message CommandProducer {
 
     /// Add optional metadata key=value to this producer
     repeated KeyValue metadata    = 6;
+
+	optional Schema schema = 7;
 }
 
 message CommandSend {
@@ -377,6 +397,7 @@ message CommandRedeliverUnacknowledgedMessages {
 
 message CommandSuccess {
 	required uint64 request_id = 1;
+	optional Schema schema = 2;
 }
 
 /// Response from CommandProducer
@@ -387,6 +408,7 @@ message CommandProducerSuccess {
 	// The last sequence id that was stored by this producer in the previous session
 	// This will only be meaningful if deduplication has been enabled.
 	optional int64  last_sequence_id = 3 [default = -1];
+	optional bytes schema_version = 4;
 }
 
 message CommandError {
