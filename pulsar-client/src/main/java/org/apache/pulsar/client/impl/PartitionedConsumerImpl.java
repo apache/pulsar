@@ -20,7 +20,6 @@ package org.apache.pulsar.client.impl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +33,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
@@ -47,13 +47,15 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.collect.Lists;
+
 public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
 
     private final List<ConsumerImpl<T>> consumers;
 
     // Queue of partition consumers on which we have stopped calling receiveAsync() because the
     // shared incoming queue was full
-    private final ConcurrentLinkedQueue<ConsumerImpl> pausedConsumers;
+    private final ConcurrentLinkedQueue<ConsumerImpl<T>> pausedConsumers;
 
     // Threshold for the shared queue. When the size of the shared queue goes below the threshold, we are going to
     // resume receiving from the paused consumer partitions
@@ -165,7 +167,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         try {
             if (incomingMessages.size() <= sharedQueueResumeThreshold && !pausedConsumers.isEmpty()) {
                 while (true) {
-                    ConsumerImpl consumer = pausedConsumers.poll();
+                    ConsumerImpl<T> consumer = pausedConsumers.poll();
                     if (consumer == null) {
                         break;
                     }
@@ -360,12 +362,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public boolean isConnected() {
-        for (ConsumerImpl consumer : consumers) {
-            if (!consumer.isConnected()) {
-                return false;
-            }
-        }
-        return true;
+        return consumers.stream().allMatch(ConsumerImpl::isConnected);
     }
 
     @Override
@@ -442,6 +439,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         if (null != conf.getConsumerEventListener()) {
             internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
         }
+
         int receiverQueueSize = Math.min(conf.getReceiverQueueSize(),
                 conf.getMaxTotalReceiverQueueSizeAcrossPartitions() / numPartitions);
         internalConsumerConfig.setReceiverQueueSize(receiverQueueSize);
@@ -460,7 +458,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public void redeliverUnacknowledgedMessages() {
         synchronized (this) {
-            for (ConsumerImpl c : consumers) {
+            for (ConsumerImpl<T> c : consumers) {
                 c.redeliverUnacknowledgedMessages();
             }
             incomingMessages.clear();
@@ -509,11 +507,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
      * @return true if all batch messages have been acknowledged
      */
     public boolean isBatchingAckTrackerEmpty() {
-        boolean state = true;
-        for (Consumer consumer : consumers) {
-            state &= ((ConsumerImpl) consumer).isBatchingAckTrackerEmpty();
-        }
-        return state;
+        return consumers.stream().allMatch(ConsumerImpl::isBatchingAckTrackerEmpty);
     }
 
     List<ConsumerImpl<T>> getConsumers() {

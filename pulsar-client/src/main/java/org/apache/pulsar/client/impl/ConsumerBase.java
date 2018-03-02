@@ -50,7 +50,7 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     }
 
     protected final String subscription;
-    protected final ConsumerConfigurationData conf;
+    protected final ConsumerConfigurationData<T> conf;
     protected final String consumerName;
     protected final CompletableFuture<Consumer<T>> subscribeFuture;
     protected final MessageListener<T> listener;
@@ -168,7 +168,7 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     abstract protected Message<T> internalReceive(int timeout, TimeUnit unit) throws PulsarClientException;
 
     @Override
-    public void acknowledge(Message message) throws PulsarClientException {
+    public void acknowledge(Message<?> message) throws PulsarClientException {
         try {
             acknowledge(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -194,7 +194,7 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     }
 
     @Override
-    public void acknowledgeCumulative(Message message) throws PulsarClientException {
+    public void acknowledgeCumulative(Message<?> message) throws PulsarClientException {
         try {
             acknowledgeCumulative(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -220,7 +220,7 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeAsync(Message message) {
+    public CompletableFuture<Void> acknowledgeAsync(Message<?> message) {
         try {
             return acknowledgeAsync(message.getMessageId());
         } catch (NullPointerException npe) {
@@ -229,7 +229,7 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     }
 
     @Override
-    public CompletableFuture<Void> acknowledgeCumulativeAsync(Message message) {
+    public CompletableFuture<Void> acknowledgeCumulativeAsync(Message<?> message) {
         try {
             return acknowledgeCumulativeAsync(message.getMessageId());
         } catch (NullPointerException npe) {

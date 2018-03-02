@@ -100,7 +100,7 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      *
      * @param topicsPattern
      */
-    ConsumerBuilder topicsPattern(Pattern topicsPattern);
+    ConsumerBuilder<T> topicsPattern(Pattern topicsPattern);
 
     /**
      * Specify a pattern for topics that this consumer will subscribe on.
@@ -111,7 +111,7 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * @param topicsPattern
      *            given regular expression for topics pattern
      */
-    ConsumerBuilder topicsPattern(String topicsPattern);
+    ConsumerBuilder<T> topicsPattern(String topicsPattern);
 
     /**
      * Specify the subscription name for this consumer.
@@ -238,7 +238,7 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      * @param periodInMinutes
      *            whether to read from the compacted topic
      */
-    ConsumerBuilder patternAutoDiscoveryPeriod(int periodInMinutes);
+    ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes);
 
     /**
      * Sets priority level for the shared subscription consumers to which broker gives more priority while dispatching

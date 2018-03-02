@@ -24,7 +24,7 @@ public class ConsumerStatsDisabled extends ConsumerStats {
     private static final long serialVersionUID = 1L;
 
     @Override
-    void updateNumMsgsReceived(Message message) {
+    void updateNumMsgsReceived(Message<?> message) {
         // Do nothing
     }
 

@@ -43,16 +43,17 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     private final Schema<T> schema;
 
     ReaderBuilderImpl(PulsarClientImpl client, Schema<T> schema) {
-        this(client, new ReaderConfigurationData(), schema);
+        this(client, new ReaderConfigurationData<T>(), schema);
     }
 
-    private ReaderBuilderImpl(PulsarClientImpl client, ReaderConfigurationData conf, Schema<T> schema) {
+    private ReaderBuilderImpl(PulsarClientImpl client, ReaderConfigurationData<T> conf, Schema<T> schema) {
         this.client = client;
         this.conf = conf;
         this.schema = schema;
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ReaderBuilder<T> clone() {
         try {
             return (ReaderBuilder<T>) super.clone();
@@ -106,7 +107,7 @@ public class ReaderBuilderImpl<T> implements ReaderBuilder<T> {
     }
 
     @Override
-    public ReaderBuilder<T> readerListener(ReaderListener readerListener) {
+    public ReaderBuilder<T> readerListener(ReaderListener<T> readerListener) {
         conf.setReaderListener(readerListener);
         return this;
     }

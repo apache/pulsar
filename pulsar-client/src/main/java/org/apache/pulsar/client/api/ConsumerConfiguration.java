@@ -95,7 +95,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configured {@link MessageListener} for the consumer
      */
-    public MessageListener getMessageListener() {
+    public MessageListener<byte[]> getMessageListener() {
         return conf.getMessageListener();
     }
 
@@ -108,7 +108,7 @@ public class ConsumerConfiguration implements Serializable {
      * @param messageListener
      *            the listener object
      */
-    public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
+    public ConsumerConfiguration setMessageListener(MessageListener<byte[]> messageListener) {
         checkNotNull(messageListener);
         conf.setMessageListener(messageListener);
         return this;
