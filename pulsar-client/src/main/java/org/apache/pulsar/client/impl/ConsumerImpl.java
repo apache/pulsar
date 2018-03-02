@@ -82,6 +82,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
 
     // Number of messages that have delivered to the application. Every once in a while, this number will be sent to the
     // broker to notify that we are ready to get (and store in the incoming messages queue) more messages
+    @SuppressWarnings("rawtypes")
     private static final AtomicIntegerFieldUpdater<ConsumerImpl> AVAILABLE_PERMITS_UPDATER = AtomicIntegerFieldUpdater
             .newUpdater(ConsumerImpl.class, "availablePermits");
     @SuppressWarnings("unused")
@@ -288,7 +289,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
             do {
                 message = incomingMessages.take();
                 lastDequeuedMessage = message.getMessageId();
-                ClientCnx msgCnx = ((MessageImpl) message).getCnx();
+                ClientCnx msgCnx = ((MessageImpl<?>) message).getCnx();
                 // synchronized need to prevent race between connectionOpened and the check "msgCnx == cnx()"
                 synchronized (ConsumerImpl.this) {
                     // if message received due to an old flow - discard it and wait for the message from the
@@ -631,7 +632,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
      * not seen by the application
      */
     private BatchMessageIdImpl clearReceiverQueue() {
-        List<Message> currentMessageQueue = new ArrayList<>(incomingMessages.size());
+        List<Message<?>> currentMessageQueue = new ArrayList<>(incomingMessages.size());
         incomingMessages.drainTo(currentMessageQueue);
         if (!currentMessageQueue.isEmpty()) {
             MessageIdImpl nextMessageInQueue = (MessageIdImpl) currentMessageQueue.get(0).getMessageId();
@@ -984,9 +985,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
      *
      * Periodically, it sends a Flow command to notify the broker that it can push more messages
      */
-    protected synchronized void messageProcessed(Message msg) {
+    protected synchronized void messageProcessed(Message<?> msg) {
         ClientCnx currentCnx = cnx();
-        ClientCnx msgCnx = ((MessageImpl) msg).getCnx();
+        ClientCnx msgCnx = ((MessageImpl<?>) msg).getCnx();
         lastDequeuedMessage = msg.getMessageId();
 
         if (msgCnx != currentCnx) {
@@ -1371,7 +1372,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
         }
     }
 
-    private MessageIdImpl getMessageIdImpl(Message msg) {
+    private MessageIdImpl getMessageIdImpl(Message<?> msg) {
         MessageIdImpl messageId = (MessageIdImpl) msg.getMessageId();
         if (messageId instanceof BatchMessageIdImpl) {
             // messageIds contain MessageIdImpl, not BatchMessageIdImpl

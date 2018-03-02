@@ -104,6 +104,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
 
     private final Map<String, String> metadata;
 
+    @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
             .newUpdater(ProducerImpl.class, "msgIdGenerator");
 
@@ -184,7 +185,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     @Override
-    public CompletableFuture<MessageId> sendAsync(Message message) {
+    public CompletableFuture<MessageId> sendAsync(Message<T> message) {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
 
         sendAsync(message, new SendCallback() {
@@ -232,7 +233,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
         return future;
     }
 
-    public void sendAsync(Message message, SendCallback callback) {
+    public void sendAsync(Message<T> message, SendCallback callback) {
         checkArgument(message instanceof MessageImpl);
 
         if (!isValidProducerState(callback)) {
@@ -243,7 +244,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             return;
         }
 
-        MessageImpl msg = (MessageImpl) message;
+        MessageImpl<T> msg = (MessageImpl<T>) message;
         MessageMetadata.Builder msgMetadata = msg.getMessageBuilder();
         ByteBuf payload = msg.getDataBuffer();
 
@@ -387,7 +388,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
         return Commands.newSend(producerId, sequenceId, numMessages, checksumType, msgMetadata, compressedPayload);
     }
 
-    private void doBatchSendAndAdd(MessageImpl msg, SendCallback callback, ByteBuf payload) {
+    private void doBatchSendAndAdd(MessageImpl<T> msg, SendCallback callback, ByteBuf payload) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] Closing out batch to accomodate large message with size {}", topic, producerName,
                     msg.getDataBuffer().readableBytes());
@@ -440,12 +441,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     private static final class WriteInEventLoopCallback implements Runnable {
-        private ProducerImpl producer;
+        private ProducerImpl<?> producer;
         private ByteBufPair cmd;
         private long sequenceId;
         private ClientCnx cnx;
 
-        static WriteInEventLoopCallback create(ProducerImpl producer, ClientCnx cnx, OpSendMsg op) {
+        static WriteInEventLoopCallback create(ProducerImpl<?> producer, ClientCnx cnx, OpSendMsg op) {
             WriteInEventLoopCallback c = RECYCLER.get();
             c.producer = producer;
             c.cnx = cnx;
@@ -735,8 +736,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     protected static final class OpSendMsg {
-        MessageImpl msg;
-        List<MessageImpl> msgs;
+        MessageImpl<?> msg;
+        List<MessageImpl<?>> msgs;
         ByteBufPair cmd;
         SendCallback callback;
         long sequenceId;
@@ -744,7 +745,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
         long batchSizeByte = 0;
         int numMessagesInBatch = 1;
 
-        static OpSendMsg create(MessageImpl msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(MessageImpl<?> msg, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.msg = msg;
             op.cmd = cmd;
@@ -754,7 +755,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             return op;
         }
 
-        static OpSendMsg create(List<MessageImpl> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
+        static OpSendMsg create(List<MessageImpl<?>> msgs, ByteBufPair cmd, long sequenceId, SendCallback callback) {
             OpSendMsg op = RECYCLER.get();
             op.msgs = msgs;
             op.cmd = cmd;

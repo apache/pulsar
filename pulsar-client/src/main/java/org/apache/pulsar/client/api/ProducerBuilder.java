@@ -262,7 +262,7 @@ public interface ProducerBuilder<T> extends Serializable, Cloneable {
      *            maximum number of messages in a batch
      * @return
      */
-    ProducerBuilder batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
+    ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
 
     /**
      * Set the baseline for the sequence ids for messages published by the producer.
