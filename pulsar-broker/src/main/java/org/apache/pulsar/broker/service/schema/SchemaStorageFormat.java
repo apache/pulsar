@@ -1278,19 +1278,11 @@ public final class SchemaStorageFormat {
   public interface SchemaLocatorOrBuilder
       extends com.google.protobuf.MessageLiteOrBuilder {
     
-    // required int64 version = 1;
-    boolean hasVersion();
-    long getVersion();
+    // required .pulsar.schema.IndexEntry info = 1;
+    boolean hasInfo();
+    org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry getInfo();
     
-    // required .pulsar.schema.PositionInfo position = 2;
-    boolean hasPosition();
-    org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo getPosition();
-    
-    // required bytes hash = 3;
-    boolean hasHash();
-    com.google.protobuf.ByteString getHash();
-    
-    // repeated .pulsar.schema.IndexEntry index = 4;
+    // repeated .pulsar.schema.IndexEntry index = 2;
     java.util.List<org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry> 
         getIndexList();
     org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry getIndex(int index);
@@ -1315,38 +1307,18 @@ public final class SchemaStorageFormat {
     }
     
     private int bitField0_;
-    // required int64 version = 1;
-    public static final int VERSION_FIELD_NUMBER = 1;
-    private long version_;
-    public boolean hasVersion() {
+    // required .pulsar.schema.IndexEntry info = 1;
+    public static final int INFO_FIELD_NUMBER = 1;
+    private org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry info_;
+    public boolean hasInfo() {
       return ((bitField0_ & 0x00000001) == 0x00000001);
     }
-    public long getVersion() {
-      return version_;
+    public org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry getInfo() {
+      return info_;
     }
     
-    // required .pulsar.schema.PositionInfo position = 2;
-    public static final int POSITION_FIELD_NUMBER = 2;
-    private org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo position_;
-    public boolean hasPosition() {
-      return ((bitField0_ & 0x00000002) == 0x00000002);
-    }
-    public org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo getPosition() {
-      return position_;
-    }
-    
-    // required bytes hash = 3;
-    public static final int HASH_FIELD_NUMBER = 3;
-    private com.google.protobuf.ByteString hash_;
-    public boolean hasHash() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public com.google.protobuf.ByteString getHash() {
-      return hash_;
-    }
-    
-    // repeated .pulsar.schema.IndexEntry index = 4;
-    public static final int INDEX_FIELD_NUMBER = 4;
+    // repeated .pulsar.schema.IndexEntry index = 2;
+    public static final int INDEX_FIELD_NUMBER = 2;
     private java.util.List<org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry> index_;
     public java.util.List<org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry> getIndexList() {
       return index_;
@@ -1367,9 +1339,7 @@ public final class SchemaStorageFormat {
     }
     
     private void initFields() {
-      version_ = 0L;
-      position_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.getDefaultInstance();
-      hash_ = com.google.protobuf.ByteString.EMPTY;
+      info_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.getDefaultInstance();
       index_ = java.util.Collections.emptyList();
     }
     private byte memoizedIsInitialized = -1;
@@ -1377,19 +1347,11 @@ public final class SchemaStorageFormat {
       byte isInitialized = memoizedIsInitialized;
       if (isInitialized != -1) return isInitialized == 1;
       
-      if (!hasVersion()) {
+      if (!hasInfo()) {
         memoizedIsInitialized = 0;
         return false;
       }
-      if (!hasPosition()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!hasHash()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!getPosition().isInitialized()) {
+      if (!getInfo().isInitialized()) {
         memoizedIsInitialized = 0;
         return false;
       }
@@ -1407,16 +1369,10 @@ public final class SchemaStorageFormat {
                         throws java.io.IOException {
       getSerializedSize();
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
-        output.writeInt64(1, version_);
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        output.writeMessage(2, position_);
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeBytes(3, hash_);
+        output.writeMessage(1, info_);
       }
       for (int i = 0; i < index_.size(); i++) {
-        output.writeMessage(4, index_.get(i));
+        output.writeMessage(2, index_.get(i));
       }
     }
     
@@ -1428,19 +1384,11 @@ public final class SchemaStorageFormat {
       size = 0;
       if (((bitField0_ & 0x00000001) == 0x00000001)) {
         size += com.google.protobuf.CodedOutputStream
-          .computeInt64Size(1, version_);
-      }
-      if (((bitField0_ & 0x00000002) == 0x00000002)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(2, position_);
-      }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeBytesSize(3, hash_);
+          .computeMessageSize(1, info_);
       }
       for (int i = 0; i < index_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(4, index_.get(i));
+          .computeMessageSize(2, index_.get(i));
       }
       memoizedSerializedSize = size;
       return size;
@@ -1544,14 +1492,10 @@ public final class SchemaStorageFormat {
       
       public Builder clear() {
         super.clear();
-        version_ = 0L;
+        info_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000001);
-        position_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.getDefaultInstance();
-        bitField0_ = (bitField0_ & ~0x00000002);
-        hash_ = com.google.protobuf.ByteString.EMPTY;
-        bitField0_ = (bitField0_ & ~0x00000004);
         index_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000002);
         return this;
       }
       
@@ -1588,18 +1532,10 @@ public final class SchemaStorageFormat {
         if (((from_bitField0_ & 0x00000001) == 0x00000001)) {
           to_bitField0_ |= 0x00000001;
         }
-        result.version_ = version_;
-        if (((from_bitField0_ & 0x00000002) == 0x00000002)) {
-          to_bitField0_ |= 0x00000002;
-        }
-        result.position_ = position_;
-        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-          to_bitField0_ |= 0x00000004;
-        }
-        result.hash_ = hash_;
-        if (((bitField0_ & 0x00000008) == 0x00000008)) {
+        result.info_ = info_;
+        if (((bitField0_ & 0x00000002) == 0x00000002)) {
           index_ = java.util.Collections.unmodifiableList(index_);
-          bitField0_ = (bitField0_ & ~0x00000008);
+          bitField0_ = (bitField0_ & ~0x00000002);
         }
         result.index_ = index_;
         result.bitField0_ = to_bitField0_;
@@ -1608,19 +1544,13 @@ public final class SchemaStorageFormat {
       
       public Builder mergeFrom(org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator other) {
         if (other == org.apache.pulsar.broker.service.schema.SchemaStorageFormat.SchemaLocator.getDefaultInstance()) return this;
-        if (other.hasVersion()) {
-          setVersion(other.getVersion());
-        }
-        if (other.hasPosition()) {
-          mergePosition(other.getPosition());
-        }
-        if (other.hasHash()) {
-          setHash(other.getHash());
+        if (other.hasInfo()) {
+          mergeInfo(other.getInfo());
         }
         if (!other.index_.isEmpty()) {
           if (index_.isEmpty()) {
             index_ = other.index_;
-            bitField0_ = (bitField0_ & ~0x00000008);
+            bitField0_ = (bitField0_ & ~0x00000002);
           } else {
             ensureIndexIsMutable();
             index_.addAll(other.index_);
@@ -1631,19 +1561,11 @@ public final class SchemaStorageFormat {
       }
       
       public final boolean isInitialized() {
-        if (!hasVersion()) {
+        if (!hasInfo()) {
           
           return false;
         }
-        if (!hasPosition()) {
-          
-          return false;
-        }
-        if (!hasHash()) {
-          
-          return false;
-        }
-        if (!getPosition().isInitialized()) {
+        if (!getInfo().isInitialized()) {
           
           return false;
         }
@@ -1673,26 +1595,16 @@ public final class SchemaStorageFormat {
               }
               break;
             }
-            case 8: {
-              bitField0_ |= 0x00000001;
-              version_ = input.readInt64();
+            case 10: {
+              org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.Builder subBuilder = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.newBuilder();
+              if (hasInfo()) {
+                subBuilder.mergeFrom(getInfo());
+              }
+              input.readMessage(subBuilder, extensionRegistry);
+              setInfo(subBuilder.buildPartial());
               break;
             }
             case 18: {
-              org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.Builder subBuilder = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.newBuilder();
-              if (hasPosition()) {
-                subBuilder.mergeFrom(getPosition());
-              }
-              input.readMessage(subBuilder, extensionRegistry);
-              setPosition(subBuilder.buildPartial());
-              break;
-            }
-            case 26: {
-              bitField0_ |= 0x00000004;
-              hash_ = input.readBytes();
-              break;
-            }
-            case 34: {
               org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.Builder subBuilder = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.newBuilder();
               input.readMessage(subBuilder, extensionRegistry);
               addIndex(subBuilder.buildPartial());
@@ -1704,101 +1616,56 @@ public final class SchemaStorageFormat {
       
       private int bitField0_;
       
-      // required int64 version = 1;
-      private long version_ ;
-      public boolean hasVersion() {
+      // required .pulsar.schema.IndexEntry info = 1;
+      private org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry info_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.getDefaultInstance();
+      public boolean hasInfo() {
         return ((bitField0_ & 0x00000001) == 0x00000001);
       }
-      public long getVersion() {
-        return version_;
+      public org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry getInfo() {
+        return info_;
       }
-      public Builder setVersion(long value) {
-        bitField0_ |= 0x00000001;
-        version_ = value;
-        
-        return this;
-      }
-      public Builder clearVersion() {
-        bitField0_ = (bitField0_ & ~0x00000001);
-        version_ = 0L;
-        
-        return this;
-      }
-      
-      // required .pulsar.schema.PositionInfo position = 2;
-      private org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo position_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.getDefaultInstance();
-      public boolean hasPosition() {
-        return ((bitField0_ & 0x00000002) == 0x00000002);
-      }
-      public org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo getPosition() {
-        return position_;
-      }
-      public Builder setPosition(org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo value) {
+      public Builder setInfo(org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        position_ = value;
+        info_ = value;
         
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000001;
         return this;
       }
-      public Builder setPosition(
-          org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.Builder builderForValue) {
-        position_ = builderForValue.build();
+      public Builder setInfo(
+          org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.Builder builderForValue) {
+        info_ = builderForValue.build();
         
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000001;
         return this;
       }
-      public Builder mergePosition(org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo value) {
-        if (((bitField0_ & 0x00000002) == 0x00000002) &&
-            position_ != org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.getDefaultInstance()) {
-          position_ =
-            org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.newBuilder(position_).mergeFrom(value).buildPartial();
+      public Builder mergeInfo(org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry value) {
+        if (((bitField0_ & 0x00000001) == 0x00000001) &&
+            info_ != org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.getDefaultInstance()) {
+          info_ =
+            org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.newBuilder(info_).mergeFrom(value).buildPartial();
         } else {
-          position_ = value;
+          info_ = value;
         }
         
-        bitField0_ |= 0x00000002;
+        bitField0_ |= 0x00000001;
         return this;
       }
-      public Builder clearPosition() {
-        position_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.PositionInfo.getDefaultInstance();
+      public Builder clearInfo() {
+        info_ = org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry.getDefaultInstance();
         
-        bitField0_ = (bitField0_ & ~0x00000002);
+        bitField0_ = (bitField0_ & ~0x00000001);
         return this;
       }
       
-      // required bytes hash = 3;
-      private com.google.protobuf.ByteString hash_ = com.google.protobuf.ByteString.EMPTY;
-      public boolean hasHash() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
-      }
-      public com.google.protobuf.ByteString getHash() {
-        return hash_;
-      }
-      public Builder setHash(com.google.protobuf.ByteString value) {
-        if (value == null) {
-    throw new NullPointerException();
-  }
-  bitField0_ |= 0x00000004;
-        hash_ = value;
-        
-        return this;
-      }
-      public Builder clearHash() {
-        bitField0_ = (bitField0_ & ~0x00000004);
-        hash_ = getDefaultInstance().getHash();
-        
-        return this;
-      }
-      
-      // repeated .pulsar.schema.IndexEntry index = 4;
+      // repeated .pulsar.schema.IndexEntry index = 2;
       private java.util.List<org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry> index_ =
         java.util.Collections.emptyList();
       private void ensureIndexIsMutable() {
-        if (!((bitField0_ & 0x00000008) == 0x00000008)) {
+        if (!((bitField0_ & 0x00000002) == 0x00000002)) {
           index_ = new java.util.ArrayList<org.apache.pulsar.broker.service.schema.SchemaStorageFormat.IndexEntry>(index_);
-          bitField0_ |= 0x00000008;
+          bitField0_ |= 0x00000002;
          }
       }
       
@@ -1870,7 +1737,7 @@ public final class SchemaStorageFormat {
       }
       public Builder clearIndex() {
         index_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000008);
+        bitField0_ = (bitField0_ & ~0x00000002);
         
         return this;
       }
