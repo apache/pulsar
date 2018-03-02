@@ -21,6 +21,7 @@ package org.apache.pulsar.common.api;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -128,33 +129,6 @@ public class Commands {
         if (originalAuthMethod != null) {
             connectBuilder.setOriginalAuthMethod(originalAuthMethod);
         }
-        connectBuilder.setProtocolVersion(protocolVersion);
-        CommandConnect connect = connectBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
-        connect.recycle();
-        connectBuilder.recycle();
-        return res;
-    }
-
-    /**
-     * @deprecated AuthMethod has been deprecated. Use {@link #newConnect(String authMethodName, String authData)}
-     *             instead.
-     */
-    @Deprecated
-    public static ByteBuf newConnect(AuthMethod authMethod, String authData) {
-        return newConnect(authMethod, authData, getCurrentProtocolVersion());
-    }
-
-    /**
-     * @deprecated AuthMethod has been deprecated. Use
-     *             {@link #newConnect(String authMethodName, String authData, int protocolVersion)} instead.
-     */
-    @Deprecated
-    public static ByteBuf newConnect(AuthMethod authMethod, String authData, int protocolVersion) {
-        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
-        connectBuilder.setClientVersion("Pulsar Client");
-        connectBuilder.setAuthMethod(authMethod);
-        connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
         connectBuilder.setProtocolVersion(protocolVersion);
         CommandConnect connect = connectBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
@@ -702,7 +676,8 @@ public class Commands {
         return res;
     }
 
-    private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
+    @VisibleForTesting
+    public static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD]
         BaseCommand cmd = cmdBuilder.build();
@@ -941,7 +916,8 @@ public class Commands {
         return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
     }
 
-    private static int getCurrentProtocolVersion() {
+    @VisibleForTesting
+    public static int getCurrentProtocolVersion() {
         // Return the last ProtocolVersion enum value
         return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
     }

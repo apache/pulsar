@@ -90,7 +90,7 @@ public class ReaderImpl<T> implements Reader<T> {
         return consumer.getTopic();
     }
 
-    public ConsumerImpl getConsumer() {
+    public ConsumerImpl<T> getConsumer() {
         return consumer;
     }
 

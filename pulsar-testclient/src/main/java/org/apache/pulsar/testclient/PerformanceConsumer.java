@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -36,16 +34,14 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -197,33 +193,33 @@ public class PerformanceConsumer {
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
-        MessageListener listener = new MessageListener() {
-            public void received(Consumer consumer, Message msg) {
-                messagesReceived.increment();
-                bytesReceived.add(msg.getData().length);
+        MessageListener<byte[]> listener = (consumer, msg) -> {
+            messagesReceived.increment();
+            bytesReceived.add(msg.getData().length);
 
-                if (limiter != null) {
-                    limiter.acquire();
-                }
-
-                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-                recorder.recordValue(latencyMillis);
-                cumulativeRecorder.recordValue(latencyMillis);
-
-                consumer.acknowledgeAsync(msg);
+            if (limiter != null) {
+                limiter.acquire();
             }
+
+            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+            recorder.recordValue(latencyMillis);
+            cumulativeRecorder.recordValue(latencyMillis);
+
+            consumer.acknowledgeAsync(msg);
         };
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(arguments.maxConnections);
-        clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
-        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
+        ClientBuilder clientBuilder = PulsarClient.builder() //
+                .serviceUrl(arguments.serviceURL) //
+                .connectionsPerBroker(arguments.maxConnections) //
+                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .enableTls(arguments.useTls) //
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
-            clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
-        clientConf.setUseTls(arguments.useTls);
-        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
+
+        PulsarClient pulsarClient = clientBuilder.build();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -246,16 +242,17 @@ public class PerformanceConsumer {
                 return null;
             }
         }
+
         List<Future<Consumer<byte[]>>> futures = Lists.newArrayList();
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setMessageListener(listener);
-        consumerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
-        consumerConfig.setSubscriptionType(arguments.subscriptionType);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
+                .messageListener(listener) //
+                .receiverQueueSize(arguments.receiverQueueSize) //
+                .subscriptionType(arguments.subscriptionType);
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
             EncKeyReader keyReader = new EncKeyReader(pKey);
-            consumerConfig.setCryptoKeyReader(keyReader);
+            consumerBuilder.cryptoKeyReader(keyReader);
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
@@ -271,7 +268,8 @@ public class PerformanceConsumer {
                     subscriberName = arguments.subscriberName;
                 }
 
-                futures.add(pulsarClient.subscribeAsync(topicName.toString(), subscriberName, consumerConfig));
+                futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
+                        .subscribeAsync());
             }
         }
 

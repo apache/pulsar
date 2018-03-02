@@ -206,9 +206,8 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder patternAutoDiscoveryPeriod(int periodInMinutes) {
+    public ConsumerBuilder<T> patternAutoDiscoveryPeriod(int periodInMinutes) {
         conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
         return this;
     }
-
 }
