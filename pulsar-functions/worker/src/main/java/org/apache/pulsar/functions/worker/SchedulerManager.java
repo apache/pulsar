@@ -30,7 +30,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.proto.Function.Assignment;
 import org.apache.pulsar.functions.proto.Request;
-import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.worker.scheduler.IScheduler;
 
@@ -39,7 +38,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -108,20 +106,31 @@ public class SchedulerManager implements AutoCloseable {
                 .stream().map(workerInfo -> workerInfo.getWorkerId()).collect(Collectors.toList());
 
         List<FunctionMetaData> allFunctions = this.functionMetaDataManager.getAllFunctionMetaData();
-        Set<String> fullyQualifiedNames = allFunctions.stream()
-                .map(functionMetaData -> FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()))
-                .collect(Collectors.toSet());
-        List<Function.Instance> allInstances = computeAllInstances(allFunctions);
-        Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager.getCurrentAssignments();
-        //delete assignments of functions that don't exist anymore
+        Map<String, Function.Instance> allInstances = computeAllInstances(allFunctions);
+        Map<String, Map<String, Assignment>> workerIdToAssignments = this.functionRuntimeManager
+                .getCurrentAssignments();
+        //delete assignments of functions and instances that don't exist anymore
         Iterator<Map.Entry<String, Map<String, Assignment>>> it = workerIdToAssignments.entrySet().iterator();
         while (it.hasNext()) {
             Map.Entry<String, Map<String, Assignment>> workerIdToAssignmentEntry = it.next();
             Map<String, Assignment> functionMap = workerIdToAssignmentEntry.getValue();
+            // remove instances that don't exist anymore
             functionMap.entrySet().removeIf(
-                    entry -> !fullyQualifiedNames.contains(
-                            FunctionConfigUtils.getFullyQualifiedName(
-                                    entry.getValue().getInstance().getFunctionMetaData().getFunctionConfig())));
+                    entry -> {
+                        String fullyQualifiedInstanceId = entry.getKey();
+                        return !allInstances.containsKey(fullyQualifiedInstanceId);
+                    });
+
+            // update assignment instances in case attributes of a function gets updated
+            for (Map.Entry<String, Assignment> entry : functionMap.entrySet()) {
+                String fullyQualifiedInstanceId = entry.getKey();
+                Assignment assignment = entry.getValue();
+                Function.Instance instance = allInstances.get(fullyQualifiedInstanceId);
+
+                if (!assignment.getInstance().equals(instance)) {
+                    functionMap.put(fullyQualifiedInstanceId, assignment.toBuilder().setInstance(instance).build());
+                }
+            }
             if (functionMap.isEmpty()) {
                 it.remove();
             }
@@ -131,7 +140,8 @@ public class SchedulerManager implements AutoCloseable {
                 .entrySet().stream()
                 .flatMap(stringMapEntry -> stringMapEntry.getValue().values().stream()).collect(Collectors.toList());
 
-        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(workerIdToAssignments, allInstances);
+        List<Function.Instance> needsAssignment = this.getUnassignedFunctionInstances(workerIdToAssignments,
+                allInstances);
 
         List<Assignment> assignments = this.scheduler.schedule(
                 needsAssignment, currentAssignments, currentMembership);
@@ -162,10 +172,12 @@ public class SchedulerManager implements AutoCloseable {
         }
     }
 
-    public static List<Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions) {
-        List<Function.Instance> functionInstances = new LinkedList<>();
+    public static Map<String, Function.Instance> computeAllInstances(List<FunctionMetaData> allFunctions) {
+        Map<String, Function.Instance> functionInstances = new HashMap<>();
         for (FunctionMetaData functionMetaData : allFunctions) {
-            functionInstances.addAll(computeInstances(functionMetaData));
+            for (Function.Instance instance : computeInstances(functionMetaData)) {
+                functionInstances.put(Utils.getFullyQualifiedInstanceId(instance), instance);
+            }
         }
         return functionInstances;
     }
@@ -183,7 +195,7 @@ public class SchedulerManager implements AutoCloseable {
     }
 
     private List<Function.Instance> getUnassignedFunctionInstances(
-            Map<String, Map<String, Assignment>> currentAssignments, List<Function.Instance> functionInstances) {
+            Map<String, Map<String, Assignment>> currentAssignments, Map<String, Function.Instance> functionInstances) {
 
         List<Function.Instance> unassignedFunctionInstances = new LinkedList<>();
         Map<String, Assignment> assignmentMap = new HashMap<>();
@@ -191,8 +203,9 @@ public class SchedulerManager implements AutoCloseable {
             assignmentMap.putAll(entry);
         }
 
-        for (Function.Instance instance : functionInstances) {
-            String fullyQualifiedInstanceId = Utils.getFullyQualifiedInstanceId(instance);
+        for (Map.Entry<String, Function.Instance> instanceEntry : functionInstances.entrySet()) {
+            String fullyQualifiedInstanceId = instanceEntry.getKey();
+            Function.Instance instance = instanceEntry.getValue();
             if (!assignmentMap.containsKey(fullyQualifiedInstanceId)) {
                 unassignedFunctionInstances.add(instance);
             }
