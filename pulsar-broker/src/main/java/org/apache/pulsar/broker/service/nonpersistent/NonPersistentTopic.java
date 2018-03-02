@@ -923,6 +923,11 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
+    public void checkInactiveSubscriptions() {
+        // no-op
+    }
+
+    @Override
     public CompletableFuture<Void> onPoliciesUpdate(Policies data) {
         if (log.isDebugEnabled()) {
             log.debug("[{}] isEncryptionRequired changes: {} -> {}", topic, isEncryptionRequired, data.encryption_required);

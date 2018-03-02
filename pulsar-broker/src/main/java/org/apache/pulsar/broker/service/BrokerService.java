@@ -323,10 +323,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         }
 
         // Deduplication info checker
-        long intervalInSeconds = TimeUnit.MINUTES
+        long duplicationCheckerIntervalInSeconds = TimeUnit.MINUTES
                 .toSeconds(pulsar().getConfiguration().getBrokerDeduplicationProducerInactivityTimeoutMinutes()) / 3;
-        inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkMessageDeduplicationInfo), intervalInSeconds,
-                intervalInSeconds, TimeUnit.SECONDS);
+        inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkMessageDeduplicationInfo), duplicationCheckerIntervalInSeconds,
+                duplicationCheckerIntervalInSeconds, TimeUnit.SECONDS);
+
+        // Inactive subscriber checker
+        if (pulsar().getConfiguration().getSubscriptionExpirationTimeSeconds() > 0) {
+            long subscriptionCheckerIntervalInSeconds =
+                    pulsar().getConfiguration().getSubscriptionExpirationTimeSeconds() / 3;
+            inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkInactiveSubscriptions),
+                    subscriptionCheckerIntervalInSeconds, subscriptionCheckerIntervalInSeconds, TimeUnit.SECONDS);
+        }
     }
 
     void startMessageExpiryMonitor() {
@@ -834,6 +842,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             Topic topic = t.getNow(null);
             if (topic != null) {
                 topic.checkMessageDeduplicationInfo();
+            }
+        });
+    }
+
+    public void checkInactiveSubscriptions() {
+        topics.forEach((n, t) -> {
+            Topic topic = t.getNow(null);
+            if (topic != null) {
+                topic.checkInactiveSubscriptions();
             }
         });
     }

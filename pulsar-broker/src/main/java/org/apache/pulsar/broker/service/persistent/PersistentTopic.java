@@ -103,6 +103,8 @@ import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
 import org.apache.pulsar.compaction.CompactedTopic;
@@ -1416,6 +1418,28 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     });
 
         }
+    }
+
+    @Override
+    public void checkInactiveSubscriptions() {
+        long expirationTime = brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeSeconds() * 1000;
+        if (expirationTime <= 0) return;
+
+        subscriptions.forEach((subName, sub) -> {
+            if (sub.getNumberOfEntriesInBacklog() == 0) return;
+            sub.peekNthMessage(1).thenAccept(entry -> {
+                ByteBuf messageMetadataAndPayload = entry.getDataBuffer();
+                PulsarApi.MessageMetadata md = Commands.parseMessageMetadata(messageMetadataAndPayload);
+                if (System.currentTimeMillis() - md.getPublishTime() > expirationTime) {
+                    sub.delete().thenAccept(v ->
+                        log.info("[{}][{}] The subscription was deleted due to expiration", topic, subName));
+                }
+            }).exceptionally(e -> {
+                log.error("[{}][{}] Error peeking first message while starting checkInactivitySubscriptions: {}",
+                        topic, subName, e.getMessage());
+                return null;
+            });
+        });
     }
 
     /**
