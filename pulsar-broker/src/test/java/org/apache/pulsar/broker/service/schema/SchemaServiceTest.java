@@ -45,7 +45,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
     private Schema schema2 = schema2(version(0));
 
-    private Schema schema3 = Schema.newBuilder()
+    private Schema schema3 = Schema.builder()
         .user(userId)
         .type(SchemaType.PROTOBUF)
         .timestamp(MockClock.millis())
@@ -167,7 +167,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private void putSchema(String schemaId, Schema schema, SchemaVersion expectedVersion) throws Exception {
-        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchema(schemaId, schema);
+        CompletableFuture<SchemaVersion> put = schemaRegistryService.putSchemaIfAbsent(schemaId, schema);
         SchemaVersion newVersion = put.get();
         assertEquals(expectedVersion, newVersion);
     }
@@ -192,7 +192,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private Schema schema1(SchemaVersion version) {
-        return Schema.newBuilder()
+        return Schema.builder()
             .user(userId)
             .type(SchemaType.PROTOBUF)
             .timestamp(MockClock.millis())
@@ -202,7 +202,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
     }
 
     private Schema schema2(SchemaVersion version) {
-        return Schema.newBuilder()
+        return Schema.builder()
             .user(userId)
             .type(SchemaType.PROTOBUF)
             .timestamp(MockClock.millis())
