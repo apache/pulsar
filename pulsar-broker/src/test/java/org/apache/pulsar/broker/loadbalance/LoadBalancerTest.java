@@ -195,6 +195,7 @@ public class LoadBalancerTest {
      * those load reports can be deserialized and are in valid format tests if the rankings are populated from the load
      * reports are not, both broker will have zero rank
      */
+    @SuppressWarnings("unchecked")
     @Test
     public void testLoadReportsWrittenOnZK() throws Exception {
         ZooKeeper zkc = bkEnsemble.getZkClient();
@@ -289,6 +290,7 @@ public class LoadBalancerTest {
         Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
                 .getDeclaredField("sortedRankings");
         ranking.setAccessible(true);
+        @SuppressWarnings("unchecked")
         AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
                 .get(pulsar.getLoadManager().get());
         return sortedRanking;

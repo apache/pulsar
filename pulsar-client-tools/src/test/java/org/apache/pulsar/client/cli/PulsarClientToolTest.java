@@ -27,7 +27,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.cli.PulsarClientTool;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;

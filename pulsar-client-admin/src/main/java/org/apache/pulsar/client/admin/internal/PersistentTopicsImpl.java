@@ -543,10 +543,10 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
-    private CompletableFuture<List<Message>> peekNthMessage(String topic, String subName, int messagePosition) {
+    private CompletableFuture<List<Message<byte[]>>> peekNthMessage(String topic, String subName, int messagePosition) {
         TopicName ds = validateTopic(topic);
         String encodedSubName = Codec.encode(subName);
-        final CompletableFuture<List<Message>> future = new CompletableFuture<List<Message>>();
+        final CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<>();
         asyncGetRequest(persistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("subscription")
                 .path(encodedSubName).path("position").path(String.valueOf(messagePosition)),
                 new InvocationCallback<Response>() {
@@ -569,7 +569,8 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public List<Message> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException {
+    public List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages)
+            throws PulsarAdminException {
         try {
             return peekMessagesAsync(topic, subName, numMessages).get();
         } catch (ExecutionException e) {
@@ -581,16 +582,16 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
     }
 
     @Override
-    public CompletableFuture<List<Message>> peekMessagesAsync(String topic, String subName, int numMessages) {
+    public CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages) {
         checkArgument(numMessages > 0);
-        CompletableFuture<List<Message>> future = new CompletableFuture<List<Message>>();
+        CompletableFuture<List<Message<byte[]>>> future = new CompletableFuture<List<Message<byte[]>>>();
         peekMessagesAsync(topic, subName, numMessages, Lists.newArrayList(), future, 1);
         return future;
     }
 
 
     private void peekMessagesAsync(String topic, String subName, int numMessages,
-            List<Message> messages, CompletableFuture<List<Message>> future, int nthMessage) {
+            List<Message<byte[]>> messages, CompletableFuture<List<Message<byte[]>>> future, int nthMessage) {
         if (numMessages <= 0) {
             future.complete(messages);
             return;
@@ -724,7 +725,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         return TopicName.get(topic);
     }
 
-    private List<Message> getMessageFromHttpResponse(Response response) throws Exception {
+    private List<Message<byte[]>> getMessageFromHttpResponse(Response response) throws Exception {
 
         if (response.getStatus() != Status.OK.getStatusCode()) {
             if (response.getStatus() >= 500) {
@@ -762,7 +763,7 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
                 }
             }
 
-            return Lists.newArrayList(new MessageImpl<>(msgId, properties, data, Schema.IDENTITY));
+            return Lists.newArrayList(new MessageImpl<byte[]>(msgId, properties, data, Schema.IDENTITY));
         } finally {
             if (stream != null) {
                 stream.close();
@@ -770,8 +771,8 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         }
     }
 
-    private List<Message> getIndividualMsgsFromBatch(String msgId, byte[] data, Map<String, String> properties) {
-        List<Message> ret = new ArrayList<Message>();
+    private List<Message<byte[]>> getIndividualMsgsFromBatch(String msgId, byte[] data, Map<String, String> properties) {
+        List<Message<byte[]>> ret = new ArrayList<>();
         int batchSize = Integer.parseInt(properties.get(BATCH_HEADER));
         for (int i = 0; i < batchSize; i++) {
             String batchMsgId = msgId + ":" + i;

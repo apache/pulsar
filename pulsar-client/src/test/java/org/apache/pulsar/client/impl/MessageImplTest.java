@@ -34,7 +34,7 @@ public class MessageImplTest {
     public void testGetSequenceIdNotAssociated() {
         MessageMetadata.Builder builder = MessageMetadata.newBuilder();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl msg = MessageImpl.create(builder, payload);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload);
 
         assertEquals(-1, msg.getSequenceId());
     }
@@ -45,7 +45,7 @@ public class MessageImplTest {
             .setSequenceId(1234);
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl msg = MessageImpl.create(builder, payload);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload);
 
         assertEquals(1234, msg.getSequenceId());
     }
@@ -54,7 +54,7 @@ public class MessageImplTest {
     public void testGetProducerNameNotAssigned() {
         MessageMetadata.Builder builder = MessageMetadata.newBuilder();
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl msg = MessageImpl.create(builder, payload);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload);
 
         assertNull(msg.getProducerName());
     }
@@ -65,7 +65,7 @@ public class MessageImplTest {
             .setProducerName("test-producer");
 
         ByteBuffer payload = ByteBuffer.wrap(new byte[0]);
-        MessageImpl msg = MessageImpl.create(builder, payload);
+        MessageImpl<?> msg = MessageImpl.create(builder, payload);
 
         assertEquals("test-producer", msg.getProducerName());
     }

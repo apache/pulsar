@@ -55,7 +55,8 @@ public class KafkaProducerTest extends BrokerTestBase {
     public void testSimpleProducer() throws Exception {
         String topic = "persistent://sample/standalone/ns/testSimpleProducer";
 
-        Consumer pulsarConsumer = pulsarClient.subscribe(topic, "my-subscription");
+        Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+                .subscribe();
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
@@ -73,7 +74,7 @@ public class KafkaProducerTest extends BrokerTestBase {
         producer.close();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
             assertEquals(new String(msg.getData()), "hello-" + i);
             pulsarConsumer.acknowledge(msg);
         }
@@ -83,7 +84,8 @@ public class KafkaProducerTest extends BrokerTestBase {
     public void testProducerCallback() throws Exception {
         String topic = "persistent://sample/standalone/ns/testProducerCallback";
 
-        Consumer pulsarConsumer = pulsarClient.subscribe(topic, "my-subscription");
+        Consumer<byte[]> pulsarConsumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+                .subscribe();
 
         Properties props = new Properties();
         props.put("bootstrap.servers", lookupUrl.toString());
@@ -107,7 +109,7 @@ public class KafkaProducerTest extends BrokerTestBase {
         counter.await();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = pulsarConsumer.receive(1, TimeUnit.SECONDS);
             assertEquals(new String(msg.getData()), "hello-" + i);
             pulsarConsumer.acknowledge(msg);
         }

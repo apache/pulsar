@@ -54,8 +54,7 @@ public class IOUtilsTest {
         String data = "y";
         try {
             System.setIn(new ByteArrayInputStream(data.getBytes()));
-            IOUtils obj = new IOUtils();
-            Assert.assertTrue(obj.confirmPrompt("Is you name John Doe?"));
+            Assert.assertTrue(IOUtils.confirmPrompt("Is you name John Doe?"));
         } catch (IOException e) {
             Assert.fail();
         }
@@ -66,8 +65,7 @@ public class IOUtilsTest {
         String data = "yes";
         try {
             System.setIn(new ByteArrayInputStream(data.getBytes()));
-            IOUtils obj = new IOUtils();
-            Assert.assertTrue(obj.confirmPrompt("Are we there yet?"));
+            Assert.assertTrue(IOUtils.confirmPrompt("Are we there yet?"));
         } catch (IOException e) {
             Assert.fail();
         }
@@ -78,8 +76,7 @@ public class IOUtilsTest {
         String data = "n";
         try {
             System.setIn(new ByteArrayInputStream(data.getBytes()));
-            IOUtils obj = new IOUtils();
-            Assert.assertFalse(obj.confirmPrompt("Can I go home?"));
+            Assert.assertFalse(IOUtils.confirmPrompt("Can I go home?"));
         } catch (IOException e) {
             Assert.fail();
         }
@@ -90,8 +87,7 @@ public class IOUtilsTest {
         String data = "no";
         try {
             System.setIn(new ByteArrayInputStream(data.getBytes()));
-            IOUtils obj = new IOUtils();
-            Assert.assertFalse(obj.confirmPrompt("Is it Sunday?"));
+            Assert.assertFalse(IOUtils.confirmPrompt("Is it Sunday?"));
         } catch (IOException e) {
             Assert.fail();
         }
@@ -106,11 +102,11 @@ public class IOUtilsTest {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             System.setIn(new ByteArrayInputStream(data.getBytes()));
-            IOUtils obj = new IOUtils();
             ExecutorService executor = Executors.newSingleThreadExecutor();
+            @SuppressWarnings("unchecked")
             Future<Void> future = (Future<Void>) executor.submit(() -> {
                 try {
-                    obj.confirmPrompt("When will this week end?");
+                    IOUtils.confirmPrompt("When will this week end?");
                 } catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();
@@ -132,11 +128,11 @@ public class IOUtilsTest {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             System.setOut(new PrintStream(baos));
             System.setIn(new ByteArrayInputStream(data.getBytes("UTF-8")));
-            IOUtils obj = new IOUtils();
             ExecutorService executor = Executors.newSingleThreadExecutor();
+            @SuppressWarnings("unchecked")
             Future<Void> future = (Future<Void>) executor.submit(() -> {
                 try {
-                    obj.confirmPrompt("Is you name Pulsar?");
+                    IOUtils.confirmPrompt("Is you name Pulsar?");
                 } catch (IOException e) {
                     // TODO Auto-generated catch block
                     e.printStackTrace();

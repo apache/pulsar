@@ -24,11 +24,11 @@ import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.Lists;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.IntStream;
+
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
@@ -43,6 +43,8 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import com.google.common.collect.Lists;
 
 public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
@@ -80,7 +82,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // test failing builder with pattern and topic should fail
         try {
-            Consumer consumer1 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topicsPattern(pattern)
                 .topic(topicName1)
                 .subscriptionName(subscriptionName)
@@ -94,7 +96,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // test failing builder with pattern and topics should fail
         try {
-            Consumer consumer2 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topicsPattern(pattern)
                 .topics(topicNames)
                 .subscriptionName(subscriptionName)
@@ -108,7 +110,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // test failing builder with pattern and patternString should fail
         try {
-            Consumer consumer3 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topicsPattern(pattern)
                 .topicsPattern(patternString)
                 .subscriptionName(subscriptionName)
@@ -140,16 +142,16 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         String messagePredicate = "my-message-" + key + "-";
         int totalMessages = 30;
 
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
             .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
@@ -159,13 +161,14 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
 
         // 4. verify consumer get methods, to get right number of partitions and topics.
-        assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
-        List<String> topics = ((PatternTopicsConsumerImpl) consumer).getPartitionedTopics();
-        List<ConsumerImpl> consumers = ((PatternTopicsConsumerImpl) consumer).getConsumers();
+        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
+        List<String> topics = ((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics();
+        @SuppressWarnings("rawtypes")
+        List<ConsumerImpl> consumers = ((PatternTopicsConsumerImpl<?>) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 3);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
         topics.forEach(topic -> log.debug("topic: {}", topic));
         consumers.forEach(c -> log.debug("consumer: {}", c.getTopic()));
@@ -173,7 +176,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, topics.size()).forEach(index ->
             assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
 
-        ((PatternTopicsConsumerImpl) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
+        ((PatternTopicsConsumerImpl<?>) consumer).getTopics().forEach(topic -> log.debug("getTopics topic: {}", topic));
 
         // 5. produce data
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -184,7 +187,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 6. should receive all the message
         int messageSet = 0;
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -278,7 +281,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer, this should success, but with empty sub-consumser internal
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
             .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
@@ -288,35 +291,35 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
 
         // 3. verify consumer get methods, to get 0 number of partitions and topics.
-        assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 0);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 0);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 0);
+        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 0);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 0);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 0);
 
         // 4. create producer
         String messagePredicate = "my-message-" + key + "-";
         int totalMessages = 30;
 
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 5. call recheckTopics to subscribe each added topics above
         log.debug("recheck topics change");
-        PatternTopicsConsumerImpl consumer1 = ((PatternTopicsConsumerImpl) consumer);
+        PatternTopicsConsumerImpl<byte[]> consumer1 = ((PatternTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
         Thread.sleep(100);
 
         // 6. verify consumer get methods, to get number of partitions and topics, value 6=1+2+3.
-        assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 3);
+        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
 
         // 7. produce data
@@ -328,7 +331,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 8. should receive all the message
         int messageSet = 0;
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -364,16 +367,16 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         String messagePredicate = "my-message-" + key + "-";
         int totalMessages = 30;
 
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
             .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
@@ -385,10 +388,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof PatternTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 6 number of partitions and topics: 6=1+2+3
-        assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 3);
+        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
         // 5. produce data to topic 1,2,3; verify should receive all the message
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -398,7 +401,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -411,18 +414,18 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 6. create another producer with 4 partitions
         String topicName4 = "persistent://prop/use/ns-abc/pattern-topic-4-" + key;
         admin.persistentTopics().createPartitionedTopic(topicName4, 4);
-        Producer producer4 = pulsarClient.newProducer().topic(topicName4)
+        Producer<byte[]> producer4 = pulsarClient.newProducer().topic(topicName4)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 7. call recheckTopics to subscribe each added topics above, verify topics number: 10=1+2+3+4
         log.debug("recheck topics change");
-        PatternTopicsConsumerImpl consumer1 = ((PatternTopicsConsumerImpl) consumer);
+        PatternTopicsConsumerImpl<byte[]> consumer1 = ((PatternTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
         Thread.sleep(100);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 10);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 10);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 4);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 10);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 10);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 4);
 
         // 8. produce data to topic3 and topic4, verify should receive all the message
         for (int i = 0; i < totalMessages / 2; i++) {
@@ -467,16 +470,16 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         String messagePredicate = "my-message-" + key + "-";
         int totalMessages = 30;
 
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topicsPattern(pattern)
             .patternAutoDiscoveryPeriod(2)
             .subscriptionName(subscriptionName)
@@ -488,10 +491,10 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         assertTrue(consumer instanceof PatternTopicsConsumerImpl);
 
         // 4. verify consumer get methods, to get 0 number of partitions and topics: 6=1+2+3
-        assertSame(pattern, ((PatternTopicsConsumerImpl) consumer).getPattern());
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 6);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 3);
+        assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics().size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getConsumers().size(), 6);
+        assertEquals(((PatternTopicsConsumerImpl<?>) consumer).getTopics().size(), 3);
 
         // 5. produce data to topic 1,2,3; verify should receive all the message
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -501,7 +504,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -519,12 +522,12 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 7. call recheckTopics to unsubscribe topic 1,3 , verify topics number: 2=6-1-3
         log.debug("recheck topics change");
-        PatternTopicsConsumerImpl consumer1 = ((PatternTopicsConsumerImpl) consumer);
+        PatternTopicsConsumerImpl<byte[]> consumer1 = ((PatternTopicsConsumerImpl<byte[]>) consumer);
         consumer1.run(consumer1.getRecheckPatternTimeout());
         Thread.sleep(100);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getPartitionedTopics().size(), 2);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getConsumers().size(), 2);
-        assertEquals(((PatternTopicsConsumerImpl) consumer).getTopics().size(), 1);
+        assertEquals(((PatternTopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics().size(), 2);
+        assertEquals(((PatternTopicsConsumerImpl<byte[]>) consumer).getConsumers().size(), 2);
+        assertEquals(((PatternTopicsConsumerImpl<byte[]>) consumer).getTopics().size(), 1);
 
         // 8. produce data to topic2, verify should receive all the message
         for (int i = 0; i < totalMessages; i++) {

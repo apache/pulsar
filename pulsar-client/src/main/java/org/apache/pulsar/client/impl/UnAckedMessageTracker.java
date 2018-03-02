@@ -73,7 +73,7 @@ public class UnAckedMessageTracker implements Closeable {
         writeLock = null;
     }
 
-    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase consumerBase, long ackTimeoutMillis) {
+    public UnAckedMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
         currentSet = new ConcurrentOpenHashSet<MessageId>();
         oldOpenSet = new ConcurrentOpenHashSet<MessageId>();
         readWriteLock = new ReentrantReadWriteLock();
@@ -82,7 +82,7 @@ public class UnAckedMessageTracker implements Closeable {
         start(client, consumerBase, ackTimeoutMillis);
     }
 
-    public void start(PulsarClientImpl client, ConsumerBase consumerBase, long ackTimeoutMillis) {
+    public void start(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
         this.stop();
         timeout = client.timer().newTimeout(new TimerTask() {
             @Override

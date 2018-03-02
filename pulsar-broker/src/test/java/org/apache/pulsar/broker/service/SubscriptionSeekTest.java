@@ -27,7 +27,6 @@ import java.util.List;
 
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -55,14 +54,11 @@ public class SubscriptionSeekTest extends BrokerTestBase {
     public void testSeek() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testSeek";
 
-        Producer producer = pulsarClient.createProducer(topicName);
-
-        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // Disable pre-fetch in consumer to track the messages received
-        consumerConf.setReceiverQueueSize(0);
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-subscription",
-                consumerConf);
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").receiverQueueSize(0).subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
@@ -97,7 +93,8 @@ public class SubscriptionSeekTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSeekPartitions";
 
         admin.persistentTopics().createPartitionedTopic(topicName, 2);
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-subscription");
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").subscribe();
 
         try {
             consumer.seek(MessageId.latest);

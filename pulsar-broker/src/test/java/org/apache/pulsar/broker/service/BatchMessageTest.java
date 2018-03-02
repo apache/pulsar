@@ -37,12 +37,10 @@ import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleC
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -82,20 +80,18 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerWithFixedBatchSize";
         final String subscriptionName = "sub-1" + compressionType.toString();
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setCompressionType(compressionType);
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -107,10 +103,10 @@ public class BatchMessageTest extends BrokerTestBase {
         // we expect 2 messages in the backlog since we sent 50 messages with the batch size set to 25. We have set the
         // batch time high enough for it to not affect the number of messages in the batch
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 2);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
         for (int i = 0; i < numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + i;
@@ -127,14 +123,12 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerWithFixedBatchTime";
         final String subscriptionName = "time-sub-1" + compressionType.toString();
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setCompressionType(compressionType);
-        producerConf.setBatchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
+                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS).enableBatching(true).create();
 
         Random random = new Random();
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
@@ -142,7 +136,7 @@ public class BatchMessageTest extends BrokerTestBase {
             // put a random sleep from 0 to 3 ms
             Thread.sleep(random.nextInt(4));
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -164,15 +158,13 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerWithFixedBatchSizeAndTime";
         final String subscriptionName = "time-size-sub-1" + compressionType.toString();
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(5);
-        producerConf.setCompressionType(compressionType);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS).batchingMaxMessages(5)
+                .compressionType(compressionType).enableBatching(true).create();
 
         Random random = new Random();
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
@@ -180,7 +172,7 @@ public class BatchMessageTest extends BrokerTestBase {
             // put a random sleep from 0 to 3 ms
             Thread.sleep(random.nextInt(4));
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -203,31 +195,29 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/finance/testBatchProducerWithLargeMessage";
         final String subscriptionName = "large-message-sub-1" + compressionType.toString();
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setCompressionType(compressionType);
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             if (i == 25) {
                 // send a large message
                 byte[] largeMessage = new byte[128 * 1024 + 4];
-                Message msg = MessageBuilder.create().setContent(largeMessage).build();
+                Message<byte[]> msg = MessageBuilder.create().setContent(largeMessage).build();
                 sendFutureList.add(producer.sendAsync(msg));
             } else {
                 byte[] message = ("msg-" + i).getBytes();
-                Message msg = MessageBuilder.create().setContent(message).build();
+                Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
                 sendFutureList.add(producer.sendAsync(msg));
             }
         }
         byte[] message = ("msg-" + "last").getBytes();
-        Message lastMsg = MessageBuilder.create().setContent(message).build();
+        Message<byte[]> lastMsg = MessageBuilder.create().setContent(message).build();
         sendFutureList.add(producer.sendAsync(lastMsg));
 
         FutureUtil.waitForAll(sendFutureList).get();
@@ -239,10 +229,10 @@ public class BatchMessageTest extends BrokerTestBase {
         // we expect 3 messages in the backlog since the large message in the middle should
         // close out the batch and be sent in a batch of its own
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 3);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
         for (int i = 0; i <= numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             LOG.info("received msg - {}", msg.getData().toString());
             consumer.acknowledge(msg);
@@ -260,20 +250,18 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerConsumer";
         final String subscriptionName = "pc-sub-1" + compressionType.toString();
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setCompressionType(compressionType);
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -282,13 +270,12 @@ public class BatchMessageTest extends BrokerTestBase {
 
         rolloverPerIntervalStats();
         assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(),
-                numMsgs / numMsgsInBatch);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), numMsgs / numMsgsInBatch);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
-        Message lastunackedMsg = null;
+        Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             if (i % 2 == 0) {
                 consumer.acknowledgeCumulative(msg);
@@ -312,18 +299,17 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchSyncProducerWithFixedBatchSize";
         final String subscriptionName = "syncsub-1";
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingMaxPublishDelay(1000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(1, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
 
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             producer.send(msg);
         }
 
@@ -334,10 +320,10 @@ public class BatchMessageTest extends BrokerTestBase {
         // we expect 10 messages in the backlog since we sent 10 messages with the batch size set to 5.
         // However, we are using synchronous send and so each message will go as an individual message
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 10);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
         for (int i = 0; i < numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             String receivedMessage = new String(msg.getData());
             String expectedMessage = "my-message-" + i;
@@ -356,20 +342,18 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testSimpleBatchProducerConsumer1kMessages";
         final String subscriptionName = "pc1k-sub-1";
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setMaxPendingMessages(numMsgs + 1);
-        producerConf.setBatchingMaxPublishDelay(30000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).maxPendingMessages(numMsgs + 1)
+                .batchingMaxPublishDelay(30, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -391,13 +375,12 @@ public class BatchMessageTest extends BrokerTestBase {
         Thread.sleep(5000);
         LOG.info("[{}] checking backlog stats..");
         rolloverPerIntervalStats();
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(),
-                numMsgs / numMsgsInBatch);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), numMsgs / numMsgsInBatch);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
-        Message lastunackedMsg = null;
+        Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
-            Message msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
             assertNotNull(msg);
             lastunackedMsg = msg;
         }
@@ -423,19 +406,18 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testOutOfOrderAcksForBatchMessage";
         final String subscriptionName = "oooack-sub-1";
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
@@ -443,16 +425,15 @@ public class BatchMessageTest extends BrokerTestBase {
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
 
         rolloverPerIntervalStats();
-        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(),
-                numMsgs / numMsgsInBatch);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), numMsgs / numMsgsInBatch);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
         Set<Integer> individualAcks = new HashSet<>();
         for (int i = 15; i < 20; i++) {
             individualAcks.add(i);
         }
-        Message lastunackedMsg = null;
+        Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             LOG.info("received message {}", String.valueOf(msg.getData()));
             assertNotNull(msg);
             if (i == 8) {
@@ -491,28 +472,27 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testNonBatchCumulativeAckAfterBatchPublish";
         final String subscriptionName = "nbcaabp-sub-1";
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
         // create producer to publish non batch messages
-        Producer noBatchProducer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName).create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
 
         }
         FutureUtil.waitForAll(sendFutureList).get();
         sendFutureList.clear();
         byte[] nobatchmsg = ("nobatch").getBytes();
-        Message nmsg = MessageBuilder.create().setContent(nobatchmsg).build();
+        Message<byte[]> nmsg = MessageBuilder.create().setContent(nobatchmsg).build();
         noBatchProducer.sendAsync(nmsg).get();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
@@ -520,11 +500,11 @@ public class BatchMessageTest extends BrokerTestBase {
         rolloverPerIntervalStats();
         assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 2);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
-        Message lastunackedMsg = null;
+        Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i <= numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             lastunackedMsg = msg;
         }
@@ -534,7 +514,7 @@ public class BatchMessageTest extends BrokerTestBase {
         Thread.sleep(100);
         rolloverPerIntervalStats();
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
-        assertTrue(((ConsumerImpl) consumer).isBatchingAckTrackerEmpty());
+        assertTrue(((ConsumerImpl<byte[]>) consumer).isBatchingAckTrackerEmpty());
         consumer.close();
         producer.close();
         noBatchProducer.close();
@@ -547,21 +527,20 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testBatchAndNonBatchCumulativeAcks";
         final String subscriptionName = "bnb-sub-1";
 
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgsInBatch);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgsInBatch).enableBatching(true)
+                .create();
         // create producer to publish non batch messages
-        Producer noBatchProducer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> noBatchProducer = pulsarClient.newProducer().topic(topicName).create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs / 2; i++) {
             byte[] message = ("msg-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
             byte[] nobatchmsg = ("nobatch-" + i).getBytes();
             msg = MessageBuilder.create().setContent(nobatchmsg).build();
@@ -575,11 +554,11 @@ public class BatchMessageTest extends BrokerTestBase {
         assertTrue(topic.getProducers().values().iterator().next().getStats().msgRateIn > 0.0);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(),
                 (numMsgs / 2) / numMsgsInBatch + numMsgs / 2);
-        consumer = pulsarClient.subscribe(topicName, subscriptionName);
+        consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
 
-        Message lastunackedMsg = null;
+        Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             LOG.info("[{}] got message position{} data {}", subscriptionName, msg.getMessageId(),
                     String.valueOf(msg.getData()));
@@ -595,15 +574,15 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         Thread.sleep(100);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
-        assertTrue(((ConsumerImpl) consumer).isBatchingAckTrackerEmpty());
+        assertTrue(((ConsumerImpl<byte[]>) consumer).isBatchingAckTrackerEmpty());
         consumer.close();
         producer.close();
         noBatchProducer.close();
     }
 
     /**
-     * Verifies batch-message acking is thread-safe 
-     * 
+     * Verifies batch-message acking is thread-safe
+     *
      * @throws Exception
      */
     @Test(timeOut = 3000)
@@ -612,28 +591,26 @@ public class BatchMessageTest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/testConcurrentAck";
         final String subscriptionName = "sub-1";
 
-        ConsumerConfiguration consConf = new ConsumerConfiguration();
-        consConf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, consConf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
         consumer.close();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setBatchingMaxPublishDelay(5000, TimeUnit.MILLISECONDS);
-        producerConf.setBatchingMaxMessages(numMsgs);
-        producerConf.setBatchingEnabled(true);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .batchingMaxPublishDelay(5, TimeUnit.SECONDS).batchingMaxMessages(numMsgs).enableBatching(true)
+                .create();
 
         List<CompletableFuture<MessageId>> sendFutureList = Lists.newArrayList();
         for (int i = 0; i < numMsgs; i++) {
             byte[] message = ("my-message-" + i).getBytes();
-            Message msg = MessageBuilder.create().setContent(message).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(message).build();
             sendFutureList.add(producer.sendAsync(msg));
         }
         FutureUtil.waitForAll(sendFutureList).get();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
 
-        final Consumer myConsumer = pulsarClient.subscribe(topicName, subscriptionName, consConf);
+        final Consumer<byte[]> myConsumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).subscriptionType(SubscriptionType.Shared).subscribe();
         // assertEquals(dispatcher.getTotalUnackedMessages(), 1);
         ExecutorService executor = Executors.newFixedThreadPool(10);
 
@@ -642,7 +619,7 @@ public class BatchMessageTest extends BrokerTestBase {
         for (int i = 0; i < numMsgs; i++) {
             executor.submit(() -> {
                 try {
-                    Message msg = myConsumer.receive(1, TimeUnit.SECONDS);
+                    Message<byte[]> msg = myConsumer.receive(1, TimeUnit.SECONDS);
                     myConsumer.acknowledge(msg);
                 } catch (Exception e) {
                     failed.set(false);
@@ -662,6 +639,6 @@ public class BatchMessageTest extends BrokerTestBase {
         myConsumer.close();
         producer.close();
     }
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(BatchMessageTest.class);
 }

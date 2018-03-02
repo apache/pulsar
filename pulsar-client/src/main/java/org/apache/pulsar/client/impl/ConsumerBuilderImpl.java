@@ -25,20 +25,25 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
-
 import java.util.regex.Pattern;
+
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
 import com.google.common.collect.Lists;
+
+import lombok.NonNull;
 
 public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
@@ -86,12 +91,12 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     public CompletableFuture<Consumer<T>> subscribeAsync() {
         if (conf.getTopicNames().isEmpty() && conf.getTopicsPattern() == null) {
             return FutureUtil
-                    .failedFuture(new IllegalArgumentException("Topic name must be set on the consumer builder"));
+                    .failedFuture(new InvalidConfigurationException("Topic name must be set on the consumer builder"));
         }
 
-        if (conf.getSubscriptionName() == null) {
+        if (StringUtils.isBlank(conf.getSubscriptionName())) {
             return FutureUtil.failedFuture(
-                    new IllegalArgumentException("Subscription name must be set on the consumer builder"));
+                    new InvalidConfigurationException("Subscription name must be set on the consumer builder"));
         }
 
         return client.subscribeAsync(conf, schema);
@@ -140,14 +145,20 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
-    public ConsumerBuilder<T> subscriptionType(SubscriptionType subscriptionType) {
+    public ConsumerBuilder<T> subscriptionType(@NonNull SubscriptionType subscriptionType) {
         conf.setSubscriptionType(subscriptionType);
         return this;
     }
 
     @Override
-    public ConsumerBuilder<T> messageListener(MessageListener<T> messageListener) {
+    public ConsumerBuilder<T> messageListener(@NonNull MessageListener<T> messageListener) {
         conf.setMessageListener(messageListener);
+        return this;
+    }
+
+    @Override
+    public ConsumerBuilder<T> consumerEventListener(ConsumerEventListener consumerEventListener) {
+        conf.setConsumerEventListener(consumerEventListener);
         return this;
     }
 
@@ -165,6 +176,7 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
 
     @Override
     public ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize) {
+        checkArgument(receiverQueueSize >= 0);
         conf.setReceiverQueueSize(receiverQueueSize);
         return this;
     }

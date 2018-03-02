@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class ConsumerExample {
+
     public static void main(String[] args) {
         String topic = "persistent://sample/standalone/ns/my-topic";
 
@@ -40,6 +41,7 @@ public class ConsumerExample {
         props.put("key.deserializer", IntegerDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
+        @SuppressWarnings("resource")
         Consumer<Integer, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 

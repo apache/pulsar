@@ -83,7 +83,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     public ConsumerConfigurationData<T> clone() {
         try {
-            ConsumerConfigurationData c = (ConsumerConfigurationData) super.clone();
+            @SuppressWarnings("unchecked")
+            ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.topicNames = Sets.newTreeSet(this.topicNames);
             c.properties = Maps.newTreeMap(this.properties);
             return c;

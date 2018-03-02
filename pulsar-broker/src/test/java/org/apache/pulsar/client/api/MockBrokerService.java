@@ -244,7 +244,6 @@ public class MockBrokerService {
     EventLoopGroup workerGroup;
 
     private final int webServicePort;
-    private final int webServicePortTls;
     private final int brokerServicePort;
     private final int brokerServicePortTls;
 
@@ -268,7 +267,6 @@ public class MockBrokerService {
     public MockBrokerService(int webServicePort, int webServicePortTls, int brokerServicePort,
             int brokerServicePortTls) {
         this.webServicePort = webServicePort;
-        this.webServicePortTls = webServicePortTls;
         this.brokerServicePort = brokerServicePort;
         this.brokerServicePortTls = brokerServicePortTls;
 

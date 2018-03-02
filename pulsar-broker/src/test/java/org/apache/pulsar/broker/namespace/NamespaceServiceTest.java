@@ -45,8 +45,6 @@ import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.pulsar.broker.PulsarService;
-import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.ModularLoadManagerWrapper;
@@ -55,19 +53,16 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
 import org.apache.pulsar.common.naming.NamespaceName;
-import org.apache.pulsar.common.policies.data.LocalPolicies;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.policies.data.loadbalancer.LoadReport;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-import org.apache.pulsar.zookeeper.ZooKeeperDataCache;
 import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs;
 import org.apache.zookeeper.data.Stat;
@@ -267,8 +262,8 @@ public class NamespaceServiceTest extends BrokerTestBase {
     public void testUnloadNamespaceBundleFailure() throws Exception {
 
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name").subscribe();
+
         ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get());
         topics.clear();
@@ -300,15 +295,15 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
     /**
      * It verifies that unloading bundle will timeout and will not hung even if one of the topic-unloading stuck.
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 6000)
     public void testUnloadNamespaceBundleWithStuckTopic() throws Exception {
 
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscribe();
         ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics = pulsar.getBrokerService().getTopics();
         Topic spyTopic = spy(topics.get(topicName).get());
         topics.clear();
@@ -335,7 +330,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
         consumer.close();
     }
-    
+
     /**
      * <pre>
      *  It verifies that namespace service deserialize the load-report based on load-manager which active.

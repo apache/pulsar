@@ -517,9 +517,9 @@ public class CmdPersistentTopics extends CmdBase {
         @Override
         void run() throws PulsarAdminException {
             String persistentTopic = validatePersistentTopic(params);
-            List<Message> messages = persistentTopics.peekMessages(persistentTopic, subName, numMessages);
+            List<Message<byte[]>> messages = persistentTopics.peekMessages(persistentTopic, subName, numMessages);
             int position = 0;
-            for (Message msg : messages) {
+            for (Message<byte[]> msg : messages) {
                 if (++position != 1) {
                     System.out.println("-------------------------------------------------------------------------\n");
                 }

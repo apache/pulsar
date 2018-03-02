@@ -55,8 +55,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerTopicStats() throws Exception {
-        Producer p1 = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
-        Producer p2 = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic2");
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());
@@ -101,8 +101,8 @@ public class PrometheusMetricsTest extends BrokerTestBase {
 
     @Test
     public void testPerNamespaceStats() throws Exception {
-        Producer p1 = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
-        Producer p2 = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic2");
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
+        Producer<byte[]> p2 = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2").create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             p1.send(message.getBytes());

@@ -46,6 +46,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@SuppressWarnings({ "unchecked", "rawtypes" })
 public class TopicsConsumerImplTest extends ProducerConsumerBase {
     private static final long testTimeout = 90000; // 1.5 min
     private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImplTest.class);
@@ -80,7 +81,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // 2. Create consumer
         try {
-            Consumer consumer = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topics(topicNames)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -91,7 +92,6 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             // expected for have different namespace
         }
     }
-
 
     @Test(timeOut = testTimeout)
     public void testGetConsumersAndGetTopics() throws Exception {
@@ -108,7 +108,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 2. Create consumer
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topics(topicNames)
             .topic(topicName3)
             .subscriptionName(subscriptionName)
@@ -118,8 +118,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             .subscribe();
         assertTrue(consumer instanceof TopicsConsumerImpl);
 
-        List<String> topics = ((TopicsConsumerImpl) consumer).getPartitionedTopics();
-        List<ConsumerImpl> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
+        List<String> topics = ((TopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<ConsumerImpl<byte[]>> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
 
         topics.forEach(topic -> log.info("topic: {}", topic));
         consumers.forEach(c -> log.info("consumer: {}", c.getTopic()));
@@ -127,7 +127,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         IntStream.range(0, 6).forEach(index ->
             assertTrue(topics.get(index).equals(consumers.get(index).getTopic())));
 
-        assertTrue(((TopicsConsumerImpl) consumer).getTopics().size() == 3);
+        assertTrue(((TopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
 
         consumer.unsubscribe();
         consumer.close();
@@ -150,17 +150,17 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 2. Create consumer
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topics(topicNames)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
@@ -177,7 +177,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -290,17 +290,17 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 2. Create consumer
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topics(topicNames)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
@@ -317,13 +317,13 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         // 4. Receiver receives the message, not ack, Unacked Message Tracker size should be totalMessages.
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         while (message != null) {
             assertTrue(message instanceof TopicMessageImpl);
             log.debug("Consumer received : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
-        long size = ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        long size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, totalMessages);
 
@@ -338,7 +338,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         } while (message != null);
 
-        size = ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(hSet.size(), totalMessages);
@@ -361,13 +361,13 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             consumer.acknowledge(message);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(received, totalMessages);
 
         // 8. Simulate ackTimeout
-        ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
+        ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
         ((TopicsConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 9. producer publish more messages
@@ -384,7 +384,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             log.debug("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.debug(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 30);
 
@@ -402,7 +402,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 30);
-        size =  ((TopicsConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size =  ((TopicsConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
 
@@ -430,17 +430,17 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         admin.persistentTopics().createPartitionedTopic(topicName3, 3);
 
         // 1. producer connect
-        Producer producer1 = pulsarClient.newProducer().topic(topicName1)
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic(topicName1)
             .create();
-        Producer producer2 = pulsarClient.newProducer().topic(topicName2)
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
-        Producer producer3 = pulsarClient.newProducer().topic(topicName3)
+        Producer<byte[]> producer3 = pulsarClient.newProducer().topic(topicName3)
             .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition)
             .create();
 
         // 2. Create consumer
-        Consumer consumer = pulsarClient.newConsumer()
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
             .topics(topicNames)
             .subscriptionName(subscriptionName)
             .subscriptionType(SubscriptionType.Shared)
@@ -457,7 +457,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         int messageSet = 0;
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         do {
             assertTrue(message instanceof TopicMessageImpl);
             messageSet ++;
@@ -468,7 +468,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 4, unsubscribe topic3
-        CompletableFuture<Void> unsubFuture = ((TopicsConsumerImpl)consumer).unsubscribeAsync(topicName3);
+        CompletableFuture<Void> unsubFuture = ((TopicsConsumerImpl<byte[]>) consumer).unsubscribeAsync(topicName3);
         unsubFuture.get();
 
         // 5. producer publish messages
@@ -491,15 +491,15 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages * 2 / 3);
 
         // 7. use getter to verify internal topics number after un-subscribe topic3
-        List<String> topics = ((TopicsConsumerImpl) consumer).getPartitionedTopics();
-        List<ConsumerImpl> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
+        List<String> topics = ((TopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
+        List<ConsumerImpl<byte[]>> consumers = ((TopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 3);
         assertEquals(consumers.size(), 3);
-        assertTrue(((TopicsConsumerImpl) consumer).getTopics().size() == 2);
+        assertTrue(((TopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 2);
 
         // 8. re-subscribe topic3
-        CompletableFuture<Void> subFuture = ((TopicsConsumerImpl)consumer).subscribeAsync(topicName3);
+        CompletableFuture<Void> subFuture = ((TopicsConsumerImpl<byte[]>)consumer).subscribeAsync(topicName3);
         subFuture.get();
 
         // 9. producer publish messages
@@ -522,12 +522,12 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         assertEquals(messageSet, totalMessages);
 
         // 11. use getter to verify internal topics number after subscribe topic3
-        topics = ((TopicsConsumerImpl) consumer).getPartitionedTopics();
+        topics = ((TopicsConsumerImpl<byte[]>) consumer).getPartitionedTopics();
         consumers = ((TopicsConsumerImpl) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
-        assertTrue(((TopicsConsumerImpl) consumer).getTopics().size() == 3);
+        assertTrue(((TopicsConsumerImpl<byte[]>) consumer).getTopics().size() == 3);
 
         consumer.unsubscribe();
         consumer.close();
@@ -542,10 +542,8 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         String key = "TopicsNameSubscribeWithBuilder";
         final String subscriptionName = "my-ex-subscription-" + key;
 
-        final String topicName1 = "persistent://prop/use/ns-abc/topic-1-" + key;
         final String topicName2 = "persistent://prop/use/ns-abc/topic-2-" + key;
         final String topicName3 = "persistent://prop/use/ns-abc/topic-3-" + key;
-        List<String> topicNames = Lists.newArrayList(topicName1, topicName2, topicName3);
 
         admin.properties().createProperty("prop", new PropertyAdmin());
         admin.persistentTopics().createPartitionedTopic(topicName2, 2);
@@ -553,7 +551,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
 
         // test failing builder with empty topics
         try {
-            Consumer consumer1 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
                 .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
@@ -564,7 +562,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         try {
-            Consumer consumer2 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topic()
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -576,7 +574,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         try {
-            Consumer consumer3 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topics(null)
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)
@@ -588,7 +586,7 @@ public class TopicsConsumerImplTest extends ProducerConsumerBase {
         }
 
         try {
-            Consumer consumer4 = pulsarClient.newConsumer()
+            pulsarClient.newConsumer()
                 .topics(Lists.newArrayList())
                 .subscriptionName(subscriptionName)
                 .subscriptionType(SubscriptionType.Shared)

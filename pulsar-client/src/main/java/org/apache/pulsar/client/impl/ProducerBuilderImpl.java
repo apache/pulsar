@@ -36,6 +36,8 @@ import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
 
+import lombok.NonNull;
+
 public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
 
     private static final long serialVersionUID = 1L;
@@ -93,19 +95,25 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> producerName(String producerName) {
+    public ProducerBuilder<T> producerName(@NonNull String producerName) {
         conf.setProducerName(producerName);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> sendTimeout(int sendTimeout, TimeUnit unit) {
+    public ProducerBuilder<T> sendTimeout(int sendTimeout, @NonNull TimeUnit unit) {
+        if (sendTimeout < 0) {
+            throw new IllegalArgumentException("sendTimeout needs to be >= 0");
+        }
         conf.setSendTimeoutMs(unit.toMillis(sendTimeout));
         return this;
     }
 
     @Override
     public ProducerBuilder<T> maxPendingMessages(int maxPendingMessages) {
+        if (maxPendingMessages <= 0) {
+            throw new IllegalArgumentException("maxPendingMessages needs to be > 0");
+        }
         conf.setMaxPendingMessages(maxPendingMessages);
         return this;
     }
@@ -123,25 +131,25 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> messageRoutingMode(MessageRoutingMode messageRouteMode) {
+    public ProducerBuilder<T> messageRoutingMode(@NonNull MessageRoutingMode messageRouteMode) {
         conf.setMessageRoutingMode(messageRouteMode);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> compressionType(CompressionType compressionType) {
+    public ProducerBuilder<T> compressionType(@NonNull CompressionType compressionType) {
         conf.setCompressionType(compressionType);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> hashingScheme(HashingScheme hashingScheme) {
+    public ProducerBuilder<T> hashingScheme(@NonNull HashingScheme hashingScheme) {
         conf.setHashingScheme(hashingScheme);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> messageRouter(MessageRouter messageRouter) {
+    public ProducerBuilder<T> messageRouter(@NonNull MessageRouter messageRouter) {
         conf.setCustomMessageRouter(messageRouter);
         return this;
     }
@@ -153,25 +161,25 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader) {
+    public ProducerBuilder<T> cryptoKeyReader(@NonNull CryptoKeyReader cryptoKeyReader) {
         conf.setCryptoKeyReader(cryptoKeyReader);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> addEncryptionKey(String key) {
+    public ProducerBuilder<T> addEncryptionKey(@NonNull String key) {
         conf.getEncryptionKeys().add(key);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> cryptoFailureAction(ProducerCryptoFailureAction action) {
+    public ProducerBuilder<T> cryptoFailureAction(@NonNull ProducerCryptoFailureAction action) {
         conf.setCryptoFailureAction(action);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit) {
+    public ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, @NonNull TimeUnit timeUnit) {
         conf.setBatchingMaxPublishDelayMicros(timeUnit.toMicros(batchDelay));
         return this;
     }
@@ -189,13 +197,13 @@ public class ProducerBuilderImpl<T> implements ProducerBuilder<T> {
     }
 
     @Override
-    public ProducerBuilder<T> property(String key, String value) {
+    public ProducerBuilder<T> property(@NonNull String key, @NonNull String value) {
         conf.getProperties().put(key, value);
         return this;
     }
 
     @Override
-    public ProducerBuilder<T> properties(Map<String, String> properties) {
+    public ProducerBuilder<T> properties(@NonNull Map<String, String> properties) {
         conf.getProperties().putAll(properties);
         return this;
     }

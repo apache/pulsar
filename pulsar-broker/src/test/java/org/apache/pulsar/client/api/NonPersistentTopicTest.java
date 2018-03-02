@@ -104,14 +104,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(type);
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("subscriber-1").subscriptionType(type).subscribe();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topic, "subscriber-1", conf);
-
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         int totalProduceMsg = 500;
         for (int i = 0; i < totalProduceMsg; i++) {
@@ -120,7 +116,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(10);
         }
 
-        Message msg = null;
+        Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -148,14 +144,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         final String topic = "non-persistent://my-property/use/my-ns/partitioned-topic";
         admin.nonPersistentTopics().createPartitionedTopic(topic, 5);
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(type);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
+                .subscriptionType(type).subscribe();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Consumer consumer = pulsarClient.subscribe(topic, "subscriber-1", conf);
-
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         int totalProduceMsg = 500;
         for (int i = 0; i < totalProduceMsg; i++) {
@@ -164,7 +156,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(10);
         }
 
-        Message msg = null;
+        Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -196,10 +188,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + BROKER_PORT)
                 .statsInterval(0, TimeUnit.SECONDS).build();
-        Consumer consumer = client.newConsumer().topic(topic).subscriptionName("subscriber-1").subscriptionType(type)
-                .subscribe();
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName("subscriber-1")
+                .subscriptionType(type).subscribe();
 
-        Producer producer = client.newProducer().topic(topic).create();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         // Ensure all partitions exist
         for (int i = 0; i < numPartitions; i++) {
@@ -214,7 +206,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(10);
         }
 
-        Message msg = null;
+        Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -237,8 +229,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
     }
 
     /**
-     * It verifies that broker doesn't dispatch messages if consumer runs out of permits
-     * filled out with messages
+     * It verifies that broker doesn't dispatch messages if consumer runs out of permits filled out with messages
      */
     @Test(dataProvider = "subscriptionType")
     public void testConsumerInternalQueueMaxOut(SubscriptionType type) throws Exception {
@@ -246,15 +237,10 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
         final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
         final int queueSize = 10;
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(type);
-        conf.setReceiverQueueSize(queueSize);
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                .receiverQueueSize(queueSize).subscriptionName("subscriber-1").subscriptionType(type).subscribe();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topic, "subscriber-1", conf);
-
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         int totalProduceMsg = 50;
         for (int i = 0; i < totalProduceMsg; i++) {
@@ -263,7 +249,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             Thread.sleep(10);
         }
 
-        Message msg = null;
+        Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
@@ -300,9 +286,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             // produce message concurrently
             ExecutorService executor = Executors.newFixedThreadPool(5);
             AtomicBoolean failed = new AtomicBoolean(false);
-            ProducerConfiguration producerConf = new ProducerConfiguration();
-            Consumer consumer = pulsarClient.subscribe(topic, "subscriber-1");
-            Producer producer = pulsarClient.createProducer(topic, producerConf);
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("subscriber-1")
+                    .subscribe();
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
             byte[] msgData = "testData".getBytes();
             final int totalProduceMessages = 10;
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
@@ -319,7 +305,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             }
             latch.await();
 
-            Message msg = null;
+            Message<?> msg = null;
             Set<String> messageSet = Sets.newHashSet();
             for (int i = 0; i < totalProduceMessages; i++) {
                 msg = consumer.receive(500, TimeUnit.MILLISECONDS);
@@ -352,19 +338,19 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         final String topic = "non-persistent://my-property/use/my-ns/unacked-topic";
-        ConsumerConfiguration sharedConf = new ConsumerConfiguration();
-        sharedConf.setSubscriptionType(SubscriptionType.Shared);
-        ConsumerConfiguration excConf = new ConsumerConfiguration();
-        excConf.setSubscriptionType(SubscriptionType.Failover);
+        ConsumerImpl<byte[]> consumer1Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("subscriber-shared").subscriptionType(SubscriptionType.Shared).subscribe();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
+        ConsumerImpl<byte[]> consumer2Shared = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("subscriber-shared").subscriptionType(SubscriptionType.Shared).subscribe();
 
-        ConsumerImpl consumer1Shared = (ConsumerImpl) pulsarClient.subscribe(topic, "subscriber-shared", sharedConf);
-        ConsumerImpl consumer2Shared = (ConsumerImpl) pulsarClient.subscribe(topic, "subscriber-shared", sharedConf);
-        ConsumerImpl consumer1FailOver = (ConsumerImpl) pulsarClient.subscribe(topic, "subscriber-fo", excConf);
-        ConsumerImpl consumer2FailOver = (ConsumerImpl) pulsarClient.subscribe(topic, "subscriber-fo", excConf);
+        ConsumerImpl<byte[]> consumer1FailOver = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("subscriber-fo").subscriptionType(SubscriptionType.Failover).subscribe();
 
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        ConsumerImpl<byte[]> consumer2FailOver = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("subscriber-fo").subscriptionType(SubscriptionType.Failover).subscribe();
+
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         int totalProduceMsg = 500;
         for (int i = 0; i < totalProduceMsg; i++) {
@@ -374,7 +360,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         }
 
         // consume from shared-subscriptions
-        Message msg = null;
+        Message<?> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < totalProduceMsg; i++) {
             msg = consumer1Shared.receive(500, TimeUnit.MILLISECONDS);
@@ -436,9 +422,8 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         NonPersistentTopicStats stats;
         SubscriptionStats subStats;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionType(SubscriptionType.Shared).subscriptionName(subName).subscribe();
         Thread.sleep(timeWaitToSync);
 
         NonPersistentTopic topicRef = (NonPersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
@@ -452,7 +437,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
         assertEquals(stats.getSubscriptions().keySet().size(), 1);
         assertEquals(subStats.consumers.size(), 1);
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(timeWaitToSync);
 
         int totalProducedMessages = 100;
@@ -496,19 +481,21 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             TopicName dest = TopicName.get(globalTopicName);
 
-            PulsarClient client1 = PulsarClient.create(replication.url1.toString(), new ClientConfiguration());
-            PulsarClient client2 = PulsarClient.create(replication.url2.toString(), new ClientConfiguration());
-            PulsarClient client3 = PulsarClient.create(replication.url3.toString(), new ClientConfiguration());
+            PulsarClient client1 = PulsarClient.builder().serviceUrl(replication.url1.toString()).build();
+            PulsarClient client2 = PulsarClient.builder().serviceUrl(replication.url2.toString()).build();
+            PulsarClient client3 = PulsarClient.builder().serviceUrl(replication.url3.toString()).build();
 
-            ProducerConfiguration producerConf = new ProducerConfiguration();
-            ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-            ConsumerImpl consumer1 = (ConsumerImpl) client1.subscribe(globalTopicName, "subscriber-1", consumerConf);
-            ConsumerImpl consumer2 = (ConsumerImpl) client1.subscribe(globalTopicName, "subscriber-2", consumerConf);
-            ConsumerImpl repl2Consumer = (ConsumerImpl) client2.subscribe(globalTopicName, "subscriber-1",
-                    consumerConf);
-            ConsumerImpl repl3Consumer = (ConsumerImpl) client3.subscribe(globalTopicName, "subscriber-1",
-                    consumerConf);
-            Producer producer = client1.createProducer(globalTopicName, producerConf);
+            ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(globalTopicName)
+                    .subscriptionName("subscriber-1").subscribe();
+            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) client2.newConsumer().topic(globalTopicName)
+                    .subscriptionName("subscriber-2").subscribe();
+
+            ConsumerImpl<byte[]> repl2Consumer = (ConsumerImpl<byte[]>) client2.newConsumer().topic(globalTopicName)
+                    .subscriptionName("subscriber-1").subscribe();
+            ConsumerImpl<byte[]> repl3Consumer = (ConsumerImpl<byte[]>) client3.newConsumer().topic(globalTopicName)
+                    .subscriptionName("subscriber-1").subscribe();
+
+            Producer<byte[]> producer = pulsarClient.newProducer().topic(globalTopicName).create();
 
             Thread.sleep(timeWaitToSync);
 
@@ -540,7 +527,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             }
 
             // (1) consume by consumer1
-            Message msg = null;
+            Message<?> msg = null;
             Set<String> messageSet = Sets.newHashSet();
             for (int i = 0; i < totalProducedMessages; i++) {
                 msg = consumer1.receive(300, TimeUnit.MILLISECONDS);
@@ -623,6 +610,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
     /**
      * verifies load manager assigns topic only if broker started in non-persistent mode
+     *
      * <pre>
      * 1. Start broker with disable non-persistent topic mode
      * 2. Create namespace with non-persistency set
@@ -647,6 +635,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             Field field = PulsarService.class.getDeclaredField("loadManager");
             field.setAccessible(true);
+            @SuppressWarnings("unchecked")
             AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
             LoadManager manager = LoadManager.create(pulsar);
             manager.start();
@@ -662,9 +651,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             }
             assertNull(broker);
 
-            ProducerConfiguration producerConf = new ProducerConfiguration();
             try {
-                Producer producer = pulsarClient.createProducerAsync(topicName, producerConf).get(1, TimeUnit.SECONDS);
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
+                        TimeUnit.SECONDS);
                 producer.close();
                 fail("topic loading should have failed");
             } catch (Exception e) {
@@ -697,9 +686,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setEnableNonPersistentTopics(false);
             stopBroker();
             startBroker();
-            ProducerConfiguration producerConf = new ProducerConfiguration();
             try {
-                Producer producer = pulsarClient.createProducerAsync(topicName, producerConf).get(1, TimeUnit.SECONDS);
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
+                        TimeUnit.SECONDS);
                 producer.close();
                 fail("topic loading should have failed");
             } catch (Exception e) {
@@ -736,6 +725,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             Field field = PulsarService.class.getDeclaredField("loadManager");
             field.setAccessible(true);
+            @SuppressWarnings("unchecked")
             AtomicReference<LoadManager> loadManagerRef = (AtomicReference<LoadManager>) field.get(pulsar);
             LoadManager manager = LoadManager.create(pulsar);
             manager.start();
@@ -751,9 +741,9 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             }
             assertNull(broker);
 
-            ProducerConfiguration producerConf = new ProducerConfiguration();
             try {
-                Producer producer = pulsarClient.createProducerAsync(topicName, producerConf).get(1, TimeUnit.SECONDS);
+                Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).createAsync().get(1,
+                        TimeUnit.SECONDS);
                 producer.close();
                 fail("topic loading should have failed");
             } catch (Exception e) {
@@ -785,15 +775,13 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             conf.setMaxConcurrentNonPersistentMessagePerConnection(1);
             stopBroker();
             startBroker();
-            ProducerConfiguration producerConf = new ProducerConfiguration();
-            ConsumerConfiguration consumerConfig1 = new ConsumerConfiguration();
-            consumerConfig1.setReceiverQueueSize(1);
-            Consumer consumer = pulsarClient.subscribe(topicName, "subscriber-1", consumerConfig1);
-            ConsumerConfiguration consumerConfig2 = new ConsumerConfiguration();
-            consumerConfig2.setReceiverQueueSize(1);
-            consumerConfig2.setSubscriptionType(SubscriptionType.Shared);
-            Consumer consumer2 = pulsarClient.subscribe(topicName, "subscriber-2", consumerConfig2);
-            ProducerImpl producer = (ProducerImpl) pulsarClient.createProducer(topicName, producerConf);
+            Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-1")
+                    .receiverQueueSize(1).subscribe();
+
+            Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName("subscriber-2")
+                    .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared).subscribe();
+
+            ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) pulsarClient.newProducer().topic(topicName).create();
             String firstTimeConnected = producer.getConnectedSince();
             ExecutorService executor = Executors.newFixedThreadPool(5);
             byte[] msgData = "testData".getBytes();
@@ -801,7 +789,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             CountDownLatch latch = new CountDownLatch(totalProduceMessages);
             for (int i = 0; i < totalProduceMessages; i++) {
                 executor.submit(() -> {
-                    producer.sendAsync(msgData).handle((msg,e)->{
+                    producer.sendAsync(msgData).handle((msg, e) -> {
                         latch.countDown();
                         return null;
                     });

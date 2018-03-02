@@ -35,14 +35,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.admin.PulsarAdminException.NotAllowedException;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Reader;
-import org.apache.pulsar.client.api.ReaderConfiguration;
 import org.apache.pulsar.client.api.ReaderListener;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.testng.annotations.AfterMethod;
@@ -67,7 +65,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test
     public void testSimpleTermination() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         /* MessageId msgId1 = */producer.send("test-msg-1".getBytes());
         /* MessageId msgId2 = */producer.send("test-msg-2".getBytes());
@@ -86,7 +84,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test
     public void testCreateProducerOnTerminatedTopic() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         /* MessageId msgId1 = */producer.send("test-msg-1".getBytes());
         /* MessageId msgId2 = */producer.send("test-msg-2".getBytes());
@@ -96,7 +94,7 @@ public class TopicTerminationTest extends BrokerTestBase {
         assertEquals(lastMessageId, msgId3);
 
         try {
-            pulsarClient.createProducer(topicName);
+            pulsarClient.newProducer().topic(topicName).create();
             fail("Should have thrown exception");
         } catch (PulsarClientException.TopicTerminatedException e) {
             // Expected
@@ -105,7 +103,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testTerminateWhilePublishing() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         CyclicBarrier barrier = new CyclicBarrier(2);
         List<CompletableFuture<MessageId>> futures = new ArrayList<>();
@@ -150,7 +148,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test
     public void testDoubleTerminate() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         /* MessageId msgId1 = */producer.send("test-msg-1".getBytes());
         /* MessageId msgId2 = */producer.send("test-msg-2".getBytes());
@@ -178,13 +176,14 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSimpleTerminationConsumer() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").subscribe();
 
         MessageId msgId1 = producer.send("test-msg-1".getBytes());
         MessageId msgId2 = producer.send("test-msg-2".getBytes());
 
-        Message msg1 = consumer.receive();
+        Message<byte[]> msg1 = consumer.receive();
         assertEquals(msg1.getMessageId(), msgId1);
         consumer.acknowledge(msg1);
 
@@ -195,43 +194,41 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
-        Message msg2 = consumer.receive();
+        Message<byte[]> msg2 = consumer.receive();
         assertEquals(msg2.getMessageId(), msgId2);
         consumer.acknowledge(msg2);
 
-        Message msg3 = consumer.receive();
+        Message<byte[]> msg3 = consumer.receive();
         assertEquals(msg3.getMessageId(), msgId3);
         consumer.acknowledge(msg3);
 
-        Message msg4 = consumer.receive(100, TimeUnit.MILLISECONDS);
+        Message<byte[]> msg4 = consumer.receive(100, TimeUnit.MILLISECONDS);
         assertNull(msg4);
 
         Thread.sleep(100);
         assertTrue(consumer.hasReachedEndOfTopic());
     }
 
-    @SuppressWarnings("serial")
     @Test(timeOut = 20000)
     public void testSimpleTerminationMessageListener() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setMessageListener(new MessageListener() {
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").messageListener(new MessageListener<byte[]>() {
 
-            @Override
-            public void received(Consumer consumer, Message msg) {
-                // do nothing
-            }
+                    @Override
+                    public void received(Consumer<byte[]> consumer, Message<byte[]> msg) {
+                        // do nothing
+                    }
 
-            @Override
-            public void reachedEndOfTopic(Consumer consumer) {
-                latch.countDown();
-                assertTrue(consumer.hasReachedEndOfTopic());
-            }
-        });
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-sub", conf);
+                    @Override
+                    public void reachedEndOfTopic(Consumer<byte[]> consumer) {
+                        latch.countDown();
+                        assertTrue(consumer.hasReachedEndOfTopic());
+                    }
+                }).subscribe();
 
         /* MessageId msgId1 = */ producer.send("test-msg-1".getBytes());
         /* MessageId msgId2 = */ producer.send("test-msg-2".getBytes());
@@ -251,7 +248,7 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSimpleTerminationReader() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         MessageId msgId1 = producer.send("test-msg-1".getBytes());
         MessageId msgId2 = producer.send("test-msg-2".getBytes());
@@ -260,46 +257,43 @@ public class TopicTerminationTest extends BrokerTestBase {
         MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId3);
 
-        Reader reader = pulsarClient.createReader(topicName, MessageId.earliest, new ReaderConfiguration());
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.earliest).create();
 
-        Message msg1 = reader.readNext();
+        Message<byte[]> msg1 = reader.readNext();
         assertEquals(msg1.getMessageId(), msgId1);
 
-        Message msg2 = reader.readNext();
+        Message<byte[]> msg2 = reader.readNext();
         assertEquals(msg2.getMessageId(), msgId2);
 
-        Message msg3 = reader.readNext();
+        Message<byte[]> msg3 = reader.readNext();
         assertEquals(msg3.getMessageId(), msgId3);
 
-        Message msg4 = reader.readNext(100, TimeUnit.MILLISECONDS);
+        Message<byte[]> msg4 = reader.readNext(100, TimeUnit.MILLISECONDS);
         assertNull(msg4);
 
         Thread.sleep(100);
         assertTrue(reader.hasReachedEndOfTopic());
     }
 
-    @SuppressWarnings("serial")
     @Test(timeOut = 20000)
     public void testSimpleTerminationReaderListener() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         CountDownLatch latch = new CountDownLatch(1);
 
-        ReaderConfiguration conf = new ReaderConfiguration();
-        conf.setReaderListener(new ReaderListener() {
+        Reader<byte[]> reader = pulsarClient.newReader().topic(topicName).startMessageId(MessageId.latest)
+                .readerListener(new ReaderListener<byte[]>() {
+                    @Override
+                    public void received(Reader<byte[]> reader, Message<byte[]> msg) {
+                        // do nothing
+                    }
 
-            @Override
-            public void received(Reader r, Message msg) {
-                // do nothing
-            }
-
-            @Override
-            public void reachedEndOfTopic(Reader reader) {
-                latch.countDown();
-                assertTrue(reader.hasReachedEndOfTopic());
-            }
-        });
-        Reader reader = pulsarClient.createReader(topicName, MessageId.latest, conf);
+                    @Override
+                    public void reachedEndOfTopic(Reader<byte[]> reader) {
+                        latch.countDown();
+                        assertTrue(reader.hasReachedEndOfTopic());
+                    }
+                }).create();
 
         /* MessageId msgId1 = */ producer.send("test-msg-1".getBytes());
         /* MessageId msgId2 = */ producer.send("test-msg-2".getBytes());
@@ -317,14 +311,15 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSubscribeOnTerminatedTopic() throws Exception {
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         /* MessageId msgId1 = */ producer.send("test-msg-1".getBytes());
         MessageId msgId2 = producer.send("test-msg-2".getBytes());
 
         MessageId lastMessageId = admin.persistentTopics().terminateTopicAsync(topicName).get();
         assertEquals(lastMessageId, msgId2);
 
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").subscribe();
 
         Thread.sleep(200);
         assertTrue(consumer.hasReachedEndOfTopic());
@@ -332,10 +327,11 @@ public class TopicTerminationTest extends BrokerTestBase {
 
     @Test(timeOut = 20000)
     public void testSubscribeOnTerminatedTopicWithNoMessages() throws Exception {
-        pulsarClient.createProducer(topicName);
+        pulsarClient.newProducer().topic(topicName).create();
         admin.persistentTopics().terminateTopicAsync(topicName).get();
 
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-sub").subscribe();
 
         Thread.sleep(200);
         assertTrue(consumer.hasReachedEndOfTopic());

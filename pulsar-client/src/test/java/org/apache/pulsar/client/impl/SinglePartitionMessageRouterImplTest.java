@@ -33,7 +33,7 @@ public class SinglePartitionMessageRouterImplTest {
 
     @Test
     public void testChoosePartitionWithoutKey() {
-        Message msg = mock(Message.class);
+        Message<?> msg = mock(Message.class);
         when(msg.getKey()).thenReturn(null);
 
         SinglePartitionMessageRouterImpl router = new SinglePartitionMessageRouterImpl(1234, HashingScheme.JavaStringHash);
@@ -44,10 +44,10 @@ public class SinglePartitionMessageRouterImplTest {
     public void testChoosePartitionWithKey() {
         String key1 = "key1";
         String key2 = "key2";
-        Message msg1 = mock(Message.class);
+        Message<?> msg1 = mock(Message.class);
         when(msg1.hasKey()).thenReturn(true);
         when(msg1.getKey()).thenReturn(key1);
-        Message msg2 = mock(Message.class);
+        Message<?> msg2 = mock(Message.class);
         when(msg2.hasKey()).thenReturn(true);
         when(msg2.getKey()).thenReturn(key2);
 

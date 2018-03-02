@@ -65,7 +65,7 @@ public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
 
         assertEquals(admin.persistentTopics().getSubscriptions(topic), Lists.newArrayList("sub-1"));
 
-        Producer p1 = pulsarClient.createProducer(topic);
+        Producer<byte[]> p1 = pulsarClient.newProducer().topic(topic).create();
         p1.send("test-1".getBytes());
         p1.send("test-2".getBytes());
         MessageId m3 = p1.send("test-3".getBytes());
@@ -98,8 +98,7 @@ public class CreateSubscriptionTest extends MockedPulsarServiceBaseTest {
         }
 
         for (int i = 0; i < 10; i++) {
-            assertEquals(
-                    admin.persistentTopics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
+            assertEquals(admin.persistentTopics().getSubscriptions(TopicName.get(topic).getPartition(i).toString()),
                     Lists.newArrayList("sub-1"));
         }
     }

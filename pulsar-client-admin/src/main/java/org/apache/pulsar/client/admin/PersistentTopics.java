@@ -784,7 +784,7 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<Message> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
+    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
 
     /**
      * Peek messages from a topic subscription asynchronously
@@ -797,7 +797,7 @@ public interface PersistentTopics {
      *            Number of messages
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message>> peekMessagesAsync(String topic, String subName, int numMessages);
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
 
     /**
      * Create a new subscription on a topic

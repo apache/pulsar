@@ -80,15 +80,14 @@ public class IncrementPartitionsTest extends MockedPulsarServiceBaseTest {
         admin.persistentTopics().createPartitionedTopic(partitionedTopicName, 10);
         assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 10);
 
-        Consumer consumer = pulsarClient.subscribe(partitionedTopicName, "sub-1");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(partitionedTopicName).subscriptionName("sub-1")
+                .subscribe();
 
         admin.persistentTopics().updatePartitionedTopic(partitionedTopicName, 20);
         assertEquals(admin.persistentTopics().getPartitionedTopicMetadata(partitionedTopicName).partitions, 20);
 
-        assertEquals(
-                admin.persistentTopics()
-                        .getSubscriptions(TopicName.get(partitionedTopicName).getPartition(15).toString()),
-                Lists.newArrayList("sub-1"));
+        assertEquals(admin.persistentTopics().getSubscriptions(
+                TopicName.get(partitionedTopicName).getPartition(15).toString()), Lists.newArrayList("sub-1"));
 
         consumer.close();
     }

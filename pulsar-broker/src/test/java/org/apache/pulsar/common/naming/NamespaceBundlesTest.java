@@ -123,6 +123,7 @@ public class NamespaceBundlesTest {
                 factory.getBundle(nsFld, Range.range(0x40000000l, BoundType.CLOSED, 0xffffffffl, BoundType.CLOSED)));
     }
 
+    @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
         LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);

@@ -18,8 +18,8 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static com.google.common.base.Preconditions.checkNotNull;
 import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.mockito.Mockito.doReturn;
 
 import java.util.concurrent.TimeUnit;
@@ -28,10 +28,9 @@ import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -53,7 +52,7 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
-        
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
         doReturn(mockZooKeeperClientFactory).when(proxyService).getZooKeeperClientFactory();
 
@@ -70,8 +69,10 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducer() throws Exception {
-        PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePort());
-        Producer producer = client.createProducer("persistent://sample/test/local/producer-topic");
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+                .build();
+        Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/producer-topic")
+                .create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
@@ -82,23 +83,26 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testProducerConsumer() throws Exception {
-        PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePort());
-        Producer producer = client.createProducer("persistent://sample/test/local/producer-consumer-topic");
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+                .build();
+        Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/producer-consumer-topic")
+                .create();
 
         // Create a consumer directly attached to broker
-        Consumer consumer = pulsarClient.subscribe("persistent://sample/test/local/producer-consumer-topic", "my-sub");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic("persistent://sample/test/local/producer-consumer-topic").subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
 
         for (int i = 0; i < 10; i++) {
-            Message msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
             checkNotNull(msg);
             consumer.acknowledge(msg);
         }
 
-        Message msg = consumer.receive(0, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(0, TimeUnit.SECONDS);
         checkArgument(msg == null);
 
         consumer.close();
@@ -108,22 +112,23 @@ public class ProxyTest extends MockedPulsarServiceBaseTest {
     @Test
     public void testPartitions() throws Exception {
         admin.properties().createProperty("sample", new PropertyAdmin());
-        PulsarClient client = PulsarClient.create("pulsar://localhost:" + proxyConfig.getServicePort());
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+                .build();
         admin.persistentTopics().createPartitionedTopic("persistent://sample/test/local/partitioned-topic", 2);
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer producer = client.createProducer("persistent://sample/test/local/partitioned-topic", producerConf);
+        Producer<byte[]> producer = client.newProducer().topic("persistent://sample/test/local/partitioned-topic")
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // Create a consumer directly attached to broker
-        Consumer consumer = pulsarClient.subscribe("persistent://sample/test/local/partitioned-topic", "my-sub");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://sample/test/local/partitioned-topic")
+                .subscriptionName("my-sub").subscribe();
 
         for (int i = 0; i < 10; i++) {
             producer.send("test".getBytes());
         }
 
         for (int i = 0; i < 10; i++) {
-            Message msg = consumer.receive(1, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
             checkNotNull(msg);
         }
 

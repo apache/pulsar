@@ -96,8 +96,10 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace(namespaceName);
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
-        admin.namespaces().grantPermissionOnNamespace(namespaceName, "client", Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "proxy",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
+        admin.namespaces().grantPermissionOnNamespace(namespaceName, "client",
+                Sets.newHashSet(AuthAction.consume, AuthAction.produce));
 
         // Step 2: Run Pulsar Proxy without forwarding authData - expect Exception
         ProxyConfiguration proxyConfig = new ProxyConfiguration();
@@ -114,9 +116,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         proxyConfig.setAuthenticationProviders(providers);
 
         try (ProxyService proxyService = new ProxyService(proxyConfig);
-             PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams)) {
+                PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams)) {
             proxyService.start();
-            proxyClient.subscribe(topicName, subscriptionName);
+            proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe();
             Assert.fail("Shouldn't be able to subscribe, auth required");
         } catch (PulsarClientException.AuthorizationException e) {
             // expected behaviour
@@ -125,9 +127,9 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
         // Step 3: Create proxy with forwardAuthData enabled
         proxyConfig.setForwardAuthorizationCredentials(true);
         try (ProxyService proxyService = new ProxyService(proxyConfig);
-             PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams)) {
+                PulsarClient proxyClient = createPulsarClient(proxyServiceUrl, clientAuthParams)) {
             proxyService.start();
-            proxyClient.subscribe(topicName, subscriptionName).close();
+            proxyClient.newConsumer().topic(topicName).subscriptionName(subscriptionName).subscribe().close();
         }
     }
 
