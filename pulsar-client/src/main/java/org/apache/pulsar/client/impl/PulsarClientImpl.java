@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.impl;
 
-import static com.google.common.base.Preconditions.checkState;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 import com.google.common.collect.Lists;
@@ -256,7 +255,7 @@ public class PulsarClientImpl implements PulsarClient {
                 log.debug("[{}] Received topic metadata. partitions: {}", topic, metadata.partitions);
             }
 
-            ProducerBase producer;
+            ProducerBase<T> producer;
             if (metadata.partitions > 1) {
                 producer = new PartitionedProducerImpl<>(PulsarClientImpl.this, topic, conf, metadata.partitions,
                         producerCreatedFuture, schema);
@@ -437,7 +436,7 @@ public class PulsarClientImpl implements PulsarClient {
 
                 List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
                 conf.getTopicNames().addAll(topicsList);
-                ConsumerBase consumer = new PatternTopicsConsumerImpl<>(conf.getTopicsPattern(),
+                ConsumerBase<T> consumer = new PatternTopicsConsumerImpl<>(conf.getTopicsPattern(),
                     PulsarClientImpl.this,
                     conf,
                     externalExecutorProvider.getExecutor(),
@@ -587,12 +586,12 @@ public class PulsarClientImpl implements PulsarClient {
         synchronized (producers) {
             // Copy to a new list, because the closing will trigger a removal from the map
             // and invalidate the iterator
-            List<ProducerBase> producersToClose = Lists.newArrayList(producers.keySet());
+            List<ProducerBase<?>> producersToClose = Lists.newArrayList(producers.keySet());
             producersToClose.forEach(p -> futures.add(p.closeAsync()));
         }
 
         synchronized (consumers) {
-            List<ConsumerBase> consumersToClose = Lists.newArrayList(consumers.keySet());
+            List<ConsumerBase<?>> consumersToClose = Lists.newArrayList(consumers.keySet());
             consumersToClose.forEach(c -> futures.add(c.closeAsync()));
         }
 
@@ -688,13 +687,13 @@ public class PulsarClientImpl implements PulsarClient {
         return EventLoopUtil.newEventLoopGroup(conf.getNumIoThreads(), threadFactory);
     }
 
-    void cleanupProducer(ProducerBase producer) {
+    void cleanupProducer(ProducerBase<?> producer) {
         synchronized (producers) {
             producers.remove(producer);
         }
     }
 
-    void cleanupConsumer(ConsumerBase consumer) {
+    void cleanupConsumer(ConsumerBase<?> consumer) {
         synchronized (consumers) {
             consumers.remove(consumer);
         }

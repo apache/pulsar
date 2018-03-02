@@ -53,7 +53,7 @@ class BatchMessageContainer {
     // sequence id for this batch which will be persisted as a single entry by broker
     long sequenceId = -1;
     ByteBuf batchedMessageMetadataAndPayload;
-    List<MessageImpl> messages = Lists.newArrayList();
+    List<MessageImpl<?>> messages = Lists.newArrayList();
     // keep track of callbacks for individual messages being published in a batch
     SendCallback firstCallback;
 
@@ -73,13 +73,13 @@ class BatchMessageContainer {
         this.producerName = producerName;
     }
 
-    boolean hasSpaceInBatch(MessageImpl msg) {
+    boolean hasSpaceInBatch(MessageImpl<?> msg) {
         int messageSize = msg.getDataBuffer().readableBytes();
         return ((messageSize + currentBatchSizeBytes) <= MAX_MESSAGE_BATCH_SIZE_BYTES
                 && numMessagesInBatch < maxNumMessagesInBatch);
     }
 
-    void add(MessageImpl msg, SendCallback callback) {
+    void add(MessageImpl<?> msg, SendCallback callback) {
 
         if (log.isDebugEnabled()) {
             log.debug("[{}] [{}] add message to batch, num messages in batch so far {}", topicName, producerName,
