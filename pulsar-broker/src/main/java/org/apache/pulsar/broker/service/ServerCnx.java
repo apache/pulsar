@@ -719,15 +719,14 @@ public class ServerCnx extends PulsarHandler {
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
+            .user(originalPrincipal)
+            .type(getType(protocolSchema.getType()))
             .props(protocolSchema.getPropertiesList().stream().collect(
                 Collectors.toMap(
                     PulsarApi.KeyValue::getKey,
                     PulsarApi.KeyValue::getValue
                 )
-            ))
-            .user(originalPrincipal)
-            .type(getType(protocolSchema.getType()))
-            .build();
+            )).build();
     }
 
     @Override
