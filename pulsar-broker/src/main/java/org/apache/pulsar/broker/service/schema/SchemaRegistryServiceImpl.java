@@ -74,7 +74,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     @NotNull
-    public CompletableFuture<SchemaVersion> putSchema(String schemaId, Schema schema) {
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, Schema schema) {
         SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
             .setType(Functions.convertFromDomainType(schema.type))
             .setSchema(ByteString.copyFrom(schema.data))

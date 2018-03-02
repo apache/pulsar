@@ -36,7 +36,7 @@ public class DefaultSchemaRegistryService implements SchemaRegistryService {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> putSchema(String schemaId, Schema schema) {
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, Schema schema) {
         return completedFuture(null);
     }
 
