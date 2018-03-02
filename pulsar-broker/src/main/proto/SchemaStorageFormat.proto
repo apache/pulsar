@@ -30,6 +30,7 @@ message PositionInfo {
 message IndexEntry {
     required int64 version = 1;
     required PositionInfo position = 2;
+    required bytes hash = 3;
 }
 
 message SchemaEntry {
@@ -40,5 +41,6 @@ message SchemaEntry {
 message SchemaLocator {
     required int64 version = 1;
     required PositionInfo position = 2;
-    repeated IndexEntry index = 3;
+    required bytes hash = 3;
+    repeated IndexEntry index = 4;
 }

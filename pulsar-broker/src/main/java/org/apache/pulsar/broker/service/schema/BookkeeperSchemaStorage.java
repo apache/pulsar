@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -27,9 +27,11 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorage.Functions.newSchemaEntry;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.ByteString;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -83,8 +85,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @Override
-    public CompletableFuture<SchemaVersion> put(String key, byte[] value) {
-        return putSchema(key, value).thenApply(LongSchemaVersion::new);
+    public CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash) {
+        return putSchemaIfAbsent(key, value, hash).thenApply(LongSchemaVersion::new);
     }
 
     @Override
@@ -148,7 +150,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
                 return completedFuture(null);
             }
 
-            return findSchemaEntry(schemaLocator.getIndexList(), version)
+            return findSchemaEntryByVersion(schemaLocator.getIndexList(), version)
                 .thenApply(entry ->
                     new StoredSchema(
                         entry.getSchemaData().toByteArray(),
@@ -160,8 +162,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<Long> putSchema(String schemaId, byte[] data) {
-        return getOrCreateSchemaLocator(getSchemaPath(schemaId)).thenCompose(locatorEntry -> {
+    private CompletableFuture<Long> putSchema(String schemaId, byte[] data, byte[] hash) {
+        return getOrCreateSchemaLocator(getSchemaPath(schemaId), hash).thenCompose(locatorEntry -> {
             long nextVersion = locatorEntry.locator.getVersion() + 1;
             return addNewSchemaEntryToStore(locatorEntry.locator.getIndexList(), data).thenCompose(position ->
                 updateSchemaLocator(locatorEntry, position, schemaId, nextVersion)
@@ -170,12 +172,28 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
+    private CompletableFuture<Long> putSchemaIfAbsent(String schemaId, byte[] data, byte[] hash) {
+        return getOrCreateSchemaLocator(getSchemaPath(schemaId), hash).thenCompose(locatorEntry ->
+            findSchemaEntryByHash(locatorEntry.locator.getIndexList(), hash).thenCompose(entry -> {
+                if (isNull(entry)) {
+                    long nextVersion = locatorEntry.locator.getVersion() + 1;
+                    return addNewSchemaEntryToStore(locatorEntry.locator.getIndexList(), data).thenCompose(position ->
+                        updateSchemaLocator(locatorEntry, position, schemaId, nextVersion)
+                    );
+                } else {
+                    return completedFuture(locatorEntry.version.longValue());
+                }
+            })
+        );
+    }
+
+    @NotNull
     private CompletableFuture<Long> deleteSchema(String schemaId) {
         return getSchema(schemaId).thenCompose(schemaAndVersion -> {
             if (isNull(schemaAndVersion)) {
                 return completedFuture(null);
             } else {
-                return putSchema(schemaId, new byte[]{});
+                return putSchema(schemaId, new byte[]{}, new byte[]{});
             }
         });
     }
@@ -219,7 +237,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntry(
+    private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntryByVersion(
         List<SchemaStorageFormat.IndexEntry> index,
         long version
     ) {
@@ -231,7 +249,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         SchemaStorageFormat.IndexEntry lowest = index.get(0);
         if (version < lowest.getVersion()) {
             return readSchemaEntry(lowest.getPosition())
-                .thenCompose(entry -> findSchemaEntry(entry.getIndexList(), version));
+                .thenCompose(entry -> findSchemaEntryByVersion(entry.getIndexList(), version));
         }
 
         for (SchemaStorageFormat.IndexEntry entry : index) {
@@ -243,6 +261,27 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
         }
 
         return completedFuture(null);
+    }
+
+    @NotNull
+    private CompletableFuture<SchemaStorageFormat.SchemaEntry> findSchemaEntryByHash(
+        List<SchemaStorageFormat.IndexEntry> index,
+        byte[] hash
+    ) {
+
+        if (index.isEmpty()) {
+            return completedFuture(null);
+        }
+
+        for (SchemaStorageFormat.IndexEntry entry : index) {
+            if (Arrays.equals(entry.getHash().toByteArray(), hash)) {
+                return readSchemaEntry(entry.getPosition());
+            }
+        }
+
+        return readSchemaEntry(index.get(0).getPosition())
+            .thenCompose(entry -> findSchemaEntryByHash(entry.getIndexList(), hash));
+
     }
 
     @NotNull
@@ -280,13 +319,14 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     }
 
     @NotNull
-    private CompletableFuture<LocatorEntry> getOrCreateSchemaLocator(String schema) {
+    private CompletableFuture<LocatorEntry> getOrCreateSchemaLocator(String schema, byte[] hash) {
         return getSchemaLocator(schema).thenCompose(schemaLocatorStatEntry -> {
             if (schemaLocatorStatEntry.isPresent()) {
                 return completedFuture(schemaLocatorStatEntry.get());
             } else {
                 SchemaStorageFormat.SchemaLocator locator = SchemaStorageFormat.SchemaLocator.newBuilder()
                     .setVersion(-1L)
+                    .setHash(copyFrom(hash))
                     .setPosition(SchemaStorageFormat.PositionInfo.newBuilder()
                         .setEntryId(-1L)
                         .setLedgerId(-1L)

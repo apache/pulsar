@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
+import static java.util.Objects.hash;
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
@@ -37,6 +40,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
+    private static HashFunction hashFunction = Hashing.sha256();
     private final SchemaStorage schemaStorage;
     private final Clock clock;
 
@@ -75,6 +79,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, Schema schema) {
+        byte[] context = hashFunction.hashBytes(schema.data).asBytes();
         SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
             .setType(Functions.convertFromDomainType(schema.type))
             .setSchema(ByteString.copyFrom(schema.data))
@@ -84,14 +89,14 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             .setTimestamp(clock.millis())
             .addAllProps(toPairs(schema.props))
             .build();
-        return schemaStorage.put(schemaId, info.toByteArray());
+        return schemaStorage.put(schemaId, info.toByteArray(), context);
     }
 
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
-        return schemaStorage.put(schemaId, deletedEntry);
+        return schemaStorage.put(schemaId, deletedEntry, null);
     }
 
     @Override
