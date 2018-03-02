@@ -18,15 +18,19 @@
  */
 package org.apache.pulsar.common.schema;
 
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
+import lombok.Data;
 
 @Builder
+@Data
 public class Schema {
     public final SchemaType type;
     public final boolean isDeleted;
     public final long timestamp;
     public final String user;
     public final byte[] data;
-    public final Map<String, String> props;
+    @Builder.Default
+    public final Map<String, String> props = new HashMap<>();
 }
