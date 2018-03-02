@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
-import static org.apache.bookkeeper.util.MathUtils.signSafeMod;
+import static org.apache.bookkeeper.common.util.MathUtils.signSafeMod;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.common.util.ObjectMapperFactory.getThreadLocal;
 
@@ -30,7 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.naming.TopicName;
@@ -58,7 +58,8 @@ public class BrokerDiscoveryProvider implements Closeable {
     final GlobalZooKeeperCache globalZkCache;
     private final AtomicInteger counter = new AtomicInteger();
 
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(4, "pulsar-proxy-ordered");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(4)
+            .name("pulsar-proxy-ordered").build();
     private final ScheduledExecutorService scheduledExecutorScheduler = Executors.newScheduledThreadPool(4,
             new DefaultThreadFactory("pulsar-proxy-scheduled-executor"));
 

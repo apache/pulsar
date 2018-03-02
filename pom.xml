@@ -91,13 +91,14 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-storm</module>
     <module>pulsar-spark</module>
     <module>pulsar-zookeeper-utils</module>
-    <module>pulsar-checksum</module>
     <module>pulsar-testclient</module>
     <module>pulsar-broker-auth-athenz</module>
     <module>pulsar-client-auth-athenz</module>
     <module>pulsar-client-kafka-compat</module>
     <module>pulsar-zookeeper</module>
     <module>all</module>
+    <module>docker</module>
+    <module>tests</module>
   </modules>
 
   <issueManagement>
@@ -109,7 +110,7 @@ flexible messaging model and an intuitive client API.</description>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 
-    <bookkeeper.version>4.3.1.91-yahoo</bookkeeper.version>
+    <bookkeeper.version>4.7.0-SNAPSHOT</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
     <netty.version>4.1.21.Final</netty.version>
     <storm.version>1.0.5</storm.version>
@@ -124,6 +125,7 @@ flexible messaging model and an intuitive client API.</description>
     <bouncycastle.version>1.55</bouncycastle.version>
     <jackson.version>2.8.4</jackson.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
+    <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
   </properties>
 
   <dependencyManagement>
@@ -353,17 +355,11 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>log4j-slf4j-impl</artifactId>
         <version>${log4j2.version}</version>
       </dependency>
-      
+
       <dependency>
         <groupId>org.apache.logging.log4j</groupId>
         <artifactId>log4j-web</artifactId>
         <version>${log4j2.version}</version>
-      </dependency>
-
-      <dependency>
-        <groupId>com.fasterxml.jackson.dataformat</groupId>
-        <artifactId>jackson-dataformat-yaml</artifactId>
-        <version>${jackson.version}</version>
       </dependency>
 
       <dependency>
@@ -547,6 +543,12 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
+        <groupId>com.carrotsearch</groupId>
+        <artifactId>hppc</artifactId>
+        <version>0.7.3</version>
+      </dependency>
+
+      <dependency>
         <groupId>org.apache.spark</groupId>
         <artifactId>spark-streaming_2.10</artifactId>
         <version>2.1.0</version>
@@ -603,8 +605,25 @@ flexible messaging model and an intuitive client API.</description>
   <dependencies>
     <!-- These dependencies are common to all the submodules -->
     <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-simple</artifactId>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>buildtools</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
       <scope>test</scope>
     </dependency>
 
@@ -671,10 +690,6 @@ flexible messaging model and an intuitive client API.</description>
         <configuration>
           <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
             -Dio.netty.leakDetectionLevel=advanced
-            -Dorg.slf4j.simpleLogger.showDateTime=true
-            -Dorg.slf4j.simpleLogger.log.org.apache.zookeeper=off
-            -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper=off
-            -Dorg.slf4j.simpleLogger.log.org.apache.bookkeeper.mledger=info
           </argLine>
           <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
@@ -970,6 +985,9 @@ flexible messaging model and an intuitive client API.</description>
         </plugins>
       </reporting>
     </profile>
+    <profile>
+      <id>docker</id>
+    </profile>
   </profiles>
 
   <repositories>
@@ -977,10 +995,6 @@ flexible messaging model and an intuitive client API.</description>
       <id>central</id>
       <layout>default</layout>
       <url>http://repo1.maven.org/maven2</url>
-    </repository>
-    <repository>
-      <id>bookkeeper-yahoo-mvn-repo</id>
-      <url>https://raw.githubusercontent.com/yahoo/bookkeeper/mvn-repo</url>
     </repository>
     <repository>
       <snapshots>

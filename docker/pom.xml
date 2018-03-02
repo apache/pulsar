@@ -32,7 +32,6 @@
   <artifactId>docker-images</artifactId>
   <name>Apache Pulsar :: Docker Images</name>
   <properties>
-    <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
     <docker.organization>apachepulsar</docker.organization>
   </properties>
   <modules>

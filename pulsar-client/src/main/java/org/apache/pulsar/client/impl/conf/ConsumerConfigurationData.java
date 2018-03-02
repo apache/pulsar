@@ -25,6 +25,7 @@ import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
+import java.util.regex.Pattern;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
 import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
@@ -42,6 +43,8 @@ public class ConsumerConfigurationData implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private Set<String> topicNames = Sets.newTreeSet();
+
+    private Pattern topicsPattern;
 
     private String subscriptionName;
 
@@ -73,6 +76,8 @@ public class ConsumerConfigurationData implements Serializable, Cloneable {
     private boolean readCompacted = false;
 
     private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+
+    private int patternAutoDiscoveryPeriod = 1;
 
     @JsonIgnore
     public String getSingleTopic() {

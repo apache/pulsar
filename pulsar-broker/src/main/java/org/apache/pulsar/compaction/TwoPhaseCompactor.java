@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -224,7 +225,7 @@ public class TwoPhaseCompactor extends Compactor {
                                  } else {
                                      bkf.complete(ledger);
                                  }
-                             }, null);
+                             }, null, Collections.emptyMap());
         return bkf;
     }
 

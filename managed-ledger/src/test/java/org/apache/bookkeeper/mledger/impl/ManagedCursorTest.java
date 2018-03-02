@@ -2463,7 +2463,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
     /**
      * Verifies cursor persists individually unack range into cursor-ledger if range count is higher than
      * MaxUnackedRangesToPersistInZk
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 20000)
@@ -2517,7 +2517,8 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         final AtomicInteger individualDeletedMessagesCount = new AtomicInteger(0);
         bkc.asyncOpenLedger(c1.getCursorLedger(), DigestType.MAC, "".getBytes(), (rc, lh, ctx) -> {
             if (rc == BKException.Code.OK) {
-                lh.asyncReadLastEntry((rc1, lh1, seq, ctx1) -> {
+                long lastEntry = lh.getLastAddConfirmed();
+                lh.asyncReadEntries(lastEntry, lastEntry, (rc1, lh1, seq, ctx1) -> {
                     try {
                         LedgerEntry entry = seq.nextElement();
                         PositionInfo positionInfo;
@@ -2549,7 +2550,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
 
     /**
      * Close Cursor without MaxUnackedRangesToPersistInZK: It should store individually unack range into Zk
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 20000)
