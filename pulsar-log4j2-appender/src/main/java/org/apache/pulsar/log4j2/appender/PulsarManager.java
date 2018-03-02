@@ -29,6 +29,7 @@ import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
@@ -71,9 +72,11 @@ public class PulsarManager extends AbstractManager {
     public boolean releaseSub(final long timeout, final TimeUnit timeUnit) {
         if (producer != null) {
             try {
-                producer.close();
-            } catch (PulsarClientException e) {
+                producer.closeAsync().get(timeout, timeUnit);
+            } catch (Exception e) {
                 // exceptions on closing
+                LOGGER.warn("Failed to close producer within {} milliseconds",
+                    timeUnit.toMillis(timeout), e);
             }
         }
         return true;
@@ -111,13 +114,20 @@ public class PulsarManager extends AbstractManager {
             client = PULSAR_CLIENT_BUILDER.get()
                 .serviceUrl(serviceUrl)
                 .build();
-            producer = client.newProducer()
+            ProducerBuilder<byte[]> producerBuilder = client.newProducer()
                 .topic(topic)
                 .producerName("pulsar-log4j2-appender-" + topic)
-                .enableBatching(true)
-                .batchingMaxPublishDelay(1, TimeUnit.MILLISECONDS)
-                .blockIfQueueFull(false)
-                .create();
+                .blockIfQueueFull(false);
+            if (syncSend) {
+                // disable batching for sync send
+                producerBuilder = producerBuilder.enableBatching(false);
+            } else {
+                // enable batching in 10 ms for async send
+                producerBuilder = producerBuilder
+                    .enableBatching(true)
+                    .batchingMaxPublishDelay(10, TimeUnit.MILLISECONDS);
+            }
+            producer = producerBuilder.create();
         } catch (Exception t) {
             LOGGER.error("Failed to start pulsar manager {}", t);
             throw t;
