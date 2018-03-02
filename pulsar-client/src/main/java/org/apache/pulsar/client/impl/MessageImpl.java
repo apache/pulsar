@@ -56,7 +56,8 @@ public class MessageImpl<T> implements Message<T> {
 
     // Constructor for out-going message
     static <T> MessageImpl<T> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload, Schema<T> schema) {
-        MessageImpl<T> msg = RECYCLER.get();
+        @SuppressWarnings("unchecked")
+        MessageImpl<T> msg = (MessageImpl<T>) RECYCLER.get();
         msg.msgMetadataBuilder = msgMetadataBuilder;
         msg.messageId = null;
         msg.cnx = null;
@@ -67,7 +68,8 @@ public class MessageImpl<T> implements Message<T> {
     }
 
     static MessageImpl<byte[]> create(MessageMetadata.Builder msgMetadataBuilder, ByteBuffer payload) {
-        MessageImpl<byte[]> msg = RECYCLER.get();
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
         msg.msgMetadataBuilder = msgMetadataBuilder;
         msg.messageId = null;
         msg.cnx = null;
@@ -141,8 +143,9 @@ public class MessageImpl<T> implements Message<T> {
         this.properties = Collections.unmodifiableMap(properties);
     }
 
-    public static MessageImpl deserialize(ByteBuf headersAndPayload) throws IOException {
-        MessageImpl msg = RECYCLER.get();
+    public static MessageImpl<byte[]> deserialize(ByteBuf headersAndPayload) throws IOException {
+        @SuppressWarnings("unchecked")
+        MessageImpl<byte[]> msg = (MessageImpl<byte[]>) RECYCLER.get();
         MessageMetadata msgMetadata = Commands.parseMessageMetadata(headersAndPayload);
 
         msg.msgMetadataBuilder = MessageMetadata.newBuilder(msgMetadata);
@@ -287,16 +290,16 @@ public class MessageImpl<T> implements Message<T> {
         }
     }
 
-    private MessageImpl(Handle<MessageImpl> recyclerHandle) {
+    private MessageImpl(Handle<MessageImpl<?>> recyclerHandle) {
         this.recyclerHandle = recyclerHandle;
     }
 
-    private Handle<MessageImpl> recyclerHandle;
+    private Handle<MessageImpl<?>> recyclerHandle;
 
-    private final static Recycler<MessageImpl> RECYCLER = new Recycler<MessageImpl>() {
+    private final static Recycler<MessageImpl<?>> RECYCLER = new Recycler<MessageImpl<?>>() {
         @Override
-        protected MessageImpl newObject(Handle<MessageImpl> handle) {
-            return new MessageImpl(handle);
+        protected MessageImpl<?> newObject(Handle<MessageImpl<?>> handle) {
+            return new MessageImpl<>(handle);
         }
     };
 
