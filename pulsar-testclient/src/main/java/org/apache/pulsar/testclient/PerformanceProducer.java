@@ -42,16 +42,14 @@ import java.util.concurrent.atomic.LongAdder;
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.HistogramLogWriter;
 import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.testclient.utils.PaddingDecimalFormat;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -233,15 +231,17 @@ public class PerformanceProducer {
         String prefixTopicName = arguments.topics.get(0);
         List<Future<Producer<byte[]>>> futures = Lists.newArrayList();
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(arguments.maxConnections);
-        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
-        clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
+        ClientBuilder clientBuilder = PulsarClient.builder() //
+                .serviceUrl(arguments.serviceURL) //
+                .connectionsPerBroker(arguments.maxConnections) //
+                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                .enableTls(arguments.useTls) //
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
+
         if (isNotBlank(arguments.authPluginClassName)) {
-            clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
-        clientConf.setUseTls(arguments.useTls);
-        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -264,27 +264,26 @@ public class PerformanceProducer {
                 return null;
             }
         }
-        PulsarClient client = new PulsarClientImpl(arguments.serviceURL, clientConf);
+        PulsarClient client = clientBuilder.build();
+        ProducerBuilder<byte[]> producerBuilder = client.newProducer() //
+                .sendTimeout(0, TimeUnit.SECONDS) //
+                .compressionType(arguments.compression) //
+                .maxPendingMessages(arguments.maxOutstanding) //
+                // enable round robin message routing if it is a partitioned topic
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition);
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setSendTimeout(0, TimeUnit.SECONDS);
-        producerConf.setCompressionType(arguments.compression);
-        producerConf.setMaxPendingMessages(arguments.maxOutstanding);
-        // enable round robin message routing if it is a partitioned topic
-        producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
         if (arguments.batchTime > 0) {
-            producerConf.setBatchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS);
-            producerConf.setBatchingEnabled(true);
+            producerBuilder.batchingMaxPublishDelay(arguments.batchTime, TimeUnit.MILLISECONDS).enableBatching(true);
         }
 
         // Block if queue is full else we will start seeing errors in sendAsync
-        producerConf.setBlockIfQueueFull(true);
+        producerBuilder.blockIfQueueFull(true);
 
         if (arguments.encKeyName != null) {
-            producerConf.addEncryptionKey(arguments.encKeyName);
+            producerBuilder.addEncryptionKey(arguments.encKeyName);
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
             EncKeyReader keyReader = new EncKeyReader(pKey);
-            producerConf.setCryptoKeyReader(keyReader);
+            producerBuilder.cryptoKeyReader(keyReader);
         }
 
         for (int i = 0; i < arguments.numTopics; i++) {
@@ -292,7 +291,7 @@ public class PerformanceProducer {
             log.info("Adding {} publishers on topic {}", arguments.numProducers, topic);
 
             for (int j = 0; j < arguments.numProducers; j++) {
-                futures.add(client.createProducerAsync(topic, producerConf));
+                futures.add(producerBuilder.clone().topic(topic).createAsync());
             }
         }
 

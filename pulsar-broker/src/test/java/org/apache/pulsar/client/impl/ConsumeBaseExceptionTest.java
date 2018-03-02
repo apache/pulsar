@@ -64,7 +64,7 @@ public class ConsumeBaseExceptionTest extends ProducerConsumerBase {
     public void testListener() throws PulsarClientException {
         Consumer consumer = null;
         ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setMessageListener((Consumer c, Message msg) -> {
+        conf.setMessageListener((Consumer<byte[]> c, Message<byte[]> msg) -> {
         });
         consumer = pulsarClient.subscribe("persistent://prop/cluster/ns/topicName", "my-subscription", conf);
         Assert.assertTrue(consumer.receiveAsync().isCompletedExceptionally());

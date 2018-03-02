@@ -714,7 +714,7 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    private static Schema getSchema(PulsarApi.Schema protocolSchema) {
+    private Schema getSchema(PulsarApi.Schema protocolSchema) {
         return Schema.builder()
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
@@ -725,6 +725,7 @@ public class ServerCnx extends PulsarHandler {
                     PulsarApi.KeyValue::getValue
                 )
             ))
+            .user(originalPrincipal)
             .type(getType(protocolSchema.getType()))
             .build();
     }
