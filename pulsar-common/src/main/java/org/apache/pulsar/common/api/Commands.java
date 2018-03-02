@@ -18,11 +18,12 @@
  */
 package org.apache.pulsar.common.api;
 
-import static com.google.protobuf.ByteString.copyFrom;
 import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 
+import com.google.common.annotations.VisibleForTesting;
+import com.google.protobuf.ByteString;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
 import io.netty.buffer.Unpooled;
@@ -72,7 +73,6 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.schema.Schema;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -139,33 +139,6 @@ public class Commands {
         return res;
     }
 
-    /**
-     * @deprecated AuthMethod has been deprecated. Use {@link #newConnect(String authMethodName, String authData)}
-     *             instead.
-     */
-    @Deprecated
-    public static ByteBuf newConnect(AuthMethod authMethod, String authData) {
-        return newConnect(authMethod, authData, getCurrentProtocolVersion());
-    }
-
-    /**
-     * @deprecated AuthMethod has been deprecated. Use
-     *             {@link #newConnect(String authMethodName, String authData, int protocolVersion)} instead.
-     */
-    @Deprecated
-    public static ByteBuf newConnect(AuthMethod authMethod, String authData, int protocolVersion) {
-        CommandConnect.Builder connectBuilder = CommandConnect.newBuilder();
-        connectBuilder.setClientVersion("Pulsar Client");
-        connectBuilder.setAuthMethod(authMethod);
-        connectBuilder.setAuthData(copyFromUtf8(authData));
-        connectBuilder.setProtocolVersion(protocolVersion);
-        CommandConnect connect = connectBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.CONNECT).setConnect(connect));
-        connect.recycle();
-        connectBuilder.recycle();
-        return res;
-    }
-
     public static ByteBuf newConnected(int clientProtocolVersion) {
         CommandConnected.Builder connectedBuilder = CommandConnected.newBuilder();
         connectedBuilder.setServerVersion("Pulsar Server");
@@ -194,66 +167,21 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newSuccess(long requestId, SchemaInfo schemaInfo) {
-        CommandSuccess.Builder successBuilder = CommandSuccess.newBuilder();
-        successBuilder.setRequestId(requestId);
-        PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schemaInfo != null && !schemaInfo.schema.isDeleted) {
-            Schema schema = schemaInfo.schema;
-            schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setName(schemaInfo.name);
-            schemaBuilder.setVersion(copyFrom(schemaInfo.version.bytes()));
-            schemaBuilder.setSchemaData(copyFrom(schema.data));
-            schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                .setKey("type").setValue(schema.type.toString()));
-            for (Map.Entry<String, String> entry : schema.props.entrySet()) {
-                schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                    .setKey(entry.getKey()).setValue(entry.getValue()));
-            }
-            successBuilder.setSchema(schemaBuilder.build());
-        }
-        CommandSuccess success = successBuilder.build();
-        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUCCESS).setSuccess(success));
-        successBuilder.recycle();
-        success.recycle();
-        if (schemaBuilder != null) {
-            schemaBuilder.recycle();
-        }
-        return res;
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion) {
+        return newProducerSuccess(requestId, producerName, -1, schemaVersion);
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName) {
-        return newProducerSuccess(requestId, producerName, -1, null);
-    }
-
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, SchemaInfo schemaInfo) {
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, SchemaVersion schemaVersion) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
+        producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
-        PulsarApi.Schema.Builder schemaBuilder = null;
-        if (schemaInfo != null && !schemaInfo.schema.isDeleted) {
-            Schema schema = schemaInfo.schema;
-            schemaBuilder = PulsarApi.Schema.newBuilder();
-            schemaBuilder.setName(schemaInfo.name);
-            schemaBuilder.setVersion(copyFrom(schemaInfo.version.bytes()));
-            schemaBuilder.setSchemaData(copyFrom(schema.data));
-            schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                .setKey("type").setValue(schema.type.toString()));
-            for (Map.Entry<String, String> entry : schema.props.entrySet()) {
-                schemaBuilder.addProperties(PulsarApi.KeyValue.newBuilder()
-                    .setKey(entry.getKey()).setValue(entry.getValue()));
-            }
-            producerSuccessBuilder.setSchema(schemaBuilder.build());
-        }
         producerSuccess.recycle();
         producerSuccessBuilder.recycle();
-        if (schemaBuilder != null) {
-            schemaBuilder.recycle();
-        }
         return res;
     }
 
@@ -751,7 +679,8 @@ public class Commands {
         return res;
     }
 
-    private static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
+    @VisibleForTesting
+    public static ByteBuf serializeWithSize(BaseCommand.Builder cmdBuilder) {
         // / Wire format
         // [TOTAL_SIZE] [CMD_SIZE][CMD]
         BaseCommand cmd = cmdBuilder.build();
@@ -990,7 +919,8 @@ public class Commands {
         return (ByteBufPair) ByteBufPair.get(headers, metadataAndPayload);
     }
 
-    private static int getCurrentProtocolVersion() {
+    @VisibleForTesting
+    public static int getCurrentProtocolVersion() {
         // Return the last ProtocolVersion enum value
         return ProtocolVersion.values()[ProtocolVersion.values().length - 1].getNumber();
     }
@@ -1054,15 +984,4 @@ public class Commands {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 
-    public static class SchemaInfo {
-        public final String name;
-        public final SchemaVersion version;
-        public final Schema schema;
-
-        public SchemaInfo(String name, SchemaVersion version, Schema schema) {
-            this.name = name;
-            this.version = version;
-            this.schema = schema;
-        }
-    }
 }
