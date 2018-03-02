@@ -99,7 +99,7 @@ public class ProcessRuntimeTest {
         InstanceConfig config = createJavaInstanceConfig(FunctionConfig.Runtime.JAVA);
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
-        List<String> args = container.getProcessBuilder().command();
+        List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 39);
         args.remove(args.size() - 1);
         String expectedArgs = "java -cp " + javaInstanceJarFile + " -Dlog4j.configurationFile=java_instance_log4j2.yml "
@@ -126,7 +126,7 @@ public class ProcessRuntimeTest {
         InstanceConfig config = createJavaInstanceConfig(FunctionConfig.Runtime.PYTHON);
 
         ProcessRuntime container = factory.createContainer(config, userJarFile);
-        List<String> args = container.getProcessBuilder().command();
+        List<String> args = container.getProcessArgs();
         assertEquals(args.size(), 38);
         args.remove(args.size() - 1);
         String expectedArgs = "python " + pythonInstanceFile

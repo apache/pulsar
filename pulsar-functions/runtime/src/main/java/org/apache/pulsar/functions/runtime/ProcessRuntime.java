@@ -50,8 +50,8 @@ class ProcessRuntime implements Runtime {
     @Getter
     private Process process;
     @Getter
-    private final ProcessBuilder processBuilder;
-    private final int instancePort;
+    private List<String> processArgs;
+    private int instancePort;
     private Exception startupException;
     private ManagedChannel channel;
     private InstanceControlGrpc.InstanceControlFutureStub stub;
@@ -61,6 +61,14 @@ class ProcessRuntime implements Runtime {
                    String logDirectory,
                    String codeFile,
                    String pulsarServiceUrl) {
+        this.processArgs = composeArgs(instanceConfig, instanceFile, logDirectory, codeFile, pulsarServiceUrl);
+    }
+
+    private List<String> composeArgs(InstanceConfig instanceConfig,
+                                     String instanceFile,
+                                     String logDirectory,
+                                     String codeFile,
+                                     String pulsarServiceUrl) {
         List<String> args = new LinkedList<>();
         if (instanceConfig.getFunctionConfig().getRuntime() == Function.FunctionConfig.Runtime.JAVA) {
             args.add("java");
@@ -163,7 +171,7 @@ class ProcessRuntime implements Runtime {
         args.add("--port");
         args.add(String.valueOf(instancePort));
 
-        processBuilder = new ProcessBuilder(args);
+        return args;
     }
 
     /**
@@ -250,6 +258,7 @@ class ProcessRuntime implements Runtime {
     private void startProcess() {
         startupException = null;
         try {
+            ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {
