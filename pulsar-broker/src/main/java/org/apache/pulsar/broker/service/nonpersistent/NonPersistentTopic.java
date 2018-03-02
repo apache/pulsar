@@ -990,6 +990,6 @@ public class NonPersistentTopic implements Topic {
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .putSchema(id, schema);
+            .putSchemaIfAbsent(id, schema);
     }
 }
