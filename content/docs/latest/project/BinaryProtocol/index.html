@@ -2154,6 +2154,12 @@ response will contain actual metadata.</p>
           </li>
           
           <li>
+            <a href="#pulsar.proto.Schema">
+              Schema
+            </a>
+          </li>
+          
+          <li>
             <a href="#pulsar.proto.SingleMessageMetadata">
               SingleMessageMetadata
             </a>
@@ -2216,6 +2222,12 @@ response will contain actual metadata.</p>
           <li>
             <a href="#pulsar.proto.ProtocolVersion">
               ProtocolVersion
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar.proto.Schema.Type">
+              Type
             </a>
           </li>
           
@@ -4049,6 +4061,16 @@ otherwise the broker will generate a unique name</td>
               <td></td>
               <td>Add optional metadata key=value to this producer</td>
             </tr>
+            
+            <tr>
+              <td class="wrap">schema</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.Schema">Schema</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -4108,6 +4130,16 @@ otherwise the broker will generate a unique name</td>
               <td></td>
               <td>The last sequence id that was stored by this producer in the previous session
 This will only be meaningful if deduplication has been enabled.</td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema_version</td>
+              
+              <td class="wrap">bytes</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
             </tr>
              <!-- for field in fields -->
           </tbody>
@@ -4587,6 +4619,16 @@ will send messages from that point</td>
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">schema</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.Schema">Schema</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -4623,6 +4665,16 @@ will send messages from that point</td>
               <td class="wrap">uint64</td>
               
               <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.Schema">Schema</a></td>
+              
+              <td>optional</td>
               <td></td>
               <td></td>
             </tr>
@@ -5074,6 +5126,95 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
               <td>optional</td>
               <td></td>
               <td>Additional parameters required by encryption</td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema_version</td>
+              
+              <td class="wrap">bytes</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
+             <!-- for field in fields -->
+          </tbody>
+        </table>
+      </div>
+       <!-- if fields -->
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="message-name" id="pulsar.proto.Schema">
+          Schema
+        </h5>
+        <p class="message-name">pulsar.proto.Schema</p>
+        <p class="lead"></p>
+      </div>
+      
+      <div class="card">
+        <h5>Fields</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Type</th>
+              <th>Label</th>
+              <th>Default</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td class="wrap">name</td>
+              
+              <td class="wrap">string</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">version</td>
+              
+              <td class="wrap">bytes</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">schema_data</td>
+              
+              <td class="wrap">bytes</td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">type</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.Schema.Type">Type</a></td>
+              
+              <td>required</td>
+              <td></td>
+              <td></td>
+            </tr>
+            
+            <tr>
+              <td class="wrap">properties</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.KeyValue">KeyValue</a></td>
+              
+              <td>repeated</td>
+              <td></td>
+              <td></td>
             </tr>
              <!-- for field in fields -->
           </tbody>
@@ -5811,6 +5952,57 @@ incrementally added to the protocol</p>
               <td>v12</td>
               <td>12</td>
               <td><p>Added get topic’s last messageId from broker</p>
+</td>
+            </tr>
+             <!-- for value in values -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="enum-name" id="pulsar.proto.Schema.Type">Type</h5>
+        <p class="lead">
+</p>
+      </div>
+      <div class="card">
+        <h5>Enum values</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Number</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td>Json</td>
+              <td>1</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>Protobuf</td>
+              <td>2</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>Thrift</td>
+              <td>3</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>Avro</td>
+              <td>4</td>
+              <td>
 </td>
             </tr>
              <!-- for value in values -->
