@@ -290,9 +290,8 @@ public class TopicName implements ServiceUnitId {
 
     public String getSchemaName() {
         return getProperty()
-            + "_" + getCluster()
-            + "_" + getNamespacePortion()
-            + "_" + getLocalName();
+            + "/" + getNamespacePortion()
+            + "/" + getLocalName();
     }
 
     @Override
