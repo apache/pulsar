@@ -22,7 +22,8 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.PulsarClient;
 
 public class PulsarClientKafkaConfig {
 
@@ -31,6 +32,7 @@ public class PulsarClientKafkaConfig {
     public static final String USE_TLS = "pulsar.use.tls";
     public static final String TLS_TRUST_CERTS_FILE_PATH = "pulsar.tls.trust.certs.file.path";
     public static final String TLS_ALLOW_INSECURE_CONNECTION = "pulsar.tls.allow.insecure.connection";
+    public static final String TLS_HOSTNAME_VERIFICATION = "pulsar.tls.hostname.verification";
 
     public static final String OPERATION_TIMEOUT_MS = "pulsar.operation.timeout.ms";
     public static final String STATS_INTERVAL_SECONDS = "pulsar.stats.interval.seconds";
@@ -43,8 +45,8 @@ public class PulsarClientKafkaConfig {
     public static final String CONCURRENT_LOOKUP_REQUESTS = "pulsar.concurrent.lookup.requests";
     public static final String MAX_NUMBER_OF_REJECTED_REQUESTS_PER_CONNECTION = "pulsar.max.number.rejected.request.per.connection";
 
-    public static ClientConfiguration getClientConfiguration(Properties properties) {
-        ClientConfiguration conf = new ClientConfiguration();
+    public static ClientBuilder getClientBuilder(Properties properties) {
+        ClientBuilder clientBuilder = PulsarClient.builder();
 
         if (properties.containsKey(AUTHENTICATION_CLASS)) {
             String className = properties.getProperty(AUTHENTICATION_CLASS);
@@ -52,48 +54,53 @@ public class PulsarClientKafkaConfig {
                 @SuppressWarnings("unchecked")
                 Class<Authentication> clazz = (Class<Authentication>) Class.forName(className);
                 Authentication auth = clazz.newInstance();
-                conf.setAuthentication(auth);
+                clientBuilder.authentication(auth);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
         }
 
-        conf.setUseTls(Boolean.parseBoolean(properties.getProperty(USE_TLS, "false")));
-        conf.setUseTls(Boolean.parseBoolean(properties.getProperty(TLS_ALLOW_INSECURE_CONNECTION, "false")));
+        clientBuilder.enableTls(Boolean.parseBoolean(properties.getProperty(USE_TLS, "false")));
+        clientBuilder.allowTlsInsecureConnection(
+                Boolean.parseBoolean(properties.getProperty(TLS_ALLOW_INSECURE_CONNECTION, "false")));
+        clientBuilder.enableTlsHostnameVerification(
+                Boolean.parseBoolean(properties.getProperty(TLS_HOSTNAME_VERIFICATION, "false")));
+
         if (properties.containsKey(TLS_TRUST_CERTS_FILE_PATH)) {
-            conf.setTlsTrustCertsFilePath(properties.getProperty(TLS_TRUST_CERTS_FILE_PATH));
+            clientBuilder.tlsTrustCertsFilePath(properties.getProperty(TLS_TRUST_CERTS_FILE_PATH));
         }
 
         if (properties.containsKey(OPERATION_TIMEOUT_MS)) {
-            conf.setOperationTimeout(Integer.parseInt(properties.getProperty(OPERATION_TIMEOUT_MS)),
+            clientBuilder.operationTimeout(Integer.parseInt(properties.getProperty(OPERATION_TIMEOUT_MS)),
                     TimeUnit.MILLISECONDS);
         }
 
         if (properties.containsKey(STATS_INTERVAL_SECONDS)) {
-            conf.setStatsInterval(Integer.parseInt(properties.getProperty(STATS_INTERVAL_SECONDS)), TimeUnit.SECONDS);
+            clientBuilder.statsInterval(Integer.parseInt(properties.getProperty(STATS_INTERVAL_SECONDS)),
+                    TimeUnit.SECONDS);
         }
 
         if (properties.containsKey(NUM_IO_THREADS)) {
-            conf.setIoThreads(Integer.parseInt(properties.getProperty(NUM_IO_THREADS)));
+            clientBuilder.ioThreads(Integer.parseInt(properties.getProperty(NUM_IO_THREADS)));
         }
 
         if (properties.containsKey(CONNECTIONS_PER_BROKER)) {
-            conf.setConnectionsPerBroker(Integer.parseInt(properties.getProperty(CONNECTIONS_PER_BROKER)));
+            clientBuilder.connectionsPerBroker(Integer.parseInt(properties.getProperty(CONNECTIONS_PER_BROKER)));
         }
 
         if (properties.containsKey(USE_TCP_NODELAY)) {
-            conf.setUseTcpNoDelay(Boolean.parseBoolean(properties.getProperty(USE_TCP_NODELAY)));
+            clientBuilder.enableTcpNoDelay(Boolean.parseBoolean(properties.getProperty(USE_TCP_NODELAY)));
         }
 
         if (properties.containsKey(CONCURRENT_LOOKUP_REQUESTS)) {
-            conf.setConcurrentLookupRequest(Integer.parseInt(properties.getProperty(CONCURRENT_LOOKUP_REQUESTS)));
+            clientBuilder.maxConcurrentLookupRequests(Integer.parseInt(properties.getProperty(CONCURRENT_LOOKUP_REQUESTS)));
         }
 
         if (properties.containsKey(MAX_NUMBER_OF_REJECTED_REQUESTS_PER_CONNECTION)) {
-            conf.setMaxNumberOfRejectedRequestPerConnection(
+            clientBuilder.maxNumberOfRejectedRequestPerConnection(
                     Integer.parseInt(properties.getProperty(MAX_NUMBER_OF_REJECTED_REQUESTS_PER_CONNECTION)));
         }
 
-        return conf;
+        return clientBuilder;
     }
 }

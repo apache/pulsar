@@ -45,8 +45,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.record.TimestampType;
 import org.apache.kafka.common.serialization.Deserializer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.apache.pulsar.client.api.ClientConfiguration;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.MessageListener;
@@ -62,7 +62,7 @@ import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 
-public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener {
+public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListener<byte[]> {
 
     private static final long serialVersionUID = 1L;
 
@@ -74,7 +74,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final String groupId;
     private final boolean isAutoCommit;
 
-    private final ConcurrentMap<TopicPartition, org.apache.pulsar.client.api.Consumer> consumers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<TopicPartition, org.apache.pulsar.client.api.Consumer<byte[]>> consumers = new ConcurrentHashMap<>();
 
     private final Map<TopicPartition, Long> lastReceivedOffset = new ConcurrentHashMap<>();
     private final Map<TopicPartition, OffsetAndMetadata> lastCommittedOffset = new ConcurrentHashMap<>();
@@ -84,10 +84,10 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     private final Properties properties;
 
     private static class QueueItem {
-        final org.apache.pulsar.client.api.Consumer consumer;
-        final Message message;
+        final org.apache.pulsar.client.api.Consumer<byte[]> consumer;
+        final Message<byte[]> message;
 
-        QueueItem(org.apache.pulsar.client.api.Consumer consumer, Message message) {
+        QueueItem(org.apache.pulsar.client.api.Consumer<byte[]> consumer, Message<byte[]> message) {
             this.consumer = consumer;
             this.message = message;
         }
@@ -146,19 +146,19 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
 
         this.properties = new Properties();
         config.originals().forEach((k, v) -> properties.put(k, v));
-        ClientConfiguration clientConf = PulsarClientKafkaConfig.getClientConfiguration(properties);
+        ClientBuilder clientBuilder = PulsarClientKafkaConfig.getClientBuilder(properties);
         // Since this client instance is going to be used just for the consumers, we can enable Nagle to group
         // all the acknowledgments sent to broker within a short time frame
-        clientConf.setUseTcpNoDelay(false);
+        clientBuilder.enableTcpNoDelay(false);
         try {
-            client = PulsarClient.create(serviceUrl, clientConf);
+            client = clientBuilder.serviceUrl(serviceUrl).build();
         } catch (PulsarClientException e) {
             throw new RuntimeException(e);
         }
     }
 
     @Override
-    public void received(org.apache.pulsar.client.api.Consumer consumer, Message msg) {
+    public void received(org.apache.pulsar.client.api.Consumer<byte[]> consumer, Message<byte[]> msg) {
         // Block listener thread if the application is slowing down
         try {
             receivedMessages.put(new QueueItem(consumer, msg));
@@ -204,16 +204,17 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 // acknowledgeCumulative()
                 int numberOfPartitions = ((PulsarClientImpl) client).getNumberOfPartitions(topic).get();
 
-                ConsumerConfiguration conf = PulsarConsumerKafkaConfig.getConsumerConfiguration(properties);
-                conf.setSubscriptionType(SubscriptionType.Failover);
-                conf.setMessageListener(this);
+                ConsumerBuilder<byte[]> consumerBuilder = PulsarConsumerKafkaConfig.getConsumerBuilder(client, properties);
+                consumerBuilder.subscriptionType(SubscriptionType.Failover);
+                consumerBuilder.messageListener(this);
+                consumerBuilder.subscriptionName(groupId);
                 if (numberOfPartitions > 1) {
                     // Subscribe to each partition
-                    conf.setConsumerName(ConsumerName.generateRandomName());
+                    consumerBuilder.consumerName(ConsumerName.generateRandomName());
                     for (int i = 0; i < numberOfPartitions; i++) {
                         String partitionName = TopicName.get(topic).getPartition(i).toString();
-                        CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = client
-                                .subscribeAsync(partitionName, groupId, conf);
+                        CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = consumerBuilder.clone()
+                                .topic(partitionName).subscribeAsync();
                         int partitionIndex = i;
                         TopicPartition tp = new TopicPartition(topic, partitionIndex);
                         future.thenAccept(consumer -> consumers.putIfAbsent(tp, consumer));
@@ -222,8 +223,8 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                     }
                 } else {
                     // Topic has a single partition
-                    CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = client.subscribeAsync(topic,
-                            groupId, conf);
+                    CompletableFuture<org.apache.pulsar.client.api.Consumer<byte[]>> future = consumerBuilder.topic(topic)
+                            .subscribeAsync();
                     TopicPartition tp = new TopicPartition(topic, 0);
                     future.thenAccept(consumer -> consumers.putIfAbsent(tp, consumer));
                     futures.add(future);
@@ -293,7 +294,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
                 TopicName topicName = TopicName.get(item.consumer.getTopic());
                 String topic = topicName.getPartitionedTopicName();
                 int partition = topicName.isPartitioned() ? topicName.getPartitionIndex() : 0;
-                Message msg = item.message;
+                Message<byte[]> msg = item.message;
                 MessageIdImpl msgId = (MessageIdImpl) msg.getMessageId();
                 long offset = MessageIdUtils.getOffset(msgId);
 
@@ -335,7 +336,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     }
 
     @SuppressWarnings("unchecked")
-    private K getKey(String topic, Message msg) {
+    private K getKey(String topic, Message<byte[]> msg) {
         if (!msg.hasKey()) {
             return null;
         }
@@ -393,7 +394,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         List<CompletableFuture<Void>> futures = new ArrayList<>();
 
         offsets.forEach((topicPartition, offsetAndMetadata) -> {
-            org.apache.pulsar.client.api.Consumer consumer = consumers.get(topicPartition);
+            org.apache.pulsar.client.api.Consumer<byte[]> consumer = consumers.get(topicPartition);
 
             lastCommittedOffset.put(topicPartition, offsetAndMetadata);
             futures.add(consumer.acknowledgeCumulativeAsync(MessageIdUtils.getMessageId(offsetAndMetadata.offset())));
@@ -415,7 +416,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
     @Override
     public void seek(TopicPartition partition, long offset) {
         MessageId msgId = MessageIdUtils.getMessageId(offset);
-        org.apache.pulsar.client.api.Consumer c = consumers.get(partition);
+        org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(partition);
         if (c == null) {
             throw new IllegalArgumentException("Cannot seek on a partition where we are not subscribed");
         }
@@ -436,7 +437,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         }
 
         for (TopicPartition tp : partitions) {
-            org.apache.pulsar.client.api.Consumer c = consumers.get(tp);
+            org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(tp);
             if (c == null) {
                 futures.add(FutureUtil.failedFuture(
                         new IllegalArgumentException("Cannot seek on a partition where we are not subscribed")));
@@ -457,7 +458,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
         }
 
         for (TopicPartition tp : partitions) {
-            org.apache.pulsar.client.api.Consumer c = consumers.get(tp);
+            org.apache.pulsar.client.api.Consumer<byte[]> c = consumers.get(tp);
             if (c == null) {
                 futures.add(FutureUtil.failedFuture(
                         new IllegalArgumentException("Cannot seek on a partition where we are not subscribed")));
