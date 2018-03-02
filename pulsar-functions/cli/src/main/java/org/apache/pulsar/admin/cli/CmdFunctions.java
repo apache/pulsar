@@ -449,6 +449,9 @@ public class CmdFunctions extends CmdBase {
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
             }
+            if (serviceUrl == null) {
+                serviceUrl = "pulsar://localhost:6650";
+            }
             try (ProcessRuntimeFactory containerFactory = new ProcessRuntimeFactory(
                     serviceUrl, null, null, null)) {
                 List<RuntimeSpawner> spawners = new LinkedList<>();
