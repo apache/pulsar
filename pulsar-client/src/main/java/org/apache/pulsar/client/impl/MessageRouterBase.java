@@ -18,20 +18,22 @@
  */
 package org.apache.pulsar.client.impl;
 
+import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.MessageRouter;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 
 public abstract class MessageRouterBase implements MessageRouter {
+    private static final long serialVersionUID = 1L;
+
     protected final Hash hash;
 
-    MessageRouterBase(ProducerConfiguration.HashingScheme hashingScheme) {
+    MessageRouterBase(HashingScheme hashingScheme) {
         switch (hashingScheme) {
-            case JavaStringHash:
-                this.hash = JavaStringHash.getInstance();
-                break;
-            case Murmur3_32Hash:
-            default:
-                this.hash = Murmur3_32Hash.getInstance();
+        case JavaStringHash:
+            this.hash = JavaStringHash.getInstance();
+            break;
+        case Murmur3_32Hash:
+        default:
+            this.hash = Murmur3_32Hash.getInstance();
         }
     }
 }

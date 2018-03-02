@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * A listener that will be called in order for every message received.
  */
-public interface ReaderListener extends Serializable {
+public interface ReaderListener<T> extends Serializable {
     /**
      * This method is called whenever a new message is received.
      *
@@ -38,7 +38,7 @@ public interface ReaderListener extends Serializable {
      * @param msg
      *            the message object
      */
-    void received(Reader reader, Message msg);
+    void received(Reader<T> reader, Message<T> msg);
 
     /**
      * Get the notification when a topic is terminated
@@ -46,7 +46,7 @@ public interface ReaderListener extends Serializable {
      * @param reader
      *            the Reader object associated with the terminated topic
      */
-    default void reachedEndOfTopic(Reader reader) {
+    default void reachedEndOfTopic(Reader<T> reader) {
         // By default ignore the notification
     }
 }

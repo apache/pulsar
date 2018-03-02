@@ -25,7 +25,7 @@
   <parent>
     <groupId>org.apache.pulsar</groupId>
     <artifactId>pulsar</artifactId>
-    <version>1.22.0-incubating-SNAPSHOT</version>
+    <version>2.0.0-incubating-SNAPSHOT</version>
     <relativePath>..</relativePath>
   </parent>
 
@@ -35,7 +35,7 @@
   <dependencies>
     <dependency>
       <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server</artifactId>
+      <artifactId>bookkeeper-server-shaded</artifactId>
       <version>${bookkeeper.version}</version>
       <exclusions>
         <exclusion>
@@ -52,7 +52,7 @@
         </exclusion>
       </exclusions>
     </dependency>
-    
+
     <dependency>
       <groupId>org.apache.pulsar</groupId>
       <artifactId>pulsar-common</artifactId>

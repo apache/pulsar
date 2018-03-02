@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 
+import java.util.function.BiFunction;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
@@ -34,9 +35,9 @@ import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
 public class PulsarAdminTool {
-    private final Map<String, Class> commandMap;
+    protected final Map<String, Class> commandMap;
     private final JCommander jcommander;
-    private final ClientConfiguration config;
+    protected final ClientConfiguration config;
 
     @Parameter(names = { "--admin-url" }, description = "Admin Service URL to which to connect.")
     String serviceUrl = null;
@@ -81,11 +82,11 @@ public class PulsarAdminTool {
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
     }
 
-    private void setupCommands() {
+    private void setupCommands(BiFunction<URL, ClientConfiguration, ? extends PulsarAdmin> adminFactory) {
         try {
             URL url = new URL(serviceUrl);
             config.setAuthentication(authPluginClassName, authParams);
-            PulsarAdmin admin = new PulsarAdmin(url, config);
+            PulsarAdmin admin = adminFactory.apply(url, config);
             for (Map.Entry<String, Class> c : commandMap.entrySet()) {
                 jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
             }
@@ -99,8 +100,20 @@ public class PulsarAdminTool {
     }
 
     boolean run(String[] args) {
+        return run(args, (url, config) -> {
+            try {
+                return new PulsarAdmin(url, config);
+            } catch (Exception ex) {
+                System.err.println(ex.getClass() + ": " + ex.getMessage());
+                System.exit(1);
+                return null;
+            }
+        });
+    }
+
+    boolean run(String[] args, BiFunction<URL, ClientConfiguration, ? extends PulsarAdmin> adminFactory) {
         if (args.length == 0) {
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
@@ -117,23 +130,23 @@ public class PulsarAdminTool {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
 
         if (help) {
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
 
         if (cmdPos == args.length) {
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         } else {
-            setupCommands();
+            setupCommands(adminFactory);
             String cmd = args[cmdPos];
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);

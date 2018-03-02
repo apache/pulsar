@@ -38,9 +38,6 @@ class Murmur3_32Hash : public Hash {
     int32_t makeHash(const std::string& key);
 
    private:
-    static constexpr int32_t CHUNK_SIZE = 4;
-    static constexpr uint32_t C1 = 0xcc9e2d51;
-    static constexpr uint32_t C2 = 0x1b873593;
     uint32_t seed;
 
     static uint32_t fmix(uint32_t h);

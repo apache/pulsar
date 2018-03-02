@@ -21,11 +21,11 @@
 #include "Commands.h"
 #include "LogUtils.h"
 #include <boost/bind.hpp>
+#include <lib/TopicName.h>
 #include "pulsar/Result.h"
 #include "pulsar/MessageId.h"
 #include "Utils.h"
 #include <exception>
-#include "DestinationName.h"
 #include <algorithm>
 
 namespace pulsar {

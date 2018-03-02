@@ -30,7 +30,9 @@ import javax.naming.AuthenticationException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.common.naming.TopicName;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketAdapter;
 import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
@@ -46,7 +48,6 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
     protected final String topic;
     protected final Map<String, String> queryParams;
-    protected final boolean authResult;
 
     public AbstractWebSocketHandler(WebSocketService service, HttpServletRequest request, ServletUpgradeResponse response) {
         this.service = service;
@@ -57,12 +58,11 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         request.getParameterMap().forEach((key, values) -> {
             queryParams.put(key, values[0]);
         });
-
-        authResult = checkAuth(response);
     }
 
-    private boolean checkAuth(ServletUpgradeResponse response) {
+    protected boolean checkAuth(ServletUpgradeResponse response) {
         String authRole = "<none>";
+        AuthenticationDataSource authenticationData = new AuthenticationDataHttps(request);
         if (service.isAuthenticationEnabled()) {
             try {
                 authRole = service.getAuthenticationService().authenticateHttpRequest(request);
@@ -84,7 +84,7 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
 
         if (service.isAuthorizationEnabled()) {
             try {
-                if (!isAuthorized(authRole)) {
+                if (!isAuthorized(authRole, authenticationData)) {
                     log.warn("[{}:{}] WebSocket Client [{}] is not authorized on topic {}", request.getRemoteAddr(),
                             request.getRemotePort(), authRole, topic);
                     response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not authorized");
@@ -163,11 +163,11 @@ public abstract class AbstractWebSocketHandler extends WebSocketAdapter implemen
         checkArgument(parts.get(1).equals("ws"));
         checkArgument(parts.get(3).equals("persistent") || parts.get(3).equals("non-persistent"));
 
-        DestinationName dn = DestinationName.get(parts.get(3), parts.get(4), parts.get(5), parts.get(6), parts.get(7));
-        return dn.toString();
+        TopicName topicName = TopicName.get(parts.get(3), parts.get(4), parts.get(5), parts.get(6), parts.get(7));
+        return topicName.toString();
     }
 
-    protected abstract Boolean isAuthorized(String authRole) throws Exception;
+    protected abstract Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception;
 
     private static final Logger log = LoggerFactory.getLogger(AbstractWebSocketHandler.class);
 }

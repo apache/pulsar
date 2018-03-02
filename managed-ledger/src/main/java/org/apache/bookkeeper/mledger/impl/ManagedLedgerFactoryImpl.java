@@ -19,7 +19,11 @@
 package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
+import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
 
+import com.google.common.base.Predicates;
+import com.google.common.collect.Maps;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -31,9 +35,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ManagedLedgerInfoCallback;
@@ -67,12 +71,6 @@ import org.apache.zookeeper.ZooKeeper.States;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Predicates;
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
-import static org.apache.bookkeeper.mledger.ManagedLedgerException.getManagedLedgerException;
-
 public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final MetaStore store;
     private final BookKeeper bookKeeper;
@@ -81,7 +79,8 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     private final ManagedLedgerFactoryConfig config;
     protected final ScheduledExecutorService executor = Executors.newScheduledThreadPool(16,
             new DefaultThreadFactory("bookkeeper-ml"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(16, "bookkeeper-ml-workers");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(16)
+            .name("bookkeeper-ml-workers").build();
 
     protected final ManagedLedgerFactoryMBeanImpl mbean;
 
@@ -158,7 +157,7 @@ public class ManagedLedgerFactoryImpl implements ManagedLedgerFactory {
     }
 
     /**
-     * Helper for getting stats
+     * Helper for getting stats.
      *
      * @return
      */

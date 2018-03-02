@@ -471,7 +471,8 @@ void ClientConnection::processIncomingBuffer() {
             MessageMetadata msgMetadata;
 
             // read checksum
-            bool isChecksumValid = verifyChecksum(incomingBuffer_, incomingCmd_);
+            uint32_t remainingBytes = frameSize - (cmdSize + 4);
+            bool isChecksumValid = verifyChecksum(incomingBuffer_, remainingBytes, incomingCmd_);
 
             uint32_t metadataSize = incomingBuffer_.readUnsignedInt();
             if (!msgMetadata.ParseFromArray(incomingBuffer_.data(), metadataSize)) {
@@ -485,8 +486,9 @@ void ClientConnection::processIncomingBuffer() {
             }
 
             incomingBuffer_.consume(metadataSize);
+            remainingBytes -= (4 + metadataSize);
 
-            uint32_t payloadSize = frameSize - (cmdSize + 4) - (metadataSize + 4);
+            uint32_t payloadSize = remainingBytes;
             SharedBuffer payload = SharedBuffer::copy(incomingBuffer_.data(), payloadSize);
             incomingBuffer_.consume(payloadSize);
             handleIncomingMessage(incomingCmd_.message(), isChecksumValid, msgMetadata, payload);
@@ -518,13 +520,17 @@ void ClientConnection::processIncomingBuffer() {
     readNextCommand();
 }
 
-bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, proto::BaseCommand& incomingCmd_) {
+bool ClientConnection::verifyChecksum(SharedBuffer& incomingBuffer_, uint32_t& remainingBytes,
+                                      proto::BaseCommand& incomingCmd_) {
     int readerIndex = incomingBuffer_.readerIndex();
     bool isChecksumValid = true;
+
     if (incomingBuffer_.readUnsignedShort() == Commands::magicCrc32c) {
         uint32_t storedChecksum = incomingBuffer_.readUnsignedInt();
+        remainingBytes -= (2 + 4) /* subtract size of checksum itself */;
+
         // compute metadata-payload checksum
-        int metadataPayloadSize = incomingBuffer_.readableBytes();
+        int metadataPayloadSize = remainingBytes;
         uint32_t computedChecksum = computeChecksum(0, incomingBuffer_.data(), metadataPayloadSize);
         // verify checksum
         isChecksumValid = (storedChecksum == computedChecksum);
@@ -915,6 +921,13 @@ void ClientConnection::handleIncomingCommand() {
                     break;
                 }
 
+                case BaseCommand::ACTIVE_CONSUMER_CHANGE: {
+                    LOG_DEBUG(cnxString_ << "Received notification about active consumer changes");
+                    // ignore this message for now.
+                    // TODO: @link{https://github.com/apache/incubator-pulsar/issues/1240}
+                    break;
+                }
+
                 default: {
                     LOG_WARN(cnxString_ << "Received invalid message from server");
                     close();
@@ -940,15 +953,14 @@ Future<Result, BrokerConsumerStatsImpl> ClientConnection::newConsumerStats(uint6
     return promise.getFuture();
 }
 
-void ClientConnection::newTopicLookup(const std::string& destinationName, bool authoritative,
+void ClientConnection::newTopicLookup(const std::string& topicName, bool authoritative,
                                       const uint64_t requestId, LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(destinationName, authoritative, requestId), requestId, promise);
+    newLookup(Commands::newLookup(topicName, authoritative, requestId), requestId, promise);
 }
 
-void ClientConnection::newPartitionedMetadataLookup(const std::string& destinationName,
-                                                    const uint64_t requestId,
+void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,
                                                     LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newPartitionMetadataRequest(destinationName, requestId), requestId, promise);
+    newLookup(Commands::newPartitionMetadataRequest(topicName, requestId), requestId, promise);
 }
 
 void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t requestId,

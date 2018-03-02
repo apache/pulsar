@@ -21,6 +21,9 @@ package org.apache.bookkeeper.mledger;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.mledger.util.StatsBuckets;
 
+/**
+ * Management Bean for a {@link ManagedLedger}.
+ */
 public interface ManagedLedgerMXBean {
 
     /**

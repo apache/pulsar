@@ -212,7 +212,7 @@ void startPerfConsumer(const Arguments& args) {
 
     latch.wait();
     LOG_INFO(
-            "Start receiving from " << args.numConsumers << " consumers on " << args.numTopics << " destinations");
+            "Start receiving from " << args.numConsumers << " consumers on " << args.numTopics << " topics");
 
     while (true) {
         std::this_thread::sleep_for(seconds(10));

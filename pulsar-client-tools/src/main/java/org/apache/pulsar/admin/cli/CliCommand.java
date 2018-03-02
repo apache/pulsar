@@ -21,8 +21,8 @@ package org.apache.pulsar.admin.cli;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.pulsar.common.naming.DestinationDomain;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicDomain;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
@@ -43,27 +43,27 @@ abstract class CliCommand {
         return NamespaceName.get(namespace).toString();
     }
 
-    String validateDestination(List<String> params) {
-        String destination = checkArgument(params);
-        return DestinationName.get(destination).toString();
+    String validateTopicName(List<String> params) {
+        String topic = checkArgument(params);
+        return TopicName.get(topic).toString();
     }
 
     String validatePersistentTopic(List<String> params) {
-        String destination = checkArgument(params);
-        DestinationName ds = DestinationName.get(destination);
-        if (ds.getDomain() != DestinationDomain.persistent) {
+        String topic = checkArgument(params);
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.getDomain() != TopicDomain.persistent) {
             throw new ParameterException("Need to provide a persistent topic name");
         }
-        return ds.toString();
+        return topicName.toString();
     }
     
     String validateNonPersistentTopic(List<String> params) {
-        String destination = checkArgument(params);
-        DestinationName ds = DestinationName.get(destination);
-        if (ds.getDomain() != DestinationDomain.non_persistent) {
+        String topic = checkArgument(params);
+        TopicName topicName = TopicName.get(topic);
+        if (topicName.getDomain() != TopicDomain.non_persistent) {
             throw new ParameterException("Need to provide a non-persistent topic name");
         }
-        return ds.toString();
+        return topicName.toString();
     }
 
     void validateLatencySampleRate(int sampleRate) {

@@ -72,7 +72,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.ServiceUnitId;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
@@ -250,7 +250,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // enable authorization: so, broker can validate cluster and redirect if finds different cluster
         pulsar.getConfiguration().setAuthorizationEnabled(true);
-        // restart broker with authorization enabled: it initialize AuthorizationManager
+        // restart broker with authorization enabled: it initialize AuthorizationService
         stopBroker();
         startBroker();
 
@@ -310,12 +310,12 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         log.info("-- Starting {} test --", methodName);
 
         int numPartitions = 8;
-        DestinationName dn = DestinationName.get("persistent://my-property/use/my-ns/my-partitionedtopic1");
+        TopicName topicName = TopicName.get("persistent://my-property/use/my-ns/my-partitionedtopic1");
 
         ConsumerConfiguration conf = new ConsumerConfiguration();
         conf.setSubscriptionType(SubscriptionType.Exclusive);
 
-        admin.persistentTopics().createPartitionedTopic(dn.toString(), numPartitions);
+        admin.persistentTopics().createPartitionedTopic(topicName.toString(), numPartitions);
 
         /**** start broker-2 ****/
         ServiceConfiguration conf2 = new ServiceConfiguration();
@@ -348,9 +348,9 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         ProducerConfiguration producerConf = new ProducerConfiguration();
         producerConf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer producer = pulsarClient.createProducer(dn.toString(), producerConf);
+        Producer producer = pulsarClient.createProducer(topicName.toString(), producerConf);
 
-        Consumer consumer = pulsarClient.subscribe(dn.toString(), "my-partitioned-subscriber", conf);
+        Consumer consumer = pulsarClient.subscribe(topicName.toString(), "my-partitioned-subscriber", conf);
 
         for (int i = 0; i < 20; i++) {
             String message = "my-message-" + i;
@@ -371,7 +371,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         producer.close();
         consumer.unsubscribe();
         consumer.close();
-        admin.persistentTopics().deletePartitionedTopic(dn.toString());
+        admin.persistentTopics().deletePartitionedTopic(topicName.toString());
 
         pulsar2.close();
         loadManager2 = null;
@@ -846,8 +846,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
         assertTrue(serviceUnits1.contains(unsplitBundle));
         // broker-2 should have this bundle into the cache
-        DestinationName destination = DestinationName.get(topic1);
-        NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(destination);
+        TopicName topicName = TopicName.get(topic1);
+        NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(topicName);
         assertEquals(bundleInBroker2.toString(), unsplitBundle);
 
         // (5) Split the bundle for topic-1
@@ -856,7 +856,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         // (6) Broker-2 should get the watch and update bundle cache
         final int retry = 5;
         for (int i = 0; i < retry; i++) {
-            if (pulsar2.getNamespaceService().getBundle(destination).equals(bundleInBroker2) && i != retry - 1) {
+            if (pulsar2.getNamespaceService().getBundle(topicName).equals(bundleInBroker2) && i != retry - 1) {
                 Thread.sleep(200);
             } else {
                 break;
@@ -868,7 +868,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         Consumer consumer2 = pulsarClient.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
 
         NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
-                .getBundle(DestinationName.get(topic2));
+                .getBundle(TopicName.get(topic2));
         assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
 
         consumer1.close();
@@ -955,8 +955,8 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             final String unsplitBundle = namespace + "/0x00000000_0xffffffff";
             assertTrue(serviceUnits1.contains(unsplitBundle));
             // broker-2 should have this bundle into the cache
-            DestinationName destination = DestinationName.get(topic1);
-            NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(destination);
+            TopicName topicName = TopicName.get(topic1);
+            NamespaceBundle bundleInBroker2 = pulsar2.getNamespaceService().getBundle(topicName);
             assertEquals(bundleInBroker2.toString(), unsplitBundle);
 
             // update broker-1 bundle report to zk
@@ -985,7 +985,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             // (6) Broker-2 should get the watch and update bundle cache
             final int retry = 5;
             for (int i = 0; i < retry; i++) {
-                if (pulsar2.getNamespaceService().getBundle(destination).equals(bundleInBroker2) && i != retry - 1) {
+                if (pulsar2.getNamespaceService().getBundle(topicName).equals(bundleInBroker2) && i != retry - 1) {
                     Thread.sleep(200);
                 } else {
                     break;
@@ -997,7 +997,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
             Consumer consumer2 = pulsarClient.subscribe(topic2, "my-subscriber-name", new ConsumerConfiguration());
 
             NamespaceBundle bundleInBroker1AfterSplit = pulsar2.getNamespaceService()
-                    .getBundle(DestinationName.get(topic2));
+                    .getBundle(TopicName.get(topic2));
             assertFalse(bundleInBroker1AfterSplit.equals(unsplitBundle));
 
             consumer1.close();
@@ -1018,7 +1018,7 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         final String namespace = "my-ns";
         final String topicName = "my-partitioned";
         final int totalPartitions = 10;
-        final DestinationName dest = DestinationName.get("persistent", property, cluster, namespace, topicName);
+        final TopicName dest = TopicName.get("persistent", property, cluster, namespace, topicName);
         admin.clusters().createCluster(cluster,
                 new ClusterData("http://127.0.0.1:" + BROKER_WEBSERVICE_PORT, null, null, null));
         admin.properties().createProperty(property,

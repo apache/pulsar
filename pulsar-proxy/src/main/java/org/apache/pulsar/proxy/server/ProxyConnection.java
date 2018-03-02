@@ -27,6 +27,7 @@ import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
+import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
 import org.apache.pulsar.common.api.proto.PulsarApi;
@@ -53,6 +54,9 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
 
     private ProxyService service;
     String clientAuthRole = null;
+    String clientAuthData = null;
+    String clientAuthMethod = null;
+    AuthenticationDataSource authenticationData;
     private State state;
 
     private LookupProxyHandler lookupProxyHandler = null;
@@ -160,12 +164,13 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             close();
             return;
         }
-
+        
         if (connect.hasProxyToBrokerUrl()) {
             // Client already knows which broker to connect. Let's open a connection
             // there and just pass bytes in both directions
             state = State.ProxyConnectionToBroker;
             directProxyHandler = new DirectProxyHandler(service, this, connect.getProxyToBrokerUrl());
+            cancelKeepAliveTask();
         } else {
             // Client is doing a lookup, we can consider the handshake complete and we'll take care of just topics and
             // partitions metadata lookups
@@ -210,13 +215,19 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 authMethod = connect.getAuthMethod().name().substring(10).toLowerCase();
             }
             String authData = connect.getAuthData().toStringUtf8();
+
+            if (service.getConfiguration().forwardAuthorizationCredentials()) {
+                clientAuthData = authData;
+                clientAuthMethod = authMethod;
+            }
             ChannelHandler sslHandler = ctx.channel().pipeline().get("tls");
             SSLSession sslSession = null;
             if (sslHandler != null) {
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
+            authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
             clientAuthRole = service.getAuthenticationService()
-                    .authenticate(new AuthenticationDataCommand(authData, remoteAddress, sslSession), authMethod);
+                    .authenticate(authenticationData, authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
             return true;

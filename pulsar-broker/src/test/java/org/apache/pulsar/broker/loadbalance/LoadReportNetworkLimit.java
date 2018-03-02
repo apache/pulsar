@@ -32,7 +32,7 @@ public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
-        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(5);
+        conf.setLoadBalancerOverrideBrokerNicSpeedGbps(5.4);
         super.internalSetup();
     }
 
@@ -49,8 +49,8 @@ public class LoadReportNetworkLimit extends MockedPulsarServiceBaseTest {
         LoadManagerReport report = admin.brokerStats().getLoadReport();
 
         if (SystemUtils.IS_OS_LINUX) {
-            assertEquals(report.getBandwidthIn().limit, 5.0 * 1024 * 1024);
-            assertEquals(report.getBandwidthOut().limit, 5.0 * 1024 * 1024);
+            assertEquals(report.getBandwidthIn().limit, 5.4 * 1024 * 1024);
+            assertEquals(report.getBandwidthOut().limit, 5.4 * 1024 * 1024);
         } else {
             // On non-Linux system we don't report the network usage
             assertEquals(report.getBandwidthIn().limit, -1.0);

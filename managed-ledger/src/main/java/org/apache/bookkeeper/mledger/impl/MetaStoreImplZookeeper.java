@@ -24,11 +24,11 @@ import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.BadVersionException;
 import org.apache.bookkeeper.mledger.ManagedLedgerException.MetaStoreException;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedCursorInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.AsyncCallback.StringCallback;
 import org.apache.zookeeper.CreateMode;
@@ -45,6 +45,7 @@ import com.google.protobuf.InvalidProtocolBufferException;
 import com.google.protobuf.TextFormat;
 import com.google.protobuf.TextFormat.ParseException;
 
+@SuppressWarnings("checkstyle:javadoctype")
 public class MetaStoreImplZookeeper implements MetaStore {
 
     private static final Charset Encoding = Charsets.UTF_8;
@@ -54,7 +55,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
     private static final String prefix = prefixName + "/";
 
     private final ZooKeeper zk;
-    private final OrderedSafeExecutor executor;
+    private final OrderedScheduler executor;
 
     private static class ZKStat implements Stat {
         private final int version;
@@ -89,7 +90,7 @@ public class MetaStoreImplZookeeper implements MetaStore {
         }
     }
 
-    public MetaStoreImplZookeeper(ZooKeeper zk, OrderedSafeExecutor executor)
+    public MetaStoreImplZookeeper(ZooKeeper zk, OrderedScheduler executor)
             throws Exception {
         this.zk = zk;
         this.executor = executor;

@@ -19,15 +19,18 @@
 package org.apache.pulsar.common.util.collections;
 
 import java.util.AbstractQueue;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Objects;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import io.netty.util.internal.MathUtil;
 
@@ -46,8 +49,10 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     private final Condition isNotEmpty = headLock.newCondition();
 
     private T[] data;
-    private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER =
-            AtomicIntegerFieldUpdater.newUpdater(GrowableArrayBlockingQueue.class, "size");
+
+    @SuppressWarnings("rawtypes")
+    private static final AtomicIntegerFieldUpdater<GrowableArrayBlockingQueue> SIZE_UPDATER = AtomicIntegerFieldUpdater
+            .newUpdater(GrowableArrayBlockingQueue.class, "size");
     private volatile int size = 0;
 
     public GrowableArrayBlockingQueue() {
@@ -79,6 +84,7 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
         try {
             if (SIZE_UPDATER.get(this) > 0) {
                 T item = data[headIndex.value];
+                data[headIndex.value] = null;
                 headIndex.value = (headIndex.value + 1) & (data.length - 1);
                 SIZE_UPDATER.decrementAndGet(this);
                 return item;
@@ -274,6 +280,59 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     }
 
     @Override
+    public boolean remove(Object o) {
+        tailLock.lock();
+        headLock.lock();
+
+        try {
+            int index = this.headIndex.value;
+            int size = this.size;
+
+            for (int i = 0; i < size; i++) {
+                T item = data[index];
+
+                if (Objects.equals(item, o)) {
+                    remove(index);
+                    return true;
+                }
+
+                index = (index + 1) & (data.length - 1);
+            }
+        } finally {
+            headLock.unlock();
+            tailLock.unlock();
+        }
+
+        return false;
+    }
+
+    private void remove(int index) {
+        int tailIndex = this.tailIndex.value;
+
+        if (index < tailIndex) {
+            System.arraycopy(data, index + 1, data, index, tailIndex - index - 1);
+            this.tailIndex.value--;
+        } else {
+            System.arraycopy(data, index + 1, data, index, data.length - index - 1);
+            data[data.length - 1] = data[0];
+            if (tailIndex > 0) {
+                System.arraycopy(data, 1, data, 0, tailIndex);
+                this.tailIndex.value--;
+            } else {
+                this.tailIndex.value = data.length - 1;
+            }
+        }
+
+        if (tailIndex > 0) {
+            data[tailIndex - 1] = null;
+        } else {
+            data[data.length - 1] = null;
+        }
+
+        SIZE_UPDATER.decrementAndGet(this);
+    }
+
+    @Override
     public int size() {
         return SIZE_UPDATER.get(this);
     }
@@ -281,6 +340,35 @@ public class GrowableArrayBlockingQueue<T> extends AbstractQueue<T> implements B
     @Override
     public Iterator<T> iterator() {
         throw new UnsupportedOperationException();
+    }
+
+    public List<T> toList() {
+        List<T> list = new ArrayList<>(size());
+        forEach(list::add);
+        return list;
+    }
+
+    @Override
+    public void forEach(Consumer<? super T> action) {
+        tailLock.lock();
+        headLock.lock();
+
+        try {
+            int headIndex = this.headIndex.value;
+            int size = this.size;
+
+            for (int i = 0; i < size; i++) {
+                T item = data[headIndex];
+
+                action.accept(item);
+
+                headIndex = (headIndex + 1) & (data.length - 1);
+            }
+
+        } finally {
+            headLock.unlock();
+            tailLock.unlock();
+        }
     }
 
     @Override

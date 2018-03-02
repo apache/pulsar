@@ -110,7 +110,7 @@ public interface Properties {
     /**
      * Delete an existing property.
      * <p>
-     * Delete a property and all namespaces and destinations under it.
+     * Delete a property and all namespaces and topics under it.
      *
      * @param property
      *            Property name

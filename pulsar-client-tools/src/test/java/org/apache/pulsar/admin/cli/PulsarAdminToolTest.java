@@ -37,7 +37,6 @@ import org.apache.pulsar.client.admin.Properties;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.ResourceQuotas;
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.BacklogQuota.RetentionPolicy;
@@ -57,6 +56,7 @@ import com.google.common.collect.Sets;
 
 @Test
 public class PulsarAdminToolTest {
+
     @Test
     void brokers() throws Exception {
         PulsarAdmin admin = Mockito.mock(PulsarAdmin.class);
@@ -76,6 +76,9 @@ public class PulsarAdminToolTest {
 
         brokers.run(split("update-dynamic-config --config brokerShutdownTimeoutMs --value 100"));
         verify(mockBrokers).updateDynamicConfiguration("brokerShutdownTimeoutMs", "100");
+
+        brokers.run(split("get-internal-config"));
+        verify(mockBrokers).getInternalConfigurationData();
     }
 
     @Test
@@ -86,8 +89,8 @@ public class PulsarAdminToolTest {
 
         CmdBrokerStats brokerStats = new CmdBrokerStats(admin);
 
-        brokerStats.run(split("destinations"));
-        verify(mockBrokerStats).getDestinations();
+        brokerStats.run(split("topics"));
+        verify(mockBrokerStats).getTopics();
 
         brokerStats.run(split("load-report"));
         verify(mockBrokerStats).getLoadReport();
@@ -172,6 +175,9 @@ public class PulsarAdminToolTest {
 
         clusters.run(split("update-peer-clusters my-cluster --peer-clusters c1,c2"));
         verify(mockClusters).updatePeerClusterNames("my-cluster", Sets.newLinkedHashSet(Lists.newArrayList("c1", "c2")));
+
+        clusters.run(split("get-peer-clusters my-cluster"));
+        verify(mockClusters).getPeerClusterNames("my-cluster");
     }
 
     @Test
@@ -218,8 +224,8 @@ public class PulsarAdminToolTest {
         namespaces.run(split("list-cluster myprop/clust"));
         verify(mockNamespaces).getNamespaces("myprop", "clust");
 
-        namespaces.run(split("destinations myprop/clust/ns1"));
-        verify(mockNamespaces).getDestinations("myprop/clust/ns1");
+        namespaces.run(split("topics myprop/clust/ns1"));
+        verify(mockNamespaces).getTopics("myprop/clust/ns1");
 
         namespaces.run(split("policies myprop/clust/ns1"));
         verify(mockNamespaces).getPolicies("myprop/clust/ns1");
@@ -359,6 +365,28 @@ public class PulsarAdminToolTest {
 
         namespaces.run(split("unsubscribe -b 0x80000000_0xffffffff -s my-sub myprop/clust/ns1"));
         verify(mockNamespaces).unsubscribeNamespaceBundle("myprop/clust/ns1", "0x80000000_0xffffffff", "my-sub");
+
+        mockNamespaces = mock(Namespaces.class);
+        when(admin.namespaces()).thenReturn(mockNamespaces);
+        namespaces = new CmdNamespaces(admin);
+
+        namespaces.run(split("get-max-producers-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxProducersPerTopic("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-producers-per-topic myprop/clust/ns1 -p 1"));
+        verify(mockNamespaces).setMaxProducersPerTopic("myprop/clust/ns1", 1);
+
+        namespaces.run(split("get-max-consumers-per-topic myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxConsumersPerTopic("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-consumers-per-topic myprop/clust/ns1 -c 2"));
+        verify(mockNamespaces).setMaxConsumersPerTopic("myprop/clust/ns1", 2);
+
+        namespaces.run(split("get-max-consumers-per-subscription myprop/clust/ns1"));
+        verify(mockNamespaces).getMaxConsumersPerSubscription("myprop/clust/ns1");
+
+        namespaces.run(split("set-max-consumers-per-subscription myprop/clust/ns1 -c 3"));
+        verify(mockNamespaces).setMaxConsumersPerSubscription("myprop/clust/ns1", 3);
     }
 
     @Test

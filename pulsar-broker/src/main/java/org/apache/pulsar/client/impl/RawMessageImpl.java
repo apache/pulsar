@@ -22,7 +22,6 @@ import java.io.IOException;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
@@ -38,7 +37,7 @@ public class RawMessageImpl implements RawMessage {
     private final MessageIdData id;
     private final ByteBuf headersAndPayload;
 
-    RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
+    public RawMessageImpl(MessageIdData id, ByteBuf headersAndPayload) {
         this.id = id;
         this.headersAndPayload = headersAndPayload.retainedSlice();
     }

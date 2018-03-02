@@ -18,18 +18,14 @@
  */
 package org.apache.pulsar.discovery.service;
 
-import java.io.File;
-
 import org.apache.pulsar.common.api.PulsarDecoder;
+import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.discovery.service.server.ServiceConfig;
 
 import io.netty.channel.ChannelInitializer;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.ssl.ClientAuth;
 import io.netty.handler.ssl.SslContext;
-import io.netty.handler.ssl.SslContextBuilder;
-import io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 
 /**
  * Initialize service channel handlers.
@@ -42,7 +38,8 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     private DiscoveryService discoveryService;
     private boolean enableTLS;
 
-    public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig, boolean enableTLS) {
+    public ServiceChannelInitializer(DiscoveryService discoveryService, ServiceConfig serviceConfig,
+            boolean enableTLS) {
         super();
         this.serviceConfig = serviceConfig;
         this.discoveryService = discoveryService;
@@ -52,21 +49,10 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         if (enableTLS) {
-            File tlsCert = new File(serviceConfig.getTlsCertificateFilePath());
-            File tlsKey = new File(serviceConfig.getTlsKeyFilePath());
-            SslContextBuilder builder = SslContextBuilder.forServer(tlsCert, tlsKey);
-            if (serviceConfig.isTlsAllowInsecureConnection()) {
-                builder.trustManager(InsecureTrustManagerFactory.INSTANCE);
-            } else {
-                if (serviceConfig.getTlsTrustCertsFilePath().isEmpty()) {
-                    // Use system default
-                    builder.trustManager((File) null);
-                } else {
-                    File trustCertCollection = new File(serviceConfig.getTlsTrustCertsFilePath());
-                    builder.trustManager(trustCertCollection);
-                }
-            }
-            SslContext sslCtx = builder.clientAuth(ClientAuth.OPTIONAL).build();
+            SslContext sslCtx = SecurityUtility.createNettySslContextForServer(
+                    serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
+                    serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
+                    serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));

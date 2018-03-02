@@ -20,12 +20,11 @@ package org.apache.bookkeeper.mledger.impl;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+import com.google.common.base.Objects;
+import com.google.common.collect.ComparisonChain;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.NestedPositionInfo;
 import org.apache.bookkeeper.mledger.proto.MLDataFormats.PositionInfo;
-
-import com.google.common.base.Objects;
-import com.google.common.collect.ComparisonChain;
 
 public class PositionImpl implements Position, Comparable<PositionImpl> {
 
@@ -77,7 +76,7 @@ public class PositionImpl implements Position, Comparable<PositionImpl> {
     }
 
     /**
-     * String representation of virtual cursor - LedgerId:EntryId
+     * String representation of virtual cursor - LedgerId:EntryId.
      */
     @Override
     public String toString() {

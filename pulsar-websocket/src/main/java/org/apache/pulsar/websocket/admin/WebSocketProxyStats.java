@@ -32,7 +32,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
 import com.google.common.collect.Maps;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat;
 import org.apache.pulsar.websocket.stats.ProxyTopicStat.ConsumerStats;
@@ -67,16 +67,16 @@ public class WebSocketProxyStats extends WebSocketWebResource {
     }
 
     @GET
-    @Path("/{property}/{cluster}/{namespace}/{destination}/stats")
+    @Path("/{property}/{cluster}/{namespace}/{topic}/stats")
     @ApiOperation(value = "Get the stats for the topic.")
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Topic does not exist") })
     public ProxyTopicStat getStats(@PathParam("property") String property, @PathParam("cluster") String cluster,
-            @PathParam("namespace") String namespace, @PathParam("destination") @Encoded String destination) {
-        destination = decode(destination);
-        DestinationName dn = DestinationName.get("persistent", property, cluster, namespace, destination);
-        validateUserAccess(dn);
-        ProxyTopicStat stats = getStat(dn.toString());
+            @PathParam("namespace") String namespace, @PathParam("topic") @Encoded String topic) {
+        topic = decode(topic);
+        TopicName topicName = TopicName.get("persistent", property, cluster, namespace, topic);
+        validateUserAccess(topicName);
+        ProxyTopicStat stats = getStat(topicName.toString());
         if (stats == null) {
             throw new RestException(Status.NOT_FOUND, "Topic does not exist");
         }
@@ -94,7 +94,7 @@ public class WebSocketProxyStats extends WebSocketWebResource {
 
     public ProxyTopicStat getStat(String topicName) {
 
-        if (!service().getProducers().containsKey(topicName) 
+        if (!service().getProducers().containsKey(topicName)
         		&& !service().getConsumers().containsKey(topicName)
         		&& !service().getReaders().containsKey(topicName)) {
             LOG.warn("topic doesn't exist {}", topicName);
@@ -114,7 +114,7 @@ public class WebSocketProxyStats extends WebSocketWebResource {
                 topicStat.consumerStats.add(new ConsumerStats(handler));
             });
         }
-        
+
         if (service().getReaders().containsKey(topicName)){
             service().getReaders().get(topicName).forEach(handler -> {
                 topicStat.consumerStats.add(new ConsumerStats(handler));

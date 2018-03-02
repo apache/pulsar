@@ -30,7 +30,7 @@ import org.apache.pulsar.client.impl.ProducerStats;
  *
  *
  */
-public interface Producer extends Closeable {
+public interface Producer<T> extends Closeable {
 
     /**
      * @return the topic which producer is publishing to
@@ -53,12 +53,12 @@ public interface Producer extends Closeable {
      * @throws PulsarClientException.AlreadyClosedException
      *             if the producer was already closed
      */
-    MessageId send(byte[] message) throws PulsarClientException;
+    MessageId send(T message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
      * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException#ProducerQueueIsFullError}
+     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
      * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
      * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
@@ -67,7 +67,7 @@ public interface Producer extends Closeable {
      *            a byte array with the payload of the message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(byte[] message);
+    CompletableFuture<MessageId> sendAsync(T message);
 
     /**
      * Send a message
@@ -78,12 +78,12 @@ public interface Producer extends Closeable {
      * @throws PulsarClientException.TimeoutException
      *             if the message was not correctly received by the system within the timeout period
      */
-    MessageId send(Message message) throws PulsarClientException;
+    MessageId send(Message<T> message) throws PulsarClientException;
 
     /**
      * Send a message asynchronously
      * <p>
-     * When the returned {@link CompletatableFuture} is marked as completed successfully, the provided message will
+     * When the returned {@link CompletableFuture} is marked as completed successfully, the provided message will
      * contain the {@link MessageId} assigned by the broker to the published message.
      * <p>
      * Example:
@@ -97,7 +97,7 @@ public interface Producer extends Closeable {
      * });</code>
      * </pre>
      * <p>
-     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException#ProducerQueueIsFullError}
+     * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
      * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
      * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
@@ -106,7 +106,7 @@ public interface Producer extends Closeable {
      *            a message
      * @return a future that can be used to track when the message will have been safely persisted
      */
-    CompletableFuture<MessageId> sendAsync(Message message);
+    CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     /**
      * Get the last sequence id that was published by this producer.

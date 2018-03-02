@@ -41,7 +41,7 @@ public class ExecutorProvider {
         checkNotNull(threadNamePrefix);
         executors = Lists.newArrayListWithCapacity(numThreads);
         for (int i = 0; i < numThreads; i++) {
-            executors.add(Executors.newSingleThreadExecutor(new DefaultThreadFactory(threadNamePrefix)));
+            executors.add(Executors.newSingleThreadScheduledExecutor(new DefaultThreadFactory(threadNamePrefix)));
         }
     }
 

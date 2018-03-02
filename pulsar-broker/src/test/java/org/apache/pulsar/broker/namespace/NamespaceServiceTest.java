@@ -56,7 +56,7 @@ import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -108,9 +108,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
-        NamespaceBundle originalBundle = bundles.findBundle(dn);
+        NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
         CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);
@@ -178,15 +178,15 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
-        NamespaceBundle originalBundle = bundles.findBundle(dn);
+        NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
-        PersistentTopic topic = new PersistentTopic(dn.toString(), ledger, pulsar.getBrokerService());
+        PersistentTopic topic = new PersistentTopic(topicName.toString(), ledger, pulsar.getBrokerService());
         Method method = pulsar.getBrokerService().getClass().getDeclaredMethod("addTopicToStatsMaps",
-                DestinationName.class, Topic.class);
+                TopicName.class, Topic.class);
         method.setAccessible(true);
-        method.invoke(pulsar.getBrokerService(), dn, topic);
+        method.invoke(pulsar.getBrokerService(), topicName, topic);
         String nspace = originalBundle.getNamespaceObject().toString();
         List<Topic> list = this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace,
                 originalBundle.toString());
@@ -210,7 +210,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
         }
 
         // status-map should be updated with new split bundles
-        NamespaceBundle splitBundle = pulsar.getNamespaceService().getBundle(dn);
+        NamespaceBundle splitBundle = pulsar.getNamespaceService().getBundle(topicName);
         assertTrue(!CollectionUtils.isEmpty(
                 this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace, splitBundle.toString())));
 
@@ -231,9 +231,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
 
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
-        NamespaceBundle originalBundle = bundles.findBundle(dn);
+        NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         assertFalse(namespaceService.isNamespaceBundleDisabled(originalBundle));
 
@@ -283,7 +283,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 return result;
             }
         }).when(spyTopic).close();
-        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
         try {
             pulsar.getNamespaceService().unloadNamespaceBundle(bundle);
         } catch (Exception e) {
@@ -322,7 +322,7 @@ public class NamespaceServiceTest extends BrokerTestBase {
                 return new CompletableFuture<Void>();
             }
         }).when(spyTopic).close();
-        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(DestinationName.get(topicName));
+        NamespaceBundle bundle = pulsar.getNamespaceService().getBundle(TopicName.get(topicName));
 
         // try to unload bundle whose topic will be stuck
         pulsar.getNamespaceService().unloadNamespaceBundle(bundle, 1, TimeUnit.SECONDS);
@@ -381,9 +381,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
         ownership.set(pulsar.getNamespaceService(), MockOwnershipCache);
         NamespaceService namespaceService = pulsar.getNamespaceService();
         NamespaceName nsname = NamespaceName.get("pulsar/global/ns1");
-        DestinationName dn = DestinationName.get("persistent://pulsar/global/ns1/topic-1");
+        TopicName topicName = TopicName.get("persistent://pulsar/global/ns1/topic-1");
         NamespaceBundles bundles = namespaceService.getNamespaceBundleFactory().getBundles(nsname);
-        NamespaceBundle originalBundle = bundles.findBundle(dn);
+        NamespaceBundle originalBundle = bundles.findBundle(topicName);
 
         // Split bundle and take ownership of split bundles
         CompletableFuture<Void> result = namespaceService.splitAndOwnBundle(originalBundle, false);

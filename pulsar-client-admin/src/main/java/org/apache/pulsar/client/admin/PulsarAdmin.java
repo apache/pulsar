@@ -49,6 +49,7 @@ import org.apache.pulsar.common.util.SecurityUtility;
 import org.glassfish.jersey.client.ClientConfig;
 import org.glassfish.jersey.client.ClientProperties;
 import org.glassfish.jersey.jackson.JacksonFeature;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.bridge.SLF4JBridgeHandler;
@@ -70,9 +71,9 @@ public class PulsarAdmin implements Closeable {
 
     private final Client client;
     private final URL serviceUrl;
-    private final WebTarget web;
+    protected final WebTarget web;
     private final Lookup lookups;
-    private final Authentication auth;
+    protected final Authentication auth;
 
     static {
         /**
@@ -114,6 +115,7 @@ public class PulsarAdmin implements Closeable {
         ClientConfig httpConfig = new ClientConfig();
         httpConfig.property(ClientProperties.FOLLOW_REDIRECTS, true);
         httpConfig.property(ClientProperties.ASYNC_THREADPOOL_SIZE, 8);
+        httpConfig.register(MultiPartFeature.class);
 
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
@@ -264,14 +266,14 @@ public class PulsarAdmin implements Closeable {
     public ResourceQuotas resourceQuotas() {
         return resourceQuotas;
     }
-    
+
     /**
-     * @return does a looks up for the broker serving the destination
+     * @return does a looks up for the broker serving the topic
      */
     public Lookup lookups() {
         return lookups;
     }
-    
+
     /**
      * @return the broker statics
      */

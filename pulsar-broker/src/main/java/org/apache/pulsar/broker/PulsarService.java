@@ -23,6 +23,7 @@ import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,8 +34,9 @@ import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
 
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.commons.lang3.builder.ReflectionToStringBuilder;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
@@ -53,12 +55,13 @@ import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.util.FutureUtil;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.configuration.VipStatus;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -76,6 +79,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 
 import io.netty.util.concurrent.DefaultThreadFactory;
 
@@ -101,7 +105,8 @@ public class PulsarService implements AutoCloseable {
             new DefaultThreadFactory("pulsar"));
     private final ScheduledExecutorService cacheExecutor = Executors.newScheduledThreadPool(10,
             new DefaultThreadFactory("zk-cache-callback"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-ordered");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
+            .name("pulsar-ordered").build();
     private final ScheduledExecutorService loadManagerExecutor;
     private ScheduledFuture<?> loadReportTask = null;
     private ScheduledFuture<?> loadSheddingTask = null;
@@ -274,12 +279,19 @@ public class PulsarService implements AutoCloseable {
             brokerService.start();
 
             this.webService = new WebService(this);
-            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false);
-            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin", true);
-            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true);
+            Map<String, Object> attributeMap = Maps.newHashMap();
+            attributeMap.put(WebService.ATTRIBUTE_PULSAR_NAME, this);
+            Map<String, Object> vipAttributeMap = Maps.newHashMap();
+            vipAttributeMap.put(VipStatus.ATTRIBUTE_STATUS_FILE_PATH, this.config.getStatusFilePath());
+            this.webService.addRestResources("/", VipStatus.class.getPackage().getName(), false, vipAttributeMap);
+            this.webService.addRestResources("/", "org.apache.pulsar.broker.web", false, attributeMap);
+            this.webService.addRestResources("/admin", "org.apache.pulsar.broker.admin.v1", true, attributeMap);
+            this.webService.addRestResources("/admin/v2", "org.apache.pulsar.broker.admin.v2", true, attributeMap);
+            this.webService.addRestResources("/lookup", "org.apache.pulsar.broker.lookup", true, attributeMap);
 
             this.webService.addServlet("/metrics",
-                    new ServletHolder(new PrometheusMetricsServlet(this, config.exposeTopicLevelMetricsInPrometheus())), false);
+                    new ServletHolder(new PrometheusMetricsServlet(this, config.exposeTopicLevelMetricsInPrometheus())),
+                    false, attributeMap);
 
             if (config.isWebSocketServiceEnabled()) {
                 // Use local broker address to avoid different IP address when using a VIP for service discovery
@@ -288,11 +300,11 @@ public class PulsarService implements AutoCloseable {
                         config);
                 this.webSocketService.start();
                 this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketProducerServlet(webSocketService)), true);
+                        new ServletHolder(new WebSocketProducerServlet(webSocketService)), true, attributeMap);
                 this.webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketConsumerServlet(webSocketService)), true);
+                        new ServletHolder(new WebSocketConsumerServlet(webSocketService)), true, attributeMap);
                 this.webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketReaderServlet(webSocketService)), true);
+                        new ServletHolder(new WebSocketReaderServlet(webSocketService)), true, attributeMap);
             }
 
             if (LOG.isDebugEnabled()) {
@@ -448,13 +460,13 @@ public class PulsarService implements AutoCloseable {
     }
 
     /**
-     * Load all the destination contained in a namespace
+     * Load all the topics contained in a namespace
      *
      * @param bundle
      *            <code>NamespaceBundle</code> to identify the service unit
      * @throws Exception
      */
-    public void loadNamespaceDestinations(NamespaceBundle bundle) {
+    public void loadNamespaceTopics(NamespaceBundle bundle) {
         executor.submit(() -> {
             LOG.info("Loading all topics on bundle: {}", bundle);
 
@@ -462,11 +474,10 @@ public class PulsarService implements AutoCloseable {
             List<CompletableFuture<Topic>> persistentTopics = Lists.newArrayList();
             long topicLoadStart = System.nanoTime();
 
-            for (String topic : getNamespaceService().getListOfDestinations(nsName.getProperty(), nsName.getCluster(),
-                    nsName.getLocalName())) {
+            for (String topic : getNamespaceService().getListOfTopics(nsName)) {
                 try {
-                    DestinationName dn = DestinationName.get(topic);
-                    if (bundle.includes(dn)) {
+                    TopicName topicName = TopicName.get(topic);
+                    if (bundle.includes(topicName)) {
                         CompletableFuture<Topic> future = brokerService.getTopic(topic);
                         if (future != null) {
                             persistentTopics.add(future);
@@ -542,6 +553,10 @@ public class PulsarService implements AutoCloseable {
         return this.brokerService;
     }
 
+    public BookKeeper getBookKeeperClient() {
+        return managedLedgerClientFactory.getBookKeeperClient();
+    }
+
     public ManagedLedgerFactory getManagedLedgerFactory() {
         return managedLedgerClientFactory.getManagedLedgerFactory();
     }
@@ -566,7 +581,7 @@ public class PulsarService implements AutoCloseable {
         return loadManagerExecutor;
     }
 
-    public OrderedSafeExecutor getOrderedExecutor() {
+    public OrderedScheduler getOrderedExecutor() {
         return orderedExecutor;
     }
 
@@ -576,7 +591,7 @@ public class PulsarService implements AutoCloseable {
 
     public ZooKeeperClientFactory getZooKeeperClientFactory() {
         if (zkClientFactory == null) {
-            zkClientFactory = new ZookeeperBkClientFactoryImpl();
+            zkClientFactory = new ZookeeperBkClientFactoryImpl(orderedExecutor);
         }
         // Return default factory
         return zkClientFactory;
