@@ -215,7 +215,7 @@ public class CmdFunctions extends CmdBase {
                 functionConfigBuilder.setRuntime(FunctionConfig.Runtime.JAVA);
                 userCodeFile = jarFile;
             } else if (null != pyFile) {
-                // Can we do any checks here?
+                doPythonSubmitChecks(functionConfigBuilder);
                 functionConfigBuilder.setRuntime(FunctionConfig.Runtime.PYTHON);
                 userCodeFile = pyFile;
             } else {
@@ -362,6 +362,12 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Serializer type mismatch " + typeArgs[1] + " vs " + serDeTypes[0]);
                     }
                 }
+            }
+        }
+
+        private void doPythonSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
+            if (functionConfigBuilder.getProcessingGuarantees() == FunctionConfig.ProcessingGuarantees.EFFECTIVELY_ONCE) {
+                throw new RuntimeException("Effectively once not yet supported in python");
             }
         }
 
