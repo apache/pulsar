@@ -32,7 +32,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
-import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.broker.service.schema.proto.SchemaRegistryFormat;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
@@ -74,15 +75,15 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
 
     @Override
     @NotNull
-    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, Schema schema) {
+    public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema) {
         SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
-            .setType(Functions.convertFromDomainType(schema.type))
-            .setSchema(ByteString.copyFrom(schema.data))
+            .setType(Functions.convertFromDomainType(schema.getType()))
+            .setSchema(ByteString.copyFrom(schema.getData()))
             .setSchemaId(schemaId)
-            .setUser(schema.user)
+            .setUser(schema.getUser())
             .setDeleted(false)
             .setTimestamp(clock.millis())
-            .addAllProps(toPairs(schema.props))
+            .addAllProps(toPairs(schema.getProps()))
             .build();
         return schemaStorage.put(schemaId, info.toByteArray());
     }
@@ -164,8 +165,8 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
             return pairs;
         }
 
-        static Schema schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info) {
-            return Schema.builder()
+        static SchemaData schemaInfoToSchema(SchemaRegistryFormat.SchemaInfo info) {
+            return SchemaData.builder()
                 .user(info.getUser())
                 .type(convertToDomainType(info.getType()))
                 .data(info.getSchema().toByteArray())

@@ -21,7 +21,7 @@ package org.apache.pulsar.broker.service.schema;
 import com.google.common.base.MoreObjects;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
 public interface SchemaRegistry extends AutoCloseable {
@@ -30,7 +30,7 @@ public interface SchemaRegistry extends AutoCloseable {
 
     CompletableFuture<SchemaAndMetadata> getSchema(String schemaId, SchemaVersion version);
 
-    CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, Schema schema);
+    CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema);
 
     CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user);
 
@@ -38,10 +38,10 @@ public interface SchemaRegistry extends AutoCloseable {
 
     class SchemaAndMetadata {
         public final String id;
-        public final Schema schema;
+        public final SchemaData schema;
         public final SchemaVersion version;
 
-        SchemaAndMetadata(String id, Schema schema, SchemaVersion version) {
+        SchemaAndMetadata(String id, SchemaData schema, SchemaVersion version) {
             this.id = id;
             this.schema = schema;
             this.version = version;

@@ -599,6 +599,12 @@ flexible messaging model and an intuitive client API.</description>
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
       </dependency>
+
+      <dependency>
+        <groupId>com.google.protobuf</groupId>
+        <artifactId>protobuf-java</artifactId>
+        <version>2.4.1</version>
+      </dependency>
     </dependencies>
   </dependencyManagement>
 

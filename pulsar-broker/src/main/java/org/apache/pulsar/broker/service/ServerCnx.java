@@ -87,7 +87,7 @@ import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
@@ -714,8 +714,8 @@ public class ServerCnx extends PulsarHandler {
         }
     }
 
-    private Schema getSchema(PulsarApi.Schema protocolSchema) {
-        return Schema.builder()
+    private SchemaData getSchema(PulsarApi.Schema protocolSchema) {
+        return SchemaData.builder()
             .data(protocolSchema.getSchemaData().toByteArray())
             .isDeleted(false)
             .timestamp(System.currentTimeMillis())
