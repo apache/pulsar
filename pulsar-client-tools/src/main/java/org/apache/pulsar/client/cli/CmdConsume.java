@@ -25,9 +25,8 @@ import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.io.HexDump;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -70,8 +69,7 @@ public class CmdConsume {
             + "value 0 means to consume messages as fast as possible.")
     private double consumeRate = 0;
 
-    private String serviceURL = null;
-    ClientConfiguration clientConfig;
+    ClientBuilder clientBuilder;
 
     public CmdConsume() {
         // Do nothing
@@ -81,9 +79,8 @@ public class CmdConsume {
      * Set client configuration.
      *
      */
-    public void updateConfig(String serviceURL, ClientConfiguration newConfig) {
-        this.serviceURL = serviceURL;
-        this.clientConfig = newConfig;
+    public void updateConfig(ClientBuilder clientBuilder) {
+        this.clientBuilder = clientBuilder;
     }
 
     /**
@@ -95,7 +92,7 @@ public class CmdConsume {
      *            Whether to display BytesMessages in hexdump style, ignored for simple text messages
      * @return String representation of the message
      */
-    private String interpretMessage(Message message, boolean displayHex) throws IOException {
+    private String interpretMessage(Message<byte[]> message, boolean displayHex) throws IOException {
         byte[] msgData = message.getData();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         if (!displayHex) {
@@ -114,8 +111,6 @@ public class CmdConsume {
     public int run() throws PulsarClientException, IOException {
         if (mainOptions.size() != 1)
             throw (new ParameterException("Please provide one and only one topic name."));
-        if (this.serviceURL == null || this.serviceURL.isEmpty())
-            throw (new ParameterException("Broker URL is not provided."));
         if (this.subscriptionName == null || this.subscriptionName.isEmpty())
             throw (new ParameterException("Subscription name is not provided."));
         if (this.numMessagesToConsume < 0)
@@ -126,10 +121,8 @@ public class CmdConsume {
         int returnCode = 0;
 
         try {
-            ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-            consumerConf.setSubscriptionType(this.subscriptionType);
-            PulsarClient client = PulsarClient.create(this.serviceURL, this.clientConfig);
-            Consumer consumer = client.subscribe(topic, this.subscriptionName, consumerConf);
+            PulsarClient client = clientBuilder.build();
+            Consumer<byte[]> consumer = client.newConsumer().topic(topic).subscriptionName(this.subscriptionName).subscriptionType(subscriptionType).subscribe();
 
             RateLimiter limiter = (this.consumeRate > 0) ? RateLimiter.create(this.consumeRate) : null;
             while (this.numMessagesToConsume == 0 || numMessagesConsumed < this.numMessagesToConsume) {
@@ -137,7 +130,7 @@ public class CmdConsume {
                     limiter.acquire();
                 }
 
-                Message msg = consumer.receive(5, TimeUnit.SECONDS);
+                Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
                 if (msg == null) {
                     LOG.warn("No message to consume after waiting for 20 seconds.");
                 } else {

@@ -23,7 +23,7 @@ import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
@@ -67,8 +67,7 @@ public class CmdProduce {
             + "value 0 means to produce messages as fast as possible.")
     private double publishRate = 0;
 
-    private String serviceURL = null;
-    ClientConfiguration clientConfig;
+    ClientBuilder clientBuilder;
 
     public CmdProduce() {
         // Do nothing
@@ -78,18 +77,17 @@ public class CmdProduce {
      * Set Pulsar client configuration.
      *
      */
-    public void updateConfig(String serviceURL, ClientConfiguration newConfig) {
-        this.serviceURL = serviceURL;
-        this.clientConfig = newConfig;
+    public void updateConfig(ClientBuilder newBuilder) {
+        this.clientBuilder = newBuilder;
     }
 
     /*
      * Generate a list of message bodies which can be used to build messages
      *
      * @param stringMessages List of strings to send
-     * 
+     *
      * @param messageFileNames List of file names to read and send
-     * 
+     *
      * @return list of message bodies
      */
     private List<byte[]> generateMessageBodies(List<String> stringMessages, List<String> messageFileNames) {
@@ -120,17 +118,17 @@ public class CmdProduce {
      * Generates a list of messages that can be produced
      *
      * @param stringMessages List of strings to send as messages
-     * 
+     *
      * @param messageFileNames List of file names to read and send as messages
-     * 
+     *
      * @return list of messages to send
      */
-    private List<Message> generateMessages(List<byte[]> messageBodies) {
-        List<Message> messagesToSend = new ArrayList<Message>();
+    private List<Message<byte[]>> generateMessages(List<byte[]> messageBodies) {
+        List<Message<byte[]>> messagesToSend = new ArrayList<>();
 
         try {
             for (byte[] msgBody : messageBodies) {
-                MessageBuilder msgBuilder = MessageBuilder.create();
+                MessageBuilder<byte[]> msgBuilder = MessageBuilder.create();
                 msgBuilder.setContent(msgBody);
                 messagesToSend.add(msgBuilder.build());
             }
@@ -150,8 +148,6 @@ public class CmdProduce {
     public int run() throws PulsarClientException {
         if (mainOptions.size() != 1)
             throw (new ParameterException("Please provide one and only one topic name."));
-        if (this.serviceURL == null || this.serviceURL.isEmpty())
-            throw (new ParameterException("Broker URL is not provided."));
         if (this.numTimesProduce <= 0)
             throw (new ParameterException("Number of times need to be positive number."));
         if (messages.size() == 0 && messageFileNames.size() == 0)
@@ -169,14 +165,14 @@ public class CmdProduce {
         int returnCode = 0;
 
         try {
-            PulsarClient client = PulsarClient.create(this.serviceURL, this.clientConfig);
-            Producer producer = client.createProducer(topic);
+            PulsarClient client = clientBuilder.build();
+            Producer<byte[]> producer = client.newProducer().topic(topic).create();
 
             List<byte[]> messageBodies = generateMessageBodies(this.messages, this.messageFileNames);
             RateLimiter limiter = (this.publishRate > 0) ? RateLimiter.create(this.publishRate) : null;
             for (int i = 0; i < this.numTimesProduce; i++) {
-                List<Message> messages = generateMessages(messageBodies);
-                for (Message msg : messages) {
+                List<Message<byte[]>> messages = generateMessages(messageBodies);
+                for (Message<byte[]> msg : messages) {
                     if (limiter != null)
                         limiter.acquire();
 
