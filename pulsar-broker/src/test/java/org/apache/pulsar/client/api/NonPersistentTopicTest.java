@@ -479,15 +479,13 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             NonPersistentTopicStats stats;
             SubscriptionStats subStats;
 
-            TopicName dest = TopicName.get(globalTopicName);
-
             PulsarClient client1 = PulsarClient.builder().serviceUrl(replication.url1.toString()).build();
             PulsarClient client2 = PulsarClient.builder().serviceUrl(replication.url2.toString()).build();
             PulsarClient client3 = PulsarClient.builder().serviceUrl(replication.url3.toString()).build();
 
             ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(globalTopicName)
                     .subscriptionName("subscriber-1").subscribe();
-            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) client2.newConsumer().topic(globalTopicName)
+            ConsumerImpl<byte[]> consumer2 = (ConsumerImpl<byte[]>) client1.newConsumer().topic(globalTopicName)
                     .subscriptionName("subscriber-2").subscribe();
 
             ConsumerImpl<byte[]> repl2Consumer = (ConsumerImpl<byte[]>) client2.newConsumer().topic(globalTopicName)
@@ -495,7 +493,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ConsumerImpl<byte[]> repl3Consumer = (ConsumerImpl<byte[]>) client3.newConsumer().topic(globalTopicName)
                     .subscriptionName("subscriber-1").subscribe();
 
-            Producer<byte[]> producer = pulsarClient.newProducer().topic(globalTopicName).create();
+            Producer<byte[]> producer = client1.newProducer().topic(globalTopicName).create();
 
             Thread.sleep(timeWaitToSync);
 
@@ -503,7 +501,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
 
             // Replicator for r1 -> r2,r3
             NonPersistentTopic topicRef = (NonPersistentTopic) replication.pulsar1.getBrokerService()
-                    .getTopicReference(dest.toString());
+                    .getTopicReference(globalTopicName);
             NonPersistentReplicator replicatorR2 = (NonPersistentReplicator) topicRef.getPersistentReplicator("r2");
             NonPersistentReplicator replicatorR3 = (NonPersistentReplicator) topicRef.getPersistentReplicator("r3");
             assertNotNull(topicRef);

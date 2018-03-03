@@ -2255,7 +2255,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/myenc-topic1")
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").subscribe();
 
         // 1. Invalid key name
@@ -2284,7 +2284,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 4. Set consumer config to consume even if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
                 .subscribe();
 
@@ -2298,13 +2298,14 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
                     + " should not match the expected message " + expectedMessage);
             consumer.acknowledgeCumulative(msg);
         } catch (Exception e) {
+            e.printStackTrace();
             Assert.fail("Failed to receive message even aftet ConsumerCryptoFailureAction.CONSUME is set.");
         }
 
         // 5. Set keyreader and failure action
         consumer.close();
         // Set keyreader
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
                 .cryptoKeyReader(new EncKeyReader()).subscribe();
 
@@ -2321,7 +2322,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         // 6. Set consumer config to discard if decryption fails
         consumer.close();
-        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/myenc-topic1")
+        consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
                 .subscribe();
 
