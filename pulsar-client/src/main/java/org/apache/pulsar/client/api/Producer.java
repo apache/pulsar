@@ -21,8 +21,6 @@ package org.apache.pulsar.client.api;
 import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 
-import org.apache.pulsar.client.impl.ProducerStats;
-
 /**
  * Producer object.
  *
@@ -124,13 +122,18 @@ public interface Producer<T> extends Closeable {
     /**
      * Get statistics for the producer
      *
-     * numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
-     * interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
-     * acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
-     * of bytes sent totalSendFailed : Total number of messages failed to send totalAcksReceived: Total number of acks
-     * received
+     * <ul>
+     * <li>numMsgsSent : Number of messages sent in the current interval
+     * <li>numBytesSent : Number of bytes sent in the current interval
+     * <li>numSendFailed : Number of messages failed to send in the current interval
+     * <li>numAcksReceived : Number of acks received in the current interval
+     * <li>totalMsgsSent : Total number of messages sent
+     * <li>totalBytesSent : Total number of bytes sent
+     * <li>totalSendFailed : Total number of messages failed to send
+     * <li>totalAcksReceived: Total number of acks received
+     * </ul>
      *
-     * @return statistic for the producer or null if ProducerStats is disabled.
+     * @return statistic for the producer or null if ProducerStatsRecorderImpl is disabled.
      */
     ProducerStats getStats();
 

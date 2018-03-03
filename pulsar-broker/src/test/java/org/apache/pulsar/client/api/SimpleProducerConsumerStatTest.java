@@ -42,8 +42,8 @@ import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerStats;
-import org.apache.pulsar.client.impl.ProducerStats;
+import org.apache.pulsar.client.api.ConsumerStats;
+import org.apache.pulsar.client.api.ProducerStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
@@ -338,7 +338,7 @@ public class SimpleProducerConsumerStatTest extends ProducerConsumerBase {
         assertEquals(cStat.getTotalMsgsReceived(), cStat.getTotalAcksSent());
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     public void testBatchMessagesRateOut() throws PulsarClientException, InterruptedException, PulsarAdminException {
         log.info("-- Starting {} test --", methodName);
         String topicName = "persistent://my-property/cluster/my-ns/testBatchMessagesRateOut";
