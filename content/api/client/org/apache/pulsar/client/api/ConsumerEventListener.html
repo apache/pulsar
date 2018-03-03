@@ -121,14 +121,14 @@ var activeTableTab = "activeTableTab";
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerEventListener.html#becameActive-org.apache.pulsar.client.api.Consumer-int-">becameActive</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerEventListener.html#becameActive-org.apache.pulsar.client.api.Consumer-int-">becameActive</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;?&gt;&nbsp;consumer,
             int&nbsp;partitionId)</code>
 <div class="block">Notified when the consumer group is changed, and the consumer becomes the active consumer.</div>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>void</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerEventListener.html#becameInactive-org.apache.pulsar.client.api.Consumer-int-">becameInactive</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerEventListener.html#becameInactive-org.apache.pulsar.client.api.Consumer-int-">becameInactive</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;?&gt;&nbsp;consumer,
               int&nbsp;partitionId)</code>
 <div class="block">Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.</div>
 </td>
@@ -154,7 +154,7 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>becameActive</h4>
-<pre>void&nbsp;becameActive(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer,
+<pre>void&nbsp;becameActive(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;?&gt;&nbsp;consumer,
                   int&nbsp;partitionId)</pre>
 <div class="block">Notified when the consumer group is changed, and the consumer becomes the active consumer.</div>
 </li>
@@ -165,7 +165,7 @@ var activeTableTab = "activeTableTab";
 <ul class="blockListLast">
 <li class="blockList">
 <h4>becameInactive</h4>
-<pre>void&nbsp;becameInactive(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&nbsp;consumer,
+<pre>void&nbsp;becameInactive(<a href="../../../../../org/apache/pulsar/client/api/Consumer.html" title="interface in org.apache.pulsar.client.api">Consumer</a>&lt;?&gt;&nbsp;consumer,
                     int&nbsp;partitionId)</pre>
 <div class="block">Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.</div>
 </li>

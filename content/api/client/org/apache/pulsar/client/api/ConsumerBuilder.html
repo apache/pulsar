@@ -174,7 +174,7 @@ extends Serializable, Cloneable</pre>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#patternAutoDiscoveryPeriod-int-">patternAutoDiscoveryPeriod</a></span>(int&nbsp;periodInMinutes)</code>
 <div class="block">Set topics auto discovery period when using a pattern for topics consumer.</div>
 </td>
@@ -249,13 +249,13 @@ extends Serializable, Cloneable</pre>
 </td>
 </tr>
 <tr id="i19" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.util.regex.Pattern-">topicsPattern</a></span>(java.util.regex.Pattern&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
 </td>
 </tr>
 <tr id="i20" class="altColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html#topicsPattern-java.lang.String-">topicsPattern</a></span>(String&nbsp;topicsPattern)</code>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.</div>
 </td>
@@ -375,7 +375,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>topicsPattern</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topicsPattern(java.util.regex.Pattern&nbsp;topicsPattern)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;topicsPattern(java.util.regex.Pattern&nbsp;topicsPattern)</pre>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.
  <p></div>
 <dl>
@@ -390,7 +390,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>topicsPattern</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;topicsPattern(String&nbsp;topicsPattern)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;topicsPattern(String&nbsp;topicsPattern)</pre>
 <div class="block">Specify a pattern for topics that this consumer will subscribe on.
  It accepts regular expression and will be compiled into a pattern internally.
  Eg. "persistent://prop/use/ns-abc/pattern-topic-.*"
@@ -589,7 +589,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>patternAutoDiscoveryPeriod</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&nbsp;patternAutoDiscoveryPeriod(int&nbsp;periodInMinutes)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ConsumerBuilder.html" title="type parameter in ConsumerBuilder">T</a>&gt;&nbsp;patternAutoDiscoveryPeriod(int&nbsp;periodInMinutes)</pre>
 <div class="block">Set topics auto discovery period when using a pattern for topics consumer.
  The period is in minute, and default and minimum value is 1 minute.</div>
 <dl>

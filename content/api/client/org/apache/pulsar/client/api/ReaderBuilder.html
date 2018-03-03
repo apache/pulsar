@@ -162,7 +162,7 @@ extends Serializable, Cloneable</pre>
 </tr>
 <tr id="i5" class="rowColor">
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener</a></span>(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerListener)</code>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
 </td>
 </tr>
@@ -309,7 +309,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>readerListener</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerListener(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&nbsp;readerListener)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerListener(<a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api">ReaderListener</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ReaderBuilder.html" title="type parameter in ReaderBuilder">T</a>&gt;&nbsp;readerListener)</pre>
 <div class="block">Sets a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader
  <p>
  When a <a href="../../../../../org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> is set, application will receive messages through it. Calls to

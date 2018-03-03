@@ -135,7 +135,7 @@ extends Serializable, Cloneable</pre>
 </td>
 </tr>
 <tr id="i1" class="rowColor">
-<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a></code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html#batchingMaxMessages-int-">batchingMaxMessages</a></span>(int&nbsp;batchMessagesMaxMessagesPerBatch)</code>
 <div class="block">Set the maximum number of messages permitted in a batch.</div>
 </td>
@@ -617,7 +617,7 @@ extends Serializable, Cloneable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>batchingMaxMessages</h4>
-<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&nbsp;batchingMaxMessages(int&nbsp;batchMessagesMaxMessagesPerBatch)</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="interface in org.apache.pulsar.client.api">ProducerBuilder</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/ProducerBuilder.html" title="type parameter in ProducerBuilder">T</a>&gt;&nbsp;batchingMaxMessages(int&nbsp;batchMessagesMaxMessagesPerBatch)</pre>
 <div class="block">Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
  messages will be queued until this threshold is reached or batch interval has elapsed</div>
 <dl>

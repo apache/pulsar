@@ -170,11 +170,11 @@
 <div class="block">Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
  enabled.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameActive-org.apache.pulsar.client.api.Consumer-int-">becameActive(Consumer, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameActive-org.apache.pulsar.client.api.Consumer-int-">becameActive(Consumer&lt;?&gt;, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
 <dd>
 <div class="block">Notified when the consumer group is changed, and the consumer becomes the active consumer.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameInactive-org.apache.pulsar.client.api.Consumer-int-">becameInactive(Consumer, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerEventListener.html#becameInactive-org.apache.pulsar.client.api.Consumer-int-">becameInactive(Consumer&lt;?&gt;, int)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerEventListener.html" title="interface in org.apache.pulsar.client.api">ConsumerEventListener</a></dt>
 <dd>
 <div class="block">Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.</div>
 </dd>
@@ -205,13 +205,13 @@
 <dl>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/PulsarClientException.ChecksumException.html#ChecksumException-java.lang.String-">ChecksumException(String)</a></span> - Constructor for exception org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/PulsarClientException.ChecksumException.html" title="class in org.apache.pulsar.client.api">PulsarClientException.ChecksumException</a></dt>
 <dd>&nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">choosePartition(Message)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">choosePartition(Message&lt;?&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>
 <div class="block"><span class="deprecationComment">since 1.22.0. Please use <a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>MessageRouter.choosePartition(Message, TopicMetadata)</code></a> instead.</span></div>
 </div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-">choosePartition(Message, TopicMetadata)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-">choosePartition(Message&lt;?&gt;, TopicMetadata)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/MessageRouter.html" title="interface in org.apache.pulsar.client.api">MessageRouter</a></dt>
 <dd>
 <div class="block">Choose a partition based on msg and the topic metadata.</div>
 </dd>
@@ -1224,7 +1224,7 @@
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 &nbsp;</dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener(ReaderListener)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderBuilder.html#readerListener-org.apache.pulsar.client.api.ReaderListener-">readerListener(ReaderListener&lt;T&gt;)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderBuilder.html" title="interface in org.apache.pulsar.client.api">ReaderBuilder</a></dt>
 <dd>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/ReaderListener.html" title="interface in org.apache.pulsar.client.api"><code>ReaderListener</code></a> for the reader</div>
 </dd>
@@ -1482,7 +1482,7 @@
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Set the max total receiver queue size across partitons.</div>
 </dd>
-<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setMessageListener-org.apache.pulsar.client.api.MessageListener-">setMessageListener(MessageListener)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setMessageListener-org.apache.pulsar.client.api.MessageListener-">setMessageListener(MessageListener&lt;byte[]&gt;)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
 <div class="block">Sets a <a href="org/apache/pulsar/client/api/MessageListener.html" title="interface in org.apache.pulsar.client.api"><code>MessageListener</code></a> for the consumer</div>

@@ -125,7 +125,7 @@ extends Serializable</pre>
 </tr>
 <tr id="i0" class="altColor">
 <td class="colFirst"><code>default int</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">choosePartition</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;msg)</code>
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-">choosePartition</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;msg)</code>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;
 <div class="block"><span class="deprecationComment">since 1.22.0. Please use <a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>choosePartition(Message, TopicMetadata)</code></a> instead.</span></div>
 </div>
@@ -133,7 +133,7 @@ extends Serializable</pre>
 </tr>
 <tr id="i1" class="rowColor">
 <td class="colFirst"><code>default int</code></td>
-<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-">choosePartition</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;msg,
+<td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-">choosePartition</a></span>(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;msg,
                <a href="../../../../../org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api">TopicMetadata</a>&nbsp;metadata)</code>
 <div class="block">Choose a partition based on msg and the topic metadata.</div>
 </td>
@@ -160,7 +160,7 @@ extends Serializable</pre>
 <li class="blockList">
 <h4>choosePartition</h4>
 <pre>@Deprecated
-default&nbsp;int&nbsp;choosePartition(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;msg)</pre>
+default&nbsp;int&nbsp;choosePartition(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;msg)</pre>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>&nbsp;<span class="deprecationComment">since 1.22.0. Please use <a href="../../../../../org/apache/pulsar/client/api/MessageRouter.html#choosePartition-org.apache.pulsar.client.api.Message-org.apache.pulsar.client.api.TopicMetadata-"><code>choosePartition(Message, TopicMetadata)</code></a> instead.</span></div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -176,7 +176,7 @@ default&nbsp;int&nbsp;choosePartition(<a href="../../../../../org/apache/pulsar/
 <ul class="blockListLast">
 <li class="blockList">
 <h4>choosePartition</h4>
-<pre>default&nbsp;int&nbsp;choosePartition(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&nbsp;msg,
+<pre>default&nbsp;int&nbsp;choosePartition(<a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;?&gt;&nbsp;msg,
                             <a href="../../../../../org/apache/pulsar/client/api/TopicMetadata.html" title="interface in org.apache.pulsar.client.api">TopicMetadata</a>&nbsp;metadata)</pre>
 <div class="block">Choose a partition based on msg and the topic metadata.</div>
 <dl>
