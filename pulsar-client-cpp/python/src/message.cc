@@ -20,13 +20,13 @@
 
 #include <boost/python/suite/indexing/map_indexing_suite.hpp>
 
-std::string MessageId_str(const BatchMessageId& msgId) {
+std::string MessageId_str(const MessageId& msgId) {
     std::stringstream ss;
     ss << msgId;
     return ss.str();
 }
 
-std::string MessageId_serialize(const BatchMessageId& msgId) {
+std::string MessageId_serialize(const MessageId& msgId) {
     std::string serialized;
     msgId.serialize(serialized);
     return serialized;
@@ -42,8 +42,8 @@ boost::python::object Message_data(const Message& msg) {
     return boost::python::object(boost::python::handle<>(PyBytes_FromStringAndSize((const char*)msg.getData(), msg.getLength())));
 }
 
-const BatchMessageId& Message_getMessageId(const Message& msg) {
-    return static_cast<const BatchMessageId&>(msg.getMessageId());
+const MessageId& Message_getMessageId(const Message& msg) {
+    return msg.getMessageId();
 }
 
 void export_message() {
@@ -67,10 +67,10 @@ void export_message() {
             .def(map_indexing_suite<Message::StringMap>())
             ;
 
-    static const BatchMessageId& _MessageId_earliest = static_cast<const BatchMessageId&>(MessageId::earliest());
-    static const BatchMessageId& _MessageId_latest = static_cast<const BatchMessageId&>(MessageId::latest());
+    static const MessageId& _MessageId_earliest = MessageId::earliest();
+    static const MessageId& _MessageId_latest = MessageId::latest();
 
-    class_<BatchMessageId, boost::shared_ptr<BatchMessageId> >("MessageId")
+    class_<MessageId>("MessageId")
             .def("__str__", &MessageId_str)
             .add_static_property("earliest", make_getter(&_MessageId_earliest))
             .add_static_property("latest", make_getter(&_MessageId_latest))
