@@ -25,10 +25,14 @@ import org.apache.pulsar.client.api.PulsarClientException;
 
 public class SampleConsumer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException {
-        PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
 
-        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name");
-        Message msg = null;
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
+
+        Consumer<byte[]> consumer = pulsarClient.newConsumer() //
+                .topic("persistent://my-property/use/my-ns/my-topic") //
+                .subscriptionName("my-subscription-name").subscribe();
+
+        Message<byte[]> msg = null;
 
         for (int i = 0; i < 100; i++) {
             msg = consumer.receive();
