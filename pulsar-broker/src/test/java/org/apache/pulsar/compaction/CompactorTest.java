@@ -20,43 +20,39 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.buffer.ByteBuf;
-
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.concurrent.Executors;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.MessageBuilder;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.impl.RawMessageImpl;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import io.netty.buffer.ByteBuf;
+
 public class CompactorTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(CompactorTest.class);
 
     private ScheduledExecutorService compactionScheduler;
 
@@ -121,8 +117,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         final int numMessages = 1000;
         final int maxKeys = 10;
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         Map<String, byte[]> expected = new HashMap<>();
         Random r = new Random(0);
@@ -143,8 +138,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactAddCompact() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         Map<String, byte[]> expected = new HashMap<>();
 
@@ -174,8 +168,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
     public void testCompactedInOrder() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        Producer producer = pulsarClient.createProducer(topic, producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).create();
 
         producer.send(MessageBuilder.create()
                       .setKey("c")
@@ -204,7 +197,7 @@ public class CompactorTest extends MockedPulsarServiceBaseTest {
         String topic = "persistent://my-property/use/my-ns/my-topic1";
 
         // trigger creation of topic on server side
-        pulsarClient.subscribe(topic, "sub1").close();
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1").subscribe().close();
 
         BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
                 this.conf, null);

@@ -58,7 +58,8 @@ public class ManagedLedgerMetricsTest extends BrokerTestBase {
         List<Metrics> list1 = metrics.generate();
         Assert.assertTrue(list1.isEmpty());
 
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());

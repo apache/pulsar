@@ -409,7 +409,7 @@ public class PersistentDispatcherFailoverConsumerTest {
         // 11. With only one consumer, unsubscribe is allowed
         assertTrue(pdfc.canUnsubscribe(consumer1));
     }
-    
+
     @Test
     public void testMultipleDispatcherGetNextConsumerWithDifferentPriorityLevel() throws Exception {
 
@@ -561,14 +561,15 @@ public class PersistentDispatcherFailoverConsumerTest {
         Assert.assertEquals(getNextConsumer(dispatcher), null);
     }
 
+    @SuppressWarnings("unchecked")
     private Consumer getNextConsumer(PersistentDispatcherMultipleConsumers dispatcher) throws Exception {
-        
+
         Consumer consumer = dispatcher.getNextConsumer();
-        
+
         if (consumer != null) {
             Field field = Consumer.class.getDeclaredField("MESSAGE_PERMITS_UPDATER");
             field.setAccessible(true);
-            AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater) field.get(consumer);
+            AtomicIntegerFieldUpdater<Consumer> messagePermits = (AtomicIntegerFieldUpdater<Consumer>) field.get(consumer);
             messagePermits.decrementAndGet(consumer);
             return consumer;
         }

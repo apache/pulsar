@@ -32,11 +32,10 @@ import org.testng.annotations.Test;
  */
 public class MessageRouterTest {
 
-    @SuppressWarnings("deprecation")
     private static class TestMessageRouter implements MessageRouter {
 
         @Override
-        public int choosePartition(Message msg) {
+        public int choosePartition(Message<?> msg) {
             return 1234;
         }
     }
@@ -45,7 +44,7 @@ public class MessageRouterTest {
     @Test
     public void testChoosePartition() {
         MessageRouter router = spy(new TestMessageRouter());
-        Message mockedMsg = mock(Message.class);
+        Message<?> mockedMsg = mock(Message.class);
         TopicMetadata mockedMetadata = mock(TopicMetadata.class);
 
         assertEquals(1234, router.choosePartition(mockedMsg));
