@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api.v1;
+package org.apache.pulsar.functions.worker.rest.api.v2;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
@@ -67,11 +67,11 @@ import org.testng.annotations.ObjectFactory;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link FunctionApiV1Resource}.
+ * Unit test of {@link FunctionApiV2Resource}.
  */
 @PrepareForTest(Utils.class)
 @PowerMockIgnore({ "javax.management.*", "javax.ws.*", "org.apache.logging.log4j.*" })
-public class FunctionApiV1ResourceTest {
+public class FunctionApiV2ResourceTest {
 
     @ObjectFactory
     public IObjectFactory getObjectFactory() {
@@ -98,13 +98,13 @@ public class FunctionApiV1ResourceTest {
     private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
     private Namespace mockedNamespace;
-    private FunctionApiV1Resource resource;
+    private FunctionApiV2Resource resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
 
     @BeforeMethod
     public void setup() {
-        this.resource = spy(new FunctionApiV1Resource());
+        this.resource = spy(new FunctionApiV2Resource());
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
