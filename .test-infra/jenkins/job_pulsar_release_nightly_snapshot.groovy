@@ -41,5 +41,5 @@ mavenJob('pulsar_release_nightly_snapshot') {
   common_job_properties.setMavenConfig(delegate)
 
   // Maven build project.
-  goals('clean package deploy')
+  goals('clean package deploy -DskipTests')
 }
