@@ -72,11 +72,6 @@
           <groupId>io.grpc</groupId>
           <artifactId>grpc-protobuf-nano</artifactId>
         </exclusion>
-        <!-- exclude the pulsar-client-tools-shaded -->
-        <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-client-tools-shaded</artifactId>
-        </exclusion>
       </exclusions>
     </dependency>
 
@@ -91,16 +86,6 @@
       <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.version}</version>
     </dependency>
-  </dependencies>
 
-  <!-- current the stream storage artifacts are hosted at streamlio. will give rid of this once it is proposed to merge to bookkeeper -->
-  <repositories>
-    <repository>
-        <id>stream-storage-mvn-repo</id>
-        <url>https://raw.githubusercontent.com/sijie/artifacts/mvn-repo/</url>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-  </repositories>
+  </dependencies>
 </project>
