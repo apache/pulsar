@@ -62,7 +62,6 @@
     <dependency>
       <groupId>com.yahoo.datasketches</groupId>
       <artifactId>sketches-core</artifactId>
-      <version>0.6.0 </version>
     </dependency>
 
     <dependency>
