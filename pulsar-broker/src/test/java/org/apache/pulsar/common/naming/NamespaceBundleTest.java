@@ -118,6 +118,7 @@ public class NamespaceBundleTest {
         assertEquals(bundle.getNamespaceObject().toString(), "pulsar/use/ns");
     }
 
+    @SuppressWarnings("unchecked")
     private NamespaceBundleFactory getNamespaceBundleFactory() {
         PulsarService pulsar = mock(PulsarService.class);
         LocalZooKeeperCacheService localZkCache = mock(LocalZooKeeperCacheService.class);
