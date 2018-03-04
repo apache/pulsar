@@ -186,7 +186,6 @@
     <dependency>
       <groupId>org.apache.bookkeeper</groupId>
       <artifactId>stream-storage-java-client</artifactId>
-      <version>0.6.0</version>
     </dependency>
 
     <dependency>
@@ -212,16 +211,5 @@
     </dependency>
 
   </dependencies>
-
-  <!-- current the stream storage artifacts are hosted at streamlio. will give rid of this once it is proposed to merge to bookkeeper -->
-  <repositories>
-    <repository>
-        <id>stream-storage-mvn-repo</id>
-        <url>https://raw.githubusercontent.com/sijie/artifacts/mvn-repo/</url>
-        <snapshots>
-            <enabled>true</enabled>
-        </snapshots>
-    </repository>
-  </repositories>
 
 </project>
