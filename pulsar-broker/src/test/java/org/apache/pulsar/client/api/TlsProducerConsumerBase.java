@@ -35,8 +35,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
 public class TlsProducerConsumerBase extends ProducerConsumerBase {
-    private static final Logger log = LoggerFactory.getLogger(TlsProducerConsumerBase.class);
-
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
     protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
@@ -67,11 +65,9 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     }
 
     protected void internalSetUpForClient() throws Exception {
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        clientConf.setUseTls(true);
         String lookupUrl = new URI("pulsar+ssl://localhost:" + BROKER_PORT_TLS).toString();
-        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+                .enableTls(true).build();
     }
 
     protected void internalSetUpForNamespace() throws Exception {
@@ -79,9 +75,8 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         clientConf.setUseTls(true);
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        admin.clusters().updateCluster(clusterName,
-                new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(), "pulsar://localhost:" + BROKER_PORT,
-                        "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
+        admin.clusters().updateCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+                "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");

@@ -1,0 +1,71 @@
+/**
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership.  The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License.  You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied.  See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+syntax = "proto3";
+package proto;
+
+import "google/protobuf/empty.proto";
+
+option java_package = "org.apache.pulsar.functions.proto";
+option java_outer_classname = "InstanceCommunication";
+
+message FunctionStatus {
+    message ExceptionInformation {
+        string exceptionString = 1;
+        int64 msSinceEpoch = 2;
+    }
+    bool running = 1;
+    string failureException = 2;
+    int64 numRestarts = 3;
+    int64 numProcessed = 4;
+    int64 numSuccessfullyProcessed = 5;
+    int64 numUserExceptions = 6;
+    repeated ExceptionInformation latestUserExceptions = 7;
+    int64 numSystemExceptions = 8;
+    repeated ExceptionInformation latestSystemExceptions = 9;
+    // map from topic name to number of deserialization exceptions
+    map<string, int64> deserializationExceptions = 10;
+    // number of serialization exceptions on the output
+    int64 serializationExceptions = 11;
+    // average latency
+    double averageLatency = 12;
+
+    // When was the last time the function was invoked.
+    // expressed in ms since epoch
+    int64 lastInvocationTime = 13;
+    string instanceId = 14;
+}
+
+message FunctionStatusList {
+    repeated FunctionStatus functionStatusList = 1;
+}
+
+message MetricsData {
+    message DataDigest {
+        double count = 1;
+        double sum = 2;
+        double max = 3;
+        double min = 4;
+    }
+    map<string, DataDigest> metrics = 1;
+}
+
+service InstanceControl {
+    rpc GetFunctionStatus(google.protobuf.Empty) returns (FunctionStatus) {}
+    rpc GetAndResetMetrics(google.protobuf.Empty) returns (MetricsData) {}
+}

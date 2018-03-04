@@ -18,43 +18,40 @@
  */
 package org.apache.pulsar.compaction;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.IntStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.impl.RawMessageImpl;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import lombok.Cleanup;
+
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(CompactedTopicTest.class);
     private static final ByteBuf emptyBuffer = Unpooled.buffer(0);
 
     @BeforeMethod
@@ -113,6 +110,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                         MessageIdData id = MessageIdData.newBuilder()
                             .setLedgerId(ledgerIds.get())
                             .setEntryId(entryIds.addAndGet(delta + 1)).build();
+
+                        @Cleanup
                         RawMessage m = new RawMessageImpl(id, emptyBuffer);
 
                         CompletableFuture<Void> f = new CompletableFuture<>();
