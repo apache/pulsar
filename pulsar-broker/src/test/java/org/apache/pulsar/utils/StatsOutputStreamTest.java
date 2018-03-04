@@ -21,7 +21,6 @@ package org.apache.pulsar.utils;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.fail;
 
-import java.lang.reflect.Method;
 import java.nio.charset.Charset;
 
 import org.apache.pulsar.utils.CopyOnWriteArrayList;

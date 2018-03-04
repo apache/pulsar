@@ -59,7 +59,7 @@ public class ChecksumTest extends BrokerTestBase {
     public void verifyChecksumStoredInManagedLedger() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic0";
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
 
@@ -86,7 +86,7 @@ public class ChecksumTest extends BrokerTestBase {
     public void verifyChecksumSentToConsumer() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic-1";
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         RawReader reader = RawReader.create(pulsarClient, topicName, "sub").get();
 
         producer.send("Hello".getBytes());

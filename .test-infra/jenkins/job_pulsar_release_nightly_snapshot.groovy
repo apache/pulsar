@@ -16,24 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.client.tutorial;
+import common_job_properties
 
-import java.io.IOException;
+// This job deploys a snapshot of latest master to artifactory nightly
+mavenJob('pulsar_release_nightly_snapshot') {
+  description('runs a `mvn clean deploy` of the nightly snapshot for pulsar.')
 
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.PulsarClientException;
+  // Set common parameters.
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
-public class SampleProducer {
-    public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
-        PulsarClient client = PulsarClient.builder().serviceUrl("http://localhost:6650").build();
+  // Sets that this is a PostCommit job.
+  common_job_properties.setPostCommit(
+      delegate,
+      'H 12 * * *',
+      false)
 
-        Producer<byte[]> producer = client.newProducer().topic("persistent://my-property/use/my-ns/my-topic").create();
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Release Snapshot',
+      '/release-snapshot')
 
-        for (int i = 0; i < 10; i++) {
-            producer.send("my-message".getBytes());
-        }
+  // Set maven parameters.
+  common_job_properties.setMavenConfig(delegate)
 
-        client.close();
-    }
+  // Maven build project.
+  goals('clean package deploy -DskipTests')
 }
