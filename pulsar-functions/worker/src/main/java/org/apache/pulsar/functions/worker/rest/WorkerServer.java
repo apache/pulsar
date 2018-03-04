@@ -18,13 +18,19 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
+import java.util.ArrayList;
+import java.util.List;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
+import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Server;
 
 import java.net.BindException;
 import java.net.URI;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.server.handler.DefaultHandler;
+import org.eclipse.jetty.server.handler.HandlerCollection;
 
 @Slf4j
 public class WorkerServer implements Runnable {
@@ -49,7 +55,17 @@ public class WorkerServer implements Runnable {
     @Override
     public void run() {
         final Server server = new Server(this.workerConfig.getWorkerPort());
-        server.setHandler(WorkerService.newServletContextHandler("/", workerService));
+
+        List<Handler> handlers = new ArrayList<>(2);
+        handlers.add(WorkerService.newServletContextHandler("/admin", workerService));
+        handlers.add(WorkerService.newServletContextHandler("/admin/v2", workerService));
+        ContextHandlerCollection contexts = new ContextHandlerCollection();
+        contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
+        HandlerCollection handlerCollection = new HandlerCollection();
+        handlerCollection.setHandlers(new Handler[] {
+            contexts, new DefaultHandler()
+        });
+        server.setHandler(handlerCollection);
 
         try {
             server.start();
