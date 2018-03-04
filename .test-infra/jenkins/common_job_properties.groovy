@@ -219,7 +219,7 @@ class common_job_properties {
   static void setPostCommit(context,
                             String buildSchedule = '0 */6 * * *',
                             boolean triggerEveryPush = true,
-                            String notifyAddress = 'dev@pulsar.incubator.apache.org',
+                            String notifyAddress = 'sijie@apache.org',
                             boolean emailIndividuals = true) {
     // Set build triggers
     context.triggers {
@@ -239,7 +239,7 @@ class common_job_properties {
   // Sets common config for Website PostCommit jobs.
   static void setWebsitePostCommit(context,
                                    String buildSchedule = 'H 1 * * *',
-                                   String notifyAddress = 'dev@pulsar.incubator.apache.org',
+                                   String notifyAddress = 'sijie@apache.org',
                                    boolean emailIndividuals = true) {
     // Set build triggers
     context.triggers {
