@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api.v1;
+package org.apache.pulsar.functions.worker.rest.api.v2;
 
 import com.google.gson.Gson;
 import javax.ws.rs.core.Response.Status;
@@ -38,7 +38,6 @@ import org.apache.pulsar.functions.worker.MembershipManager;
 import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.request.RequestResult;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
-import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.glassfish.jersey.media.multipart.FormDataParam;
 
@@ -62,8 +61,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
 @Slf4j
-@Path("/admin/functions")
-public class FunctionApiV1Resource extends FunctionApiResource {
+@Path("/functions")
+public class FunctionApiV2Resource extends FunctionApiResource {
 
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")

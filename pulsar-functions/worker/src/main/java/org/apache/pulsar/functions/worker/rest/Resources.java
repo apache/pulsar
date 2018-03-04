@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.worker.rest;
 
-import org.apache.pulsar.functions.worker.rest.api.v1.FunctionApiV1Resource;
+import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
 import org.glassfish.jersey.media.multipart.MultiPartFeature;
 
 import java.util.Arrays;
@@ -38,7 +38,7 @@ public final class Resources {
     private static List<Class<?>> getClasses() {
         return Arrays.asList(
                 ConfigurationResource.class,
-                FunctionApiV1Resource.class,
+                FunctionApiV2Resource.class,
                 MultiPartFeature.class
         );
     }
