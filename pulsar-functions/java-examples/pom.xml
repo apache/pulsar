@@ -41,12 +41,6 @@
       <artifactId>pulsar-functions-api</artifactId>
       <version>${project.version}</version>
     </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-composition</artifactId>
-      <version>${project.version}</version>
-    </dependency>
   </dependencies>
 
 </project>
