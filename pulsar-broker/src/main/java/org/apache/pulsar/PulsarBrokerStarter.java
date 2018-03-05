@@ -76,11 +76,11 @@ public class PulsarBrokerStarter {
         @Parameter(names = {"-bc", "--bookie-conf"}, description = "Configuration file for Bookie")
         private String bookieConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/bookkeeper.conf";
 
-        @Parameter(names = {"-rfw", "--run-function-worker"}, description = "Run function worker with Broker")
-        private boolean runFunctionWorker = false;
+        @Parameter(names = {"-rfw", "--run-functions-worker"}, description = "Run functions worker with Broker")
+        private boolean runFunctionsWorker = false;
 
-        @Parameter(names = {"-wc", "--function-worker-conf"}, description = "Configuration file for Function Worker")
-        private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/function_worker.yml";
+        @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+        private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
         @Parameter(names = {"-h", "--help"}, description = "Show this help message")
         private boolean help = false;
@@ -113,7 +113,7 @@ public class PulsarBrokerStarter {
         private final AutoRecoveryMain autoRecoveryMain;
         private final StatsProvider bookieStatsProvider;
         private final ServerConfiguration bookieConfig;
-        private final WorkerService functionWorkerService;
+        private final WorkerService functionsWorkerService;
 
         BrokerStarter(String[] args) throws Exception{
             StarterArguments starterArguments = new StarterArguments();
@@ -135,8 +135,8 @@ public class PulsarBrokerStarter {
                 brokerConfig = loadConfig(starterArguments.brokerConfigFile);
             }
 
-            // init function worker
-            if (starterArguments.runFunctionWorker) {
+            // init functions worker
+            if (starterArguments.runFunctionsWorker || brokerConfig.isFunctionsWorkerEnabled()) {
                 WorkerConfig workerConfig;
                 if (isBlank(starterArguments.fnWorkerConfigFile)) {
                     workerConfig = new WorkerConfig();
@@ -153,13 +153,13 @@ public class PulsarBrokerStarter {
                     "c-" + brokerConfig.getClusterName()
                         + "-fw-" + hostname
                         + "-" + workerConfig.getWorkerPort());
-                functionWorkerService = new WorkerService(workerConfig);
+                functionsWorkerService = new WorkerService(workerConfig);
             } else {
-                functionWorkerService = null;
+                functionsWorkerService = null;
             }
 
             // init pulsar service
-            pulsarService = new PulsarService(brokerConfig, Optional.ofNullable(functionWorkerService));
+            pulsarService = new PulsarService(brokerConfig, Optional.ofNullable(functionsWorkerService));
 
             // if no argument to run bookie in cmd line, read from pulsar config
             if (!argsContains(args, "-rb") && !argsContains(args, "--run-bookie")) {
@@ -226,10 +226,10 @@ public class PulsarBrokerStarter {
             pulsarService.start();
             log.info("PulsarService started.");
 
-            // after broker is started, start the function worker
-            if (null != functionWorkerService) {
+            // after broker is started, start the functions worker
+            if (null != functionsWorkerService) {
                 try {
-                    functionWorkerService.start();
+                    functionsWorkerService.start();
                 } catch (InterruptedException ie) {
                     Thread.currentThread().interrupt();
                     throw ie;
@@ -249,9 +249,9 @@ public class PulsarBrokerStarter {
         }
 
         public void shutdown() {
-            if (null != functionWorkerService) {
-                functionWorkerService.stop();
-                log.info("Shut down function worker service successfully.");
+            if (null != functionsWorkerService) {
+                functionsWorkerService.stop();
+                log.info("Shut down functions worker service successfully.");
             }
 
             pulsarService.getShutdownService().run();

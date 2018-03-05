@@ -81,11 +81,11 @@ public class PulsarStandaloneStarter {
     @Parameter(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
     private boolean onlyBroker = false;
 
-    @Parameter(names = {"-rfw", "--run-function-worker"}, description = "Run function worker with Broker")
-    private boolean runFunctionWorker = false;
+    @Parameter(names = {"-nfw", "--no-functions-worker"}, description = "Run functions worker with Broker")
+    private boolean noFunctionsWorker = false;
 
-    @Parameter(names = {"-wc", "--function-worker-conf"}, description = "Configuration file for Function Worker")
-    private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/function_worker.yml";
+    @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+    private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
     @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
@@ -177,8 +177,8 @@ public class PulsarStandaloneStarter {
         // load aspectj-weaver agent for instrumentation
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
-        // initialize the function worker
-        if (runFunctionWorker) {
+        // initialize the functions worker
+        if (!noFunctionsWorker) {
             WorkerConfig workerConfig;
             if (isBlank(fnWorkerConfigFile)) {
                 workerConfig = new WorkerConfig();
