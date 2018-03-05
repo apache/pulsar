@@ -129,6 +129,12 @@ flexible messaging model and an intuitive client API.</description>
     <jackson.version>2.8.4</jackson.version>
     <puppycrawl.checkstyle.version>6.19</puppycrawl.checkstyle.version>
     <dockerfile-maven.version>1.3.7</dockerfile-maven.version>
+    <typetools.version>0.5.0</typetools.version>
+    <protobuf3.version>3.5.1</protobuf3.version>
+    <grpc.version>1.5.0</grpc.version>
+    <protoc-gen-grpc-java.version>1.0.0</protoc-gen-grpc-java.version>
+    <gson.version>2.8.2</gson.version>
+    <sketches.version>0.6.0</sketches.version>
 
     <!-- test dependencies -->
     <disruptor.version>3.4.0</disruptor.version>
@@ -617,6 +623,37 @@ flexible messaging model and an intuitive client API.</description>
         <groupId>org.bouncycastle</groupId>
         <artifactId>bcpkix-jdk15on</artifactId>
         <version>${bouncycastle.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>net.jodah</groupId>
+        <artifactId>typetools</artifactId>
+        <version>${typetools.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.grpc</groupId>
+        <artifactId>grpc-all</artifactId>
+        <version>${grpc.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.google.code.gson</groupId>
+        <artifactId>gson</artifactId>
+        <version>${gson.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>com.yahoo.datasketches</groupId>
+        <artifactId>sketches-core</artifactId>
+        <version>${sketches.version}</version>
+      </dependency>
+
+      <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
+      <dependency>
+        <groupId>org.apache.distributedlog</groupId>
+        <artifactId>distributedlog-core-shaded</artifactId>
+        <version>${bookkeeper.version}</version>
       </dependency>
 
       <!-- test dependencies -->

@@ -21,6 +21,7 @@ package org.apache.pulsar.client.admin;
 import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.*;
 
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +35,7 @@ public class PulsarFunctionsAdmin extends PulsarAdmin {
     private static final Logger LOG = LoggerFactory.getLogger(PulsarFunctionsAdmin.class);
 
     private final Functions functions;
-    private final ClientConfiguration clientConf;
+    private final ClientConfigurationData clientConf;
 
     /**
      * Construct a new Pulsar Admin client object.
@@ -46,13 +47,13 @@ public class PulsarFunctionsAdmin extends PulsarAdmin {
      * @param pulsarConfig
      *            the ClientConfiguration object to be used to talk with Pulsar
      */
-    public PulsarFunctionsAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
+    public PulsarFunctionsAdmin(URL serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
         super(serviceUrl, pulsarConfig);
         this.functions = new FunctionsImpl(web, auth);
         this.clientConf = pulsarConfig;
     }
 
-    public ClientConfiguration getClientConf() {
+    public ClientConfigurationData getClientConf() {
         return clientConf;
     }
 

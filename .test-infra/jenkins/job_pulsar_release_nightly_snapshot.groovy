@@ -16,30 +16,30 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest;
+import common_job_properties
 
-import org.apache.pulsar.functions.worker.rest.api.v2.FunctionApiV2Resource;
-import org.glassfish.jersey.media.multipart.MultiPartFeature;
+// This job deploys a snapshot of latest master to artifactory nightly
+mavenJob('pulsar_release_nightly_snapshot') {
+  description('runs a `mvn clean deploy` of the nightly snapshot for pulsar.')
 
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+  // Set common parameters.
+  common_job_properties.setTopLevelMainJobProperties(delegate)
 
-public final class Resources {
+  // Sets that this is a PostCommit job.
+  common_job_properties.setPostCommit(
+      delegate,
+      'H 12 * * *',
+      false)
 
-    private Resources() {
-    }
+  // Allows triggering this build against pull requests.
+  common_job_properties.enablePhraseTriggeringFromPullRequest(
+      delegate,
+      'Release Snapshot',
+      '/release-snapshot')
 
-    public static Set<Class<?>> get() {
-        return new HashSet<>(getClasses());
-    }
+  // Set maven parameters.
+  common_job_properties.setMavenConfig(delegate)
 
-    private static List<Class<?>> getClasses() {
-        return Arrays.asList(
-                ConfigurationResource.class,
-                FunctionApiV2Resource.class,
-                MultiPartFeature.class
-        );
-    }
+  // Maven build project.
+  goals('clean package deploy -DskipTests')
 }
