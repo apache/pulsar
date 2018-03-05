@@ -668,12 +668,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.google.protobuf</groupId>
-        <artifactId>protobuf-java</artifactId>
-        <version>2.4.1</version>
-      </dependency>
-
-      <dependency>
         <groupId>net.jodah</groupId>
         <artifactId>typetools</artifactId>
         <version>${typetools.version}</version>
