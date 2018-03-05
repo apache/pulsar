@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.broker.service.schema;
 
-import static java.util.Objects.hash;
 import static java.util.Objects.isNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
@@ -98,7 +97,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @NotNull
     public CompletableFuture<SchemaVersion> deleteSchema(String schemaId, String user) {
         byte[] deletedEntry = deleted(schemaId, user).toByteArray();
-        return schemaStorage.put(schemaId, deletedEntry, null);
+        return schemaStorage.put(schemaId, deletedEntry, new byte[]{});
     }
 
     @Override
