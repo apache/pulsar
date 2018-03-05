@@ -54,6 +54,8 @@ import lombok.Cleanup;
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
     private static final ByteBuf emptyBuffer = Unpooled.buffer(0);
 
+    private final Random r = new Random(0);
+
     @BeforeMethod
     @Override
     public void setup() throws Exception {
@@ -77,9 +79,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
      * entries in the ledger, and a list of gaps, and the entry which should be returned after the gap.
      */
     private Triple<Long, List<Pair<MessageIdData,Long>>, List<Pair<MessageIdData,Long>>>
-        buildCompactedLedger(BookKeeper bk, int seed, int count)
+        buildCompactedLedger(BookKeeper bk, int count)
             throws Exception {
-        Random r = new Random(seed);
         LedgerHandle lh = bk.createLedger(1, 1,
                                           Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                                           Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
@@ -115,7 +116,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                         RawMessage m = new RawMessageImpl(id, emptyBuffer);
 
                         CompletableFuture<Void> f = new CompletableFuture<>();
-                        lh.asyncAddEntry(m.serialize(),
+                        ByteBuf buffer = m.serialize();
+                        m.close();
+
+                        lh.asyncAddEntry(buffer,
                                 (rc, ledger, eid, ctx) -> {
                                      if (rc != BKException.Code.OK) {
                                          f.completeExceptionally(BKException.create(rc));
@@ -125,6 +129,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                                          f.complete(null);
                                      }
                                 }, null);
+                        buffer.release();
                         return f;
                     }).toArray(CompletableFuture[]::new)).get();
         lh.close();
@@ -138,7 +143,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 this.conf, null);
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
-            = buildCompactedLedger(bk, 0, 500);
+            = buildCompactedLedger(bk, 500);
 
         List<Pair<MessageIdData, Long>> positions = compactedLedgerData.getMiddle();
         List<Pair<MessageIdData, Long>> idsInGaps = compactedLedgerData.getRight();
@@ -170,19 +175,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // shuffle to make cache work hard
-        Collections.shuffle(positions);
-        Collections.shuffle(idsInGaps);
+        Collections.shuffle(positions, r);
+        Collections.shuffle(idsInGaps, r);
 
         // Check ids we know are in compacted ledger
         for (Pair<MessageIdData, Long> p : positions) {
             PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
-            if (p.equals(lastPosition)) {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                                    Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
-            } else {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                            Long.valueOf(p.getRight() + 1));
-            }
+            Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
+            Assert.assertEquals(got, Long.valueOf(p.getRight()));
         }
 
         // Check ids we know are in the gaps of the compacted ledger

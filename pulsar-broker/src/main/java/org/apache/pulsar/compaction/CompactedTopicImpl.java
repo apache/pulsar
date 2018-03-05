@@ -133,11 +133,11 @@ public class CompactedTopicImpl implements CompactedTopic {
 
         CompletableFuture.allOf(startEntry, middleEntry, endEntry).thenRun(
                 () -> {
-                    if (comparePositionAndMessageId(p, startEntry.join()) < 0) {
+                    if (comparePositionAndMessageId(p, startEntry.join()) <= 0) {
                         promise.complete(start);
-                    } else if (comparePositionAndMessageId(p, middleEntry.join()) < 0) {
+                    } else if (comparePositionAndMessageId(p, middleEntry.join()) <= 0) {
                         findStartPointLoop(p, start, midpoint, promise, cache);
-                    } else if (comparePositionAndMessageId(p, endEntry.join()) < 0) {
+                    } else if (comparePositionAndMessageId(p, endEntry.join()) <= 0) {
                         findStartPointLoop(p, midpoint + 1, end, promise, cache);
                     } else {
                         promise.complete(NEWER_THAN_COMPACTED);
