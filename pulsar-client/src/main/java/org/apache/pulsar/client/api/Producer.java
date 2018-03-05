@@ -60,8 +60,8 @@ public interface Producer<T> extends Closeable {
      * <p>
      * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
-     * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
-     * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
+     * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
      *
      * @param message
      *            a byte array with the payload of the message
@@ -99,8 +99,8 @@ public interface Producer<T> extends Closeable {
      * <p>
      * When the producer queue is full, by default this method will complete the future with an exception {@link PulsarClientException.ProducerQueueIsFullError}
      * <p>
-     * See {@link ProducerConfiguration#setMaxPendingMessages} to configure the producer queue size and
-     * {@link ProducerConfiguration#setBlockIfQueueFull(boolean)} to change the blocking behavior.
+     * See {@link ProducerBuilder#maxPendingMessages(int)} to configure the producer queue size and
+     * {@link ProducerBuilder#blockIfQueueFull(boolean)} to change the blocking behavior.
      *
      * @param message
      *            a message
