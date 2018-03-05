@@ -83,8 +83,8 @@ flexible messaging model and an intuitive client API.</description>
     <module>pulsar-client-shaded</module>
     <module>pulsar-client-admin</module>
     <module>pulsar-client-admin-shaded</module>
+    <module>pulsar-client-admin-shaded-for-functions</module>
     <module>pulsar-client-tools</module>
-    <module>pulsar-client-tools-shaded</module>
     <module>pulsar-client-tools-test</module>
     <module>pulsar-websocket</module>
     <module>pulsar-proxy</module>

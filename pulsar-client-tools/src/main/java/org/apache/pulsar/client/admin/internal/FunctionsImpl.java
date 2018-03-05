@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import com.google.protobuf.util.JsonFormat;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminException;
@@ -26,6 +25,7 @@ import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.policies.data.*;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.utils.Utils;
 import org.glassfish.jersey.media.multipart.FormDataBodyPart;
 import org.glassfish.jersey.media.multipart.FormDataMultiPart;
 import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
@@ -72,7 +72,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             }
             String jsonResponse = response.readEntity(String.class);
             FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-            JsonFormat.parser().merge(jsonResponse, functionConfigBuilder);
+            Utils.mergeJson(jsonResponse, functionConfigBuilder);
             return functionConfigBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
@@ -89,7 +89,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
             }
             String jsonResponse = response.readEntity(String.class);
             FunctionStatusList.Builder functionStatusBuilder = FunctionStatusList.newBuilder();
-            JsonFormat.parser().merge(jsonResponse, functionStatusBuilder);
+            Utils.mergeJson(jsonResponse, functionStatusBuilder);
             return functionStatusBuilder.build();
         } catch (Exception e) {
             throw getApiException(e);
@@ -103,8 +103,9 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
             mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig", JsonFormat.printer().print(functionConfig),
-                    MediaType.APPLICATION_JSON_TYPE));
+            mp.bodyPart(new FormDataBodyPart("functionConfig",
+                Utils.printJson(functionConfig),
+                MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
@@ -129,8 +130,9 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (fileName != null) {
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
-            mp.bodyPart(new FormDataBodyPart("functionConfig", JsonFormat.printer().print(functionConfig),
-                        MediaType.APPLICATION_JSON_TYPE));
+            mp.bodyPart(new FormDataBodyPart("functionConfig",
+                Utils.printJson(functionConfig),
+                MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {

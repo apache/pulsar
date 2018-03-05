@@ -30,7 +30,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import com.google.protobuf.util.JsonFormat;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.netty.buffer.Unpooled;
@@ -45,7 +44,7 @@ import org.apache.bookkeeper.clients.StorageClientBuilder;
 import org.apache.bookkeeper.clients.config.StorageClientSettings;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
+import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -64,12 +63,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.function.Function;
+import org.apache.pulsar.functions.utils.Utils;
 
 @Slf4j
 @Parameters(commandDescription = "Operations about functions")
 public class CmdFunctions extends CmdBase {
 
-    private final PulsarFunctionsAdmin fnAdmin;
+    private final PulsarAdminWithFunctions fnAdmin;
     private final LocalRunner localRunner;
     private final CreateFunction creater;
     private final DeleteFunction deleter;
@@ -451,7 +451,7 @@ public class CmdFunctions extends CmdBase {
                 throw new RuntimeException("Missing arguments");
             }
 
-            String serviceUrl = ((PulsarFunctionsAdmin) admin).getClientConf().getServiceUrl();
+            String serviceUrl = ((PulsarAdminWithFunctions) admin).getClientConf().getServiceUrl();
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
             }
@@ -511,7 +511,7 @@ public class CmdFunctions extends CmdBase {
     class GetFunction extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(fnAdmin.functions().getFunction(tenant, namespace, functionName));
+            String json = Utils.printJson(fnAdmin.functions().getFunction(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
@@ -521,7 +521,7 @@ public class CmdFunctions extends CmdBase {
     class GetFunctionStatus extends FunctionCommand {
         @Override
         void runCmd() throws Exception {
-            String json = JsonFormat.printer().print(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
+            String json = Utils.printJson(fnAdmin.functions().getFunctionStatus(tenant, namespace, functionName));
             Gson gson = new GsonBuilder().setPrettyPrinting().create();
             System.out.println(gson.toJson(new JsonParser().parse(json)));
         }
@@ -616,7 +616,7 @@ public class CmdFunctions extends CmdBase {
 
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
-        this.fnAdmin = (PulsarFunctionsAdmin) admin;
+        this.fnAdmin = (PulsarAdminWithFunctions) admin;
         localRunner = new LocalRunner();
         creater = new CreateFunction();
         deleter = new DeleteFunction();

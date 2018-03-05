@@ -44,10 +44,10 @@
           <groupId>org.apache.bookkeeper</groupId>
           <artifactId>bookkeeper-common</artifactId>
         </exclusion>
-        <!-- exclude `pulsar-client-tools-shaded` here, this allows worker-runner and broker to use unshaded clients -->
+        <!-- exclude `pulsar-client-admin-shaded-for-functions` here, this allows worker-runner and broker to use unshaded clients -->
         <exclusion>
           <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-client-tools-shaded</artifactId>
+          <artifactId>pulsar-client-admin-shaded-for-functions</artifactId>
         </exclusion>
       </exclusions>
     </dependency>

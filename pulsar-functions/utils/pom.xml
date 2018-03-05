@@ -35,7 +35,7 @@
 
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-tools-shaded</artifactId>
+      <artifactId>pulsar-client-admin-shaded-for-functions</artifactId>
       <version>${project.version}</version>
       <!-- exclude shaded dependencies to avoid conflicts -->
       <exclusions>

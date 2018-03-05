@@ -31,8 +31,6 @@ import static org.testng.Assert.assertEquals;
 
 import com.google.gson.Gson;
 import com.google.common.collect.Lists;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
@@ -131,7 +129,7 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test
-    public void testRegisterFunctionMissingTenant() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingTenant() throws IOException {
         testRegisterFunctionMissingArguments(
             null,
             namespace,
@@ -148,7 +146,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingNamespace() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingNamespace() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             null,
@@ -165,7 +163,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingFunctionName() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingFunctionName() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -182,7 +180,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingPackage() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingPackage() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -199,7 +197,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingPackageDetails() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingPackageDetails() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -216,7 +214,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingSourceTopic() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingSourceTopic() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -233,7 +231,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingInputSerde() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingInputSerde() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -250,7 +248,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingClassName() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingClassName() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
@@ -267,7 +265,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingParallelism() throws InvalidProtocolBufferException {
+    public void testRegisterFunctionMissingParallelism() throws IOException {
         testRegisterFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -296,7 +294,7 @@ public class FunctionApiV2ResourceTest {
         String className,
         Integer parallelism,
         String missingFieldName
-    ) throws InvalidProtocolBufferException {
+    ) throws IOException {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         if (tenant != null) {
             functionConfigBuilder.setTenant(tenant);
@@ -330,7 +328,7 @@ public class FunctionApiV2ResourceTest {
                 function,
                 inputStream,
                 details,
-                JsonFormat.printer().print(functionConfig));
+                org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         if (missingFieldName.equals("parallelism")) {
@@ -340,7 +338,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    private Response registerDefaultFunction() throws InvalidProtocolBufferException {
+    private Response registerDefaultFunction() throws IOException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setOutput(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
@@ -352,11 +350,12 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
-            mockedFormData, JsonFormat.printer().print(functionConfig));
+            mockedFormData,
+            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
     }
 
     @Test
-    public void testRegisterExistedFunction() throws InvalidProtocolBufferException {
+    public void testRegisterExistedFunction() throws IOException {
         Configurator.setRootLevel(Level.DEBUG);
 
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(true);
@@ -450,7 +449,7 @@ public class FunctionApiV2ResourceTest {
     //
 
     @Test
-    public void testUpdateFunctionMissingTenant() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingTenant() throws IOException {
         testUpdateFunctionMissingArguments(
             null,
             namespace,
@@ -467,7 +466,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingNamespace() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingNamespace() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             null,
@@ -484,7 +483,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingFunctionName() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingFunctionName() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -501,7 +500,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingPackage() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingPackage() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -518,7 +517,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingPackageDetails() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingPackageDetails() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -535,7 +534,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingSourceTopic() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingSourceTopic() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -552,7 +551,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingInputSerde() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingInputSerde() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -569,7 +568,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testUpdateFunctionMissingClassName() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingClassName() throws IOException {
         testUpdateFunctionMissingArguments(
             tenant,
             namespace,
@@ -585,7 +584,7 @@ public class FunctionApiV2ResourceTest {
             "ClassName");
     }
     @Test
-    public void testUpdateFunctionMissingParallelism() throws InvalidProtocolBufferException {
+    public void testUpdateFunctionMissingParallelism() throws IOException {
         testUpdateFunctionMissingArguments(
                 tenant,
                 namespace,
@@ -615,7 +614,7 @@ public class FunctionApiV2ResourceTest {
         String className,
         Integer parallelism,
         String missingFieldName
-    ) throws InvalidProtocolBufferException {
+    ) throws IOException {
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
         if (tenant != null) {
             functionConfigBuilder.setTenant(tenant);
@@ -649,7 +648,7 @@ public class FunctionApiV2ResourceTest {
             function,
             inputStream,
             details,
-            JsonFormat.printer().print(functionConfig));
+            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
 
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
         if (missingFieldName.equals("parallelism")) {
@@ -659,7 +658,7 @@ public class FunctionApiV2ResourceTest {
         }
     }
 
-    private Response updateDefaultFunction() throws InvalidProtocolBufferException {
+    private Response updateDefaultFunction() throws IOException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
                 .setOutput(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
@@ -671,11 +670,12 @@ public class FunctionApiV2ResourceTest {
             namespace,
             function,
             mockedInputStream,
-            mockedFormData, JsonFormat.printer().print(functionConfig));
+            mockedFormData,
+            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig));
     }
 
     @Test
-    public void testUpdateNotExistedFunction() throws InvalidProtocolBufferException {
+    public void testUpdateNotExistedFunction() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = updateDefaultFunction();
@@ -903,7 +903,7 @@ public class FunctionApiV2ResourceTest {
         String namespace,
         String function,
         String missingFieldName
-    ) throws InvalidProtocolBufferException {
+    ) throws IOException {
         Response response = resource.getFunctionInfo(
             tenant,
             namespace,
@@ -913,7 +913,7 @@ public class FunctionApiV2ResourceTest {
         assertEquals(new ErrorData(missingFieldName + " is not provided").reason, ((ErrorData) response.getEntity()).reason);
     }
 
-    private Response getDefaultFunctionInfo() throws InvalidProtocolBufferException {
+    private Response getDefaultFunctionInfo() throws IOException {
         return resource.getFunctionInfo(
             tenant,
             namespace,
@@ -921,7 +921,7 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testGetNotExistedFunction() throws InvalidProtocolBufferException {
+    public void testGetNotExistedFunction() throws IOException {
         when(mockedManager.containsFunction(eq(tenant), eq(namespace), eq(function))).thenReturn(false);
 
         Response response = getDefaultFunctionInfo();
@@ -953,7 +953,9 @@ public class FunctionApiV2ResourceTest {
 
         Response response = getDefaultFunctionInfo();
         assertEquals(Status.OK.getStatusCode(), response.getStatus());
-        assertEquals(JsonFormat.printer().print(functionConfig), response.getEntity());
+        assertEquals(
+            org.apache.pulsar.functions.utils.Utils.printJson(functionConfig),
+            response.getEntity());
     }
 
     //
