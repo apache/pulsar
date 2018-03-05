@@ -33,6 +33,7 @@
   <name>Apache Pulsar :: Tests</name>
   <modules>
     <module>docker-images</module>
+    <module>integration-tests-utils</module>
   </modules>
   <build>
     <plugins>

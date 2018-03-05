@@ -1,0 +1,167 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+Configuration:
+  name: pulsar-functions-instance
+  monitorInterval: 30
+
+  Properties:
+    Property:
+      - name: "pulsar.log.dir"
+        value: "logs"
+      - name: "pulsar.log.file"
+        value: "pulsar-functions.log"
+      - name: "pulsar.log.appender"
+        value: "RoutingAppender"
+      - name: "pulsar.log.level"
+        value: "info"
+      - name: "pulsar.routing.appender.default"
+        value: "RollingFile"
+      - name: "bk.log.level"
+        value: "info"
+
+  Appenders:
+
+    # Console
+    Console:
+      name: Console
+      target: SYSTEM_OUT
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+
+    # Rolling file appender configuration
+    RollingFile:
+      name: RollingFile
+      fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}"
+      filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}-%d{MM-dd-yyyy}-%i.log.gz"
+      immediateFlush: false
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+      Policies:
+        TimeBasedTriggeringPolicy:
+          interval: 1
+          modulate: true
+        SizeBasedTriggeringPolicy:
+          size: 1 GB
+        # Trigger every day at midnight that also scan
+        # roll-over strategy that deletes older file
+        CronTriggeringPolicy:
+          schedule: "0 0 0 * * ?"
+      # Delete file older than 30days
+      DefaultRolloverStrategy:
+          Delete:
+            basePath: ${sys:pulsar.log.dir}
+            maxDepth: 2
+            IfFileName:
+              glob: "*/${sys:pulsar.log.file}*log.gz"
+            IfLastModified:
+              age: 30d
+
+    # Rolling file appender configuration for bk
+    RollingRandomAccessFile:
+      name: BkRollingFile
+      fileName: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}.bk"
+      filePattern: "${sys:pulsar.log.dir}/${sys:pulsar.log.file}.bk-%d{MM-dd-yyyy}-%i.log.gz"
+      immediateFlush: true
+      PatternLayout:
+        Pattern: "%d{HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n"
+      Policies:
+        TimeBasedTriggeringPolicy:
+          interval: 1
+          modulate: true
+        SizeBasedTriggeringPolicy:
+          size: 1 GB
+        # Trigger every day at midnight that also scan
+        # roll-over strategy that deletes older file
+        CronTriggeringPolicy:
+          schedule: "0 0 0 * * ?"
+      # Delete file older than 30days
+      DefaultRolloverStrategy:
+          Delete:
+            basePath: ${sys:pulsar.log.dir}
+            maxDepth: 2
+            IfFileName:
+              glob: "*/${sys:pulsar.log.file}.bk*log.gz"
+            IfLastModified:
+              age: 30d
+
+    # Routing
+    Routing:
+      name: RoutingAppender
+      Routes:
+        pattern: "$${ctx:function}"
+        Route:
+          -
+            Routing:
+              name: InstanceRoutingAppender
+              Routes:
+                pattern: "$${ctx:instance}"
+                Route:
+                  -
+                    RollingFile:
+                      name: "Rolling-${ctx:function}"
+                      fileName : "${sys:pulsar.log.dir}/functions/${ctx:function}/function.log"
+                      filePattern : "${sys:pulsar.log.dir}/functions/${ctx:function}-%d{MM-dd-yyyy}-%i.log.gz"
+                      PatternLayout:
+                        Pattern: "%d{ABSOLUTE} %level{length=5} [%thread] [instance: %X{instance}] %logger{1} - %msg%n"
+                      Policies:
+                        TimeBasedTriggeringPolicy:
+                          interval: 1
+                          modulate: true
+                        SizeBasedTriggeringPolicy:
+                          size: "20MB"
+                        # Trigger every day at midnight that also scan
+                        # roll-over strategy that deletes older file
+                        CronTriggeringPolicy:
+                          schedule: "0 0 0 * * ?"
+                      # Delete file older than 30days
+                      DefaultRolloverStrategy:
+                          Delete:
+                            basePath: ${sys:pulsar.log.dir}
+                            maxDepth: 2
+                            IfFileName:
+                              glob: "*/${sys:pulsar.log.file}*log.gz"
+                            IfLastModified:
+                              age: 30d
+                  - ref: "${sys:pulsar.routing.appender.default}"
+                    key: "${ctx:function}"
+          - ref: "${sys:pulsar.routing.appender.default}"
+            key: "${ctx:function}"
+
+  Loggers:
+
+    Logger:
+      name: org.apache.bookkeeper
+      level: "${sys:bk.log.level}"
+      additivity: false
+      AppenderRef:
+        - ref: BkRollingFile
+
+    Logger:
+      name: org.apache.distributedlog
+      level: "${sys:bk.log.level}"
+      additivity: false
+      AppenderRef:
+        - ref: BkRollingFile
+
+    Root:
+      level: info
+      AppenderRef:
+        - ref: "${sys:pulsar.log.appender}"
+          level: "${sys:pulsar.log.level}"

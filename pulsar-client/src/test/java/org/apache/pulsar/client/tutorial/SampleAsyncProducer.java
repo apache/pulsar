@@ -25,21 +25,20 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class SampleAsyncProducer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
-        PulsarClient pulsarClient = PulsarClient.create("http://127.0.0.1:8080");
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://localhost:8080").build();
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setSendTimeout(3, TimeUnit.SECONDS);
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", conf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+                .sendTimeout(3, TimeUnit.SECONDS).create();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayList();
 
@@ -69,5 +68,4 @@ public class SampleAsyncProducer {
         pulsarClient.close();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(SampleAsyncProducer.class);
 }

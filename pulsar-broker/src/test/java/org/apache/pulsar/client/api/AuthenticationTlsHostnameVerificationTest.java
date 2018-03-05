@@ -118,7 +118,10 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
         String lookupUrl;
         lookupUrl = new URI("pulsar+ssl://" + brokerHostName + ":" + BROKER_PORT_TLS).toString();
-        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+                .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
+                .authentication(authTls).enableTls(true).enableTlsHostnameVerification(hostnameVerificationEnabled)
+                .build();
 
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
@@ -140,13 +143,13 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
     /**
      * It verifies that client performs host-verification in order to create producer/consumer.
-     * 
+     *
      * <pre>
      * 1. Client tries to connect to broker with hostname="localhost"
      * 2. Broker sends x509 certificates with CN = "pulsar"
      * 3. Client verifies the host-name and closes the connection and fails consumer creation
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(dataProvider = "hostnameVerification")
@@ -164,11 +167,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         setup();
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
         try {
-            Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic",
-                    "my-subscriber-name", conf);
+            pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+                    .subscriptionName("my-subscriber-name").subscribe();
             if (hostnameVerificationEnabled) {
                 Assert.fail("Connection should be failed due to hostnameVerification enabled");
             }
@@ -183,13 +184,13 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
     /**
      * It verifies that client performs host-verification in order to create producer/consumer.
-     * 
+     *
      * <pre>
      * 1. Client tries to connect to broker with hostname="localhost"
      * 2. Broker sends x509 certificates with CN = "localhost"
      * 3. Client verifies the host-name and continues
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -203,20 +204,17 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
         setup();
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name",
-                conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+                .subscriptionName("my-subscriber-name").subscribe();
 
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+                .create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -234,7 +232,7 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
 
     /**
      * This test verifies {@link DefaultHostnameVerifier} behavior and gives fair idea about host matching result
-     * 
+     *
      * @throws Exception
      */
     @Test
