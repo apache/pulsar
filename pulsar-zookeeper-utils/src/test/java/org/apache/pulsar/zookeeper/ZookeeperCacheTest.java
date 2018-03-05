@@ -84,7 +84,7 @@ public class ZookeeperCacheTest {
     }
 
 
-    @Test
+    @Test(timeOut = 10000)
     void testSimpleCache() throws Exception {
 
         ZooKeeperCache zkCacheService = new LocalZooKeeperCache(zkClient, executor, scheduledExecutor);
@@ -123,7 +123,7 @@ public class ZookeeperCacheTest {
         }
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testChildrenCache() throws Exception {
         zkClient.create("/test", new byte[0], null, null);
 
@@ -175,7 +175,7 @@ public class ZookeeperCacheTest {
         assertEquals(notificationCount.get(), 3);
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testExistsCache() throws Exception {
         // Check existence after creation of the node
         zkClient.create("/test", new byte[0], null, null);
@@ -191,7 +191,7 @@ public class ZookeeperCacheTest {
         Assert.assertFalse(shouldNotExist, "/test should not exist in the cache");
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testInvalidateCache() throws Exception {
         zkClient.create("/test", new byte[0], null, null);
         zkClient.create("/test/c1", new byte[0], null, null);
@@ -224,7 +224,7 @@ public class ZookeeperCacheTest {
         assertNull(zkCacheService.getChildrenIfPresent("/test"));
     }
 
-    @Test
+    @Test(timeOut = 10000)
     void testGlobalZooKeeperCache() throws Exception {
         MockZooKeeper zkc = MockZooKeeper.newInstance();
         ZooKeeperClientFactory zkClientfactory = new ZooKeeperClientFactory() {
@@ -381,7 +381,7 @@ public class ZookeeperCacheTest {
      *
      * @throws Exception
      */
-    @Test
+    @Test(timeOut = 10000)
     public void testInvalidateCacheOnFailure() throws Exception {
         ExecutorService zkExecutor = Executors.newSingleThreadExecutor(new DefaultThreadFactory("mockZk"));
         // add readOpDelayMs so, main thread will not serve zkCacahe-returned future and let zkExecutor-thread handle

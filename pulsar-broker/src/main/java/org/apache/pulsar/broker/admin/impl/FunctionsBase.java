@@ -16,14 +16,11 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.worker.rest.api.v2;
+package org.apache.pulsar.broker.admin.impl;
 
-import com.google.protobuf.InvalidProtocolBufferException;
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
-import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
-import org.glassfish.jersey.media.multipart.FormDataParam;
-
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.function.Supplier;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
@@ -33,12 +30,24 @@ import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.IOException;
-import java.io.InputStream;
+import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.functions.worker.WorkerService;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
+import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
+import org.glassfish.jersey.media.multipart.FormDataParam;
 
-@Slf4j
-@Path("/functions")
-public class FunctionApiV2Resource extends FunctionApiResource {
+public class FunctionsBase extends AdminResource implements Supplier<WorkerService> {
+
+    private final FunctionsImpl functions;
+
+    public FunctionsBase() {
+        this.functions = new FunctionsImpl(this);
+    }
+
+    @Override
+    public WorkerService get() {
+        return pulsar().getWorkerService();
+    }
 
     @POST
     @Path("/{tenant}/{namespace}/{functionName}")
@@ -85,7 +94,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName)
-            throws InvalidProtocolBufferException {
+            throws IOException {
         return functions.getFunctionInfo(
             tenant, namespace, functionName);
     }

@@ -427,6 +427,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
 
+    /**** --- Functions --- ****/
+    private boolean functionsWorkerEnabled = false;
+
     public String getZookeeperServers() {
         return zookeeperServers;
     }
@@ -1479,5 +1482,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
+    }
+
+    /**** --- Function ---- ****/
+
+    public void setFunctionsWorkerEnabled(boolean enabled) {
+        this.functionsWorkerEnabled = enabled;
+    }
+
+    public boolean isFunctionsWorkerEnabled() {
+        return functionsWorkerEnabled;
     }
 }
