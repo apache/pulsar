@@ -232,6 +232,12 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>org.apache.bookkeeper</groupId>
+        <artifactId>stream-storage-java-client</artifactId>
+        <version>${bookkeeper.version}</version>
+      </dependency>
+
+      <dependency>
+        <groupId>org.apache.bookkeeper</groupId>
         <artifactId>bookkeeper-bookkeeper-stats-api</artifactId>
         <version>${bookkeeper.version}</version>
       </dependency>
