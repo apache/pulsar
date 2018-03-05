@@ -76,17 +76,25 @@
               <minimizeJar>false</minimizeJar>
 
               <artifactSet>
+                <!-- package the dependencies that use protobuf & grpc and relocate protobuf -->
                 <includes>
                   <include>com.google.protobuf:protobuf-lite</include>
                   <include>com.google.protobuf:protobuf-java</include>
                   <include>com.google.protobuf.nano:protobuf-javanano</include>
-                  <!-- dependencies use protobuf -->
-                  <include>org.apache.pulsar:pulsar-functions-*</include>
-                  <!-- protobuf dependencies in grpc -->
                   <include>com.google.protobuf:protobuf-java-util</include>
-                  <include>io.grpc:grpc-protobuf</include>
-                  <include>io.grpc:grpc-protobuf-lite</include>
-                  <include>io.grpc:grpc-protobuf-nano</include>
+                  <include>com.google.instrumentation:instrumentation-api</include>
+                  <include>com.google.api.grpc:proto-google-common-protos</include>
+                  <!-- dependencies use protobuf -->
+                  <include>org.apache.pulsar:pulsar-functions-proto</include>
+                  <include>org.apache.pulsar:pulsar-functions-utils</include>
+                  <include>org.apache.pulsar:pulsar-functions-metrics</include>
+                  <include>org.apache.pulsar:pulsar-functions-instance</include>
+                  <include>org.apache.pulsar:pulsar-functions-runtime</include>
+                  <include>org.apache.pulsar:pulsar-functions-worker</include>
+                  <!-- protobuf dependencies in grpc -->
+                  <include>io.grpc:*</include>
+                  <!-- bookkeeper key/value service -->
+                  <include>org.apache.bookkeeper:stream-storage-java-client</include>
                 </includes>
               </artifactSet>
               <relocations>

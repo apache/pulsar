@@ -57,10 +57,6 @@
           <artifactId>protobuf-java-util</artifactId>
         </exclusion>
         <exclusion>
-          <groupId>org.apache.pulsar</groupId>
-          <artifactId>pulsar-functions-proto</artifactId>
-        </exclusion>
-        <exclusion>
           <groupId>io.grpc</groupId>
           <artifactId>grpc-protobuf</artifactId>
         </exclusion>
@@ -71,6 +67,30 @@
         <exclusion>
           <groupId>io.grpc</groupId>
           <artifactId>grpc-protobuf-nano</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-proto</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-utils</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-metrics</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-runtime</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-instance</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.pulsar</groupId>
+          <artifactId>pulsar-functions-worker</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
