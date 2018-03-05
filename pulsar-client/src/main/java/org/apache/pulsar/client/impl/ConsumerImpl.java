@@ -25,11 +25,6 @@ import static java.lang.String.format;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
-import com.google.common.collect.Iterables;
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Timeout;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -52,8 +47,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerCryptoFailureAction;
+import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -74,6 +71,13 @@ import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.collect.Iterables;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Timeout;
+import io.netty.util.concurrent.Future;
+import io.netty.util.concurrent.GenericFutureListener;
 
 public class ConsumerImpl<T> extends ConsumerBase<T> {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
@@ -106,7 +110,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConcurrentNavigableMap<MessageIdImpl, BitSet> batchMessageAckTracker;
 
-    protected final ConsumerStats stats;
+    protected final ConsumerStatsRecorder stats;
     private final int priorityLevel;
     private final SubscriptionMode subscriptionMode;
     private BatchMessageIdImpl startMessageId;
@@ -150,9 +154,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
         this.readCompacted = conf.isReadCompacted();
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
-            stats = new ConsumerStats(client, conf, this);
+            stats = new ConsumerStatsRecorderImpl(client, conf, this);
         } else {
-            stats = ConsumerStats.CONSUMER_STATS_DISABLED;
+            stats = ConsumerStatsDisabled.INSTANCE;
         }
 
         if (conf.getReceiverQueueSize() <= 1) {
@@ -698,10 +702,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
             return CompletableFuture.completedFuture(null);
         }
 
-        Timeout timeout = stats.getStatTimeout();
-        if (timeout != null) {
-            timeout.cancel();
-        }
+        stats.getStatTimeout().ifPresent(Timeout::cancel);
 
         setState(State.Closing);
 
@@ -1408,9 +1409,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
 
     @Override
     public ConsumerStats getStats() {
-        if (stats instanceof ConsumerStatsDisabled) {
-            return null;
-        }
         return stats;
     }
 

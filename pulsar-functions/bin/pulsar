@@ -52,7 +52,7 @@ fi
 
 # exclude tests jar
 if [ -z "$PULSAR_JAR" ]; then
-    BUILT_JAR=`ls $PULSAR_HOME/worker/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
+    BUILT_JAR=`ls $PULSAR_HOME/worker-runner/target/pulsar-*.jar 2> /dev/null | grep -v tests | tail -1`
     if [ -z "${BUILT_JAR}" ]; then
         echo "\nCouldn't find pulsar jar.";
         echo "Make sure you've run 'mvn package'\n";
@@ -118,10 +118,10 @@ add_maven_deps_to_classpath() {
     # Need to generate classpath from maven pom. This is costly so generate it
     # and cache it. Save the file into our target dir so a mvn clean will get
     # clean it up and force us create a new one.
-    f="${PULSAR_HOME}/worker/target/classpath_shaded.txt"
+    f="${PULSAR_HOME}/worker-runner/target/classpath_shaded.txt"
     if [ ! -f "${f}" ]
     then
-	    ${MVN} -f "${PULSAR_HOME}/worker/pom.xml" dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile="${f}" &> /dev/null
+	    ${MVN} -f "${PULSAR_HOME}/worker-runner/pom.xml" dependency:build-classpath -DincludeScope=compile -Dmdep.outputFile="${f}" &> /dev/null
     fi
     PULSAR_CLASSPATH=${CLASSPATH}:`cat "${f}"`
 }

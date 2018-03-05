@@ -19,11 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.text.DecimalFormat;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.pulsar.client.api.ProducerStats;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,7 +36,7 @@ import com.yahoo.sketches.quantiles.DoublesSketch;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 
-public class ProducerStats implements Serializable {
+public class ProducerStatsRecorderImpl implements ProducerStatsRecorder {
 
     private static final long serialVersionUID = 1L;
     private TimerTask stat;
@@ -53,14 +53,17 @@ public class ProducerStats implements Serializable {
     private final LongAdder totalBytesSent;
     private final LongAdder totalSendFailed;
     private final LongAdder totalAcksReceived;
-    private final DecimalFormat dec;
-    private final DecimalFormat throughputFormat;
+    private static final DecimalFormat DEC = new DecimalFormat("0.000");
+    private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
     private final DoublesSketch ds;
-    private final double[] percentiles = { 0.5, 0.95, 0.99, 0.999, 0.9999 };
 
-    public static final ProducerStats PRODUCER_STATS_DISABLED = new ProducerStatsDisabled();
+    private volatile double sendMsgsRate;
+    private volatile double sendBytesRate;
+    private volatile double[] latencyPctValues;
 
-    public ProducerStats() {
+    private static final double[] PERCENTILES = { 0.5, 0.75, 0.95, 0.99, 0.999, 1.0 };
+
+    public ProducerStatsRecorderImpl() {
         numMsgsSent = null;
         numBytesSent = null;
         numSendFailed = null;
@@ -69,12 +72,11 @@ public class ProducerStats implements Serializable {
         totalBytesSent = null;
         totalSendFailed = null;
         totalAcksReceived = null;
-        dec = null;
-        throughputFormat = null;
         ds = null;
     }
 
-    public ProducerStats(PulsarClientImpl pulsarClient, ProducerConfigurationData conf, ProducerImpl<?> producer) {
+    public ProducerStatsRecorderImpl(PulsarClientImpl pulsarClient, ProducerConfigurationData conf,
+            ProducerImpl<?> producer) {
         this.pulsarClient = pulsarClient;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
         this.producer = producer;
@@ -87,8 +89,6 @@ public class ProducerStats implements Serializable {
         totalSendFailed = new LongAdder();
         totalAcksReceived = new LongAdder();
         ds = DoublesSketch.builder().build(256);
-        dec = new DecimalFormat("0.000");
-        throughputFormat = new DecimalFormat("0.00");
         init(conf);
     }
 
@@ -125,32 +125,33 @@ public class ProducerStats implements Serializable {
                 totalSendFailed.add(currentNumSendFailedMsgs);
                 totalAcksReceived.add(currentNumAcksReceived);
 
-                double[] percentileValues;
                 synchronized (ds) {
-                    percentileValues = ds.getQuantiles(percentiles);
+                    latencyPctValues = ds.getQuantiles(PERCENTILES);
                     ds.reset();
                 }
+
+                sendMsgsRate = currentNumMsgsSent / elapsed;
+                sendBytesRate = currentNumBytesSent / elapsed;
 
                 if ((currentNumMsgsSent | currentNumSendFailedMsgs | currentNumAcksReceived
                         | currentNumMsgsSent) != 0) {
 
-                    for (int i = 0; i < percentileValues.length; i++) {
-                        if (percentileValues[i] == Double.NaN) {
-                            percentileValues[i] = 0;
+                    for (int i = 0; i < latencyPctValues.length; i++) {
+                        if (latencyPctValues[i] == Double.NaN) {
+                            latencyPctValues[i] = 0;
                         }
                     }
 
-                    log.info(
-                            "[{}] [{}] Pending messages: {} --- Publish throughput: {} msg/s --- {} Mbit/s --- "
-                                    + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - 99.99pct: {} ms --- "
-                                    + "Ack received rate: {} ack/s --- Failed messages: {}",
-                            producer.getTopic(), producer.getProducerName(), producer.getPendingQueueSize(),
-                            throughputFormat.format(currentNumMsgsSent / elapsed),
-                            throughputFormat.format(currentNumBytesSent / elapsed / 1024 / 1024 * 8),
-                            dec.format(percentileValues[0] / 1000.0), dec.format(percentileValues[1] / 1000.0),
-                            dec.format(percentileValues[2] / 1000.0), dec.format(percentileValues[3] / 1000.0),
-                            dec.format(percentileValues[4] / 1000.0),
-                            throughputFormat.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs);
+                    log.info("[{}] [{}] Pending messages: {} --- Publish throughput: {} msg/s --- {} Mbit/s --- "
+                            + "Latency: med: {} ms - 95pct: {} ms - 99pct: {} ms - 99.9pct: {} ms - max: {} ms --- "
+                            + "Ack received rate: {} ack/s --- Failed messages: {}", producer.getTopic(),
+                            producer.getProducerName(), producer.getPendingQueueSize(),
+                            THROUGHPUT_FORMAT.format(sendMsgsRate),
+                            THROUGHPUT_FORMAT.format(sendBytesRate / 1024 / 1024 * 8),
+                            DEC.format(latencyPctValues[0] / 1000.0), DEC.format(latencyPctValues[2] / 1000.0),
+                            DEC.format(latencyPctValues[3] / 1000.0), DEC.format(latencyPctValues[4] / 1000.0),
+                            DEC.format(latencyPctValues[5] / 1000.0),
+                            THROUGHPUT_FORMAT.format(currentNumAcksReceived / elapsed), currentNumSendFailedMsgs);
                 }
 
             } catch (Exception e) {
@@ -170,20 +171,24 @@ public class ProducerStats implements Serializable {
         return statTimeout;
     }
 
-    void updateNumMsgsSent(long numMsgs, long totalMsgsSize) {
+    @Override
+    public void updateNumMsgsSent(long numMsgs, long totalMsgsSize) {
         numMsgsSent.add(numMsgs);
         numBytesSent.add(totalMsgsSize);
     }
 
-    void incrementSendFailed() {
+    @Override
+    public void incrementSendFailed() {
         numSendFailed.increment();
     }
 
-    void incrementSendFailed(long numMsgs) {
+    @Override
+    public void incrementSendFailed(long numMsgs) {
         numSendFailed.add(numMsgs);
     }
 
-    void incrementNumAcksReceived(long latencyNs) {
+    @Override
+    public void incrementNumAcksReceived(long latencyNs) {
         numAcksReceived.increment();
         synchronized (ds) {
             ds.update(TimeUnit.NANOSECONDS.toMicros(latencyNs));
@@ -205,28 +210,32 @@ public class ProducerStats implements Serializable {
         if (stats == null) {
             return;
         }
-        numMsgsSent.add(stats.numMsgsSent.longValue());
-        numBytesSent.add(stats.numBytesSent.longValue());
-        numSendFailed.add(stats.numSendFailed.longValue());
-        numAcksReceived.add(stats.numAcksReceived.longValue());
-        totalMsgsSent.add(stats.numMsgsSent.longValue());
-        totalBytesSent.add(stats.numBytesSent.longValue());
-        totalSendFailed.add(stats.numSendFailed.longValue());
-        totalAcksReceived.add(stats.numAcksReceived.longValue());
+        numMsgsSent.add(stats.getNumMsgsSent());
+        numBytesSent.add(stats.getNumBytesSent());
+        numSendFailed.add(stats.getNumSendFailed());
+        numAcksReceived.add(stats.getNumAcksReceived());
+        totalMsgsSent.add(stats.getNumMsgsSent());
+        totalBytesSent.add(stats.getNumBytesSent());
+        totalSendFailed.add(stats.getNumSendFailed());
+        totalAcksReceived.add(stats.getNumAcksReceived());
     }
 
+    @Override
     public long getNumMsgsSent() {
         return numMsgsSent.longValue();
     }
 
+    @Override
     public long getNumBytesSent() {
         return numBytesSent.longValue();
     }
 
+    @Override
     public long getNumSendFailed() {
         return numSendFailed.longValue();
     }
 
+    @Override
     public long getNumAcksReceived() {
         return numAcksReceived.longValue();
     }
@@ -247,6 +256,46 @@ public class ProducerStats implements Serializable {
         return totalAcksReceived.longValue();
     }
 
+    @Override
+    public double getSendMsgsRate() {
+        return sendMsgsRate;
+    }
+
+    @Override
+    public double getSendBytesRate() {
+        return sendBytesRate;
+    }
+
+    @Override
+    public double getSendLatencyMillis50pct() {
+        return latencyPctValues[0];
+    }
+
+    @Override
+    public double getSendLatencyMillis75pct() {
+        return latencyPctValues[1];
+    }
+
+    @Override
+    public double getSendLatencyMillis95pct() {
+        return latencyPctValues[2];
+    }
+
+    @Override
+    public double getSendLatencyMillis99pct() {
+        return latencyPctValues[3];
+    }
+
+    @Override
+    public double getSendLatencyMillis999pct() {
+        return latencyPctValues[4];
+    }
+
+    @Override
+    public double getSendLatencyMillisMax() {
+        return latencyPctValues[5];
+    }
+
     public void cancelStatsTimeout() {
         if (statTimeout != null) {
             statTimeout.cancel();
@@ -254,5 +303,5 @@ public class ProducerStats implements Serializable {
         }
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ProducerStats.class);
+    private static final Logger log = LoggerFactory.getLogger(ProducerStatsRecorderImpl.class);
 }
