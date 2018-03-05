@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker.rest.api.v2;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
-import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
@@ -57,6 +56,7 @@ import org.apache.pulsar.functions.worker.Utils;
 import org.apache.pulsar.functions.worker.WorkerConfig;
 import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.functions.worker.request.RequestResult;
+import org.apache.pulsar.functions.worker.rest.api.FunctionsImpl;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -98,13 +98,12 @@ public class FunctionApiV2ResourceTest {
     private WorkerService mockedWorkerService;
     private FunctionMetaDataManager mockedManager;
     private Namespace mockedNamespace;
-    private FunctionApiV2Resource resource;
+    private FunctionsImpl resource;
     private InputStream mockedInputStream;
     private FormDataContentDisposition mockedFormData;
 
     @BeforeMethod
     public void setup() {
-        this.resource = spy(new FunctionApiV2Resource());
         this.mockedManager = mock(FunctionMetaDataManager.class);
         this.mockedInputStream = mock(InputStream.class);
         this.mockedFormData = mock(FormDataContentDisposition.class);
@@ -124,7 +123,7 @@ public class FunctionApiV2ResourceTest {
             .setPulsarServiceUrl("pulsar://localhost:6650/");
         when(mockedWorkerService.getWorkerConfig()).thenReturn(workerConfig);
 
-        doReturn(mockedWorkerService).when(resource).worker();
+        this.resource = spy(new FunctionsImpl(() -> mockedWorkerService));
     }
 
     //
