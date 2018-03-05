@@ -130,9 +130,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                                 PulsarClient pulsarClient,
                                 String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
-        this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees() == null
-                ? ProcessingGuarantees.ATLEAST_ONCE
-                : instanceConfig.getFunctionConfig().getProcessingGuarantees();
+        this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees();
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingDeque<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
