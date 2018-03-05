@@ -45,10 +45,12 @@ public class ProducerConfiguration implements Serializable {
 
     private final ProducerConfigurationData conf = new ProducerConfigurationData();
 
+    @Deprecated
     public enum MessageRoutingMode {
         SinglePartition, RoundRobinPartition, CustomPartition
     }
 
+    @Deprecated
     public enum HashingScheme {
         JavaStringHash, Murmur3_32Hash
     }

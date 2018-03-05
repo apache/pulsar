@@ -37,18 +37,19 @@ public class ConsumerConfigurationTest {
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerConfigurationTest.class);
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @Test
     public void testJsonIgnore() throws Exception {
 
-        ConsumerConfigurationData conf = new ConsumerConfigurationData();
+        ConsumerConfigurationData<?> conf = new ConsumerConfigurationData<>();
         conf.setConsumerEventListener(new ConsumerEventListener() {
 
             @Override
-            public void becameActive(Consumer consumer, int partitionId) {
+            public void becameActive(Consumer<?> consumer, int partitionId) {
             }
 
             @Override
-            public void becameInactive(Consumer consumer, int partitionId) {
+            public void becameInactive(Consumer<?> consumer, int partitionId) {
             }
         });
 

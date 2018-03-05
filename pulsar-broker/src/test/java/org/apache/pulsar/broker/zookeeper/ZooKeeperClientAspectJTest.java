@@ -189,7 +189,7 @@ public class ZooKeeperClientAspectJTest {
             PulsarClient pulsarClient = mockPulsar.getClient();
             PulsarService pulsar = mockPulsar.getPulsar();
 
-            pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic1");
+            pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1").create();
             Metrics zkOpMetric = getMetric(pulsar, "zk_write_latency");
             Assert.assertNotNull(zkOpMetric);
             Assert.assertTrue(zkOpMetric.getMetrics().containsKey("brk_zk_write_rate_s"));

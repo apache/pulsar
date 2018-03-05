@@ -83,7 +83,7 @@ public class Producer {
     private final SchemaVersion schemaVersion;
 
     public Producer(Topic topic, ServerCnx cnx, long producerId, String producerName, String appId,
-                    boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion) {
+        boolean isEncrypted, Map<String, String> metadata, SchemaVersion schemaVersion) {
         this.topic = topic;
         this.cnx = cnx;
         this.producerId = producerId;

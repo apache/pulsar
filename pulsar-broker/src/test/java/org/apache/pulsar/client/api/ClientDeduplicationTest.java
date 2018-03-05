@@ -46,9 +46,9 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         String topic = "persistent://my-property/use/my-ns/testProducerSequenceAfterReconnect";
         admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setProducerName("my-producer-name");
-        Producer producer = pulsarClient.createProducer(topic, conf);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
+                .producerName("my-producer-name");
+        Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
@@ -60,7 +60,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
 
         producer.close();
 
-        producer = pulsarClient.createProducer(topic, conf);
+        producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 9L);
 
         for (int i = 10; i < 20; i++) {
@@ -77,9 +77,9 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         String topic = "persistent://my-property/use/my-ns/testProducerSequenceAfterRestart";
         admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setProducerName("my-producer-name");
-        Producer producer = pulsarClient.createProducer(topic, conf);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
+                .producerName("my-producer-name");
+        Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
@@ -94,7 +94,7 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         // Kill and restart broker
         restartBroker();
 
-        producer = pulsarClient.createProducer(topic, conf);
+        producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 9L);
 
         for (int i = 10; i < 20; i++) {
@@ -111,16 +111,15 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         String topic = "persistent://my-property/use/my-ns/testProducerDeduplication";
         admin.namespaces().setDeduplicationStatus("my-property/use/my-ns", true);
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setProducerName("my-producer-name");
-
         // Set infinite timeout
-        conf.setSendTimeout(0, TimeUnit.SECONDS);
-        Producer producer = pulsarClient.createProducer(topic, conf);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
+                .producerName("my-producer-name").sendTimeout(0, TimeUnit.SECONDS);
+        Producer<byte[]> producer = producerBuilder.create();
 
         assertEquals(producer.getLastSequenceId(), -1L);
 
-        Consumer consumer = pulsarClient.subscribe(topic, "my-subscription");
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topic).subscriptionName("my-subscription")
+                .subscribe();
 
         producer.send(MessageBuilder.create().setContent("my-message-0".getBytes()).setSequenceId(0).build());
         producer.send(MessageBuilder.create().setContent("my-message-1".getBytes()).setSequenceId(1).build());
@@ -133,19 +132,19 @@ public class ClientDeduplicationTest extends ProducerConsumerBase {
         producer.close();
 
         for (int i = 0; i < 3; i++) {
-            Message msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive();
             assertEquals(new String(msg.getData()), "my-message-" + i);
             consumer.acknowledge(msg);
         }
 
         // No other messages should be received
-        Message msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertNull(msg);
 
         // Kill and restart broker
         restartBroker();
 
-        producer = pulsarClient.createProducer(topic, conf);
+        producer = producerBuilder.create();
         assertEquals(producer.getLastSequenceId(), 2L);
 
         // Repeat the messages and verify they're not received by consumer

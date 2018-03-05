@@ -23,14 +23,14 @@ import java.util.Map;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 
-public class TopicMessageImpl implements Message {
+public class TopicMessageImpl<T> implements Message<T> {
 
     private final String topicName;
-    private final Message msg;
+    private final Message<T> msg;
     private final MessageId msgId;
 
     TopicMessageImpl(String topicName,
-                     Message msg) {
+                     Message<T> msg) {
         this.topicName = topicName;
         this.msg = msg;
         this.msgId = new TopicMessageIdImpl(topicName, msg.getMessageId());
@@ -100,7 +100,7 @@ public class TopicMessageImpl implements Message {
     }
 
     @Override
-    public Object getValue() {
-        return msg.getData();
+    public T getValue() {
+        return msg.getValue();
     }
 }

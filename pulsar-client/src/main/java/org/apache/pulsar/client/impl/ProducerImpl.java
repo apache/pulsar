@@ -93,7 +93,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     private String connectedSince;
     private final int partitionIndex;
 
-    private final ProducerStats stats;
+    private final ProducerStatsRecorder stats;
 
     private final CompressionCodec compressor;
 
@@ -161,9 +161,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             this.batchMessageContainer = null;
         }
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
-            stats = new ProducerStats(client, conf, this);
+            stats = new ProducerStatsRecorderImpl(client, conf, this);
         } else {
-            stats = ProducerStats.PRODUCER_STATS_DISABLED;
+            stats = ProducerStatsDisabled.INSTANCE;
         }
 
         if (conf.getProperties().isEmpty()) {
@@ -1240,10 +1240,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     @Override
-    public ProducerStats getStats() {
-        if (stats instanceof ProducerStatsDisabled) {
-            return null;
-        }
+    public ProducerStatsRecorder getStats() {
         return stats;
     }
 
