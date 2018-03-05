@@ -19,11 +19,12 @@
 package org.apache.pulsar.client.impl;
 
 import java.io.IOException;
-import java.io.Serializable;
 import java.text.DecimalFormat;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.LongAdder;
 
+import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.slf4j.Logger;
@@ -36,7 +37,7 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 
-public class ConsumerStats implements Serializable {
+public class ConsumerStatsRecorderImpl implements ConsumerStatsRecorder {
 
     private static final long serialVersionUID = 1L;
     private TimerTask stat;
@@ -56,11 +57,12 @@ public class ConsumerStats implements Serializable {
     private final LongAdder totalAcksSent;
     private final LongAdder totalAcksFailed;
 
-    private final DecimalFormat throughputFormat;
+    private volatile double receivedMsgsRate;
+    private volatile double receivedBytesRate;
 
-    public static final ConsumerStats CONSUMER_STATS_DISABLED = new ConsumerStatsDisabled();
+    private static final DecimalFormat THROUGHPUT_FORMAT = new DecimalFormat("0.00");
 
-    public ConsumerStats() {
+    public ConsumerStatsRecorderImpl() {
         numMsgsReceived = null;
         numBytesReceived = null;
         numReceiveFailed = null;
@@ -71,10 +73,10 @@ public class ConsumerStats implements Serializable {
         totalReceiveFailed = null;
         totalAcksSent = null;
         totalAcksFailed = null;
-        throughputFormat = null;
     }
 
-    public ConsumerStats(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf, ConsumerImpl<?> consumer) {
+    public ConsumerStatsRecorderImpl(PulsarClientImpl pulsarClient, ConsumerConfigurationData<?> conf,
+            ConsumerImpl<?> consumer) {
         this.pulsarClient = pulsarClient;
         this.consumer = consumer;
         this.statsIntervalSeconds = pulsarClient.getConfiguration().getStatsIntervalSeconds();
@@ -88,7 +90,6 @@ public class ConsumerStats implements Serializable {
         totalReceiveFailed = new LongAdder();
         totalAcksSent = new LongAdder();
         totalAcksFailed = new LongAdder();
-        throughputFormat = new DecimalFormat("0.00");
         init(conf);
     }
 
@@ -124,6 +125,9 @@ public class ConsumerStats implements Serializable {
                 totalAcksSent.add(currentNumAcksSent);
                 totalAcksFailed.add(currentNumAcksFailed);
 
+                receivedMsgsRate = currentNumMsgsReceived / elapsed;
+                receivedBytesRate = currentNumBytesReceived / elapsed;
+
                 if ((currentNumMsgsReceived | currentNumBytesReceived | currentNumReceiveFailed | currentNumAcksSent
                         | currentNumAcksFailed) != 0) {
                     log.info(
@@ -131,9 +135,9 @@ public class ConsumerStats implements Serializable {
                                     + "Throughput received: {} msg/s --- {} Mbit/s --- "
                                     + "Ack sent rate: {} ack/s --- " + "Failed messages: {} --- " + "Failed acks: {}",
                             consumer.getTopic(), consumer.getSubscription(), consumer.consumerName,
-                            consumer.incomingMessages.size(), throughputFormat.format(currentNumMsgsReceived / elapsed),
-                            throughputFormat.format(currentNumBytesReceived / elapsed * 8 / 1024 / 1024),
-                            throughputFormat.format(currentNumAcksSent / elapsed), currentNumReceiveFailed,
+                            consumer.incomingMessages.size(), THROUGHPUT_FORMAT.format(receivedMsgsRate),
+                            THROUGHPUT_FORMAT.format(receivedBytesRate * 8 / 1024 / 1024),
+                            THROUGHPUT_FORMAT.format(currentNumAcksSent / elapsed), currentNumReceiveFailed,
                             currentNumAcksFailed);
                 }
             } catch (Exception e) {
@@ -149,30 +153,36 @@ public class ConsumerStats implements Serializable {
         statTimeout = pulsarClient.timer().newTimeout(stat, statsIntervalSeconds, TimeUnit.SECONDS);
     }
 
-    void updateNumMsgsReceived(Message<?> message) {
+    @Override
+    public void updateNumMsgsReceived(Message<?> message) {
         if (message != null) {
             numMsgsReceived.increment();
             numBytesReceived.add(message.getData().length);
         }
     }
 
-    void incrementNumAcksSent(long numAcks) {
+    @Override
+    public void incrementNumAcksSent(long numAcks) {
         numAcksSent.add(numAcks);
     }
 
-    void incrementNumAcksFailed() {
+    @Override
+    public void incrementNumAcksFailed() {
         numAcksFailed.increment();
     }
 
-    void incrementNumReceiveFailed() {
+    @Override
+    public void incrementNumReceiveFailed() {
         numReceiveFailed.increment();
     }
 
-    Timeout getStatTimeout() {
-        return statTimeout;
+    @Override
+    public Optional<Timeout> getStatTimeout() {
+        return Optional.ofNullable(statTimeout);
     }
 
-    void reset() {
+    @Override
+    public void reset() {
         numMsgsReceived.reset();
         numBytesReceived.reset();
         numReceiveFailed.reset();
@@ -185,20 +195,21 @@ public class ConsumerStats implements Serializable {
         totalAcksFailed.reset();
     }
 
-    void updateCumulativeStats(ConsumerStats stats) {
+    @Override
+    public void updateCumulativeStats(ConsumerStats stats) {
         if (stats == null) {
             return;
         }
-        numMsgsReceived.add(stats.numMsgsReceived.longValue());
-        numBytesReceived.add(stats.numBytesReceived.longValue());
-        numReceiveFailed.add(stats.numReceiveFailed.longValue());
-        numAcksSent.add(stats.numAcksSent.longValue());
-        numAcksFailed.add(stats.numAcksFailed.longValue());
-        totalMsgsReceived.add(stats.totalMsgsReceived.longValue());
-        totalBytesReceived.add(stats.totalBytesReceived.longValue());
-        totalReceiveFailed.add(stats.totalReceiveFailed.longValue());
-        totalAcksSent.add(stats.totalAcksSent.longValue());
-        totalAcksFailed.add(stats.totalAcksFailed.longValue());
+        numMsgsReceived.add(stats.getNumMsgsReceived());
+        numBytesReceived.add(stats.getNumBytesReceived());
+        numReceiveFailed.add(stats.getNumReceiveFailed());
+        numAcksSent.add(stats.getNumAcksSent());
+        numAcksFailed.add(stats.getNumAcksFailed());
+        totalMsgsReceived.add(stats.getTotalMsgsReceived());
+        totalBytesReceived.add(stats.getTotalBytesReceived());
+        totalReceiveFailed.add(stats.getTotalReceivedFailed());
+        totalAcksSent.add(stats.getTotalAcksSent());
+        totalAcksFailed.add(stats.getTotalAcksFailed());
     }
 
     public long getNumMsgsReceived() {
@@ -241,5 +252,15 @@ public class ConsumerStats implements Serializable {
         return totalAcksFailed.longValue();
     }
 
-    private static final Logger log = LoggerFactory.getLogger(ConsumerStats.class);
+    @Override
+    public double getRateMsgsReceived() {
+        return receivedMsgsRate;
+    }
+
+    @Override
+    public double getRateBytesReceived() {
+        return receivedBytesRate;
+    }
+
+    private static final Logger log = LoggerFactory.getLogger(ConsumerStatsRecorderImpl.class);
 }

@@ -34,8 +34,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.impl.ConsumerStats;
-import org.apache.pulsar.client.impl.ProducerStats;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterMethod;
