@@ -20,11 +20,8 @@ package org.apache.pulsar.admin.cli.utils;
 
 import java.util.Map;
 
-import org.apache.pulsar.admin.cli.utils.NameValueParameterSplitter;
 import org.testng.Assert;
 import org.testng.annotations.Test;
-
-import io.netty.handler.codec.http.HttpContentEncoder.Result;
 
 public class NameValueParameterSplitterTest {
     @Test(description = "Basic Test")
@@ -45,7 +42,7 @@ public class NameValueParameterSplitterTest {
     public void test3() {
         try {
             NameValueParameterSplitter splitter = new NameValueParameterSplitter();
-            Map<String, String> result = splitter.convert(" Name  Sunnyvale CA");
+            splitter.convert(" Name  Sunnyvale CA");
             // Expecting exception
             Assert.fail("' Name  Sunnyvale CA' is not a valid name value pair");
         } catch (Exception e) {

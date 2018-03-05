@@ -26,10 +26,12 @@ import java.util.Map;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class SampleCryptoProducer {
 
     public static void main(String[] args) throws PulsarClientException, InterruptedException, IOException {
@@ -52,8 +54,7 @@ public class SampleCryptoProducer {
                     // Read the public key from the file
                     keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
                 } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-                    e.printStackTrace();
+                    log.error("Failed to read public key from file {}", publicKeyFile, e);
                 }
                 return keyInfo;
             }
@@ -66,21 +67,18 @@ public class SampleCryptoProducer {
                     // Read the private key from the file
                     keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
                 } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-                    e.printStackTrace();
+                    log.error("Failed to read private key from file {}", privateKeyFile, e);
                 }
                 return keyInfo;
             }
         }
 
-        PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-        ProducerConfiguration prodConf = new ProducerConfiguration();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
 
         // Setup the CryptoKeyReader with the file name where public/private key is kept
-        prodConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-        prodConf.addEncryptionKey("myappkey");
-
-        Producer producer = pulsarClient.createProducer("persistent://my-property/use/my-ns/my-topic", prodConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic")
+                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"))
+                .addEncryptionKey("myappkey").create();
 
         for (int i = 0; i < 10; i++) {
             producer.send("my-message".getBytes());

@@ -65,7 +65,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
+    @SuppressWarnings("unused")
     private ManagedLedger ledgerMock;
+    @SuppressWarnings("unused")
     private ManagedCursor cursorMock;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
