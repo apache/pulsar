@@ -451,7 +451,7 @@ public class CmdFunctions extends CmdBase {
                 throw new RuntimeException("Missing arguments");
             }
 
-            String serviceUrl = ((PulsarFunctionsAdmin) admin).getClientConf().getConfigurationData().getServiceUrl();
+            String serviceUrl = ((PulsarFunctionsAdmin) admin).getClientConf().getServiceUrl();
             if (brokerServiceUrl != null) {
                 serviceUrl = brokerServiceUrl;
             }

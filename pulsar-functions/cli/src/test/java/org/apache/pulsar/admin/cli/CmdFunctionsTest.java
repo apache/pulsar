@@ -54,6 +54,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
@@ -104,7 +105,7 @@ public class CmdFunctionsTest {
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn(URI.create("http://localhost:1234").toURL());
-        when(admin.getClientConf()).thenReturn(new ClientConfiguration());
+        when(admin.getClientConf()).thenReturn(new ClientConfigurationData());
         this.cmd = new CmdFunctions(admin);
 
         // mock reflections
