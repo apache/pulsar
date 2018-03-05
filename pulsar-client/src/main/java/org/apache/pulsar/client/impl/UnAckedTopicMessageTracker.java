@@ -22,7 +22,7 @@ import static com.google.common.base.Preconditions.checkState;
 
 public class UnAckedTopicMessageTracker extends UnAckedMessageTracker {
 
-    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase consumerBase, long ackTimeoutMillis) {
+    public UnAckedTopicMessageTracker(PulsarClientImpl client, ConsumerBase<?> consumerBase, long ackTimeoutMillis) {
         super(client, consumerBase, ackTimeoutMillis);
     }
 

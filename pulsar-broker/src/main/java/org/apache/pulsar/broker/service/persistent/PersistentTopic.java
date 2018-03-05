@@ -20,14 +20,12 @@ package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
-import static java.util.Objects.isNull;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -55,7 +53,6 @@ import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.admin.AdminResource;
-import org.apache.pulsar.broker.service.schema.SchemaRegistry;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
@@ -76,7 +73,6 @@ import org.apache.pulsar.broker.service.Replicator;
 import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.Subscription;
 import org.apache.pulsar.broker.service.Topic;
-import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.broker.stats.ReplicationMetrics;
@@ -96,7 +92,7 @@ import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.PublisherStats;
 import org.apache.pulsar.common.policies.data.ReplicatorStats;
 import org.apache.pulsar.common.policies.data.SubscriptionStats;
-import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.DateFormatter;
@@ -1609,20 +1605,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);
 
     @Override
-    public CompletableFuture<SchemaAndMetadata> getSchema() {
-        String base = TopicName.get(getName()).getPartitionedTopicName();
-        String schema = TopicName.get(base).getSchemaName();
-        return brokerService.pulsar()
-            .getSchemaRegistryService()
-            .getSchema(schema);
-    }
-
-    @Override
-    public CompletableFuture<SchemaVersion> addSchema(Schema schema) {
+    public CompletableFuture<SchemaVersion> addSchema(SchemaData schema) {
         String base = TopicName.get(getName()).getPartitionedTopicName();
         String id = TopicName.get(base).getSchemaName();
         return brokerService.pulsar()
             .getSchemaRegistryService()
-            .putSchema(id, schema);
+            .putSchemaIfAbsent(id, schema);
     }
 }

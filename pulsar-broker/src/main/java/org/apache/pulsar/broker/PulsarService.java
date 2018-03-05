@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -65,6 +66,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -120,6 +122,7 @@ public class PulsarService implements AutoCloseable {
     private final String brokerServiceUrlTls;
     private final String brokerVersion;
     private SchemaRegistryService schemaRegistryService = null;
+    private final Optional<WorkerService> functionWorkerService;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -135,6 +138,10 @@ public class PulsarService implements AutoCloseable {
     private final Condition isClosedCondition = mutex.newCondition();
 
     public PulsarService(ServiceConfiguration config) {
+        this(config, Optional.empty());
+    }
+
+    public PulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService) {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
 
@@ -150,6 +157,7 @@ public class PulsarService implements AutoCloseable {
         this.shutdownService = new MessagingServiceShutdownHook(this);
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
+        this.functionWorkerService = functionWorkerService;
     }
 
     /**
@@ -546,6 +554,10 @@ public class PulsarService implements AutoCloseable {
      */
     public NamespaceService getNamespaceService() {
         return this.nsservice;
+    }
+
+    public WorkerService getWorkerService() {
+        return functionWorkerService.orElse(null);
     }
 
     /**

@@ -23,6 +23,8 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import java.io.FileInputStream;
 import java.net.URL;
 
+import java.nio.file.Paths;
+import java.util.Optional;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.ServiceConfigurationUtils;
@@ -31,6 +33,8 @@ import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.functions.worker.WorkerConfig;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
 import org.aspectj.weaver.loadtime.Agent;
 import org.slf4j.Logger;
@@ -48,6 +52,7 @@ public class PulsarStandaloneStarter {
     PulsarAdmin admin;
     LocalBookkeeperEnsemble bkEnsemble;
     ServiceConfiguration config;
+    WorkerService fnWorkerService;
 
     @Parameter(names = { "-c", "--config" }, description = "Configuration file path", required = true)
     private String configFile;
@@ -75,6 +80,12 @@ public class PulsarStandaloneStarter {
 
     @Parameter(names = { "--only-broker" }, description = "Only start Pulsar broker service (no ZK, BK)")
     private boolean onlyBroker = false;
+
+    @Parameter(names = {"-nfw", "--no-functions-worker"}, description = "Run functions worker with Broker")
+    private boolean noFunctionsWorker = false;
+
+    @Parameter(names = {"-fwc", "--functions-worker-conf"}, description = "Configuration file for Functions Worker")
+    private String fnWorkerConfigFile = Paths.get("").toAbsolutePath().normalize().toString() + "/conf/functions_worker.yml";
 
     @Parameter(names = { "-a", "--advertised-address" }, description = "Standalone broker advertised address")
     private String advertisedAddress = null;
@@ -127,6 +138,10 @@ public class PulsarStandaloneStarter {
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
                 try {
+                    if (fnWorkerService != null) {
+                        fnWorkerService.stop();
+                    }
+
                     if (broker != null) {
                         broker.close();
                     }
@@ -162,8 +177,29 @@ public class PulsarStandaloneStarter {
         // load aspectj-weaver agent for instrumentation
         AgentLoader.loadAgentClass(Agent.class.getName(), null);
 
+        // initialize the functions worker
+        if (!noFunctionsWorker) {
+            WorkerConfig workerConfig;
+            if (isBlank(fnWorkerConfigFile)) {
+                workerConfig = new WorkerConfig();
+            } else {
+                workerConfig = WorkerConfig.load(fnWorkerConfigFile);
+            }
+            // worker talks to local broker
+            workerConfig.setPulsarServiceUrl("pulsar://127.0.0.1:" + config.getBrokerServicePort());
+            workerConfig.setPulsarWebServiceUrl("http://127.0.0.1:" + config.getWebServicePort());
+            String hostname = ServiceConfigurationUtils.getDefaultOrConfiguredAddress(
+                config.getAdvertisedAddress());
+            workerConfig.setWorkerHostname(hostname);
+            workerConfig.setWorkerId(
+                "c-" + config.getClusterName()
+                    + "-fw-" + hostname
+                    + "-" + workerConfig.getWorkerPort());
+            fnWorkerService = new WorkerService(workerConfig);
+        }
+
         // Start Broker
-        broker = new PulsarService(config);
+        broker = new PulsarService(config, Optional.ofNullable(fnWorkerService));
         broker.start();
 
         // Create a sample namespace
@@ -201,6 +237,10 @@ public class PulsarStandaloneStarter {
             }
         } catch (PulsarAdminException e) {
             log.info(e.getMessage());
+        }
+
+        if (null != fnWorkerService) {
+            fnWorkerService.start();
         }
 
         log.debug("--- setup completed ---");

@@ -22,7 +22,6 @@ import io.netty.buffer.ByteBuf;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import org.apache.bookkeeper.mledger.Position;
-import org.apache.pulsar.broker.service.schema.SchemaRegistry.SchemaAndMetadata;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.stats.NamespaceStats;
 import org.apache.pulsar.client.api.MessageId;
@@ -31,7 +30,7 @@ import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
-import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashSet;
@@ -127,7 +126,5 @@ public interface Topic {
 
     Position getLastMessageId();
 
-    CompletableFuture<SchemaAndMetadata> getSchema();
-
-    CompletableFuture<SchemaVersion> addSchema(Schema schema);
+    CompletableFuture<SchemaVersion> addSchema(SchemaData schema);
 }
