@@ -319,7 +319,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i30" class="altColor">
-<td class="colFirst"><code>List&lt;Message&gt;</code></td>
+<td class="colFirst"><code>List&lt;&lt;any&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#peekMessages-java.lang.String-java.lang.String-int-">peekMessages</a></span>(String&nbsp;topic,
             String&nbsp;subName,
             int&nbsp;numMessages)</code>
@@ -327,7 +327,7 @@ var activeTableTab = "activeTableTab";
 </td>
 </tr>
 <tr id="i31" class="rowColor">
-<td class="colFirst"><code>CompletableFuture&lt;List&lt;Message&gt;&gt;</code></td>
+<td class="colFirst"><code>CompletableFuture&lt;List&lt;&lt;any&gt;&gt;&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PersistentTopics.html#peekMessagesAsync-java.lang.String-java.lang.String-int-">peekMessagesAsync</a></span>(String&nbsp;topic,
                  String&nbsp;subName,
                  int&nbsp;numMessages)</code>
@@ -1395,10 +1395,10 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>peekMessages</h4>
-<pre>List&lt;Message&gt;&nbsp;peekMessages(String&nbsp;topic,
-                           String&nbsp;subName,
-                           int&nbsp;numMessages)
-                    throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
+<pre>List&lt;&lt;any&gt;&gt;&nbsp;peekMessages(String&nbsp;topic,
+                         String&nbsp;subName,
+                         int&nbsp;numMessages)
+                  throws <a href="../../../../../org/apache/pulsar/client/admin/PulsarAdminException.html" title="class in org.apache.pulsar.client.admin">PulsarAdminException</a></pre>
 <div class="block">Peek messages from a topic subscription</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>
@@ -1419,9 +1419,9 @@ var activeTableTab = "activeTableTab";
 <ul class="blockList">
 <li class="blockList">
 <h4>peekMessagesAsync</h4>
-<pre>CompletableFuture&lt;List&lt;Message&gt;&gt;&nbsp;peekMessagesAsync(String&nbsp;topic,
-                                                   String&nbsp;subName,
-                                                   int&nbsp;numMessages)</pre>
+<pre>CompletableFuture&lt;List&lt;&lt;any&gt;&gt;&gt;&nbsp;peekMessagesAsync(String&nbsp;topic,
+                                                 String&nbsp;subName,
+                                                 int&nbsp;numMessages)</pre>
 <div class="block">Peek messages from a topic subscription asynchronously</div>
 <dl>
 <dt><span class="paramLabel">Parameters:</span></dt>

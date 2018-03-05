@@ -168,13 +168,19 @@ implements Closeable</pre>
 </td>
 </tr>
 <tr class="altColor">
+<td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-ClientConfigurationData-">PulsarAdmin</a></span>(URL&nbsp;serviceUrl,
+           ClientConfigurationData&nbsp;pulsarConfig)</code>
+<div class="block">Construct a new Pulsar Admin client object.</div>
+</td>
+</tr>
+<tr class="rowColor">
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-java.lang.String-java.util.Map-">PulsarAdmin</a></span>(URL&nbsp;serviceUrl,
            String&nbsp;authPluginClassName,
            Map&lt;String,String&gt;&nbsp;authParams)</code>
 <div class="block">Construct a new Pulsar Admin client object.</div>
 </td>
 </tr>
-<tr class="rowColor">
+<tr class="altColor">
 <td class="colOne"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/admin/PulsarAdmin.html#PulsarAdmin-java.net.URL-java.lang.String-java.lang.String-">PulsarAdmin</a></span>(URL&nbsp;serviceUrl,
            String&nbsp;authPluginClassName,
            String&nbsp;authParamsString)</code>
@@ -298,6 +304,27 @@ implements Closeable</pre>
 <h4>PulsarAdmin</h4>
 <pre>public&nbsp;PulsarAdmin(URL&nbsp;serviceUrl,
                    ClientConfiguration&nbsp;pulsarConfig)
+            throws PulsarClientException</pre>
+<div class="block">Construct a new Pulsar Admin client object.
+ <p>
+ This client object can be used to perform many subsquent API calls</div>
+<dl>
+<dt><span class="paramLabel">Parameters:</span></dt>
+<dd><code>serviceUrl</code> - the Pulsar service URL (eg. "http://my-broker.example.com:8080")</dd>
+<dd><code>pulsarConfig</code> - the ClientConfiguration object to be used to talk with Pulsar</dd>
+<dt><span class="throwsLabel">Throws:</span></dt>
+<dd><code>PulsarClientException</code></dd>
+</dl>
+</li>
+</ul>
+<a name="PulsarAdmin-java.net.URL-ClientConfigurationData-">
+<!--   -->
+</a>
+<ul class="blockList">
+<li class="blockList">
+<h4>PulsarAdmin</h4>
+<pre>public&nbsp;PulsarAdmin(URL&nbsp;serviceUrl,
+                   ClientConfigurationData&nbsp;pulsarConfig)
             throws PulsarClientException</pre>
 <div class="block">Construct a new Pulsar Admin client object.
  <p>
