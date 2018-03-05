@@ -39,38 +39,18 @@
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-slf4j-impl</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-api</artifactId>
     </dependency>
-
     <dependency>
       <groupId>org.apache.logging.log4j</groupId>
       <artifactId>log4j-core</artifactId>
     </dependency>
 
     <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-client-tools-shaded</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-runtime</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.apache.pulsar</groupId>
-      <artifactId>pulsar-functions-proto</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-metrics</artifactId>
       <version>${project.version}</version>
     </dependency>
 
@@ -109,22 +89,10 @@
       <artifactId>jetty-servlet</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.beust</groupId>
-      <artifactId>jcommander</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.inferred</groupId>
-      <artifactId>freebuilder</artifactId>
-      <version>1.14.6</version>
-    </dependency>
-
     <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
     <dependency>
       <groupId>org.apache.distributedlog</groupId>
       <artifactId>distributedlog-core-shaded</artifactId>
-      <version>${bookkeeper.version}</version>
     </dependency>
   </dependencies>
 

@@ -28,6 +28,7 @@ import java.io.FileInputStream;
 import java.util.Arrays;
 import java.util.Properties;
 import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
 /**
  * TODO: merge this into {@link PulsarAdminTool}.
@@ -73,7 +74,7 @@ public class FunctionsTool extends PulsarAdminTool {
             isLocalRun = "localrun" == args[cmdPos].toLowerCase();
         }
 
-        BiFunction<URL, ClientConfiguration, ? extends PulsarAdmin> adminFactory;
+        BiFunction<URL, ClientConfigurationData, ? extends PulsarAdmin> adminFactory;
         if (isLocalRun) {
             // bypass constructing admin client
             adminFactory = (url, config) -> null;
