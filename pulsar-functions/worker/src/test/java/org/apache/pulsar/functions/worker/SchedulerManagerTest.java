@@ -322,7 +322,8 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testScalingUp() throws NoSuchMethodException, InterruptedException, InvalidProtocolBufferException, PulsarClientException, TimeoutException, ExecutionException {
+    public void testScalingUp() throws NoSuchMethodException, InterruptedException, InvalidProtocolBufferException,
+            PulsarClientException, TimeoutException, ExecutionException {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
