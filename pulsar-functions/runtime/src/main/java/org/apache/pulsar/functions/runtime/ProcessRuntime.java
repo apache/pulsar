@@ -26,6 +26,7 @@ import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -39,6 +40,7 @@ import java.io.InputStream;
 import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.functions.proto.InstanceControlGrpc.InstanceControlFutureStub;
 
 /**
  * A function container implemented using java thread.
@@ -202,6 +204,7 @@ class ProcessRuntime implements Runtime {
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
+        log.info("Process runtime get function status");
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
@@ -211,6 +214,7 @@ class ProcessRuntime implements Runtime {
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
+                log.info("GetFunctionStatus:", throwable);
                 FunctionStatus.Builder builder = FunctionStatus.newBuilder();
                 builder.setRunning(false);
                 if (startupException != null) {
@@ -223,6 +227,7 @@ class ProcessRuntime implements Runtime {
 
             @Override
             public void onSuccess(InstanceCommunication.FunctionStatus t) {
+                log.info("GetFunctionStatus: {}", t);
                 retval.complete(t);
             }
         });
@@ -240,6 +245,7 @@ class ProcessRuntime implements Runtime {
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override
             public void onFailure(Throwable throwable) {
+                log.info("GetAndResetMetrics:", throwable);
                 retval.completeExceptionally(throwable);
             }
 
@@ -269,6 +275,9 @@ class ProcessRuntime implements Runtime {
         startupException = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
+            Map<String, String> env = processBuilder.environment();
+            env.put("GRPC_VERBOSITY", "DEBUG");
+            env.put("GRPC_TRACE", "ALL");
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {
@@ -303,5 +312,32 @@ class ProcessRuntime implements Runtime {
             startupException = ex;
         }
         return startupException;
+    }
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        int port = Integer.parseInt(args[0]);
+
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", port)
+                .usePlaintext(true)
+                .build();
+        InstanceControlFutureStub stub = InstanceControlGrpc.newFutureStub(channel);
+        ListenableFuture<FunctionStatus> response = stub.getFunctionStatus(Empty.newBuilder().build());
+        CompletableFuture<FunctionStatus> future = new CompletableFuture<>();
+        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.info("GetFunctionStatus:", throwable);
+                future.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.FunctionStatus t) {
+                log.info("GetFunctionStatus: {}", t);
+                future.complete(t);
+            }
+        });
+        FunctionStatus status = future.get();
+
+        log.info("Function Status : {}", status);
     }
 }

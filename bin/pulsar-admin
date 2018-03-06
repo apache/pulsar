@@ -117,7 +117,7 @@ OPTS="$OPTS -Dpulsar.routing.appender.default=$PULSAR_ROUTING_APPENDER_DEFAULT"
 # find the java instance location
 if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
     # didn't find a released jar, then search the built jar
-    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime/target/java-instance.jar"
+    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/target/java-instance.jar"
     if [ -f "${BUILT_JAVA_INSTANCE_JAR}" ]; then
         JAVA_INSTANCE_JAR=${BUILT_JAVA_INSTANCE_JAR}
     else
