@@ -34,6 +34,7 @@
   <modules>
     <module>docker-images</module>
     <module>integration-tests-utils</module>
+    <module>integration-tests-topologies</module>
   </modules>
   <build>
     <plugins>

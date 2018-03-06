@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.Mockito.spy;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.admin.PulsarAdminException.PreconditionFailedExc
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.PersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PropertiesImpl;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
@@ -108,10 +110,14 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
 
+    private final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/certificate/server.crt";
+    private final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/certificate/server.key";
+
     private MockedPulsarService mockPulsarSetup;
 
     private PulsarService otherPulsar;
 
+    private PulsarAdmin adminTls;
     private PulsarAdmin otheradmin;
 
     private NamespaceBundleFactory bundleFactory;
@@ -120,9 +126,18 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @Override
     public void setup() throws Exception {
         conf.setLoadBalancerEnabled(true);
+        conf.setTlsEnabled(true);
+        conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
+        conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+
         super.internalSetup();
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
+
+        ClientConfiguration clientConf = new ClientConfiguration();
+        clientConf.setUseTls(true);
+        clientConf.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
+        adminTls = spy(new PulsarAdmin(brokerUrlTls, clientConf));
 
         // create otherbroker to test redirect on calls that need
         // namespace ownership
@@ -141,6 +156,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
     @AfterMethod
     @Override
     public void cleanup() throws Exception {
+        adminTls.close();
         super.internalCleanup();
         mockPulsarSetup.cleanup();
     }
@@ -378,6 +394,12 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 assertTrue(nsStatus.is_active);
             }
         }
+
+        String[] parts = list.get(0).split(":");
+        Assert.assertEquals(parts.length, 2);
+        Map<String, NamespaceOwnershipStatus> nsMap2 = adminTls.brokers().getOwnedNamespaces("use",
+                String.format("%s:%d", parts[0], BROKER_WEBSERVICE_PORT_TLS));
+        Assert.assertEquals(nsMap2.size(), 1);
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");

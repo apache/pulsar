@@ -34,7 +34,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -105,13 +104,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
     @Override
     @AfterClass(timeOut = 30000)
     void shutdown() throws Exception {
-        ForkJoinPool.commonPool().execute(() -> {
-            try {
-                super.shutdown();
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-        });
+        super.shutdown();
     }
 
     @DataProvider(name = "partitionedTopic")

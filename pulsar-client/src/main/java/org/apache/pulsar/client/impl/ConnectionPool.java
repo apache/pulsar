@@ -197,9 +197,11 @@ public class ConnectionPool implements Closeable {
                 return null;
             });
         }).exceptionally(exception -> {
-            log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getClass().getSimpleName());
-            cnxFuture.completeExceptionally(new PulsarClientException(exception));
-            cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+            eventLoopGroup.execute(() -> {
+                log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getMessage());
+                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+                cnxFuture.completeExceptionally(new PulsarClientException(exception));
+            });
             return null;
         });
 
