@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.utils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
-import com.google.protobuf.util.JsonFormat;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 
 import java.io.File;
@@ -41,7 +40,7 @@ public class FunctionConfigUtils {
     public static FunctionConfig.Builder loadConfig(File file) throws IOException {
         String json = convertYamlToJson(file);
         FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-        JsonFormat.parser().merge(json, functionConfigBuilder);
+        Utils.mergeJson(json, functionConfigBuilder);
         return functionConfigBuilder;
     }
 

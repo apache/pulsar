@@ -163,8 +163,7 @@ public class PatternTopicsConsumerImplTest extends ProducerConsumerBase {
         // 4. verify consumer get methods, to get right number of partitions and topics.
         assertSame(pattern, ((PatternTopicsConsumerImpl<?>) consumer).getPattern());
         List<String> topics = ((PatternTopicsConsumerImpl<?>) consumer).getPartitionedTopics();
-        @SuppressWarnings("rawtypes")
-        List<ConsumerImpl> consumers = ((PatternTopicsConsumerImpl<?>) consumer).getConsumers();
+        List<ConsumerImpl<byte[]>> consumers = ((PatternTopicsConsumerImpl<byte[]>) consumer).getConsumers();
 
         assertEquals(topics.size(), 6);
         assertEquals(consumers.size(), 6);
