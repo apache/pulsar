@@ -20,10 +20,7 @@ package org.apache.pulsar.functions.worker;
 
 import com.google.common.util.concurrent.AbstractService;
 
-import java.io.IOException;
-import java.net.URI;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.functions.worker.rest.WorkerServer;
 
 @Slf4j
@@ -51,13 +48,7 @@ public class Worker extends AbstractService {
     }
 
     protected void doStartImpl() throws InterruptedException {
-        URI dlogUri;
-        try {
-            dlogUri = FunctionMetadataSetup.setupFunctionMetadata(workerConfig);
-        } catch (PulsarAdminException | IOException e) {
-            throw new RuntimeException(e);
-        }
-        workerService.start(dlogUri);
+        workerService.start();
         WorkerServer server = new WorkerServer(workerService);
         this.serverThread = new Thread(server, server.getThreadName());
 

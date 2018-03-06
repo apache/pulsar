@@ -18,27 +18,113 @@
  */
 package org.apache.pulsar.client.impl;
 
-public class ProducerStatsDisabled extends ProducerStats {
+public class ProducerStatsDisabled implements ProducerStatsRecorder {
     private static final long serialVersionUID = 1L;
 
+    static final ProducerStatsRecorder INSTANCE = new ProducerStatsDisabled();
+
     @Override
-    void incrementSendFailed() {
+    public void incrementSendFailed() {
         // Do nothing
     }
 
     @Override
-    void incrementSendFailed(long numMsgs) {
+    public void incrementSendFailed(long numMsgs) {
         // Do nothing
     }
 
     @Override
-    void incrementNumAcksReceived(long latencyNs) {
+    public void incrementNumAcksReceived(long latencyNs) {
         // Do nothing
     }
 
     @Override
-    void updateNumMsgsSent(long numMsgs, long totalMsgsSize) {
+    public void updateNumMsgsSent(long numMsgs, long totalMsgsSize) {
         // Do nothing
     }
 
+    @Override
+    public void cancelStatsTimeout() {
+        // Do nothing
+    }
+
+    @Override
+    public long getNumMsgsSent() {
+        return 0;
+    }
+
+    @Override
+    public long getNumBytesSent() {
+        return 0;
+    }
+
+    @Override
+    public long getNumSendFailed() {
+        return 0;
+    }
+
+    @Override
+    public long getNumAcksReceived() {
+        return 0;
+    }
+
+    @Override
+    public long getTotalMsgsSent() {
+        return 0;
+    }
+
+    @Override
+    public long getTotalBytesSent() {
+        return 0;
+    }
+
+    @Override
+    public long getTotalSendFailed() {
+        return 0;
+    }
+
+    @Override
+    public long getTotalAcksReceived() {
+        return 0;
+    }
+
+    @Override
+    public double getSendMsgsRate() {
+        return 0;
+    }
+
+    @Override
+    public double getSendBytesRate() {
+        return 0;
+    }
+
+    @Override
+    public double getSendLatencyMillis50pct() {
+        return 0;
+    }
+
+    @Override
+    public double getSendLatencyMillis75pct() {
+        return 0;
+    }
+
+    @Override
+    public double getSendLatencyMillis95pct() {
+        return 0;
+    }
+
+    @Override
+    public double getSendLatencyMillis99pct() {
+        return 0;
+    }
+
+    @Override
+    public double getSendLatencyMillis999pct() {
+        return 0;
+    }
+
+    @Override
+    public double getSendLatencyMillisMax() {
+        return 0;
+    }
 }

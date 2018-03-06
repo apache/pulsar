@@ -39,9 +39,8 @@
     <module>instance</module>
     <module>runtime</module>
     <module>worker</module>
-    <module>cli</module>
+    <module>worker-shaded</module>
     <module>java-examples</module>
-    <module>dist</module>
   </modules>
 
   <dependencyManagement>

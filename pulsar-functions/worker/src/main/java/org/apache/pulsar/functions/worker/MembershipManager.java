@@ -160,7 +160,7 @@ public class MembershipManager implements AutoCloseable, ConsumerEventListener {
         public static WorkerInfo parseFrom(String str) {
             String[] tokens = str.split(":");
             if (tokens.length != 3) {
-                throw new IllegalArgumentException("Invalid string to parse WorkerInfo");
+                throw new IllegalArgumentException("Invalid string to parse WorkerInfo : " + str);
             }
 
             String workerId = tokens[0];
