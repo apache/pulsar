@@ -22,6 +22,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkState;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -38,7 +39,9 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+
 import org.apache.pulsar.client.api.Consumer;
+import org.apache.pulsar.client.api.ConsumerStats;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -47,13 +50,11 @@ import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.client.util.ConsumerName;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
 
 public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
 
@@ -78,7 +79,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     AtomicInteger numberTopicPartitions;
 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final ConsumerStats stats;
+    private final ConsumerStatsRecorder stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
@@ -103,7 +104,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         this.internalConfig = getInternalConsumerConfig();
-        this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
+        this.stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl() : null;
 
         if (conf.getTopicNames().isEmpty()) {
             this.namespaceName = null;
@@ -670,7 +671,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                         client.externalExecutorProvider().getExecutor(), 0, subFuture, schema);
                 consumers.putIfAbsent(newConsumer.getTopic(), newConsumer);
 
-                futureList = Lists.newArrayList(subFuture);
+                futureList = Collections.singletonList(subFuture);
             }
 
             FutureUtil.waitForAll(futureList)
@@ -809,7 +810,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // get partitioned consumers
-    public List<ConsumerImpl> getConsumers() {
+    public List<ConsumerImpl<T>> getConsumers() {
         return consumers.values().stream().collect(Collectors.toList());
     }
 

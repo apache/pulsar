@@ -22,12 +22,8 @@ import java.io.Closeable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.pulsar.client.impl.ConsumerStats;
-
 /**
  * An interface that abstracts behavior of Pulsar's consumer.
- *
- *
  */
 public interface Consumer<T> extends Closeable {
 
@@ -201,16 +197,22 @@ public interface Consumer<T> extends Closeable {
     CompletableFuture<Void> acknowledgeCumulativeAsync(MessageId messageId);
 
     /**
-     * Get statistics for the consumer
+     * Get statistics for the consumer.
      *
-     * numMsgsReceived : Number of messages received in the current interval numBytesReceived : Number of bytes received
-     * in the current interval numReceiveFailed : Number of messages failed to receive in the current interval
-     * numAcksSent : Number of acks sent in the current interval numAcksFailed : Number of acks failed to send in the
-     * current interval totalMsgsReceived : Total number of messages received totalBytesReceived : Total number of bytes
-     * received totalReceiveFailed : Total number of messages failed to receive totalAcksSent : Total number of acks
-     * sent totalAcksFailed : Total number of acks failed to sent
+     * <ul>
+     * <li>numMsgsReceived : Number of messages received in the current interval
+     * <li>numBytesReceived : Number of bytes received in the current interval
+     * <li>numReceiveFailed : Number of messages failed to receive in the current interval
+     * <li>numAcksSent : Number of acks sent in the current interval
+     * <li>numAcksFailed : Number of acks failed to send in the current interval
+     * <li>totalMsgsReceived : Total number of messages received
+     * <li>totalBytesReceived : Total number of bytes received
+     * <li>totalReceiveFailed : Total number of messages failed to receive
+     * <li>totalAcksSent : Total number of acks sent
+     * <li>totalAcksFailed : Total number of acks failed to sent
+     * </ul>
      *
-     * @return statistic for the consumer or null if ConsumerStats is disabled.
+     * @return statistic for the consumer
      */
     ConsumerStats getStats();
 
@@ -229,6 +231,9 @@ public interface Consumer<T> extends Closeable {
 
     /**
      * Return true if the topic was terminated and this consumer has already consumed all the messages in the topic.
+     *
+     * Please note that this does not simply mean that the consumer is caught up with the last message published by
+     * producers, rather the topic needs to be explicitly "terminated".
      */
     boolean hasReachedEndOfTopic();
 

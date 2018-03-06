@@ -26,11 +26,11 @@ import java.io.UnsupportedEncodingException;
 import java.util.Map;
 import java.util.logging.Logger;
 
-import com.google.protobuf.util.JsonFormat;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
+import org.apache.pulsar.functions.utils.Utils;
 
 /**
  * A metrics sink that writes to a file  in json format
@@ -94,7 +94,7 @@ public class FileSink implements MetricsSink {
         }
 
         try {
-            String metrics = JsonFormat.printer().print(record);
+            String metrics = Utils.printJson(record);
             writer.print(metrics);
         } catch (Exception ex) {
         }
