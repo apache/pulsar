@@ -41,8 +41,6 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -672,30 +670,10 @@ public class SchedulerManagerTest {
     private void callSchedule() throws NoSuchMethodException, InterruptedException,
             TimeoutException, ExecutionException {
         long intialVersion = functionRuntimeManager.getCurrentAssignmentVersion();
-//        int initalCount = getMethodInvocationDetails(completableFuture,
-//                CompletableFuture.class.getMethod("get")).size();
-//        log.info("initalCount: {}", initalCount);
         Future<?> complete = schedulerManager.schedule();
 
         complete.get(30, TimeUnit.SECONDS);
         doReturn(intialVersion + 1).when(functionRuntimeManager).getCurrentAssignmentVersion();
-//        int count = 0;
-//        while (!complete.isDone()) {
-//
-//            int invocationCount = getMethodInvocationDetails(completableFuture,
-//                    CompletableFuture.class.getMethod("get")).size();
-//            log.info("invocationCount: {}", invocationCount);
-//
-//            if (invocationCount >= initalCount + 1) {
-//                doReturn(intialVersion + 1).when(functionRuntimeManager).getCurrentAssignmentVersion();
-//            }
-//
-//            if (count > 100) {
-//                Assert.fail("Scheduler failed to terminate!");
-//            }
-//            Thread.sleep(100);
-//            count++;
-//        }
     }
 
     private List<Invocation> getMethodInvocationDetails(Object o, Method method) throws NoSuchMethodException {
