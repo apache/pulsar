@@ -52,8 +52,6 @@ import io.netty.buffer.Unpooled;
 import lombok.Cleanup;
 
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
-    private static final ByteBuf emptyBuffer = Unpooled.buffer(0);
-
     private final Random r = new Random(0);
 
     @BeforeMethod
@@ -113,11 +111,10 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                             .setEntryId(entryIds.addAndGet(delta + 1)).build();
 
                         @Cleanup
-                        RawMessage m = new RawMessageImpl(id, emptyBuffer);
+                        RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);
 
                         CompletableFuture<Void> f = new CompletableFuture<>();
                         ByteBuf buffer = m.serialize();
-                        m.close();
 
                         lh.asyncAddEntry(buffer,
                                 (rc, ledger, eid, ctx) -> {
