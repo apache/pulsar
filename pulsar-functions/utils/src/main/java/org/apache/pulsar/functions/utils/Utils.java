@@ -18,6 +18,10 @@
  */
 package org.apache.pulsar.functions.utils;
 
+import com.google.protobuf.AbstractMessage.Builder;
+import com.google.protobuf.MessageOrBuilder;
+import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 import org.apache.pulsar.client.api.MessageId;
@@ -47,6 +51,14 @@ public class Utils {
         long entryId = sequenceId & 0x0F_FF_FF_FFL;
 
         return new MessageIdImpl(ledgerId, entryId, -1);
+    }
+
+    public static String printJson(MessageOrBuilder msg) throws IOException {
+        return JsonFormat.printer().print(msg);
+    }
+
+    public static void mergeJson(String json, Builder builder) throws IOException {
+        JsonFormat.parser().merge(json, builder);
     }
 
 }

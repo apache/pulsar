@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker.rest.api.v2;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.worker.rest.FunctionApiResource;
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition;
@@ -85,7 +84,7 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName)
-            throws InvalidProtocolBufferException {
+            throws IOException {
         return functions.getFunctionInfo(
             tenant, namespace, functionName);
     }
