@@ -21,8 +21,6 @@ package org.apache.pulsar.functions.worker.rest.api;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.gson.Gson;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
@@ -239,7 +237,7 @@ public class FunctionsImpl {
     public Response getFunctionInfo(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("functionName") String functionName)
-            throws InvalidProtocolBufferException {
+            throws IOException {
 
         // validate parameters
         try {
@@ -262,7 +260,7 @@ public class FunctionsImpl {
         }
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
-        String functionConfigJson = JsonFormat.printer().print(functionMetaData.getFunctionConfig());
+        String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionMetaData.getFunctionConfig());
         return Response.status(Status.OK).entity(functionConfigJson).build();
     }
 
@@ -302,11 +300,11 @@ public class FunctionsImpl {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            String functionConfigJson = JsonFormat.printer().print(functionStatusBuilder.build());
+            String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
             return Response.status(Status.OK).entity(functionConfigJson).build();
         }
 
-        String jsonResponse = JsonFormat.printer().print(functionStatus);
+        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatus);
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 
@@ -344,11 +342,11 @@ public class FunctionsImpl {
             log.error("Got Exception Getting Status", e);
             FunctionStatus.Builder functionStatusBuilder = FunctionStatus.newBuilder();
             functionStatusBuilder.setRunning(false);
-            String functionConfigJson = JsonFormat.printer().print(functionStatusBuilder.build());
+            String functionConfigJson = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusBuilder.build());
             return Response.status(Status.OK).entity(functionConfigJson).build();
         }
 
-        String jsonResponse = JsonFormat.printer().print(functionStatusList);
+        String jsonResponse = org.apache.pulsar.functions.utils.Utils.printJson(functionStatusList);
         return Response.status(Status.OK).entity(jsonResponse).build();
     }
 
@@ -518,7 +516,7 @@ public class FunctionsImpl {
         }
         try {
             FunctionConfig.Builder functionConfigBuilder = FunctionConfig.newBuilder();
-            JsonFormat.parser().merge(functionConfigJson, functionConfigBuilder);
+            org.apache.pulsar.functions.utils.Utils.mergeJson(functionConfigJson, functionConfigBuilder);
             FunctionConfig functionConfig = functionConfigBuilder.build();
 
             List<String> missingFields = new LinkedList<>();
