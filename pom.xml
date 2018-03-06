@@ -325,12 +325,6 @@ flexible messaging model and an intuitive client API.</description>
       </dependency>
 
       <dependency>
-        <groupId>com.google.code.gson</groupId>
-        <artifactId>gson</artifactId>
-        <version>2.8.0</version>
-      </dependency>
-
-      <dependency>
         <groupId>com.beust</groupId>
         <artifactId>jcommander</artifactId>
         <version>1.48</version>
@@ -746,6 +740,14 @@ flexible messaging model and an intuitive client API.</description>
           <groupId>org.slf4j</groupId>
           <artifactId>slf4j-log4j12</artifactId>
         </exclusion>
+        <exclusion>
+          <artifactId>log4j</artifactId>
+            <groupId>log4j</groupId>
+        </exclusion>
+          <exclusion>
+            <groupId>org.jboss.netty</groupId>
+            <artifactId>netty</artifactId>
+        </exclusion>
       </exclusions>
     </dependency>
   </dependencies>
@@ -781,6 +783,7 @@ flexible messaging model and an intuitive client API.</description>
         <configuration>
           <argLine> -Xmx2G -XX:MaxDirectMemorySize=8G
             -Dio.netty.leakDetectionLevel=advanced
+            -Dlog4j.configurationFile=log4j2.xml
           </argLine>
           <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
