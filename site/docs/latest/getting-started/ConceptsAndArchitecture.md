@@ -290,15 +290,7 @@ With message expiry, shown at the bottom, some messages are <span style="color: 
 
 ## Pulsar Functions
 
-**Pulsar Functions** are lightweight compute processes that
-
-* consume {% popover messages %} from Pulsar topics,
-* apply a user-supplied processing logic to each message,
-* 
-
-### Supported languages
-
-Pulsar Functions can currently be written in [Java](../../) and Python. Support for additional languages is coming soon.
+For an in-depth look at Pulsar Functions, see the [Pulsar Functions overview](../../functions/overview).
 
 ## Replication
 
