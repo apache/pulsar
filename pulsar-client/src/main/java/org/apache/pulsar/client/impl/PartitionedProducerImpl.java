@@ -47,7 +47,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
 
     private List<ProducerImpl<T>> producers;
     private MessageRouter routerPolicy;
-    private final ProducerStats stats;
+    private final ProducerStatsRecorderImpl stats;
     private final TopicMetadata topicMetadata;
 
     public PartitionedProducerImpl(PulsarClientImpl client, String topic, ProducerConfigurationData conf, int numPartitions,
@@ -56,7 +56,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
         this.producers = Lists.newArrayListWithCapacity(numPartitions);
         this.topicMetadata = new TopicMetadataImpl(numPartitions);
         this.routerPolicy = getMessageRouter();
-        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStats() : null;
+        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ProducerStatsRecorderImpl() : null;
 
         int maxPendingMessages = Math.min(conf.getMaxPendingMessages(),
                 conf.getMaxPendingMessagesAcrossPartitions() / numPartitions);
@@ -204,7 +204,7 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     @Override
-    public synchronized ProducerStats getStats() {
+    public synchronized ProducerStatsRecorderImpl getStats() {
         if (stats == null) {
             return null;
         }
