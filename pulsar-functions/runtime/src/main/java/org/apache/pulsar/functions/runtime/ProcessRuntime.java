@@ -204,7 +204,6 @@ class ProcessRuntime implements Runtime {
 
     @Override
     public CompletableFuture<FunctionStatus> getFunctionStatus() {
-        log.info("Process runtime get function status");
         CompletableFuture<FunctionStatus> retval = new CompletableFuture<>();
         if (stub == null) {
             retval.completeExceptionally(new RuntimeException("Not alive"));
@@ -214,7 +213,6 @@ class ProcessRuntime implements Runtime {
         Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
             @Override
             public void onFailure(Throwable throwable) {
-                log.info("GetFunctionStatus:", throwable);
                 FunctionStatus.Builder builder = FunctionStatus.newBuilder();
                 builder.setRunning(false);
                 if (startupException != null) {
@@ -227,7 +225,6 @@ class ProcessRuntime implements Runtime {
 
             @Override
             public void onSuccess(InstanceCommunication.FunctionStatus t) {
-                log.info("GetFunctionStatus: {}", t);
                 retval.complete(t);
             }
         });
@@ -245,7 +242,6 @@ class ProcessRuntime implements Runtime {
         Futures.addCallback(response, new FutureCallback<InstanceCommunication.MetricsData>() {
             @Override
             public void onFailure(Throwable throwable) {
-                log.info("GetAndResetMetrics:", throwable);
                 retval.completeExceptionally(throwable);
             }
 
@@ -275,9 +271,6 @@ class ProcessRuntime implements Runtime {
         startupException = null;
         try {
             ProcessBuilder processBuilder = new ProcessBuilder(processArgs);
-            Map<String, String> env = processBuilder.environment();
-            env.put("GRPC_VERBOSITY", "DEBUG");
-            env.put("GRPC_TRACE", "ALL");
             log.info("ProcessBuilder starting the process with args {}", String.join(" ", processBuilder.command()));
             process = processBuilder.start();
         } catch (Exception ex) {

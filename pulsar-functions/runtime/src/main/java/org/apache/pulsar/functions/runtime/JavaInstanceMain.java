@@ -209,7 +209,6 @@ public class JavaInstanceMain {
             try {
                 InstanceCommunication.FunctionStatus response = runtimeSpawner.getFunctionStatus().get();
                 responseObserver.onNext(response);
-                log.info("Send response {}", response);
                 responseObserver.onCompleted();
             } catch (Exception e) {
                 log.error("Exception in JavaInstance doing getFunctionStatus", e);

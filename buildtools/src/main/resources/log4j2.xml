@@ -19,14 +19,14 @@
     under the License.
 
 -->
-<Configuration status="DEBUG">
+<Configuration status="INFO">
     <Appenders>
         <Console name="Console" target="SYSTEM_OUT">
             <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t:%C@%L] %-5level %logger{36} - %msg%n" />
         </Console>
     </Appenders>
     <Loggers>
-        <Root level="debug">
+        <Root level="warn">
             <AppenderRef ref="Console" />
         </Root>
         <Logger name="org.apache.pulsar" level="info"/>
