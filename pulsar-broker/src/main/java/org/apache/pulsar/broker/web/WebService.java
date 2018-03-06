@@ -49,6 +49,7 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.Resource;
 import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.eclipse.jetty.util.thread.ExecutorThreadPool;
+import org.glassfish.jersey.media.multipart.MultiPartFeature;
 import org.glassfish.jersey.server.ResourceConfig;
 import org.glassfish.jersey.servlet.ServletContainer;
 import org.slf4j.Logger;
@@ -120,6 +121,7 @@ public class WebService implements AutoCloseable {
         ResourceConfig config = new ResourceConfig();
         config.packages("jersey.config.server.provider.packages", javaPackages);
         config.register(provider);
+        config.register(MultiPartFeature.class);
         ServletHolder servletHolder = new ServletHolder(new ServletContainer(config));
         servletHolder.setAsyncSupported(true);
         addServlet(basePath, servletHolder, requiresAuthentication, attributeMap);
