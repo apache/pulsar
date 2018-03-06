@@ -57,6 +57,7 @@ public class WorkerConfig implements Serializable {
     private long failureCheckFreqMs;
     private long rescheduleTimeoutMs;
     private int initialBrokerReconnectMaxRetries;
+    private int assignmentWriteMaxRetries;
 
     @Data
     @Setter
