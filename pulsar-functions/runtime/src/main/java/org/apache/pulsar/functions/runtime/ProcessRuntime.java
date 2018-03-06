@@ -153,11 +153,7 @@ class ProcessRuntime implements Runtime {
             args.add(instanceConfig.getFunctionConfig().getOutputSerdeClassName());
         }
         args.add("--processing_guarantees");
-        if (instanceConfig.getFunctionConfig().getProcessingGuarantees() != null) {
-            args.add(String.valueOf(instanceConfig.getFunctionConfig().getProcessingGuarantees()));
-        } else {
-            args.add("ATMOST_ONCE");
-        }
+        args.add(String.valueOf(instanceConfig.getFunctionConfig().getProcessingGuarantees()));
         args.add("--pulsar_serviceurl");
         args.add(pulsarServiceUrl);
         args.add("--max_buffered_tuples");
