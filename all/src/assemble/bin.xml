@@ -43,6 +43,10 @@
     <fileSet>
       <directory>${basedir}/licenses</directory>
     </fileSet>
+    <fileSet>
+      <directory>${basedir}/../pulsar-functions/runtime/target/python-instance</directory>
+      <outputDirectory>instances/python-instance</outputDirectory>
+    </fileSet>
   </fileSets>
   <files>
     <file>
@@ -67,6 +71,16 @@
       <destName>NOTICE</destName>
       <outputDirectory>.</outputDirectory>
       <fileMode>644</fileMode>
+    </file>
+    <file>
+      <source>${basedir}/../pulsar-functions/runtime/target/java-instance.jar</source>
+      <destName>java-instance.jar</destName>
+      <outputDirectory>instances</outputDirectory>
+    </file>
+    <file>
+      <source>${basedir}/../pulsar-functions/java-examples/target/pulsar-functions-api-examples.jar</source>
+      <destName>api-examples.jar</destName>
+      <outputDirectory>examples</outputDirectory>
     </file>
   </files>
   <dependencySets>
