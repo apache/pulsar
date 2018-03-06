@@ -25,8 +25,9 @@ pulsar_repo: https://github.com/apache/incubator-pulsar/tree/master
 baseurl: /
 destination: ../generated-site/content
 
-current_version: 1.21.0-incubating
+current_version: 1.22.0-incubating
 archived_releases:
+  - 1.21.0-incubating
   - 1.20.0-incubating
   - 1.19.0-incubating
 

@@ -115,7 +115,7 @@ public class ProcessRuntimeTest {
                 + " --auto_ack false"
                 + " --sink_topic " + config.getFunctionConfig().getOutput()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
-                + " --processing_guarantees ATMOST_ONCE"
+                + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port";
         assertEquals(expectedArgs, String.join(" ", args));
@@ -141,7 +141,7 @@ public class ProcessRuntimeTest {
                 + " --auto_ack false"
                 + " --sink_topic " + config.getFunctionConfig().getOutput()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
-                + " --processing_guarantees ATMOST_ONCE"
+                + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
                 + " --max_buffered_tuples 1024 --port";
         assertEquals(expectedArgs, String.join(" ", args));

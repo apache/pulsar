@@ -19,8 +19,7 @@
 package org.apache.pulsar.functions.worker;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.protobuf.InvalidProtocolBufferException;
-import com.google.protobuf.util.JsonFormat;
+import java.io.IOException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.client.api.MessageId;
@@ -293,8 +292,8 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
             InstanceCommunication.FunctionStatus.Builder functionStatusBuilder = InstanceCommunication.FunctionStatus.newBuilder();
             try {
-                JsonFormat.parser().merge(jsonResponse, functionStatusBuilder);
-            } catch (InvalidProtocolBufferException e) {
+                org.apache.pulsar.functions.utils.Utils.mergeJson(jsonResponse, functionStatusBuilder);
+            } catch (IOException e) {
                 log.warn("Got invalid function status response from {}", workerInfo, e);
                 throw new RuntimeException(e);
             }
