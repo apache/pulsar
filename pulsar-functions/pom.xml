@@ -40,10 +40,7 @@
     <module>runtime</module>
     <module>worker</module>
     <module>worker-shaded</module>
-    <module>worker-runner</module>
-    <module>cli</module>
     <module>java-examples</module>
-    <module>dist</module>
   </modules>
 
   <dependencyManagement>
