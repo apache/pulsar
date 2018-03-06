@@ -187,16 +187,9 @@ extends Closeable</pre>
 </td>
 </tr>
 <tr id="i10" class="altColor">
-<td class="colFirst"><code>ConsumerStats</code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ConsumerStats.html" title="interface in org.apache.pulsar.client.api">ConsumerStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Consumer.html#getStats--">getStats</a></span>()</code>
-<div class="block">Get statistics for the consumer
-
- numMsgsReceived : Number of messages received in the current interval numBytesReceived : Number of bytes received
- in the current interval numReceiveFailed : Number of messages failed to receive in the current interval
- numAcksSent : Number of acks sent in the current interval numAcksFailed : Number of acks failed to send in the
- current interval totalMsgsReceived : Total number of messages received totalBytesReceived : Total number of bytes
- received totalReceiveFailed : Total number of messages failed to receive totalAcksSent : Total number of acks
- sent totalAcksFailed : Total number of acks failed to sent</div>
+<div class="block">Get statistics for the consumer.</div>
 </td>
 </tr>
 <tr id="i11" class="rowColor">
@@ -569,18 +562,24 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>getStats</h4>
-<pre>ConsumerStats&nbsp;getStats()</pre>
-<div class="block">Get statistics for the consumer
+<pre><a href="../../../../../org/apache/pulsar/client/api/ConsumerStats.html" title="interface in org.apache.pulsar.client.api">ConsumerStats</a>&nbsp;getStats()</pre>
+<div class="block">Get statistics for the consumer.
 
- numMsgsReceived : Number of messages received in the current interval numBytesReceived : Number of bytes received
- in the current interval numReceiveFailed : Number of messages failed to receive in the current interval
- numAcksSent : Number of acks sent in the current interval numAcksFailed : Number of acks failed to send in the
- current interval totalMsgsReceived : Total number of messages received totalBytesReceived : Total number of bytes
- received totalReceiveFailed : Total number of messages failed to receive totalAcksSent : Total number of acks
- sent totalAcksFailed : Total number of acks failed to sent</div>
+ <ul>
+ <li>numMsgsReceived : Number of messages received in the current interval
+ <li>numBytesReceived : Number of bytes received in the current interval
+ <li>numReceiveFailed : Number of messages failed to receive in the current interval
+ <li>numAcksSent : Number of acks sent in the current interval
+ <li>numAcksFailed : Number of acks failed to send in the current interval
+ <li>totalMsgsReceived : Total number of messages received
+ <li>totalBytesReceived : Total number of bytes received
+ <li>totalReceiveFailed : Total number of messages failed to receive
+ <li>totalAcksSent : Total number of acks sent
+ <li>totalAcksFailed : Total number of acks failed to sent
+ </ul></div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>statistic for the consumer or null if ConsumerStats is disabled.</dd>
+<dd>statistic for the consumer</dd>
 </dl>
 </li>
 </ul>
@@ -624,7 +623,10 @@ extends Closeable</pre>
 <li class="blockList">
 <h4>hasReachedEndOfTopic</h4>
 <pre>boolean&nbsp;hasReachedEndOfTopic()</pre>
-<div class="block">Return true if the topic was terminated and this consumer has already consumed all the messages in the topic.</div>
+<div class="block">Return true if the topic was terminated and this consumer has already consumed all the messages in the topic.
+
+ Please note that this does not simply mean that the consumer is caught up with the last message published by
+ producers, rather the topic needs to be explicitly "terminated".</div>
 </li>
 </ul>
 <a name="redeliverUnacknowledgedMessages--">

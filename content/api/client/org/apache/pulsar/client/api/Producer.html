@@ -149,15 +149,20 @@ extends Closeable</pre>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getProducerName--">getProducerName</a></span>()</code>&nbsp;</td>
 </tr>
 <tr id="i4" class="altColor">
-<td class="colFirst"><code>ProducerStats</code></td>
+<td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/ProducerStats.html" title="interface in org.apache.pulsar.client.api">ProducerStats</a></code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Producer.html#getStats--">getStats</a></span>()</code>
 <div class="block">Get statistics for the producer
 
- numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
- interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
- acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
- of bytes sent totalSendFailed : Total number of messages failed to send totalAcksReceived: Total number of acks
- received</div>
+ 
+ numMsgsSent : Number of messages sent in the current interval
+ numBytesSent : Number of bytes sent in the current interval
+ numSendFailed : Number of messages failed to send in the current interval
+ numAcksReceived : Number of acks received in the current interval
+ totalMsgsSent : Total number of messages sent
+ totalBytesSent : Total number of bytes sent
+ totalSendFailed : Total number of messages failed to send
+ totalAcksReceived: Total number of acks received
+ </div>
 </td>
 </tr>
 <tr id="i5" class="rowColor">
@@ -356,17 +361,22 @@ extends Closeable</pre>
 <ul class="blockList">
 <li class="blockList">
 <h4>getStats</h4>
-<pre>ProducerStats&nbsp;getStats()</pre>
+<pre><a href="../../../../../org/apache/pulsar/client/api/ProducerStats.html" title="interface in org.apache.pulsar.client.api">ProducerStats</a>&nbsp;getStats()</pre>
 <div class="block">Get statistics for the producer
 
- numMsgsSent : Number of messages sent in the current interval numBytesSent : Number of bytes sent in the current
- interval numSendFailed : Number of messages failed to send in the current interval numAcksReceived : Number of
- acks received in the current interval totalMsgsSent : Total number of messages sent totalBytesSent : Total number
- of bytes sent totalSendFailed : Total number of messages failed to send totalAcksReceived: Total number of acks
- received</div>
+ <ul>
+ <li>numMsgsSent : Number of messages sent in the current interval
+ <li>numBytesSent : Number of bytes sent in the current interval
+ <li>numSendFailed : Number of messages failed to send in the current interval
+ <li>numAcksReceived : Number of acks received in the current interval
+ <li>totalMsgsSent : Total number of messages sent
+ <li>totalBytesSent : Total number of bytes sent
+ <li>totalSendFailed : Total number of messages failed to send
+ <li>totalAcksReceived: Total number of acks received
+ </ul></div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>statistic for the producer or null if ProducerStats is disabled.</dd>
+<dd>statistic for the producer or null if ProducerStatsRecorderImpl is disabled.</dd>
 </dl>
 </li>
 </ul>
