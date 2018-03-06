@@ -52,8 +52,7 @@ import org.apache.pulsar.admin.cli.CmdFunctions.ListFunctions;
 import org.apache.pulsar.admin.cli.CmdFunctions.LocalRunner;
 import org.apache.pulsar.admin.cli.CmdFunctions.UpdateFunction;
 import org.apache.pulsar.client.admin.Functions;
-import org.apache.pulsar.client.admin.PulsarFunctionsAdmin;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
@@ -82,7 +81,7 @@ public class CmdFunctionsTest {
 
     private static final String TEST_NAME = "test_name";
 
-    private PulsarFunctionsAdmin admin;
+    private PulsarAdminWithFunctions admin;
     private Functions functions;
     private CmdFunctions cmd;
 
@@ -101,7 +100,7 @@ public class CmdFunctionsTest {
 
     @BeforeMethod
     public void setup() throws Exception {
-        this.admin = mock(PulsarFunctionsAdmin.class);
+        this.admin = mock(PulsarAdminWithFunctions.class);
         this.functions = mock(Functions.class);
         when(admin.functions()).thenReturn(functions);
         when(admin.getServiceUrl()).thenReturn(URI.create("http://localhost:1234").toURL());

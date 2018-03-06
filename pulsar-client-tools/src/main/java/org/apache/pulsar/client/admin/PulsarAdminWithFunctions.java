@@ -29,10 +29,10 @@ import java.net.URL;
 
 
 /**
- * Pulsar client admin API client.
+ * Pulsar client admin client with functions support.
  */
-public class PulsarFunctionsAdmin extends PulsarAdmin {
-    private static final Logger LOG = LoggerFactory.getLogger(PulsarFunctionsAdmin.class);
+public class PulsarAdminWithFunctions extends PulsarAdmin {
+    private static final Logger LOG = LoggerFactory.getLogger(PulsarAdminWithFunctions.class);
 
     private final Functions functions;
     private final ClientConfigurationData clientConf;
@@ -47,7 +47,7 @@ public class PulsarFunctionsAdmin extends PulsarAdmin {
      * @param pulsarConfig
      *            the ClientConfiguration object to be used to talk with Pulsar
      */
-    public PulsarFunctionsAdmin(URL serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
+    public PulsarAdminWithFunctions(URL serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
         super(serviceUrl, pulsarConfig);
         this.functions = new FunctionsImpl(web, auth);
         this.clientConf = pulsarConfig;

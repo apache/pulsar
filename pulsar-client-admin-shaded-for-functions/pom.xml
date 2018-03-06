@@ -29,13 +29,13 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-client-tools-shaded</artifactId>
-  <name>Pulsar Client Admin Shaded</name>
+  <artifactId>pulsar-client-admin-shaded-for-functions</artifactId>
+  <name>Pulsar Client Admin Shaded (for functions)</name>
 
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-tools</artifactId>
+      <artifactId>pulsar-client-admin-original</artifactId>
       <version>${project.parent.version}</version>
     </dependency>
   </dependencies>
@@ -63,7 +63,6 @@
                   <include>org.apache.bookkeeper:circe-checksum</include>
                   <include>org.apache.pulsar:pulsar-client-original</include>
                   <include>org.apache.pulsar:pulsar-client-admin-original</include>
-                  <include>org.apache.pulsar:pulsar-client-tools</include>
                   <!-- client dependencies as below -->
                   <include>org.apache.commons:commons-lang3</include>
                   <include>commons-codec:commons-codec</include>
@@ -115,12 +114,6 @@
                 </filter>
                 <filter>
                   <artifact>org.apache.pulsar:pulsar-client-admin-original</artifact>
-                  <includes>
-                    <include>**</include>
-                  </includes>
-                </filter>
-                <filter>
-                  <artifact>org.apache.pulsar:pulsar-client-tools</artifact>
                   <includes>
                     <include>**</include>
                   </includes>

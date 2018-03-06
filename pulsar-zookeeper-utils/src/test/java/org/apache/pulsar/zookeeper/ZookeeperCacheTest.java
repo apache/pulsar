@@ -73,7 +73,7 @@ public class ZookeeperCacheTest {
 
     @BeforeClass
     void classSetup() throws Exception {
-        executor = OrderedScheduler.newSchedulerBuilder().maxTasksInQueue(1).name("ZookeeperCacheTest").build();
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("ZookeeperCacheTest").build();
         scheduledExecutor = Executors.newSingleThreadScheduledExecutor();
     }
 
