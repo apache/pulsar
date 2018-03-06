@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -57,7 +58,6 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
-import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.instance.producers.MultiConsumersOneSinkTopicProducers;
@@ -66,8 +66,6 @@ import org.apache.pulsar.functions.instance.producers.SimpleOneSinkTopicProducer
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
-
-import java.util.function.Function;
 import org.apache.pulsar.functions.utils.Utils;
 
 /**
@@ -132,9 +130,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                                 PulsarClient pulsarClient,
                                 String stateStorageServiceUrl) {
         this.instanceConfig = instanceConfig;
-        this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees() == null
-                ? FunctionConfig.ProcessingGuarantees.ATMOST_ONCE
-                : instanceConfig.getFunctionConfig().getProcessingGuarantees();
+        this.processingGuarantees = instanceConfig.getFunctionConfig().getProcessingGuarantees();
         this.fnCache = fnCache;
         this.queue = new LinkedBlockingDeque<>(instanceConfig.getMaxBufferedTuples());
         this.jarFile = jarFile;
