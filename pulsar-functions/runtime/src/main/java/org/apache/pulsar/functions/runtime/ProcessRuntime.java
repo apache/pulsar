@@ -26,6 +26,7 @@ import com.google.gson.Gson;
 import com.google.protobuf.Empty;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
+import java.util.concurrent.ExecutionException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -39,6 +40,7 @@ import java.io.InputStream;
 import java.net.ServerSocket;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import org.apache.pulsar.functions.proto.InstanceControlGrpc.InstanceControlFutureStub;
 
 /**
  * A function container implemented using java thread.
@@ -299,5 +301,32 @@ class ProcessRuntime implements Runtime {
             startupException = ex;
         }
         return startupException;
+    }
+
+    public static void main(String[] args) throws ExecutionException, InterruptedException {
+        int port = Integer.parseInt(args[0]);
+
+        ManagedChannel channel = ManagedChannelBuilder.forAddress("127.0.0.1", port)
+                .usePlaintext(true)
+                .build();
+        InstanceControlFutureStub stub = InstanceControlGrpc.newFutureStub(channel);
+        ListenableFuture<FunctionStatus> response = stub.getFunctionStatus(Empty.newBuilder().build());
+        CompletableFuture<FunctionStatus> future = new CompletableFuture<>();
+        Futures.addCallback(response, new FutureCallback<FunctionStatus>() {
+            @Override
+            public void onFailure(Throwable throwable) {
+                log.info("GetFunctionStatus:", throwable);
+                future.completeExceptionally(throwable);
+            }
+
+            @Override
+            public void onSuccess(InstanceCommunication.FunctionStatus t) {
+                log.info("GetFunctionStatus: {}", t);
+                future.complete(t);
+            }
+        });
+        FunctionStatus status = future.get();
+
+        log.info("Function Status : {}", status);
     }
 }

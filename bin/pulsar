@@ -78,7 +78,7 @@ fi
 # find the java instance location
 if [ ! -f "${JAVA_INSTANCE_JAR}" ]; then
     # didn't find a released jar, then search the built jar
-    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime/target/java-instance.jar"
+    BUILT_JAVA_INSTANCE_JAR="${FUNCTIONS_HOME}/runtime-all/target/java-instance.jar"
     if [ -z "${BUILT_JAVA_INSTANCE_JAR}" ]; then
         echo "\nCouldn't find pulsar-functions java instance jar.";
         echo "Make sure you've run 'mvn package'\n";

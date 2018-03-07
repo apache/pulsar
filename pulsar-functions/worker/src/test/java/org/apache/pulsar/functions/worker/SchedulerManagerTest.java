@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
@@ -94,8 +93,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testSchedule() throws PulsarClientException, NoSuchMethodException, InterruptedException,
-            TimeoutException, ExecutionException {
+    public void testSchedule() throws Exception {
 
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -139,8 +137,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testNothingNewToSchedule() throws InterruptedException, ExecutionException, NoSuchMethodException,
-            InvalidProtocolBufferException, TimeoutException {
+    public void testNothingNewToSchedule() throws Exception {
 
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -191,8 +188,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testAddingFunctions() throws NoSuchMethodException, InterruptedException,
-            InvalidProtocolBufferException, TimeoutException, ExecutionException {
+    public void testAddingFunctions() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -255,8 +251,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testDeletingFunctions() throws NoSuchMethodException, InterruptedException,
-            InvalidProtocolBufferException, TimeoutException, ExecutionException {
+    public void testDeletingFunctions() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -322,8 +317,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testScalingUp() throws NoSuchMethodException, InterruptedException, InvalidProtocolBufferException,
-            PulsarClientException, TimeoutException, ExecutionException {
+    public void testScalingUp() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -432,8 +426,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testScalingDown() throws PulsarClientException, NoSuchMethodException, InterruptedException,
-            InvalidProtocolBufferException, TimeoutException, ExecutionException {
+    public void testScalingDown() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -543,8 +536,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testUpdate() throws PulsarClientException, NoSuchMethodException, InterruptedException,
-            InvalidProtocolBufferException, TimeoutException, ExecutionException {
+    public void testUpdate() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
