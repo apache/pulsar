@@ -257,3 +257,5 @@ You should see the reversed string in the log output:
 ----- got message -----
 This string was backwards but is now forwards
 ```
+
+Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, and successfully published to the function's input topic and consumed from its output topic.
