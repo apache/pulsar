@@ -143,6 +143,8 @@ public class CmdFunctions extends CmdBase {
         protected String inputs;
         @Parameter(names = "--output", description = "Output Topic Name")
         protected String output;
+        @Parameter(names = "--logTopic", description = "Log Topic")
+        protected String logTopic;
         @Parameter(names = "--customSerdeInputs", description = "Map of input topic to serde classname")
         protected String customSerdeInputString;
         @Parameter(names = "--outputSerdeClassName", description = "Output SerDe")
@@ -183,6 +185,9 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != output) {
                 functionConfigBuilder.setOutput(output);
+            }
+            if (null != logTopic) {
+                functionConfigBuilder.setLogTopic(logTopic);
             }
             if (null != tenant) {
                 functionConfigBuilder.setTenant(tenant);

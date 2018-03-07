@@ -37,6 +37,7 @@ date_format = "%Y-%m-%d %H:%M:%S %z"
 
 class LogTopicHandler(logging.Handler):
   def __init__(self, topic_name, pulsar_client):
+    logging.Handler.__init__(self)
     Log.info("Setting up producer for log topic %s" % topic_name)
     self.producer = pulsar_client.create_producer(
       str(topic_name),
@@ -46,7 +47,8 @@ class LogTopicHandler(logging.Handler):
       compression_type=pulsar._pulsar.CompressionType.LZ4)
 
   def emit(self, record):
-    self.producer.send_async(record)
+    msg = self.format(record)
+    self.producer.send_async(str(msg), None)
 
 def configure(level=logging.INFO):
   """ Configure logger which dumps log on terminal

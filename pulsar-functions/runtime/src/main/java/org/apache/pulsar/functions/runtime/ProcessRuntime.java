@@ -106,6 +106,11 @@ class ProcessRuntime implements Runtime {
         args.add(instanceConfig.getFunctionConfig().getName());
         args.add("--function_classname");
         args.add(instanceConfig.getFunctionConfig().getClassName());
+        if (instanceConfig.getFunctionConfig().getLogTopic() != null &&
+            !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
+            args.add("--log_topic");
+            args.add(instanceConfig.getFunctionConfig().getLogTopic());
+        }
         if (instanceConfig.getFunctionConfig().getCustomSerdeInputsCount() > 0) {
             String sourceTopicString = "";
             String inputSerdeClassNameString = "";
