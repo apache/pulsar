@@ -251,4 +251,9 @@ $ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
   --num-messages 1
 ```
 
-You should see the reversed string in the output: `This string was backwards but is now forwards`.
+You should see the reversed string in the log output:
+
+```
+----- got message -----
+This string was backwards but is now forwards
+```
