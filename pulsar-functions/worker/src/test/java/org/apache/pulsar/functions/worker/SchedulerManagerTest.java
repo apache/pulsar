@@ -32,7 +32,6 @@ import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -41,9 +40,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import static org.mockito.Matchers.any;
 import static org.mockito.Mockito.doReturn;
@@ -74,6 +72,7 @@ public class SchedulerManagerTest {
         workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig()
                 .setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
         workerConfig.setSchedulerClassName(RoundRobinScheduler.class.getName());
+        workerConfig.setAssignmentWriteMaxRetries(0);
 
         producer = mock(Producer.class);
         completableFuture = spy(new CompletableFuture<>());
@@ -94,7 +93,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testSchedule() throws PulsarClientException, NoSuchMethodException, InterruptedException {
+    public void testSchedule() throws Exception {
 
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -138,8 +137,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testNothingNewToSchedule() throws InterruptedException, ExecutionException, NoSuchMethodException,
-            IOException {
+    public void testNothingNewToSchedule() throws Exception {
 
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
@@ -190,8 +188,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testAddingFunctions() throws NoSuchMethodException, InterruptedException,
-            IOException {
+    public void testAddingFunctions() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -254,8 +251,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testDeletingFunctions() throws NoSuchMethodException, InterruptedException,
-            IOException {
+    public void testDeletingFunctions() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -321,7 +317,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testScalingUp() throws NoSuchMethodException, InterruptedException, IOException, PulsarClientException {
+    public void testScalingUp() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -430,8 +426,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testScalingDown() throws PulsarClientException, NoSuchMethodException, InterruptedException,
-            IOException {
+    public void testScalingDown() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -541,8 +536,7 @@ public class SchedulerManagerTest {
     }
 
     @Test
-    public void testUpdate() throws PulsarClientException, NoSuchMethodException, InterruptedException,
-            IOException {
+    public void testUpdate() throws Exception {
         List<Function.FunctionMetaData> functionMetaDataList = new LinkedList<>();
         long version = 5;
         Function.FunctionMetaData function1 = Function.FunctionMetaData.newBuilder()
@@ -666,29 +660,13 @@ public class SchedulerManagerTest {
         );
     }
 
-    private void callSchedule() throws NoSuchMethodException, InterruptedException {
+    private void callSchedule() throws NoSuchMethodException, InterruptedException,
+            TimeoutException, ExecutionException {
         long intialVersion = functionRuntimeManager.getCurrentAssignmentVersion();
-        int initalCount = getMethodInvocationDetails(completableFuture,
-                CompletableFuture.class.getMethod("get")).size();
-        log.info("initalCount: {}", initalCount);
         Future<?> complete = schedulerManager.schedule();
-        int count = 0;
-        while (!complete.isDone()) {
 
-            int invocationCount = getMethodInvocationDetails(completableFuture,
-                    CompletableFuture.class.getMethod("get")).size();
-            log.info("invocationCount: {}", invocationCount);
-
-            if (invocationCount >= initalCount + 1) {
-                doReturn(intialVersion + 1).when(functionRuntimeManager).getCurrentAssignmentVersion();
-            }
-
-            if (count > 100) {
-                Assert.fail("Scheduler failed to terminate!");
-            }
-            Thread.sleep(100);
-            count++;
-        }
+        complete.get(30, TimeUnit.SECONDS);
+        doReturn(intialVersion + 1).when(functionRuntimeManager).getCurrentAssignmentVersion();
     }
 
     private List<Invocation> getMethodInvocationDetails(Object o, Method method) throws NoSuchMethodException {
