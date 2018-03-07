@@ -30,9 +30,9 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.ByteBufUtil;
-import io.netty.buffer.Unpooled;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
 import java.net.MalformedURLException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -143,6 +143,8 @@ public class CmdFunctions extends CmdBase {
         protected String inputs;
         @Parameter(names = "--output", description = "Output Topic Name")
         protected String output;
+        @Parameter(names = "--logTopic", description = "Log Topic")
+        protected String logTopic;
         @Parameter(names = "--customSerdeInputs", description = "Map of input topic to serde classname")
         protected String customSerdeInputString;
         @Parameter(names = "--outputSerdeClassName", description = "Output SerDe")
@@ -183,6 +185,9 @@ public class CmdFunctions extends CmdBase {
             }
             if (null != output) {
                 functionConfigBuilder.setOutput(output);
+            }
+            if (null != logTopic) {
+                functionConfigBuilder.setLogTopic(logTopic);
             }
             if (null != tenant) {
                 functionConfigBuilder.setTenant(tenant);

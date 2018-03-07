@@ -38,6 +38,13 @@ public interface RawReader {
     }
 
     /**
+     * Get the topic for the reader
+     *
+     * @return topic for the reader
+     */
+    String getTopic();
+
+    /**
      * Seek to a location in the topic. After the seek, the first message read will be the one with
      * with the specified message ID.
      * @param messageId the message ID to seek to

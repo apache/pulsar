@@ -288,6 +288,10 @@ With message retention, shown at the top, a <span style="color: #89b557;">retent
 
 With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
 
+## Pulsar Functions
+
+For an in-depth look at Pulsar Functions, see the [Pulsar Functions overview](../../functions/overview).
+
 ## Replication
 
 Pulsar enables messages to be produced and consumed in different geo-locations. For instance, your application may be publishing data in one region or market and you would like to process it for consumption in other regions or markets. [Geo-replication](../../admin/GeoReplication) in Pulsar enables you to do that.

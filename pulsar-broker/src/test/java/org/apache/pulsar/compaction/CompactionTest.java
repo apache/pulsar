@@ -294,4 +294,52 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(m.getData(), "content0".getBytes());
         }
     }
+
+    @Test
+    public void testFirstMessageRetained() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+
+        // subscribe before sending anything, so that we get all messages
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+            .readCompacted(true).subscribe().close();
+
+        try (Producer producer = pulsarClient.createProducer(topic)) {
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key1")
+                               .setContent("my-message-1".getBytes()).build());
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key2")
+                               .setContent("my-message-2".getBytes()).build());
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key2")
+                               .setContent("my-message-3".getBytes()).build()).get();
+        }
+
+        // Read messages before compaction to get ids
+        List<Message> messages = new ArrayList<>();
+        try (Consumer consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("sub1").readCompacted(true).subscribe()) {
+            messages.add(consumer.receive());
+            messages.add(consumer.receive());
+            messages.add(consumer.receive());
+        }
+
+        // compact the topic
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        // Check that messages after compaction have same ids
+        try (Consumer consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("sub1").readCompacted(true).subscribe()){
+            Message message1 = consumer.receive();
+            Assert.assertEquals(message1.getKey(), "key1");
+            Assert.assertEquals(new String(message1.getData()), "my-message-1");
+            Assert.assertEquals(message1.getMessageId(), messages.get(0).getMessageId());
+
+            Message message2 = consumer.receive();
+            Assert.assertEquals(message2.getKey(), "key2");
+            Assert.assertEquals(new String(message2.getData()), "my-message-3");
+            Assert.assertEquals(message2.getMessageId(), messages.get(2).getMessageId());
+        }
+    }
 }
