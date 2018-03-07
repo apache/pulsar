@@ -3,7 +3,7 @@ title: Getting started with Pulsar Functions
 lead: Write and run your first Pulsar Function in just a few steps
 ---
 
-This tutorial will walk you through running your first Pulsar Function in local run mode.
+This tutorial will walk you through running a {% popover standalone %} Pulsar {% popover cluster %} on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar {% popover cluster %}), while the second will run in cluster mode (inside your cluster).
 
 {% include admonition.html content="In local run mode, your Pulsar Function will communicate with your Pulsar cluster but will run outside of the cluster." %}
 
@@ -19,10 +19,11 @@ In order to run our Pulsar Function, we'll need to run a Pulsar cluster locally.
 $ wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
 $ tar xvf apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
 $ cd apache-pulsar-2.0.0-incubating-functions-preview
-$ bin/pulsar standalone
+$ bin/pulsar standalone \
+  --advertised-address 127.0.0.1
 ```
 
-Namespace, tenant, etc.
+When running Pulsar in standalone mode, the `sample` {% popover tenant %} and `ns1` {% popover namespace %}
 
 ## Run a Pulsar Function in local run mode
 
