@@ -94,10 +94,13 @@ class Stats(object):
       return self.latency / self.nsuccessfullyprocessed
 
 class PythonInstance(object):
-  def __init__(self, instance_id, function_id, function_version, function_config, max_buffered_tuples, user_code, pulsar_client):
+  def __init__(self, instance_id, function_id, function_version, function_config, max_buffered_tuples, user_code, log_topic, pulsar_client):
     self.instance_config = InstanceConfig(instance_id, function_id, function_version, function_config, max_buffered_tuples)
     self.user_code = user_code
     self.queue = Queue.Queue(max_buffered_tuples)
+    self.log_topic_handler = None
+    if log_topic is not None:
+      self.log_topic_handler = log.LogTopicHandler(str(log_topic), pulsar_client)
     self.pulsar_client = pulsar_client
     self.input_serdes = {}
     self.consumers = {}
@@ -174,7 +177,11 @@ class PythonInstance(object):
         continue
       self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
       output_object = None
+      self.saved_log_handler = None
       try:
+        if self.log_topic_handler is not None:
+          self.saved_log_handler = log.remove_all_handlers()
+          log.add_handler(self.log_topic_handler)
         start_time = time.time()
         self.current_stats.increment_processed(int(start_time) * 1000)
         self.total_stats.increment_processed(int(start_time) * 1000)
@@ -188,9 +195,16 @@ class PythonInstance(object):
         self.current_stats.increment_successfully_processed(latency)
         self.process_result(output_object, msg)
       except Exception as e:
+        if self.log_topic_handler is not None:
+          log.remove_all_handlers()
+          log.add_handler(self.saved_log_handler)
         Log.exception("Exception while executing user method")
         self.total_stats.record_user_exception(e)
         self.current_stats.record_user_exception(e)
+      finally:
+        if self.log_topic_handler is not None:
+          log.remove_all_handlers()
+          log.add_handler(self.saved_log_handler)
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:

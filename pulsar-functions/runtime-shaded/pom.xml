@@ -30,21 +30,16 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-functions-worker-shaded</artifactId>
-  <name>Pulsar Functions :: Worker Shaded</name>
+  <artifactId>pulsar-functions-runtime-shaded</artifactId>
+  <name>Pulsar Functions :: Runtime Shaded</name>
 
   <dependencies>
     <dependency>
       <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-functions-worker</artifactId>
+      <artifactId>pulsar-functions-runtime</artifactId>
       <version>${project.parent.version}</version>
       <exclusions>
-        <!-- exclude the dependencies already exists in bookkeeper-server-shaded -->
-        <exclusion>
-          <groupId>org.apache.bookkeeper</groupId>
-          <artifactId>bookkeeper-common</artifactId>
-        </exclusion>
-        <!-- exclude `pulsar-client-admin-shaded-for-functions` here, this allows worker-runner and broker to use unshaded clients -->
+        <!-- exclude `pulsar-client-admin-shaded-for-functions` here, this allows worker and runtime to use unshaded clients -->
         <exclusion>
           <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-client-admin-shaded-for-functions</artifactId>
@@ -77,20 +72,32 @@
           <groupId>io.netty</groupId>
           <artifactId>netty-buffer</artifactId>
         </exclusion>
-      </exclusions>
-    </dependency>
-
-    <!-- bookkeeper-server-shaded include circe-checksum, bookkeeper-common and bookkeeper-stats-api -->
-    <dependency>
-      <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server-shaded</artifactId>
-      <exclusions>
         <exclusion>
           <groupId>io.netty</groupId>
-          <artifactId>netty-all</artifactId>
+          <artifactId>netty-buffer</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.bookkeeper</groupId>
+          <artifactId>bookkeeper-common</artifactId>
+        </exclusion>
+        <exclusion>
+          <groupId>org.apache.bookkeeper.stats</groupId>
+          <artifactId>bookkeeper-stats-api</artifactId>
         </exclusion>
       </exclusions>
     </dependency>
+
+    <dependency>
+      <groupId>org.apache.bookkeeper</groupId>
+      <artifactId>bookkeeper-server-shaded</artifactId>
+    </dependency>
+
+    <dependency>
+      <groupId>io.netty</groupId>
+      <artifactId>netty-all</artifactId>
+      <version>4.1.12.Final</version>
+    </dependency>
+
   </dependencies>
 
   <build>
@@ -110,7 +117,6 @@
               <minimizeJar>false</minimizeJar>
 
               <artifactSet>
-                <!-- package the dependencies that use protobuf & grpc and relocate protobuf -->
                 <includes>
                   <include>com.google.protobuf:protobuf-lite</include>
                   <include>com.google.protobuf:protobuf-java</include>
@@ -118,17 +124,42 @@
                   <include>com.google.protobuf:protobuf-java-util</include>
                   <include>com.google.instrumentation:instrumentation-api</include>
                   <include>com.google.api.grpc:proto-google-common-protos</include>
+                  <include>com.google.auth:google-auth-library-credentials</include>
+                  <include>com.google.errorprone:error_prone_annotations</include>
+                  <include>com.squareup.okhttp:okhttp</include>
+                  <include>com.squareup.okio:okio</include>
+                  <include>org.inferred:freebuilder</include>
+                  <include>com.google.googlejavaformat:google-java-format</include>
+                  <include>com.google.errorprone:javac</include>
+                  <include>net.jodah:typetools</include>
+                  <include>com.beust:jcommander</include>
+                  <include>com.fasterxml.jackson.dataformat:jackson-dataformat-yaml</include>
+                  <include>org.yaml:snakeyaml</include>
                   <!-- dependencies use protobuf -->
                   <include>org.apache.pulsar:pulsar-functions-proto</include>
                   <include>org.apache.pulsar:pulsar-functions-utils</include>
                   <include>org.apache.pulsar:pulsar-functions-metrics</include>
                   <include>org.apache.pulsar:pulsar-functions-instance</include>
                   <include>org.apache.pulsar:pulsar-functions-runtime</include>
-                  <include>org.apache.pulsar:pulsar-functions-worker</include>
+                  <include>org.apache.pulsar:pulsar-functions-api</include>
                   <!-- protobuf dependencies in grpc -->
                   <include>io.grpc:*</include>
                   <!-- bookkeeper key/value service -->
                   <include>org.apache.bookkeeper:stream-storage-java-client</include>
+                  <include>io.netty:netty-all</include>
+
+                  <!-- dependencies to include when using shaded pulsar client-->
+                  <!--
+                  <include>com.fasterxml.jackson.core:jackson-core</include>
+                  <include>com.fasterxml.jackson.core:jackson-databind</include>
+                  <include>com.fasterxml.jackson.core:jackson-annotations</include>
+                  <include>org.apache.commons:commons-lang3</include>
+                  <include>com.yahoo.datasketches:sketches-core</include>
+                  <include>com.google.guava:guava</include>
+                  <include>org.apache.bookkeeper:bookkeeper-common</include>
+                  <include>org.apache.bookkeeper.stats:bookkeeper-stats-api</include>
+                  <include>com.google.code.gson:gson</include>
+                  -->
                 </includes>
               </artifactSet>
               <relocations>
@@ -136,6 +167,10 @@
                 <relocation>
                   <pattern>com.google.protobuf</pattern>
                   <shadedPattern>org.apache.pulsar.functions.shaded.com.google.protobuf</shadedPattern>
+                </relocation>
+                <relocation>
+                  <pattern>io.netty</pattern>
+                  <shadedPattern>org.apache.pulsar.functions.shaded.io.netty</shadedPattern>
                 </relocation>
               </relocations>
             </configuration>

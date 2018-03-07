@@ -73,7 +73,7 @@
       <fileMode>644</fileMode>
     </file>
     <file>
-      <source>${basedir}/../pulsar-functions/runtime/target/java-instance.jar</source>
+      <source>${basedir}/../pulsar-functions/runtime-all/target/java-instance.jar</source>
       <destName>java-instance.jar</destName>
       <outputDirectory>instances</outputDirectory>
     </file>
