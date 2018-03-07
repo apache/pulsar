@@ -27,7 +27,22 @@ When running Pulsar in standalone mode, the `sample` {% popover tenant %} and `n
 
 ## Run a Pulsar Function in local run mode
 
-To run a function in local mode, i.e. outside our Pulsar cluster:
+Let's start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes that new string to another Pulsar topic. Here's the code for the function:
+
+```java
+package org.apache.pulsar.functions.api.examples;
+
+import java.util.function.Function;
+
+public class ExclamationFunction implements Function<String, String> {
+    @Override
+    public String apply(String input) {
+        return String.format("%s!", input);
+    }
+}
+```
+
+A JAR file containing this and several other functions (written in Java) is included with the binary distribution you downloaded above (in the `examples` folder). To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
@@ -37,8 +52,6 @@ $ bin/pulsar-admin functions localrun \
   --output persistent://sample/standalone/ns1/exclamation-output \
   --name exclamation
 ```
-
-The JAR file containing the function (written in Java) is included with the binary distribution you downloaded above.
 
 We can use the [`pulsar-client`](../../reference/CliTools#pulsar-client) CLI tool to publish a message to the input topic:
 
@@ -174,3 +187,68 @@ You should see `Updated successfully` in the output. If you run the `get` comman
   "parallelism": 3
 }
 ```
+
+Finally, we can shut down our running function using the `delete` command:
+
+```bash
+$ bin/pulsar-admin functions delete \
+  --tenant sample \
+  --namespace ns1 \
+  --name exclamation
+```
+
+If you see `Deleted successfully` in the output, then you've succesfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let's go even further and run a brand new function in the next section.
+
+## Writing and running a new function
+
+In the above examples, we ran and managed a pre-written Pulsar Function and saw how it worked. To really get our hands dirty, let's write and our own function from scratch, using the Python API. This simple function will also take a string as input but it will reverse the string and publish the resulting, reversed string to the specified topic.
+
+First, create a new Python file:
+
+```bash
+$ touch reverse.py
+```
+
+In that file, add the following:
+
+```python
+from pulsarfunction import pulsar_function
+
+class Reverse(pulsar_function.PulsarFunction):
+  def __init__(self):
+    pass
+
+  def process(self, input):
+    return input[::-1]
+```
+
+Here, the `process` method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using `create`:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --py reverse.py \
+  --className reverse.Reverse \
+  --inputs persistent://sample/standalone/ns1/forwards \
+  --output persistent://sample/standalone/ns1/backwards \
+  --tenant sample \
+  --namespace ns1 \
+  --name reverse 
+```
+
+If you see `Created successfully`, the function is ready to accept incoming messages. Let's publish a string to the input topic:
+
+```bash
+$ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
+  --num-produce 1 \
+  --messages "sdrawrof won si tub sdrawkcab saw gnirts sihT"
+```
+
+Now, let's pull in a message from the output topic:
+
+```bash
+$ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
+  --subscription-name my-subscription \
+  --num-messages 1
+```
+
+You should see the reversed string in the output: `This string was backwards but is not forwards`.
