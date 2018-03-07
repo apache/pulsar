@@ -1422,7 +1422,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
 
     @Override
     public void checkInactiveSubscriptions() {
-        long expirationTime = brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeSeconds() * 1000;
+        long expirationTime = brokerService.pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() * 1000 * 60;
         if (expirationTime <= 0) return;
 
         subscriptions.forEach((subName, sub) -> {
@@ -1434,6 +1434,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                     sub.delete().thenAccept(v ->
                         log.info("[{}][{}] The subscription was deleted due to expiration", topic, subName));
                 }
+                messageMetadataAndPayload.clear();
             }).exceptionally(e -> {
                 log.error("[{}][{}] Error peeking first message while starting checkInactivitySubscriptions: {}",
                         topic, subName, e.getMessage());

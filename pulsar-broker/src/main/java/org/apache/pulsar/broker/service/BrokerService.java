@@ -329,9 +329,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 duplicationCheckerIntervalInSeconds, TimeUnit.SECONDS);
 
         // Inactive subscriber checker
-        if (pulsar().getConfiguration().getSubscriptionExpirationTimeSeconds() > 0) {
+        if (pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() > 0) {
             long subscriptionCheckerIntervalInSeconds =
-                    pulsar().getConfiguration().getSubscriptionExpirationTimeSeconds() / 3;
+                    pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() / 3;
             inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkInactiveSubscriptions),
                     subscriptionCheckerIntervalInSeconds, subscriptionCheckerIntervalInSeconds, TimeUnit.SECONDS);
         }
@@ -830,7 +830,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkMessageExpiry() {
         topics.forEach((n, t) -> {
-            Topic topic = t.getNow(null);
+            Topic topic = t.isCompletedExceptionally() ? null : t.getNow(null);
             if (topic != null) {
                 topic.checkMessageExpiry();
             }
@@ -839,7 +839,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkMessageDeduplicationInfo() {
         topics.forEach((n, t) -> {
-            Topic topic = t.getNow(null);
+            Topic topic = t.isCompletedExceptionally() ? null : t.getNow(null);
             if (topic != null) {
                 topic.checkMessageDeduplicationInfo();
             }
@@ -848,7 +848,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     public void checkInactiveSubscriptions() {
         topics.forEach((n, t) -> {
-            Topic topic = t.getNow(null);
+            Topic topic = t.isCompletedExceptionally() ? null : t.getNow(null);
             if (topic != null) {
                 topic.checkInactiveSubscriptions();
             }
@@ -1049,7 +1049,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public Map<String, PersistentTopicStats> getTopicStats() {
         HashMap<String, PersistentTopicStats> stats = new HashMap<>();
         topics.forEach((name, topicFuture) -> {
-            Topic currentTopic = topicFuture.getNow(null);
+            Topic currentTopic = topicFuture.isCompletedExceptionally() ? null : topicFuture.getNow(null);
             if (currentTopic != null) {
                 stats.put(name, currentTopic.getStats());
             }

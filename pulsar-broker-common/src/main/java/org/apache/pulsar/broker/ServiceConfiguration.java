@@ -91,7 +91,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private int activeConsumerFailoverDelayTimeMillis = 1000;
     // How long to delete inactive subscriptions from last consuming
     // When it is 0, inactive subscriptions are not deleted automatically
-    private long subscriptionExpirationTimeSeconds = 0;
+    private long subscriptionExpirationTimeMinutes = 0;
 
     // Set the default behavior for message deduplication in the broker
     // This can be overridden per-namespace. If enabled, broker will reject
@@ -653,12 +653,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.activeConsumerFailoverDelayTimeMillis = activeConsumerFailoverDelayTimeMillis;
     }
 
-    public long getSubscriptionExpirationTimeSeconds() {
-        return subscriptionExpirationTimeSeconds;
+    public long getSubscriptionExpirationTimeMinutes() {
+        return subscriptionExpirationTimeMinutes;
     }
 
-    public void setSubscriptionExpirationTimeSeconds(long subscriptionExpirationTimeSeconds) {
-        this.subscriptionExpirationTimeSeconds = subscriptionExpirationTimeSeconds;
+    public void setSubscriptionExpirationTimeMinutes(long subscriptionExpirationTimeMinutes) {
+        this.subscriptionExpirationTimeMinutes = subscriptionExpirationTimeMinutes;
     }
 
     public boolean isClientLibraryVersionCheckEnabled() {
