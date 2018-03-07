@@ -329,7 +329,7 @@ public class PersistentTopicsBase extends AdminResource {
         }
     }
 
-    protected void internalCreatePartitionedTopic(int numPartitions, boolean authoritative) {
+    protected CompletableFuture<Void> internalCreatePartitionedTopic(int numPartitions, boolean authoritative) {
         validateAdminAccessOnProperty(topicName.getProperty());
         if (numPartitions <= 1) {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
@@ -338,16 +338,18 @@ public class PersistentTopicsBase extends AdminResource {
             String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
                     topicName.getEncodedLocalName());
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
-            zkCreateOptimistic(path, data);
-            // we wait for the data to be synced in all quorums and the observers
-            Thread.sleep(PARTITIONED_TOPIC_WAIT_SYNC_TIME_MS);
-            log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
-        } catch (KeeperException.NodeExistsException e) {
-            log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
-            throw new RestException(Status.CONFLICT, "Partitioned topic already exist");
+            return zkAsyncCreateOptimistic(path, data).handle((ignore, e) -> {
+                if (null == e) {
+                    log.info("[{}] Successfully created partitioned topic {}", clientAppId(), topicName);
+                    return null;
+                } else {
+                    log.warn("[{}] Failed to create already existing partitioned topic {}", clientAppId(), topicName);
+                    throw new RestException(Status.CONFLICT, "Partitioned topic already exist");
+                }
+            });
         } catch (Exception e) {
             log.error("[{}] Failed to create partitioned topic {}", clientAppId(), topicName, e);
-            throw new RestException(e);
+            return FutureUtil.failedFuture(new RestException(e));
         }
     }
 
