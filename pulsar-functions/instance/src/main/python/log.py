@@ -23,6 +23,7 @@
 ''' log.py '''
 import logging
 from logging.handlers import RotatingFileHandler
+import pulsar
 
 # Create the logger
 # pylint: disable=invalid-name
@@ -41,8 +42,8 @@ class LogTopicHandler(logging.Handler):
       str(topic_name),
       block_if_queue_full=True,
       batching_enabled=True,
-      batching_max_publish_delay_ms=1,
-      max_pending_messages=100000)
+      batching_max_publish_delay_ms=100,
+      compression_type=pulsar._pulsar.CompressionType.LZ4)
 
   def emit(self, record):
     self.producer.send_async(record)
