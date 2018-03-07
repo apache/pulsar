@@ -25,8 +25,7 @@ import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 public class PublishFunction implements PulsarFunction<String, Void> {
     @Override
     public Void process(String input, Context context) {
-        String output = String.format("%s!", input);
-        context.publish(context.getUserConfigValue("PublishTopic"), output, DefaultSerDe.class.getName());
+        context.publish(context.getUserConfigValue("PublishTopic"), input + "!", DefaultSerDe.class.getName());
         return null;
     }
 }

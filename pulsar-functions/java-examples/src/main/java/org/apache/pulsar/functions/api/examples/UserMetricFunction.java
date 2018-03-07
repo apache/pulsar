@@ -16,13 +16,13 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 
 public class UserMetricFunction implements PulsarFunction<String, Void> {
+
     @Override
     public Void process(String input, Context context) {
         context.recordMetric("MyMetricName", 1);
