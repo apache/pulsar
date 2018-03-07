@@ -4,6 +4,8 @@ title: The Pulsar Functions API
 
 ## Java
 
+There are two basic types of functions that you can write in Java
+
 Java API example:
 
 ```java
@@ -68,9 +70,20 @@ The built-in is the `org.apache.pulsar.functions.api.DefaultSerDe` class:
 
 The built-in should work fine for basic Java types. For more advanced types,
 
+### Java examples
+
+There are eight example functions for Java currently available:
+
+* [`]
 
 ## Python
 
 ```python
 def process(input):
+```
+
+### With context
+
+```python
+def 
 ```
