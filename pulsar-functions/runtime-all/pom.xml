@@ -1,3 +1,4 @@
+<?xml version="1.0"?>
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -19,7 +20,7 @@
 
 -->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
@@ -29,15 +30,14 @@
     <relativePath>..</relativePath>
   </parent>
 
-  <artifactId>pulsar-functions-worker</artifactId>
-  <name>Pulsar Functions :: Worker</name>
+  <artifactId>pulsar-functions-runtime-all</artifactId>
+  <name>Pulsar Functions :: Runtime All</name>
 
   <dependencies>
-
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-functions-runtime-shaded</artifactId>
-      <version>${project.version}</version>
+      <version>${project.parent.version}</version>
       <exclusions>
         <exclusion>
           <groupId>io.grpc</groupId>
@@ -91,73 +91,79 @@
           <groupId>org.apache.pulsar</groupId>
           <artifactId>pulsar-functions-instance</artifactId>
         </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-transport</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-resolver</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>io.netty</groupId>
-          <artifactId>netty-codec-socks</artifactId>
-        </exclusion>
       </exclusions>
+    </dependency>
+
+    <!-- logging -->
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
     </dependency>
 
     <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>${project.groupId}</groupId>
-      <artifactId>pulsar-client-admin-original</artifactId>
-      <version>${project.version}</version>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.media</groupId>
-      <artifactId>jersey-media-json-jackson</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.core</groupId>
-      <artifactId>jersey-server</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.containers</groupId>
-      <artifactId>jersey-container-servlet</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.containers</groupId>
-      <artifactId>jersey-container-servlet-core</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.glassfish.jersey.media</groupId>
-      <artifactId>jersey-media-multipart</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-server</artifactId>
-    </dependency>
-
-    <dependency>
-      <groupId>org.eclipse.jetty</groupId>
-      <artifactId>jetty-servlet</artifactId>
-    </dependency>
-
-    <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
-    <dependency>
-      <groupId>org.apache.distributedlog</groupId>
-      <artifactId>distributedlog-core-shaded</artifactId>
+      <version>${project.parent.version}</version>
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-shade-plugin</artifactId>
+        <executions>
+          <execution>
+            <phase>package</phase>
+            <goals>
+              <goal>shade</goal>
+            </goals>
+            <configuration>
+              <finalName>java-instance</finalName>
+              <transformers>
+                <transformer
+                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                  <mainClass>org.openjdk.jmh.Main</mainClass>
+                </transformer>
+              </transformers>
+              <artifactSet>
+                <excludes>
+                  <exclude>io.netty:netty-common</exclude>
+                  <exclude>io.netty:netty-buffer</exclude>
+                  <exclude>io.netty:netty-codec-http2</exclude>
+                  <exclude>io.netty:netty-codec-http</exclude>
+                  <exclude>io.netty:netty-codec-socks</exclude>
+                  <exclude>io.netty:netty-codec</exclude>
+                  <exclude>io.netty:netty-handler</exclude>
+                  <exclude>io.netty:netty-handler-proxy</exclude>
+                  <exclude>io.netty:netty-transport</exclude>
+                  <exclude>io.netty:netty-resolver</exclude>
+                </excludes>
+              </artifactSet>
+              <filters>
+                <filter>
+                  <!-- Shading signed JARs will fail without
+                      this. http://stackoverflow.com/questions/999489/invalid-signature-file-when-attempting-to-run-a-jar -->
+                  <artifact>*:*</artifact>
+                  <excludes>
+                    <exclude>META-INF/*.SF</exclude>
+                    <exclude>META-INF/*.DSA</exclude>
+                    <exclude>META-INF/*.RSA</exclude>
+                  </excludes>
+                </filter>
+              </filters>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+    </plugins>
+  </build>
 </project>

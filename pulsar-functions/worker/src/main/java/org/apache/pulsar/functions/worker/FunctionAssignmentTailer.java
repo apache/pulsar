@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.functions.worker;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -78,7 +77,7 @@ public class FunctionAssignmentTailer
             Request.AssignmentsUpdate assignmentsUpdate;
             try {
                 assignmentsUpdate = Request.AssignmentsUpdate.parseFrom(msg.getData());
-            } catch (InvalidProtocolBufferException e) {
+            } catch (IOException e) {
                 log.error("Received bad assignment update at message {}", msg.getMessageId(), e);
                 // TODO: find a better way to handle bad request
                 throw new RuntimeException(e);
