@@ -126,9 +126,16 @@ public class PersistentTopics extends PersistentTopicsBase {
             @ApiResponse(code = 409, message = "Partitioned topic already exist") })
     public void createPartitionedTopic(@PathParam("property") String property, @PathParam("namespace") String namespace,
             @PathParam("topic") @Encoded String encodedTopic, int numPartitions,
-            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative) {
+            @QueryParam("authoritative") @DefaultValue("false") boolean authoritative, AsyncResponse response) {
         validateTopicName(property, namespace, encodedTopic);
-        internalCreatePartitionedTopic(numPartitions, authoritative);
+        internalCreatePartitionedTopic(numPartitions, authoritative).handle((ignore, e) -> {
+            if (e != null) {
+                response.resume(e);
+            } else {
+                response.resume(Response.ok());
+            }
+            return null;
+        });
     }
 
     /**
