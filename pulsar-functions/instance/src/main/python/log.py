@@ -34,6 +34,19 @@ Log = logging.getLogger()
 # see time formatter documentation for more
 date_format = "%Y-%m-%d %H:%M:%S %z"
 
+class LogTopicHandler(logging.Handler):
+  def __init__(self, topic_name, pulsar_client):
+    Log.info("Setting up producer for log topic %s" % topic_name)
+    self.producer = pulsar_client.create_producer(
+      str(topic_name),
+      block_if_queue_full=True,
+      batching_enabled=True,
+      batching_max_publish_delay_ms=1,
+      max_pending_messages=100000)
+
+  def emit(self, record):
+    self.producer.send_async(record)
+
 def configure(level=logging.INFO):
   """ Configure logger which dumps log on terminal
 
@@ -50,13 +63,21 @@ def configure(level=logging.INFO):
       Log.handlers.remove(handler)
 
   Log.setLevel(level)
+  stream_handler = logging.StreamHandler()
+  add_handler(stream_handler)
 
+def remove_all_handlers():
+  retval = None
+  for handler in Log.handlers:
+    Log.handlers.remove(handler)
+    retval = handler
+  return retval
+
+def add_handler(stream_handler):
   log_format = "[%(asctime)s] [%(levelname)s]: %(message)s"
   formatter = logging.Formatter(fmt=log_format, datefmt=date_format)
-  stream_handler = logging.StreamHandler()
   stream_handler.setFormatter(formatter)
   Log.addHandler(stream_handler)
-
 
 def init_rotating_logger(level, logfile, max_files, max_bytes):
   """Initializes a rotating logger

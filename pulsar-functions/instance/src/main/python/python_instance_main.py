@@ -73,6 +73,7 @@ def main():
   parser.add_argument('--logging_directory', required=True, help='Logging Directory')
   parser.add_argument('--logging_file', required=True, help='Log file name')
   parser.add_argument('--auto_ack', required=True, help='Enable Autoacking?')
+  parser.add_argument('--log_topic', required=False, help='Topic to send Log Messages')
 
   args = parser.parse_args()
   log_file = os.path.join(args.logging_directory, args.logging_file + ".log.0")
@@ -117,7 +118,8 @@ def main():
   pulsar_client = pulsar.Client(args.pulsar_serviceurl)
   pyinstance = python_instance.PythonInstance(str(args.instance_id), str(args.function_id),
                                               str(args.function_version), function_config,
-                                              int(args.max_buffered_tuples), str(args.py), pulsar_client)
+                                              int(args.max_buffered_tuples), str(args.py),
+                                              args.log_topic, pulsar_client)
   pyinstance.run()
   server_instance = server.serve(args.port, pyinstance)
 
