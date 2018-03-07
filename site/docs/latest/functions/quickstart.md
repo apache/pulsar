@@ -9,11 +9,11 @@ This tutorial will walk you through running a {% popover standalone %} Pulsar {%
 
 ## Prerequisites
 
-In order to follow along with this tutorial, you'll need to have [Maven](https://maven.apache.org) installed.
+In order to follow along with this tutorial, you'll need to have [Maven](https://maven.apache.org/download.cgi) installed on your machine.
 
 ## Run a standalone Pulsar cluster
 
-In order to run our Pulsar Function, we'll need to run a Pulsar cluster locally. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. The following steps will enable you to get Pulsar running:
+In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. Follow these steps to start up a standalone cluster:
 
 ```bash
 $ wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
@@ -23,17 +23,22 @@ $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
 
-When running Pulsar in standalone mode, the `sample` {% popover tenant %} and `ns1` {% popover namespace %}
+When running Pulsar in standalone mode, the `sample` {% popover tenant %} and `ns1` {% popover namespace %} will be created automatically for you. That tenant and namespace will be used throughout this tutorial.
 
 ## Run a Pulsar Function in local run mode
+
+To run a function in local mode, i.e. outside our Pulsar cluster:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
   --jar examples/api-examples.jar \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
   --inputs persistent://sample/standalone/ns1/exclamation-input \
-  --output persistent://sample/standalone/ns1/exclamation-output
+  --output persistent://sample/standalone/ns1/exclamation-output \
+  --name exclamation
 ```
+
+The JAR file containing the function (written in Java) is included with the binary distribution you downloaded above.
 
 We can use the [`pulsar-client`](../../reference/CliTools#pulsar-client) CLI tool to publish a message to the input topic:
 
@@ -64,11 +69,13 @@ In the output, you should see the following:
 Hello world!
 ```
 
-Success! As you can see, the message has been successfully processed by the exclamation function.
+Success! As you can see, the message has been successfully processed by the exclamation function. To shut down the function, simply hit **Ctrl+C**.
 
 ## Run a Pulsar Function in cluster mode
 
-[Local run mode](#run-a-pulsar-function-in-local-run-mode) is useful for development and experimentation, but if you wanted to use Pulsar Functions in a real Pulsar deployment, you'd want to run them in **cluster mode**. In cluster mode, Pulsar Functions run *inside* your Pulsar cluster.
+[Local run mode](#run-a-pulsar-function-in-local-run-mode) is useful for development and experimentation, but if you wanted to use Pulsar Functions in a real Pulsar deployment, you'd want to run them in **cluster mode**. In cluster mode, Pulsar Functions run *inside* your Pulsar cluster and are managed using the same `pulsar-admin functions` interface that we've been using thus far.
+
+This command would deploy the same exclamation function we ran locally above in our Pulsar cluster:
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -77,5 +84,93 @@ $ bin/pulsar-admin functions create \
   --inputs persistent://sample/standalone/ns1/exclamation-input \
   --output persistent://sample/standalone/ns1/exclamation-output \
   --tenant sample \
+  --namespace ns1 \
+  --name exclamation
+```
+
+You should see `Created successfully` in the output. Now, let's see a list of functions running in our cluster:
+
+```bash
+$ bin/pulsar-admin functions list \
+  --tenant sample \
   --namespace ns1
+```
+
+We should see just the `exclamation` function listed there. We can also check the status of our deployed function using the `getstatus` command:
+
+```bash
+$ bin/pulsar-admin functions getstatus \
+  --tenant sample \
+  --namespace ns1 \
+  --name exclamation
+```
+
+You should see this JSON output:
+
+```json
+{
+  "functionStatusList": [
+    {
+      "running": true,
+      "instanceId": "0"
+    }
+  ]
+}
+```
+
+As we can see, (a) the instance is currently running and (b) there is one instance, with an ID of 0, running. We can get other information about the function (topics, tenant, namespace, etc.) using the `get` command instead of `getstatus`:
+
+```bash
+$ bin/pulsar-admin functions get \
+  --tenant sample \
+  --namespace ns1 \
+  --name exclamation
+```
+
+You should see this JSON output:
+
+```json
+{
+  "tenant": "sample",
+  "namespace": "ns1",
+  "name": "exclamation",
+  "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
+  "output": "persistent://sample/standalone/ns1/exclamation-output",
+  "autoAck": true,
+  "inputs": [
+    "persistent://sample/standalone/ns1/exclamation-input"
+  ],
+  "parallelism": 1
+}
+```
+
+As we can see, the parallelism of the function is 1, meaning that only one instance of the function is running in our cluster. Let's update our function to a parallelism of 3 using the `update` command:
+
+```bash
+$ bin/pulsar-admin functions update \
+  --jar examples/api-examples.jar \
+  --className org.apache.pulsar.functions.api.examples.ExclamationFunction \
+  --inputs persistent://sample/standalone/ns1/exclamation-input \
+  --output persistent://sample/standalone/ns1/exclamation-output \
+  --tenant sample \
+  --namespace ns1 \
+  --name exclamation \
+  --parallelism 3
+```
+
+You should see `Updated successfully` in the output. If you run the `get` command from above for the function, you can see that the parallelism has increased to 3, meaning that there are now three instances of the function running in our cluster:
+
+```json
+{
+  "tenant": "sample",
+  "namespace": "ns1",
+  "name": "exclamation",
+  "className": "org.apache.pulsar.functions.api.examples.ExclamationFunction",
+  "output": "persistent://sample/standalone/ns1/exclamation-output",
+  "autoAck": true,
+  "inputs": [
+    "persistent://sample/standalone/ns1/exclamation-input"
+  ],
+  "parallelism": 3
+}
 ```
