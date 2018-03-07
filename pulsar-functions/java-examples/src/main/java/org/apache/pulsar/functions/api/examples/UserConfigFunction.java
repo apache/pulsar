@@ -24,7 +24,7 @@ import org.apache.pulsar.functions.api.PulsarFunction;
 public class UserConfigFunction implements PulsarFunction<String, String> {
     @Override
     public String process(String input, Context context) {
-        context.getLogger().info("My Config is " + context.getUserConfigValue("MyOwnConfig"));
+        context.getLogger().info("My config is {}", context.getUserConfigValue("MyOwnConfig"));
         return input + context.getUserConfigValue("MyOwnConfig");
     }
 }

@@ -22,24 +22,17 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 
-/**
- * A function with logging example.
- */
 public class LoggingFunction implements PulsarFunction<String, String> {
-
     private static final AtomicIntegerFieldUpdater<LoggingFunction> COUNTER_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(LoggingFunction.class, "counter");
     private volatile int counter = 0;
 
     @Override
     public String process(String input, Context context) {
-
         int counterLocal = COUNTER_UPDATER.incrementAndGet(this);
         if ((counterLocal & Integer.MAX_VALUE) % 100000 == 0) {
             context.getLogger().info("Handled {} messages", counterLocal);
         }
-
-        return input + "!";
+        return String.format("%s!", input);
     }
-
 }
