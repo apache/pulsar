@@ -145,7 +145,7 @@ commands:
       description: The function's parallelism factor, i.e. the number of instances of the function to run
       default: 1
     - flags: --processingGuarantees
-      description: The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`
+      description: "The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`"
       default: ATLEAST_ONCE
     - flags: --py
       description: The path of the Python file containing the function's processing logic (if the function is written in Python)
@@ -184,7 +184,7 @@ commands:
       description: The function's parallelism factor, i.e. the number of instances of the function to run
       default: 1
     - flags: --processingGuarantees
-      description: The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`
+      description: "The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`"
       default: ATLEAST_ONCE
     - flags: --py
       description: The path of the Python file containing the function's processing logic (if the function is written in Python)
@@ -230,7 +230,7 @@ commands:
       description: The function's parallelism factor, i.e. the number of instances of the function to run
       default: 1
     - flags: --processingGuarantees
-      description: The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`
+      description: "The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`"
       default: ATLEAST_ONCE
     - flags: --py
       description: The path of the Python file containing the function's processing logic (if the function is written in Python)
