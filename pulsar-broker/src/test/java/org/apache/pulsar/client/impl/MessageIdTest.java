@@ -454,11 +454,6 @@ public class MessageIdTest extends BrokerTestBase {
         }
 
         // 5. Verify
-
-        // (5.1) Verify: producer's recoverChecksumError and updateChecksum invoked
-        verify(producer, times(1)).recoverChecksumError(any(), anyLong());
-        verify(producer, times(1)).verifyLocalBufferIsNotCorrupted(any());
-
         /**
          * (5.3) verify: ProducerImpl.verifyLocalBufferIsNotCorrupted() => validates if message is corrupt
          */
