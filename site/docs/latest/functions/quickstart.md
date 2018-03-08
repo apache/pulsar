@@ -53,6 +53,14 @@ $ bin/pulsar-admin functions localrun \
   --name exclamation
 ```
 
+{% include admonition.html title='Multiple input topics allowed' type='success' content="
+In the example above, a single topic was specified using the `--inputs` flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here's an example:
+
+```bash
+--inputs topic1,topic2
+```
+" %}
+
 We can use the [`pulsar-client`](../../reference/CliTools#pulsar-client) CLI tool to publish a message to the input topic:
 
 ```bash
