@@ -9473,7 +9473,8 @@ span.popover-term {
     .rest-api-container article section.content .topic + p, .docs-container article section.content .topic + p {
       margin-top: 20px; }
   .rest-api-container article section.content .highlighter-rouge, .docs-container article section.content .highlighter-rouge {
-    font-family: "Inconsolata", monospace; }
+    font-family: "Inconsolata", monospace;
+    margin-bottom: 1rem; }
     .rest-api-container article section.content .highlighter-rouge .highlight, .docs-container article section.content .highlighter-rouge .highlight {
       margin: 0;
       padding: 1rem; }

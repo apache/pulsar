@@ -321,6 +321,30 @@
     
     
     <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-functions">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
+            Pulsar Functions
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-functions" role="tabpanel" aria-labelledby="heading-pulsar-functions">
+        <ul>
+          
+          
+          <li>
+            <a href="../../functions/quickstart">
+              Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
       <div class="card-header" role="tab" id="heading-deployment">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
@@ -753,9 +777,70 @@
       </section>
 
       <section class="content">
-        <h2 id="java">Java</h2>
+        <p>Pulsar Functions provides an easy-to-use API that develoeprs can use to</p>
 
-<p>Java API example:</p>
+<h2 id="core-programming-model">Core programming model</h2>
+
+<p>Pulsar Functions</p>
+
+<h3 id="source-and-sink-topics">Source and sink topics</h3>
+
+<p>All Pulsar Functions have one or more <strong>source topics</strong> that supply messages to the function.</p>
+
+<h3 id="sink-topic">Sink topic</h3>
+
+<p>At the moment, Pulsar Functions can have at most one <strong>sink topic</strong> to which processing results are published.</p>
+
+<h3 id="serde">SerDe</h3>
+
+<p>SerDe stands for <strong>Ser</strong>ialization and <strong>De</strong>serialization</p>
+
+<h2 id="context">Context</h2>
+
+<p>Both the <a href="#java-functions-with-context">Java</a> and <a href="#python-functions-with-context">Python</a> APIs provide optional access to a <strong>context object</strong> that can be used by the function. This context object provides a wide variety of information to the function:</p>
+
+<ul>
+  <li>The name and ID of the Pulsar Function</li>
+  <li>The message ID of each message</li>
+  <li>The name of the topic on which the message was sent</li>
+  <li>The names of all <a href="#source-topics">source topics</a> and the <a href="#sink-topic">sink topics</a> associated with the function</li>
+  <li>The name of the class used for <a href="#serde">SerDe</a></li>
+  <li>The <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> associated with the function</li>
+  <li>The ID of the Pulsar Functions instance running the function</li>
+  <li>The version of the function</li>
+  <li>The logger object used by the function</li>
+</ul>
+
+<h2 id="java">Java</h2>
+
+<p>Writing Pulsar Functions in Java involves implementing one of two interfaces:</p>
+
+<ul>
+  <li>The <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code class="highlighter-rouge">java.util.Function</code></a> interface</li>
+  <li>The <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/PulsarFunction.html"><code class="highlighter-rouge">PulsarFunction</code></a> interface. This interface works much like the <code class="highlighter-rouge">java.util.Function</code> ihterface, but with the important difference</li>
+</ul>
+
+<h3 id="java-functions-without-context">Java functions without context</h3>
+
+<p>If your function doesn’t require access to its <a href="#context">context</a>, you can implement the <a href="https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html"><code class="highlighter-rouge">java.util.Function</code></a> interface, which has this very simply, one-method signature:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">Function</span><span class="o">&lt;</span><span class="n">I</span><span class="o">,</span> <span class="n">O</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="n">O</span> <span class="nf">apply</span><span class="o">(</span><span class="n">I</span> <span class="n">input</span><span class="o">);</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>Here’s a simple example that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">java.util.Function</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">ExclamationFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+
+<span class="o">}</span>
+</code></pre></div></div>
+
+<h3 id="void-functions">Void functions</h3>
+
+<p>Pulsar Functions can publish results to an output <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span>, but this isn’t required. Functions can also</p>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">java.util.Function</span><span class="o">;</span>
 <span class="kd">public</span> <span class="kd">class</span> <span class="nc">ExclamationFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
@@ -764,7 +849,7 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<h3 id="with-context">With context</h3>
+<h3 id="java-functions-with-context">Java functions with context</h3>
 
 <div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kd">public</span> <span class="kd">interface</span> <span class="nc">PulsarFunction</span><span class="o">&lt;</span><span class="n">I</span><span class="o">,</span> <span class="n">O</span><span class="o">&gt;</span> <span class="o">{</span>
     <span class="n">O</span> <span class="nf">process</span><span class="o">(</span><span class="n">I</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="kd">throws</span> <span class="n">Exception</span><span class="o">;</span>
@@ -795,7 +880,7 @@
 <span class="o">}</span>
 </code></pre></div></div>
 
-<h3 id="serde">SerDe</h3>
+<h3 id="serde-1">SerDe</h3>
 
 <blockquote>
   <p>Serde stands for <strong>Ser</strong>ialization and <strong>De</strong>serialization.</p>
@@ -819,6 +904,11 @@
 <h2 id="python">Python</h2>
 
 <div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+</code></pre></div></div>
+
+<h3 id="with-context">With context</h3>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> 
 </code></pre></div></div>
 
       </section>

@@ -321,6 +321,30 @@
     
     
     <div class="card">
+      <div class="card-header" role="tab" id="heading-pulsar-functions">
+        <h5>
+          <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
+            Pulsar Functions
+          </a>
+        </h5>
+      </div>
+
+      <div class="sidebar-group collapse" id="collapse-pulsar-functions" role="tabpanel" aria-labelledby="heading-pulsar-functions">
+        <ul>
+          
+          
+          <li>
+            <a href="../../functions/quickstart">
+              Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+        </ul>
+      </div>
+    </div>
+    
+    
+    <div class="card">
       <div class="card-header" role="tab" id="heading-deployment">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-deployment" aria-controls="collapse-deployment">
@@ -744,7 +768,7 @@
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
         <h1 class="docs-title">Getting started with Pulsar Functions</h1>
-        
+        <span class="docs-lead">Write and run your first Pulsar Function in just a few steps</span><br />
         <section class="tags">
           
         </section>
@@ -753,28 +777,269 @@
       </section>
 
       <section class="content">
-        <h2 id="the-pulsar-functions-cli-tool">The <code class="highlighter-rouge">pulsar-functions</code> CLI tool</h2>
+        <p>This tutorial will walk you through running a <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span>), while the second will run in cluster mode (inside your cluster).</p>
 
-<p><a href="../../reference/CliTools#pulsar-functions"><code class="highlighter-rouge">pulsar-functions</code></a></p>
+<!--
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">alias </span>pulsar-functions<span class="o">=</span><span class="s1">'/path/to/pulsar/bin/pulsar-functions'</span>
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="">
+    
+    <p>In local run mode, your Pulsar Function will communicate with your Pulsar cluster but will run outside of the cluster.</p>
+
+  </div>
+</div>
+
+<h2 id="prerequisites">Prerequisites</h2>
+
+<p>In order to follow along with this tutorial, you’ll need to have <a href="https://maven.apache.org/download.cgi">Maven</a> installed on your machine.</p>
+
+<h2 id="run-a-standalone-pulsar-cluster">Run a standalone Pulsar cluster</h2>
+
+<p>In order to run our Pulsar Functions, we’ll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode. Follow these steps to start up a standalone cluster:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
+<span class="nv">$ </span><span class="nb">tar </span>xvf apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-2.0.0-incubating-functions-preview
+<span class="nv">$ </span>bin/pulsar standalone <span class="se">\</span>
+  <span class="nt">--advertised-address</span> 127.0.0.1
 </code></pre></div></div>
 
-<h2 id="querying-state">Querying state</h2>
+<p>When running Pulsar in standalone mode, the <code class="highlighter-rouge">sample</code> <span class="popover-term" tabindex="0" title="What is a tenant?" data-placement="top" data-content="An administrative unit for allocating capacity and enforcing an authentication/authorization scheme. Tenants in Pulsar are managed at the property level." data-toggle="popover" data-trigger="focus">tenant</span> and <code class="highlighter-rouge">ns1</code> <span class="popover-term" tabindex="0" title="What is a namespace?" data-placement="top" data-content="A grouping mechanism for related topics." data-toggle="popover" data-trigger="focus">namespace</span> will be created automatically for you. That tenant and namespace will be used throughout this tutorial.</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-functions querystate <span class="se">\</span>
+<h2 id="run-a-pulsar-function-in-local-run-mode">Run a Pulsar Function in local run mode</h2>
+
+<p>Let’s start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes that new string to another Pulsar topic. Here’s the code for the function:</p>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">package</span> <span class="n">org</span><span class="o">.</span><span class="na">apache</span><span class="o">.</span><span class="na">pulsar</span><span class="o">.</span><span class="na">functions</span><span class="o">.</span><span class="na">api</span><span class="o">.</span><span class="na">examples</span><span class="o">;</span>
+
+<span class="kn">import</span> <span class="nn">java.util.function.Function</span><span class="o">;</span>
+
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">ExclamationFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">String</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="n">String</span> <span class="nf">apply</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">)</span> <span class="o">{</span>
+        <span class="k">return</span> <span class="n">String</span><span class="o">.</span><span class="na">format</span><span class="o">(</span><span class="s">"%s!"</span><span class="o">,</span> <span class="n">input</span><span class="o">);</span>
+    <span class="o">}</span>
+<span class="o">}</span>
+</code></pre></div></div>
+
+<p>A JAR file containing this and several other functions (written in Java) is included with the binary distribution you downloaded above (in the <code class="highlighter-rouge">examples</code> folder). To run the function in local mode, i.e. on our laptop but outside our Pulsar cluster:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
+  <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
+  <span class="nt">--name</span> exclamation
+</code></pre></div></div>
+
+<p>We can use the <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> CLI tool to publish a message to the input topic:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
+  <span class="nt">--num-produce</span> 1 <span class="se">\</span>
+  <span class="nt">--messages</span> <span class="s2">"Hello world"</span>
+</code></pre></div></div>
+
+<p>Here’s what happens next:</p>
+
+<ul>
+  <li>The <code class="highlighter-rouge">Hello world</code> message that we published to the input <span class="popover-term" tabindex="0" title="What is a topic?" data-placement="top" data-content="A named channel used to pass messages published by producers to consumers who process those messages." data-toggle="popover" data-trigger="focus">topic</span> (<code class="highlighter-rouge">persistent://sample/standalone/ns1/exclamation-input</code>) will be passed to the exclamation function that we’re now running on our laptop</li>
+  <li>The exclamation function will process the message (providing a result of <code class="highlighter-rouge">Hello world!</code>) and publish the result to the output topic (<code class="highlighter-rouge">persistent://sample/standalone/ns1/exclamation-output</code>).</li>
+  <li>Pulsar will durably store the message data published to the output topic in <a href="https://bookkeeper.apache.org">Apache BookKeeper</a> until a <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> consumes and <span class="popover-term" tabindex="0" title="What is an acknowledgement (ack)?" data-placement="top" data-content="A message sent to a Pulsar broker by a consumer that a message has been successfully processed. An acknowledgement (ack) is Pulsar's way of knowing that the message can be deleted from the system; if no acknowledgement, then the message will be retained until it's processed." data-toggle="popover" data-trigger="focus">acknowledges</span> the message</li>
+</ul>
+
+<p>To consume the message, we can use the same <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> tool that we used to publish the original message:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
+  <span class="nt">--subscription-name</span> my-subscription <span class="se">\</span>
+  <span class="nt">--num-messages</span> 1
+</code></pre></div></div>
+
+<p>In the output, you should see the following:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>----- got message -----
+Hello world!
+</code></pre></div></div>
+
+<p>Success! As you can see, the message has been successfully processed by the exclamation function. To shut down the function, simply hit <strong>Ctrl+C</strong>.</p>
+
+<h2 id="run-a-pulsar-function-in-cluster-mode">Run a Pulsar Function in cluster mode</h2>
+
+<p><a href="#run-a-pulsar-function-in-local-run-mode">Local run mode</a> is useful for development and experimentation, but if you wanted to use Pulsar Functions in a real Pulsar deployment, you’d want to run them in <strong>cluster mode</strong>. In cluster mode, Pulsar Functions run <em>inside</em> your Pulsar cluster and are managed using the same <code class="highlighter-rouge">pulsar-admin functions</code> interface that we’ve been using thus far.</p>
+
+<p>This command would deploy the same exclamation function we ran locally above in our Pulsar cluster:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
   <span class="nt">--tenant</span> sample <span class="se">\</span>
-  <span class="nt">--namespace</span> my-functions <span class="se">\</span>
-  <span class="nt">--function-name</span> my-function <span class="se">\</span>
-  <span class="nt">--key</span> <span class="s2">"some-key"</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> exclamation
 </code></pre></div></div>
 
-<h2 id="running-functions-locally">Running functions locally</h2>
+<p>You should see <code class="highlighter-rouge">Created successfully</code> in the output. Now, let’s see a list of functions running in our cluster:</p>
 
-<p><a href="../../reference/CliTools#pulsar-functions-localrun"><code class="highlighter-rouge">localrun</code></a></p>
-
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-functions localrun
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions list <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1
 </code></pre></div></div>
+
+<p>We should see just the <code class="highlighter-rouge">exclamation</code> function listed there. We can also check the status of our deployed function using the <code class="highlighter-rouge">getstatus</code> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions getstatus <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> exclamation
+</code></pre></div></div>
+
+<p>You should see this JSON output:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"functionStatusList"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="p">{</span><span class="w">
+      </span><span class="s2">"running"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+      </span><span class="s2">"instanceId"</span><span class="p">:</span><span class="w"> </span><span class="s2">"0"</span><span class="w">
+    </span><span class="p">}</span><span class="w">
+  </span><span class="p">]</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>As we can see, (a) the instance is currently running and (b) there is one instance, with an ID of 0, running. We can get other information about the function (topics, tenant, namespace, etc.) using the <code class="highlighter-rouge">get</code> command instead of <code class="highlighter-rouge">getstatus</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions get <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> exclamation
+</code></pre></div></div>
+
+<p>You should see this JSON output:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sample"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"namespace"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ns1"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"exclamation"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"className"</span><span class="p">:</span><span class="w"> </span><span class="s2">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-output"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"autoAck"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-input"</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="s2">"parallelism"</span><span class="p">:</span><span class="w"> </span><span class="mi">1</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>As we can see, the parallelism of the function is 1, meaning that only one instance of the function is running in our cluster. Let’s update our function to a parallelism of 3 using the <code class="highlighter-rouge">update</code> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
+  <span class="nt">--jar</span> examples/api-examples.jar <span class="se">\</span>
+  <span class="nt">--className</span> org.apache.pulsar.functions.api.examples.ExclamationFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/exclamation-input <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> exclamation <span class="se">\</span>
+  <span class="nt">--parallelism</span> 3
+</code></pre></div></div>
+
+<p>You should see <code class="highlighter-rouge">Updated successfully</code> in the output. If you run the <code class="highlighter-rouge">get</code> command from above for the function, you can see that the parallelism has increased to 3, meaning that there are now three instances of the function running in our cluster:</p>
+
+<div class="language-json highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="p">{</span><span class="w">
+  </span><span class="s2">"tenant"</span><span class="p">:</span><span class="w"> </span><span class="s2">"sample"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"namespace"</span><span class="p">:</span><span class="w"> </span><span class="s2">"ns1"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"name"</span><span class="p">:</span><span class="w"> </span><span class="s2">"exclamation"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"className"</span><span class="p">:</span><span class="w"> </span><span class="s2">"org.apache.pulsar.functions.api.examples.ExclamationFunction"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"output"</span><span class="p">:</span><span class="w"> </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-output"</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"autoAck"</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w">
+  </span><span class="s2">"inputs"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="w">
+    </span><span class="s2">"persistent://sample/standalone/ns1/exclamation-input"</span><span class="w">
+  </span><span class="p">],</span><span class="w">
+  </span><span class="s2">"parallelism"</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="w">
+</span><span class="p">}</span><span class="w">
+</span></code></pre></div></div>
+
+<p>Finally, we can shut down our running function using the <code class="highlighter-rouge">delete</code> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions delete <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> exclamation
+</code></pre></div></div>
+
+<p>If you see <code class="highlighter-rouge">Deleted successfully</code> in the output, then you’ve succesfully run, updated, and shut down a Pulsar Function running in cluster mode. Congrats! Now, let’s go even further and run a brand new function in the next section.</p>
+
+<h2 id="writing-and-running-a-new-function">Writing and running a new function</h2>
+
+<p>In the above examples, we ran and managed a pre-written Pulsar Function and saw how it worked. To really get our hands dirty, let’s write and our own function from scratch, using the Python API. This simple function will also take a string as input but it will reverse the string and publish the resulting, reversed string to the specified topic.</p>
+
+<p>First, create a new Python file:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span><span class="nb">touch </span>reverse.py
+</code></pre></div></div>
+
+<p>In that file, add the following:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsarfunction</span> <span class="kn">import</span> <span class="n">pulsar_function</span>
+
+<span class="k">class</span> <span class="nc">Reverse</span><span class="p">(</span><span class="n">pulsar_function</span><span class="o">.</span><span class="n">PulsarFunction</span><span class="p">):</span>
+  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">pass</span>
+
+  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">input</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+</code></pre></div></div>
+
+<p>Here, the <code class="highlighter-rouge">process</code> method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using <code class="highlighter-rouge">create</code>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--py</span> reverse.py <span class="se">\</span>
+  <span class="nt">--className</span> reverse.Reverse <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/forwards <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/backwards <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> reverse 
+</code></pre></div></div>
+
+<p>If you see <code class="highlighter-rouge">Created successfully</code>, the function is ready to accept incoming messages. Let’s publish a string to the input topic:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce persistent://sample/standalone/ns1/forwards <span class="se">\</span>
+  <span class="nt">--num-produce</span> 1 <span class="se">\</span>
+  <span class="nt">--messages</span> <span class="s2">"sdrawrof won si tub sdrawkcab saw gnirts sihT"</span>
+</code></pre></div></div>
+
+<p>Now, let’s pull in a message from the output topic:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/backwards <span class="se">\</span>
+  <span class="nt">--subscription-name</span> my-subscription <span class="se">\</span>
+  <span class="nt">--num-messages</span> 1
+</code></pre></div></div>
+
+<p>You should see the reversed string in the log output:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>----- got message -----
+This string was backwards but is now forwards
+</code></pre></div></div>
+
+<p>Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, and successfully published to the function’s input topic and consumed from its output topic.</p>
 
       </section>
     </article>
