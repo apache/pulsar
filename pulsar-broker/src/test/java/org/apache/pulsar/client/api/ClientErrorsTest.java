@@ -23,12 +23,12 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import io.netty.channel.ChannelHandlerContext;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
-
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.client.api.PulsarClientException.LookupException;
 import org.apache.pulsar.client.impl.ConsumerBase;
@@ -36,11 +36,10 @@ import org.apache.pulsar.client.impl.ProducerBase;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
-
-import io.netty.channel.ChannelHandlerContext;
 
 /**
  */
@@ -143,7 +142,7 @@ public class ClientErrorsTest {
 
         mockBrokerService.setHandleProducer((ctx, producer) -> {
             if (counter.incrementAndGet() == 2) {
-                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer"));
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
                 return;
             }
             ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.ServiceNotReady, "msg"));
@@ -217,7 +216,8 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthenticationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer"));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
+
         });
 
         ProducerBase<byte[]> producer1 = (ProducerBase<byte[]>) client.newProducer().topic(topic1).create();
@@ -255,7 +255,7 @@ public class ClientErrorsTest {
             int i = counter.incrementAndGet();
             if (i == 1 || i == 5) {
                 // succeed on 1st and 5th attempts
-                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer"));
+                ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
                 return;
             }
             ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.PersistenceError, "msg"));
@@ -479,7 +479,7 @@ public class ClientErrorsTest {
                 ctx.writeAndFlush(Commands.newError(producer.getRequestId(), ServerError.AuthorizationError, "msg"));
                 return;
             }
-            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer"));
+            ctx.writeAndFlush(Commands.newProducerSuccess(producer.getRequestId(), "default-producer", SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleCloseProducer((ctx, closeProducer) -> {
@@ -583,7 +583,7 @@ public class ClientErrorsTest {
         });
 
         mockBrokerService.setHandleProducer((ctx, produce) -> {
-            ctx.writeAndFlush(Commands.newProducerSuccess(produce.getRequestId(), "default-producer"));
+            ctx.writeAndFlush(Commands.newProducerSuccess(produce.getRequestId(), "default-producer", SchemaVersion.Empty));
         });
 
         mockBrokerService.setHandleSend((ctx, sendCmd, headersAndPayload) -> {
