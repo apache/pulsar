@@ -30,6 +30,8 @@ public class CounterFunction implements PulsarFunction<String, Void> {
             context.incrCounter(part, 1);
         }
 
+        context
+
         return null;
     }
 }
