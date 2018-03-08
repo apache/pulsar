@@ -20,6 +20,9 @@ package org.apache.pulsar.broker;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
@@ -34,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -52,6 +54,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
@@ -79,11 +82,6 @@ import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Main class for Pulsar broker service
@@ -123,6 +121,7 @@ public class PulsarService implements AutoCloseable {
     private final String brokerServiceUrl;
     private final String brokerServiceUrlTls;
     private final String brokerVersion;
+    private SchemaRegistryService schemaRegistryService = null;
     private final Optional<WorkerService> functionWorkerService;
 
     private final MessagingServiceShutdownHook shutdownService;
@@ -231,6 +230,10 @@ public class PulsarService implements AutoCloseable {
             LoadManager loadManager = this.loadManager.get();
             if (loadManager != null) {
                 loadManager.stop();
+            }
+
+            if (schemaRegistryService != null) {
+                schemaRegistryService.close();
             }
 
             state = State.Closed;
@@ -358,6 +361,8 @@ public class PulsarService implements AutoCloseable {
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            schemaRegistryService = SchemaRegistryService.create(this);
 
             state = State.Started;
 
@@ -700,5 +705,9 @@ public class PulsarService implements AutoCloseable {
 
     public String getBrokerVersion() {
         return brokerVersion;
+    }
+
+    public SchemaRegistryService getSchemaRegistryService() {
+        return schemaRegistryService;
     }
 }
