@@ -125,12 +125,7 @@
 
       .highlighter-rouge {
         font-family: $font-family-monospace;
-        
-        & + {
-          p {
-            margin-bottom: 1rem;
-          }
-        }
+        margin: .75rem 0;
 
         .highlight {
           margin: 0;
