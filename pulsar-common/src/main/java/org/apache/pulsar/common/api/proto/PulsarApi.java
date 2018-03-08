@@ -4623,6 +4623,10 @@ public final class PulsarApi {
     // required int32 payload_size = 3;
     boolean hasPayloadSize();
     int getPayloadSize();
+    
+    // optional bool compacted_out = 4 [default = false];
+    boolean hasCompactedOut();
+    boolean getCompactedOut();
   }
   public static final class SingleMessageMetadata extends
       com.google.protobuf.GeneratedMessageLite
@@ -4724,10 +4728,21 @@ public final class PulsarApi {
       return payloadSize_;
     }
     
+    // optional bool compacted_out = 4 [default = false];
+    public static final int COMPACTED_OUT_FIELD_NUMBER = 4;
+    private boolean compactedOut_;
+    public boolean hasCompactedOut() {
+      return ((bitField0_ & 0x00000004) == 0x00000004);
+    }
+    public boolean getCompactedOut() {
+      return compactedOut_;
+    }
+    
     private void initFields() {
       properties_ = java.util.Collections.emptyList();
       partitionKey_ = "";
       payloadSize_ = 0;
+      compactedOut_ = false;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -4765,6 +4780,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeInt32(3, payloadSize_);
       }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        output.writeBool(4, compactedOut_);
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -4784,6 +4802,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         size += com.google.protobuf.CodedOutputStream
           .computeInt32Size(3, payloadSize_);
+      }
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeBoolSize(4, compactedOut_);
       }
       memoizedSerializedSize = size;
       return size;
@@ -4904,6 +4926,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000002);
         payloadSize_ = 0;
         bitField0_ = (bitField0_ & ~0x00000004);
+        compactedOut_ = false;
+        bitField0_ = (bitField0_ & ~0x00000008);
         return this;
       }
       
@@ -4950,6 +4974,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.payloadSize_ = payloadSize_;
+        if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
+          to_bitField0_ |= 0x00000004;
+        }
+        result.compactedOut_ = compactedOut_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -4971,6 +4999,9 @@ public final class PulsarApi {
         }
         if (other.hasPayloadSize()) {
           setPayloadSize(other.getPayloadSize());
+        }
+        if (other.hasCompactedOut()) {
+          setCompactedOut(other.getCompactedOut());
         }
         return this;
       }
@@ -5025,6 +5056,11 @@ public final class PulsarApi {
             case 24: {
               bitField0_ |= 0x00000004;
               payloadSize_ = input.readInt32();
+              break;
+            }
+            case 32: {
+              bitField0_ |= 0x00000008;
+              compactedOut_ = input.readBool();
               break;
             }
           }
@@ -5175,6 +5211,27 @@ public final class PulsarApi {
       public Builder clearPayloadSize() {
         bitField0_ = (bitField0_ & ~0x00000004);
         payloadSize_ = 0;
+        
+        return this;
+      }
+      
+      // optional bool compacted_out = 4 [default = false];
+      private boolean compactedOut_ ;
+      public boolean hasCompactedOut() {
+        return ((bitField0_ & 0x00000008) == 0x00000008);
+      }
+      public boolean getCompactedOut() {
+        return compactedOut_;
+      }
+      public Builder setCompactedOut(boolean value) {
+        bitField0_ |= 0x00000008;
+        compactedOut_ = value;
+        
+        return this;
+      }
+      public Builder clearCompactedOut() {
+        bitField0_ = (bitField0_ & ~0x00000008);
+        compactedOut_ = false;
         
         return this;
       }

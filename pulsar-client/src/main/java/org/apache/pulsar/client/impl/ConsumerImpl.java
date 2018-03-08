@@ -947,6 +947,14 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
                     ++skippedMessages;
                     continue;
                 }
+                if (singleMessageMetadataBuilder.getCompactedOut()) {
+                    // message has been compacted out, so don't send to the user
+                    singleMessagePayload.release();
+                    singleMessageMetadataBuilder.recycle();
+
+                    ++skippedMessages;
+                    continue;
+                }
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
                         messageId.getEntryId(), getPartitionIndex(), i);
