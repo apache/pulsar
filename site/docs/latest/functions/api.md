@@ -2,7 +2,9 @@
 title: The Pulsar Functions API
 ---
 
-Pulsar Functions provides an easy-to-use API that developers can use to easily write and mange processing logic for the Apache Pulsar messaging system. With Pulsar Functions you can write processing logic of any level of complexity in [Java](#java) or [Python](#python) and easily deploy and manage that logic without needing to run a
+Pulsar Functions provides an easy-to-use API that developers can use to easily create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#java) or [Python](#python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
+
+{% include admonition.html type="info" content="For a more in-depth overview of the Pulsar Functions feature, see the [Concepts and Architecture](../../getting-started/ConceptsAndArchitecture#pulsar-functions) guide." %}
 
 ## Core programming model
 
@@ -13,19 +15,13 @@ But there are some important differences between Pulsar Functions and normal Pul
 * With Pulsar Functions, you don't need to instantiate a client, producer, or consumer. You only need to specify how you want each incoming message to be processed.
 * You don't need to specify the function's {% popover topic %}, {% popover tenant %}, or {% popover namespace %} inside of the function itself. That information is supplied via the [CLI](../../reference/CliTools#pulsar-admin-functions) when you run the function. That means that functions can be easily used and re-used across topics.
 
-### Source and sink topics
+### Input and output topics
 
-All Pulsar Functions have one or more **source topics** that supply messages to the function.
+All Pulsar Functions have one or more **input topics** that supply messages to the function.
 
-### Sink topic
+At the moment, Pulsar Functions can only have one output topic.
 
-At the moment, Pulsar Functions can have at most one **sink topic** to which processing results are published.
-
-## Parallelism
-
-By default, Pulsar Functions run as processes called **instances**.
-
-### Serialization and deserializtion (SerDe) {#serde}
+### Serialization and deserialization (SerDe) {#serde}
 
 SerDe stands for **Ser**ialization and **De**serialization. Whenever you use Pulsar Functions.
 
@@ -54,6 +50,8 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 * An interface for recording [metrics](../metrics-and-stats)
 
 ## Logging
+
+TODO.
 
 ## Counters
 
@@ -132,25 +130,6 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-### Void functions
-
-Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, increment a [counter](#counters), write results to a database, etc.
-
-
-
-```java
-public class IncrementFunction implements PulsarFunction<String, Void> {
-    @Override
-    public String apply(String input, Context context) {
-        String counterKey = input;
-        context.incrCounter(counterKey, 1);
-        return null;
-    }
-}
-```
-
-{% include admonition.html type="warning" content="When using Java functions that return `Void`, the function must *always* return `null`." %}
-
 ### Java functions with context
 
 ```java
@@ -184,6 +163,25 @@ public interface Context {
 }
 ```
 
+### Void functions
+
+Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, increment a [counter](#counters), write results to a database, etc.
+
+
+
+```java
+public class IncrementFunction implements PulsarFunction<String, Void> {
+    @Override
+    public String apply(String input, Context context) {
+        String counterKey = input;
+        context.incrCounter(counterKey, 1);
+        return null;
+    }
+}
+```
+
+{% include admonition.html type="warning" content="When using Java functions that return `Void`, the function must *always* return `null`." %}
+
 ### Java SerDe
 
 > Serde stands for **Ser**ialization and **De**serialization.
@@ -211,6 +209,10 @@ public interface SerDe<T> {
 $ bin/pulsar-admin functions create \
   --ser
 ```
+
+### Java logging
+
+
 
 ## Python
 
