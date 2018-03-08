@@ -37,8 +37,8 @@ groups:
     endpoint: quickstart
   #- title: Pulsar Functions overview
   #  endpoint: overview
-  #- title: The Pulsar Functions API
-  #  endpoint: api
+  - title: The Pulsar Functions API
+    endpoint: api
   #- title: Deploying Pulsar Functions
   #  endpoint: deployment
   #- title: Processing guarantees
