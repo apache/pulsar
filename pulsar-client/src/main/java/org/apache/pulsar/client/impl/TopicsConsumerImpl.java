@@ -231,7 +231,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         lock.writeLock().lock();
         try {
             TopicMessageImpl<T> topicMessage = new TopicMessageImpl<>(consumer.getTopic(), message);
-            unAckedMessageTracker.add(topicMessage.getMessageId());
+            unAckedMessageTracker.add(topicMessage.getTopicMessageId());
 
             if (log.isDebugEnabled()) {
                 log.debug("[{}][{}] Received message from topics-consumer {}",
@@ -307,7 +307,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         try {
             message = incomingMessages.take();
             checkState(message instanceof TopicMessageImpl);
-            unAckedMessageTracker.add(message.getMessageId());
+            unAckedMessageTracker.add(((TopicMessageImpl)message).getTopicMessageId());
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
         } catch (InterruptedException e) {
@@ -323,7 +323,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
             message = incomingMessages.poll(timeout, unit);
             if (message != null) {
                 checkArgument(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId());
+                unAckedMessageTracker.add(((TopicMessageImpl)message).getTopicMessageId());
             }
             resumeReceivingFromPausedConsumersIfNeeded();
             return message;
@@ -344,7 +344,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                 pendingReceives.add(result);
             } else {
                 checkState(message instanceof TopicMessageImpl);
-                unAckedMessageTracker.add(message.getMessageId());
+                unAckedMessageTracker.add(((TopicMessageImpl)message).getTopicMessageId());
                 resumeReceivingFromPausedConsumersIfNeeded();
                 result.complete(message);
             }

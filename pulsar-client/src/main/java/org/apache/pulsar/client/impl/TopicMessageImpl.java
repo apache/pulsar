@@ -27,7 +27,7 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     private final String topicName;
     private final Message<T> msg;
-    private final MessageId msgId;
+    private final TopicMessageIdImpl msgId;
 
     TopicMessageImpl(String topicName,
                      Message<T> msg) {
@@ -46,6 +46,10 @@ public class TopicMessageImpl<T> implements Message<T> {
 
     @Override
     public MessageId getMessageId() {
+        return msgId.getInnerMessageId();
+    }
+
+    public MessageId getTopicMessageId() {
         return msgId;
     }
 
