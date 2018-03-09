@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -23,19 +23,13 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
-<<<<<<< HEAD
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
-=======
->>>>>>> master
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
-<<<<<<< HEAD
 import java.util.Collections;
-=======
->>>>>>> master
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,10 +41,7 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
-<<<<<<< HEAD
     private static HashFunction hashFunction = Hashing.sha256();
-=======
->>>>>>> master
     private final SchemaStorage schemaStorage;
     private final Clock clock;
 
@@ -89,7 +80,7 @@ public class SchemaRegistryServiceImpl implements SchemaRegistryService {
     @Override
     @NotNull
     public CompletableFuture<SchemaVersion> putSchemaIfAbsent(String schemaId, SchemaData schema) {
-        byte[] context = hashFunction.hashBytes(schema.data).asBytes();
+        byte[] context = hashFunction.hashBytes(schema.getData()).asBytes();
         SchemaRegistryFormat.SchemaInfo info = SchemaRegistryFormat.SchemaInfo.newBuilder()
             .setType(Functions.convertFromDomainType(schema.getType()))
             .setSchema(ByteString.copyFrom(schema.getData()))
