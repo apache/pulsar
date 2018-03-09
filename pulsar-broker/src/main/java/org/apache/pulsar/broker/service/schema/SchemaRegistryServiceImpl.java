@@ -23,13 +23,19 @@ import static java.util.concurrent.CompletableFuture.completedFuture;
 import static org.apache.pulsar.broker.service.schema.SchemaRegistryServiceImpl.Functions.toPairs;
 
 import com.google.common.annotations.VisibleForTesting;
+<<<<<<< HEAD
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+=======
+>>>>>>> master
 import com.google.protobuf.ByteString;
 import com.google.protobuf.InvalidProtocolBufferException;
 import java.time.Clock;
 import java.util.ArrayList;
+<<<<<<< HEAD
 import java.util.Collections;
+=======
+>>>>>>> master
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +47,10 @@ import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
 public class SchemaRegistryServiceImpl implements SchemaRegistryService {
+<<<<<<< HEAD
     private static HashFunction hashFunction = Hashing.sha256();
+=======
+>>>>>>> master
     private final SchemaStorage schemaStorage;
     private final Clock clock;
 

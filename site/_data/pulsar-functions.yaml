@@ -1,0 +1,85 @@
+#
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+
+description: |
+  A tool for deploying and managing Pulsar Functions.
+example: |
+  pulsar-functions localrun \
+    --function-config my-function.yaml
+commands:
+- name: localrun
+  description: Runs a Pulsar Function
+- name: create
+  description: Creates a new Pulsar Function
+- name: delete
+  description: Deletes an existing Pulsar Function
+- name: update
+  description: Updates an existing Pulsar Function
+- name: get
+  description: Returns information about an existing Pulsar Function
+- name: list
+  description: Lists all currently existing Pulsar Functions
+  options:
+  - flags: --namespace
+    description: The namespace of the Pulsar Functions you'd like to list
+  - flags: --tenant
+    description: The tenant of the Pulsar Functions you'd like to list (you must also specify a namespace using the `--namespace` flag)
+- name: getstatus
+  description: Checks on the status of the specified Pulsar Function
+  options:
+  - flags: --namespace
+    description: The name of the Pulsar Function whose status you'd like to check
+  - flags: --tenant
+    description: The tenant of the Pulsar Function whose status you'd like to check
+  - flags: --tenant
+- name: querystate
+  description: Displays the current state of the specified Pulsar Function, by key
+  options:
+  - flags: -k, --key
+    description: The key for the desired value
+  - flags: --name
+    description: The name of the Pulsar Function whose current state you'd like to query
+  - flags: --namespace
+    description: The namespace of the Pulsar Function whose current state you'd like to query
+  - flags: -u, --storage-service-url
+    description: The URL of the storage service
+  - flags: --tenant
+    description: The tenant of the Pulsar Function whose current state you'd like to query
+  - flags: -w, --watch
+    description: If set, watch for changes in the current state of the specified Pulsar Function (by the key set using `-k`/`--key`)
+    default: 'false'
+options:
+  - flags: --name
+    description: The name of the Pulsar Function
+  - flags: --function-classname
+    description: The Java class name of the Pulsar Function
+  - flags: --function-classpath
+    description: The Java classpath of the Pulsar Function
+  - flags: --source-topic
+    description: The topic from which the Pulsar Function consumes its input
+  - flags: --sink-topic
+    description: The topic to which the Pulsar Function publishes its output (if any)
+  - flags: --input-serde-classname
+    description: Input SerDe
+    default: org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe
+  - flags: --output-serde-classname
+    description: Output SerDe
+    default: org.apache.pulsar.functions.runtime.serde.Utf8StringSerDe
+  - flags: --function-config
+    description: The path for the Pulsar Function's YAML configuration file

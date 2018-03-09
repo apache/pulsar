@@ -45,6 +45,7 @@ message FunctionConfig {
     map<string, string> customSerdeInputs = 5;
     string outputSerdeClassName = 6;
     string output = 7;
+    string logTopic = 8;
     ProcessingGuarantees processingGuarantees = 9;
     map<string,string> userConfig = 10;
     SubscriptionType subscriptionType = 11;
