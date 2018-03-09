@@ -70,6 +70,13 @@ Pulsar Functions can currently be written in [Java](../../functions/api#java) an
 
 ### State storage
 
+Although you can certainly use Pulsar Functions to perform stateless computations, many use cases demand robust state storage
+
+
+You can certainly use Pulsar Functions to perform stateless operations, 
+
+By default, Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) for state storage.
+
 ### Metrics
 
 Here's an example function that publishes a value of 1 to the `my-metric` metric.
