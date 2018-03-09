@@ -1,6 +1,7 @@
 ---
 title: Pulsar Functions overview
 lead: A bird's-eye look at Pulsar's lightweight, developer-friendly compute platform
+new: true
 ---
 
 

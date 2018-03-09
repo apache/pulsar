@@ -1,5 +1,6 @@
 ---
 title: Deploying Pulsar Functions
+new: true
 ---
 
 At the moment, Pulsar Functions are deployed

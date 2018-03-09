@@ -32,6 +32,7 @@ groups:
 
 - title: Pulsar Functions
   dir: functions
+  new: true
   docs:
   - title: Getting started with Pulsar Functions
     endpoint: quickstart

@@ -20,6 +20,7 @@
 - title: Pulsar Functions
   content: Easily deploy lightweight compute logic using developer-friendly APIs without needing to run your own stream processing engine
   endpoint: functions/quickstart
+  new: true
 
 - title: Proven in production
   content: Pulsar has run in production at Yahoo scale for over 3 years, with millions of messages per second across millions of topics

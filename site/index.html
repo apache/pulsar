@@ -49,7 +49,7 @@ layout: default
       <div class="col-sm-4 card">
           <div class="card-block">
             <a href="/docs/latest/{{ feature.endpoint }}" >
-                  <h3 class="card-title">{{ feature.title }}</h3>
+              <h3 class="card-title">{{ feature.title }}{% if feature.new %} <span class="badge badge-warning">New</span>{% endif %}</h3>
             </a>
           <p>{{ feature.content | markdownify }}</p>
         </div>

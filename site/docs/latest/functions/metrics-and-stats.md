@@ -1,5 +1,6 @@
 ---
 title: Metrics and stats for Pulsar Functions
+new: true
 ---
 
 Pulsar Functions can publish arbitrary metrics to the metrics interface (which can then be queried).

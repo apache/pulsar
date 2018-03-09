@@ -1,5 +1,6 @@
 ---
 title: The Pulsar Functions API
+new: true
 ---
 
 Pulsar Functions provides an easy-to-use API that developers can use to easily create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#java) or [Python](#python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
