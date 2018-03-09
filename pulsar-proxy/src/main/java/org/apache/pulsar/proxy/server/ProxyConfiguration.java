@@ -53,7 +53,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
     private int webServicePortTls = 8443;
-    
+
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
     private String statusFilePath;
@@ -157,7 +157,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     }
 
     public String getConfigurationStoreServers() {
-        return null == configurationStoreServers? getGlobalZookeeperServers() : configurationStoreServers;
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
     }
 
     public void setConfigurationStoreServers(String configurationStoreServers) {

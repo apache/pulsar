@@ -114,7 +114,7 @@ public class PulsarClusterMetadataSetup {
                 arguments.configurationStore);
         ZooKeeperClientFactory zkfactory = new ZookeeperClientFactoryImpl();
         ZooKeeper localZk = zkfactory.create(arguments.zookeeper, SessionType.ReadWrite, 30000).get();
-        ZooKeeper globalZk = zkfactory.create(arguments.configurationStore, SessionType.ReadWrite, 30000).get();
+        ZooKeeper configStoreZk = zkfactory.create(arguments.configurationStore, SessionType.ReadWrite, 30000).get();
 
         // Format BookKeeper metadata
         ServerConfiguration bkConf = new ServerConfiguration();
@@ -129,14 +129,14 @@ public class PulsarClusterMetadataSetup {
         localZk.create("/namespace", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
 
         try {
-            ZkUtils.createFullPathOptimistic(globalZk, POLICIES_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            ZkUtils.createFullPathOptimistic(configStoreZk, POLICIES_ROOT, new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore
         }
 
         try {
-            ZkUtils.createFullPathOptimistic(globalZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            ZkUtils.createFullPathOptimistic(configStoreZk, "/admin/clusters", new byte[0], ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore
@@ -146,7 +146,7 @@ public class PulsarClusterMetadataSetup {
                 arguments.clusterBrokerServiceUrl, arguments.clusterBrokerServiceUrlTls);
         byte[] clusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(clusterData);
 
-        globalZk.create("/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+        configStoreZk.create("/admin/clusters/" + arguments.cluster, clusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                 CreateMode.PERSISTENT);
 
         // Create marker for "global" cluster
@@ -154,7 +154,7 @@ public class PulsarClusterMetadataSetup {
         byte[] globalClusterDataJson = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(globalClusterData);
 
         try {
-            globalZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
+            configStoreZk.create("/admin/clusters/global", globalClusterDataJson, ZooDefs.Ids.OPEN_ACL_UNSAFE,
                     CreateMode.PERSISTENT);
         } catch (NodeExistsException e) {
             // Ignore

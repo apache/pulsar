@@ -94,7 +94,7 @@ public class ServiceConfig implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsRequireTrustedClientCertOnConnect = false;
-    
+
     private Properties properties = new Properties();
 
     public String getZookeeperServers() {
@@ -116,7 +116,7 @@ public class ServiceConfig implements PulsarConfiguration {
     }
 
     public String getConfigurationStoreServers() {
-        return null == configurationStoreServers? getGlobalZookeeperServers() : configurationStoreServers;
+        return null == configurationStoreServers ? getGlobalZookeeperServers() : configurationStoreServers;
     }
 
     public void setConfigurationStoreServers(String configurationStoreServers) {
@@ -266,7 +266,7 @@ public class ServiceConfig implements PulsarConfiguration {
     public void setProperties(Properties properties) {
         this.properties = properties;
     }
-    
+
     public Set<String> getTlsProtocols() {
         return tlsProtocols;
     }
@@ -282,7 +282,7 @@ public class ServiceConfig implements PulsarConfiguration {
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
-    
+
     public boolean getTlsRequireTrustedClientCertOnConnect() {
         return tlsRequireTrustedClientCertOnConnect;
     }

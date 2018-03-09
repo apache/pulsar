@@ -107,8 +107,8 @@ where command is one of:
     broker              Run a broker server
     bookie              Run a bookie server
     zookeeper           Run a zookeeper server
-    global-zookeeper    Run a configuration-store server(Deprecated. Use "bin/pulsar configuration-store" instead)
-    configuration-store    Run a configuration-store server
+    global-zookeeper    Run a configuration-store server (Deprecated. Use "bin/pulsar configuration-store" instead)
+    configuration-store Run a configuration-store server
     discovery           Run a discovery server
     proxy               Run a pulsar proxy
     websocket           Run a web socket proxy server
@@ -273,7 +273,7 @@ elif [ $COMMAND == "configuration-store" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"configuration-store.log"}
     # Allow global ZK to turn into read-only mode when it cannot reach the quorum
     OPTS="${OPTS} -Dreadonlymode.enabled=true"
-    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStore Starter $PULSAR_CONFIGURATION_STORE_CONF $@
+    exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.zookeeper.ConfigurationStoreStarter $PULSAR_CONFIGURATION_STORE_CONF $@
 elif [ $COMMAND == "discovery" ]; then
     PULSAR_LOG_FILE=${PULSAR_LOG_FILE:-"discovery.log"}
     exec $JAVA $OPTS -Dpulsar.log.file=$PULSAR_LOG_FILE org.apache.pulsar.discovery.service.server.DiscoveryServiceStarter $PULSAR_DISCOVERY_CONF $@

@@ -89,13 +89,13 @@ public class ProxyServiceStarter {
             config.setZookeeperServers(zookeeperServers);
         }
 
-        if (!isBlank(globalZookeeperServers) && isBlank(configurationStoreServers)) {
+        if (!isBlank(globalZookeeperServers)) {
             // Use globalZookeeperServers from command line
             config.setConfigurationStoreServers(globalZookeeperServers);
         }
         if (!isBlank(configurationStoreServers)) {
             // Use configurationStoreServers from command line
-            config.setConfigurationStoreServers(globalZookeeperServers);
+            config.setConfigurationStoreServers(configurationStoreServers);
         }
 
         if ((isBlank(config.getBrokerServiceURL()) && isBlank(config.getBrokerServiceURLTLS()))
