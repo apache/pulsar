@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -213,7 +214,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(
-                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("messageTTL"))
+                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MessageTtlInSeconds"))
                     .get(new GenericType<Integer>() {
                     });
 
@@ -226,8 +227,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("messageTTL"))
-                    .post(Entity.entity(ttlInSeconds, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MessageTtlInSeconds"))
+                    .put(Entity.entity(ttlInSeconds, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -239,7 +240,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
-                    .path("antiAffinity")).post(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON),
+                    .path("policies/AntiAffinityGroup")).put(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON),
                             ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -251,7 +252,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
-                    .path("antiAffinity")).get(new GenericType<String>() {
+                    .path("policies/AntiAffinityGroup")).get(new GenericType<String>() {
                     });
 
         } catch (Exception e) {
@@ -287,8 +288,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
-                    .path("deduplication"))
-                    .post(Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("policies/DeduplicationEnabled"))
+                    .put(Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -336,7 +337,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("persistence"))
-                    .post(Entity.entity(persistence, MediaType.APPLICATION_JSON), ErrorData.class);
+                    .put(Entity.entity(persistence, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -358,8 +359,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setRetention(String namespace, RetentionPolicies retention) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("retention"))
-                    .post(Entity.entity(retention, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/RetentionPolicies"))
+                    .put(Entity.entity(retention, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -371,7 +372,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(
-                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("retention"))
+                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/RetentionPolicies"))
                     .get(RetentionPolicies.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -429,8 +430,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
-                    .path("dispatchRate"))
-                    .post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("policies/ClusterDispatchRate"))
+                    .put(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -441,7 +442,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
-                    .path("dispatchRate")).get(DispatchRate.class);
+                    .path("policies/ClusterDispatchRate")).get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -524,8 +525,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
-                    .path("subscriptionAuthMode"))
-                    .post(Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON), ErrorData.class);
+                    .path("policies/SubscriptionAuthMode"))
+                    .put(Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -535,8 +536,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("encryptionRequired"))
-                    .post(Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/EncryptionRequired"))
+                    .put(Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -547,7 +548,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(
-                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("maxProducersPerTopic"))
+                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MaxProducersPerTopic"))
                     .get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -558,8 +559,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setMaxProducersPerTopic(String namespace, int maxProducersPerTopic) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("maxProducersPerTopic"))
-                    .post(Entity.entity(maxProducersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MaxProducersPerTopic"))
+                    .put(Entity.entity(maxProducersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -570,7 +571,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(
-                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("maxConsumersPerTopic"))
+                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MaxConsumersPerTopic"))
                     .get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -581,8 +582,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setMaxConsumersPerTopic(String namespace, int maxConsumersPerTopic) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("maxConsumersPerTopic"))
-                    .post(Entity.entity(maxConsumersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MaxConsumersPerTopic"))
+                    .put(Entity.entity(maxConsumersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -593,7 +594,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(
-                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("maxConsumersPerSubscription"))
+                    adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MaxConsumersPerSubscription"))
                     .get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -604,8 +605,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("maxConsumersPerSubscription"))
-                    .post(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path("policies/MaxConsumersPerSubscription"))
+                    .put(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
