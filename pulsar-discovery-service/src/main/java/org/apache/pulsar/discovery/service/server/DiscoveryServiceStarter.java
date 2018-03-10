@@ -42,11 +42,7 @@ public class DiscoveryServiceStarter {
 
     public static void checkConfig(ServiceConfig config) {
         checkArgument(!isEmpty(config.getZookeeperServers()), "zookeeperServers must be provided");
-        if(!isEmpty(config.getGlobalZookeeperServers()) && isEmpty(config.getConfigurationStoreServers())) {
-            config.setConfigurationStoreServers(config.getGlobalZookeeperServers());
-        }
-        checkArgument(!isEmpty(config.getConfigurationStoreServers()),
-            "configuration-store Servers must be provided");
+        checkArgument(!isEmpty(config.getConfigurationStoreServers()),  "configuration-store Servers must be provided");
     }
 
     public static void init(String configFile) throws Exception {
