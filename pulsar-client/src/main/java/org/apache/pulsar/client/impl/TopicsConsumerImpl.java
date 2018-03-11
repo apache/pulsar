@@ -685,13 +685,11 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                         }
                         return;
                     } catch (PulsarClientException e) {
-                        handleSubscribeOneTopicError(topicName, e);
-                        subscribeResult.completeExceptionally(e);
+                        handleSubscribeOneTopicError(topicName, e, subscribeResult);
                     }
                 })
                 .exceptionally(ex -> {
-                    handleSubscribeOneTopicError(topicName, ex);
-                    subscribeResult.completeExceptionally(ex);
+                    handleSubscribeOneTopicError(topicName, ex, subscribeResult);
                     return null;
                 });
         }).exceptionally(ex1 -> {
@@ -704,26 +702,35 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     // handling failure during subscribe new topic, unsubscribe success created partitions
-    private void handleSubscribeOneTopicError(String topicName, Throwable error) {
-        log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer ", topic, topicName, error.getMessage());
-
-        consumers.values().stream().filter(consumer1 -> {
-            String consumerTopicName = consumer1.getTopic();
-            if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
-                return true;
-            } else {
-                return false;
-            }
-        }).forEach(consumer2 ->  {
-            consumer2.closeAsync().handle((ok, closeException) -> {
-                consumer2.subscribeFuture().completeExceptionally(error);
-                return null;
-            });
-            consumers.remove(consumer2.getTopic());
-        });
-
+    private void handleSubscribeOneTopicError(String topicName, Throwable error, CompletableFuture<Void> subscribeFuture) {
+        log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
         topics.remove(topicName);
-        checkState(numberTopicPartitions.get() == consumers.values().size());
+
+        client.externalExecutorProvider().getExecutor().submit(() -> {
+            AtomicInteger toCloseNum = new AtomicInteger(0);
+            consumers.values().stream().filter(consumer1 -> {
+                String consumerTopicName = consumer1.getTopic();
+                if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
+                    return true;
+                } else {
+                    return false;
+                }
+            }).forEach(consumer2 -> {
+                toCloseNum.incrementAndGet();
+                consumer2.closeAsync().whenComplete((r, ex) -> {
+                    consumer2.subscribeFuture().completeExceptionally(error);
+                    numberTopicPartitions.decrementAndGet();
+                    consumers.remove(consumer2.getTopic());
+                    if (toCloseNum.decrementAndGet() == 0) {
+                        log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer, subscribe error: {}",
+                            topic, topicName, error.getMessage());
+                        checkState(numberTopicPartitions.get() == consumers.values().size());
+                        subscribeFuture.completeExceptionally(error);
+                    }
+                    return;
+                });
+            });
+        });
     }
 
     // un-subscribe a given topic
