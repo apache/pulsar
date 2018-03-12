@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -201,7 +202,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     private Set<String> tlsCiphers = Sets.newTreeSet();
-    
+
     /***** --- Authentication --- ****/
     // Enable authentication
     private boolean authenticationEnabled = false;
@@ -222,7 +223,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> proxyRoles = Sets.newTreeSet();
 
     // If this flag is set then the broker authenticates the original Auth data
-    // else it just accepts the originalPrincipal and authorizes it (if required). 
+    // else it just accepts the originalPrincipal and authorizes it (if required).
     private boolean authenticateOriginalAuthData = false;
 
     // Allow wildcard matching in authorization
@@ -236,7 +237,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String brokerClientAuthenticationParameters = "";
     // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
     private String brokerClientTrustCertsFilePath = "";
-    
+
     // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
     private String anonymousUserRole = null;
 
@@ -278,6 +279,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of guaranteed copies (acks to wait before write is complete)
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
+
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
+    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32;
+
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)
     private int managedLedgerMaxEnsembleSize = 5;
@@ -864,15 +870,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
- 
+
     public Set<String> getProxyRoles() {
         return proxyRoles;
     }
-    
+
     public void setProxyRoles(Set<String> proxyRoles) {
         this.proxyRoles = proxyRoles;
     }
-    
+
     public boolean getAuthorizationAllowWildcardsMatching() {
         return authorizationAllowWildcardsMatching;
     }
@@ -908,7 +914,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setBrokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
         this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
     }
-    
+
     public String getAnonymousUserRole() {
         return anonymousUserRole;
     }
@@ -1029,6 +1035,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setManagedLedgerDefaultAckQuorum(int managedLedgerDefaultAckQuorum) {
         this.managedLedgerDefaultAckQuorum = managedLedgerDefaultAckQuorum;
+    }
+
+    public DigestType getManagedLedgerDigestType() {
+        return managedLedgerDigestType;
+    }
+
+    public void setManagedLedgerDigestType(DigestType managedLedgerDigestType) {
+        this.managedLedgerDigestType = managedLedgerDigestType;
     }
 
     public int getManagedLedgerMaxEnsembleSize() {
@@ -1467,7 +1481,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
         this.authenticateOriginalAuthData = authenticateOriginalAuthData;
     }
-    
+
     public Set<String> getTlsProtocols() {
         return tlsProtocols;
     }
