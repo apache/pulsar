@@ -31,7 +31,6 @@ message Schema {
 	}
 
     required string name = 1;
-    required bytes version = 2;
     required bytes schema_data = 3;
 	required Type type = 4;
     repeated KeyValue properties = 5;
@@ -397,7 +396,6 @@ message CommandRedeliverUnacknowledgedMessages {
 
 message CommandSuccess {
 	required uint64 request_id = 1;
-	optional Schema schema = 2;
 }
 
 /// Response from CommandProducer
