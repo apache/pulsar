@@ -3,7 +3,11 @@ title: Deploying Pulsar Functions
 new: true
 ---
 
+## Local run mode
+
 At the moment, Pulsar Functions are deployed
+
+## Cluster mode
 
 ## State storage
 

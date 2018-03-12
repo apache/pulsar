@@ -27,8 +27,8 @@ You could use Pulsar Functions, for example, to set up the following processing 
 Here's an example of the "input sanitizer" Python function method above:
 
 ```python
-def clean_string(input_string):
-    return input_string.strip().lower()
+def clean_string(s):
+    return s.strip().lower()
 
 def process(input):
     return clean_string(input)
@@ -41,18 +41,55 @@ Some things to note about this Pulsar Function:
 
 ### Example deployment
 
-Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command.
+Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command. Here's an example command that would run our [sanitizer](#example-function) function above in [local run](../deployment#local-run-mode) mode:
+
+```bash
+$ bin/pulsar-admin functions localrun \
+  --py sanitizer.py \
+  --className sanitizer \
+  --tenant sample \
+  --namespace ns1
+```
+
+For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](../deployment) guide.
+
+## The Pulsar Functions SDK {#sdk}
+
+In both Java and Python, you have two options for writing Pulsar Functions:
+
+* You can use native interfaces with no external dependencies
+* You can use language-specific Pulsar Function SDKs
+
+In Python, for example, this function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:
+
+```python
+def process(s):
+    return "{}!".format(input)
+```
+
+This function, however, would use the Pulsar Functions SDK for Python:
+
+```python
+from pulsarfunction import pulsar_function
+
+class Exclaim(pulsar_function.Function):
+    def __init__(self):
+        pass
+    
+    def process(self, input, context):
+        return "{}!".format(input)
+```
+
+In general, you should use the Pulsar Functions 
 
 ### Serialization and deserialization (SerDe) {#serde}
 
-SerDe stands for **Ser**ialization and **De**serialization. Whenever you use Pulsar Functions.
+SerDe stands for **Ser**ialization and **De**serialization. All Pulsar Functions use SerDe for message handling. How SerDe works by default depends on the language you're using for a particular function:
 
-By default, Pulsar Functions supports several basic types:
+* In [Python](#python-serde), the default SerDe is identity, meaning that the type is serialized as whatever the producer
+* In [Java](#java-serde), a number of commonly used types (`String`s, `Integer`s, etc.) are supported by default
 
-* Strings
-* Integers
-
-If there's a custom type outside of this list that you'd like to use, you'll need to create your own SerDe interface for that type. See the docs for [Java](#java-serde) and [Python](#python-serde) for language-specific instructions.
+In both languages, however, you can write your own custom SerDe logic for more complex, application-specific types. See the docs for [Java](#java-serde) and [Python](#python-serde) for language-specific instructions.
 
 ## Context
 
@@ -71,11 +108,9 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 * Access to arbitrary [user config](#user-config) values supplied via the CLI
 * An interface for recording [metrics](../metrics-and-stats)
 
-## Logging
-
-TODO.
-
 ## Counters
+
+All Pulsar Functions that use the Pulsar Functions SDK
 
 For example, a function might have 
 
