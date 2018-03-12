@@ -320,6 +320,12 @@ flexible messaging model and an intuitive client API.</description>
 
       <dependency>
         <groupId>io.netty</groupId>
+        <artifactId>netty-tcnative-boringssl-static</artifactId>
+        <version>2.0.7.Final</version>
+      </dependency>
+
+      <dependency>
+        <groupId>io.netty</groupId>
         <artifactId>netty</artifactId>
         <version>3.10.1.Final</version>
       </dependency>
@@ -745,9 +751,8 @@ flexible messaging model and an intuitive client API.</description>
     <dependency>
       <!-- We use MockedBookKeeper in many unit tests -->
       <groupId>org.apache.bookkeeper</groupId>
-      <artifactId>bookkeeper-server</artifactId>
+      <artifactId>bookkeeper-server-tests-shaded</artifactId>
       <version>${bookkeeper.version}</version>
-      <classifier>tests</classifier>
       <scope>test</scope>
       <exclusions>
         <exclusion>
