@@ -139,6 +139,7 @@ public abstract class BookKeeperClusterTestCase {
     protected void startBKCluster() throws Exception {
         baseClientConf.setZkServers(zkUtil.getZooKeeperConnectString());
         baseClientConf.setUseV2WireProtocol(true);
+        baseClientConf.setEnableDigestTypeAutodetection(true);
         if (numBookies > 0) {
             bkc = new BookKeeperTestClient(baseClientConf);
         }

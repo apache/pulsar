@@ -345,7 +345,7 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         PositionImpl p1 = (PositionImpl) ledger.addEntry("entry-1".getBytes());
 
         // Trigger the closure of the data ledger
-        bkc.openLedger(p1.getLedgerId(), DigestType.MAC, new byte[] {});
+        bkc.openLedger(p1.getLedgerId(), DigestType.CRC32C, new byte[] {});
 
         ledger.addEntry("entry-2".getBytes());
 
@@ -499,6 +499,39 @@ public class ManagedLedgerBkTest extends BookKeeperClusterTestCase {
         latch.await();
         assertNotNull(res.get());
         assertEquals(res.get().getClass(), ManagedLedgerAlreadyClosedException.class);
+        factory.shutdown();
+    }
+
+    @Test
+    public void testChangeCrcType() throws Exception {
+        ManagedLedgerFactoryImpl factory = new ManagedLedgerFactoryImpl(bkc, bkc.getZkHandle());
+        ManagedLedgerConfig config = new ManagedLedgerConfig();
+        config.setEnsembleSize(2).setAckQuorumSize(2).setMetadataEnsembleSize(2);
+        config.setDigestType(DigestType.CRC32);
+        ManagedLedger ledger = factory.open("my_test_ledger", config);
+        ManagedCursor c1 = ledger.openCursor("c1");
+
+        ledger.addEntry("entry-0".getBytes());
+        ledger.addEntry("entry-1".getBytes());
+        ledger.addEntry("entry-2".getBytes());
+
+        ledger.close();
+
+        config.setDigestType(DigestType.CRC32C);
+        ledger = factory.open("my_test_ledger", config);
+        c1 = ledger.openCursor("c1");
+
+        ledger.addEntry("entry-3".getBytes());
+
+        assertEquals(c1.getNumberOfEntries(), 4);
+        assertEquals(c1.getNumberOfEntriesInBacklog(), 4);
+
+        List<Entry> entries = c1.readEntries(4);
+        assertEquals(entries.size(), 4);
+        for (int i = 0; i < 4; i++) {
+            assertEquals(new String(entries.get(i).getData()), "entry-" + i);
+        }
+
         factory.shutdown();
     }
 
