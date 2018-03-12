@@ -37,7 +37,7 @@ def process(input):
 Some things to note about this Pulsar Function:
 
 * There is no client, producer, or consumer object involved. All message "plumbing" is already taken care of for you.
-* No topics, subscription types, {% popover tenants %}, or {% popover namespaces %} are specified in the function logic itself. Instead, topics are specified upon [deployment](#example-deployment).
+* No topics, subscription types, {% popover tenants %}, or {% popover namespaces %} are specified in the function logic itself. Instead, topics are specified upon [deployment](#example-deployment). This means that you can use Pulsar Functions across topics, tenants, and namespaces without needing to hard-code those attributes.
 
 ### Example deployment
 
@@ -57,27 +57,28 @@ For instructions on running functions in your Pulsar cluster, see the [Deploying
 
 In both Java and Python, you have two options for writing Pulsar Functions:
 
-* You can use native interfaces with no external dependencies
-* You can use language-specific Pulsar Function SDKs
+Interface | Description | Use cases
+:---------|:------------|:---------
+"Native" interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python) | Functions that don't require access to the function's [context](#context)
+Pulsar Function SDK for Java/Python | Pulsar-specific libraries that provide a range of functionality not provided by "native" interfaces | Functions that require access to the function's [context](#context)
 
-In Python, for example, this function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:
+In Python, for example, this "native" function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:
 
 ```python
-def process(s):
+def process(input):
     return "{}!".format(input)
 ```
 
-This function, however, would use the Pulsar Functions SDK for Python:
+This function, however, would use the Pulsar Functions [SDK for Python](#python-sdk):
 
 ```python
 from pulsarfunction import pulsar_function
 
-class Exclaim(pulsar_function.Function):    
+class DisplayFunctionName(pulsar_function.Function):
     def process(self, input, context):
-        return "{}!".format(input)
+        function_name = context.function_name()
+        return "The function processing this message is called {0}".format(function_name)
 ```
-
-In general, you should use the Pulsar Functions 
 
 ### Serialization and deserialization (SerDe) {#serde}
 
@@ -95,7 +96,7 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 * The name and ID of the Pulsar Function
 * The message ID of each message. Each Pulsar {% popover message %} is automatically assigned an ID.
 * The name of the topic on which the message was sent
-* The names of all [source topics](#source-topics) and the [sink topics](#sink-topic) associated with the function
+* The names of all input topics as well as the output topic associated with the function
 * The name of the class used for [SerDe](#serde)
 * The {% popover tenant %} and {% popover namespace %} associated with the function
 * The ID of the Pulsar Functions instance running the function
@@ -107,9 +108,7 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 
 ## Counters
 
-All Pulsar Functions that use the Pulsar Functions SDK
-
-For example, a function might have 
+All Pulsar Functions that use the Pulsar Functions SDK have access to a distributed counter
 
 ## User config
 
@@ -126,7 +125,16 @@ $ bin/pulsar-admin functions create \
 from pulsarfunction import pulsar_function
 
 class SubjectFilter(pulsar_function.PulsarFunction):
+    def process(self, context, input):
+        forbidden_subject = context.user_config()["forbidden-subject"]
 
+        # Don't publish the message if it pertains to the user-specified
+        # forbidden subject
+        if input.subject == forbidden_subject:
+            pass
+        # Otherwise publish the message
+        else:
+            return input
 ```
 
 ## Java
