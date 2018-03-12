@@ -38,6 +38,8 @@
     <module>metrics</module>
     <module>instance</module>
     <module>runtime</module>
+    <module>runtime-shaded</module>
+    <module>runtime-all</module>
     <module>worker</module>
     <module>worker-shaded</module>
     <module>java-examples</module>

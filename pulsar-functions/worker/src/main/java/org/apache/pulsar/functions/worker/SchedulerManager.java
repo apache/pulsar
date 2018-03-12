@@ -164,13 +164,19 @@ public class SchedulerManager implements AutoCloseable {
         }
 
         // wait for assignment update to go throw the pipeline
+        int retries = 0;
         while (this.functionRuntimeManager.getCurrentAssignmentVersion() < assignmentVersion) {
+            if (retries >= this.workerConfig.getAssignmentWriteMaxRetries()) {
+                log.warn("Max number of retries reached for waiting for assignment to propagate. Will continue now.");
+                break;
+            }
             log.info("Waiting for assignments to propagate...");
             try {
                 Thread.sleep(500);
             } catch (InterruptedException e) {
                 throw new RuntimeException(e);
             }
+            retries++;
         }
     }
 

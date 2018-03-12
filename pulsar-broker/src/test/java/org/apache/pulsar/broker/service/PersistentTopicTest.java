@@ -1206,16 +1206,15 @@ public class PersistentTopicTest {
                 "http://" + pulsar.getAdvertisedAddress() + ":" + pulsar.getConfiguration().getBrokerServicePort());
         PulsarClient client = spy(PulsarClient.builder().serviceUrl(brokerUrl.toString()).build());
         PulsarClientImpl clientImpl = (PulsarClientImpl) client;
+        doReturn(new CompletableFuture<Producer>()).when(clientImpl)
+            .createProducerAsync(any(ProducerConfigurationData.class), any(Schema.class));
 
         ManagedCursor cursor = mock(ManagedCursorImpl.class);
         doReturn(remoteCluster).when(cursor).getName();
         brokerService.getReplicationClients().put(remoteCluster, client);
         PersistentReplicator replicator = new PersistentReplicator(topic, cursor, localCluster, remoteCluster, brokerService);
 
-        doReturn(new CompletableFuture<Producer>()).when(clientImpl)
-                .createProducerAsync(any(ProducerConfigurationData.class));
-
-        replicator.startProducer();
+        // PersistentReplicator constructor calls startProducer()
         verify(clientImpl)
             .createProducerAsync(
                 any(ProducerConfigurationData.class),

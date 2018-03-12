@@ -17,15 +17,23 @@
 # under the License.
 #
 
-- forum: Bay Area Hadoop Meetup
-  forum_link: https://www.meetup.com/hadoop
+- forum: Strata San Jose
+  forum_link: https://conferences.oreilly.com/strata/strata-ca
   presenter: Matteo Merli (Pulsar co-creator)
-  date: October 2016
-  title: "Pulsar: a highly scalable, low-latency pub-sub messaging system"
-  link: https://www.slideshare.net/ydn/october-2016-hug-pulsar-a-highly-scalable-low-latency-pubsub-messaging-system
+  date: March 2018
+  title: "Effectively-once semantics in Apache Pulsar"
+  link: https://www.slideshare.net/merlimat/effectivelyonce-semantics-in-apache-pulsar
+
 - forum:
   forum_link:
   presenter: Matteo Merli (Pulsar co-creator)
   date: November 2016
   title: "Pulsar: a distributed pub-sub platform"
   link: https://www.slideshare.net/merlimat/pulsar-distributed-pubsub-platform
+
+- forum: Bay Area Hadoop Meetup
+  forum_link: https://www.meetup.com/hadoop
+  presenter: Matteo Merli (Pulsar co-creator)
+  date: October 2016
+  title: "Pulsar: a highly scalable, low-latency pub-sub messaging system"
+  link: https://www.slideshare.net/ydn/october-2016-hug-pulsar-a-highly-scalable-low-latency-pubsub-messaging-system

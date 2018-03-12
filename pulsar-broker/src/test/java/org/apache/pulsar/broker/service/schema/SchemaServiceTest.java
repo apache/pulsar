@@ -95,7 +95,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
 
         SchemaData latest2 = getLatestSchema(schemaId1, version(1));
 
-        assertTrue(latest2.isDeleted);
+        assertTrue(latest2.isDeleted());
     }
 
     @Test
@@ -176,7 +176,7 @@ public class SchemaServiceTest extends MockedPulsarServiceBaseTest {
         deleteSchema(schemaId1, version(7));
 
         SchemaData version7 = getSchema(schemaId1, version(7));
-        assertTrue(version7.isDeleted);
+        assertTrue(version7.isDeleted());
 
     }
 

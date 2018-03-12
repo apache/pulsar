@@ -60,6 +60,12 @@ public class RawReaderImpl implements RawReader {
     }
 
     @Override
+    public String getTopic() {
+        return consumerConfiguration.getTopicNames().stream()
+            .findFirst().orElse(null);
+    }
+
+    @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         return consumer.seekAsync(messageId);
     }
@@ -82,6 +88,11 @@ public class RawReaderImpl implements RawReader {
     @Override
     public CompletableFuture<MessageId> getLastMessageIdAsync() {
         return consumer.getLastMessageIdAsync();
+    }
+
+    @Override
+    public String toString() {
+        return "RawReader(topic=" + getTopic() + ")";
     }
 
     static class RawConsumerImpl extends ConsumerImpl<byte[]> {
