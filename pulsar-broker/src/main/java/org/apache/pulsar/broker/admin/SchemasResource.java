@@ -41,8 +41,8 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.DestinationName;
-import org.apache.pulsar.common.schema.Schema;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.schema.SchemaData;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
 
@@ -164,15 +164,14 @@ public class SchemasResource extends AdminResource {
     ) {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
-        pulsar().getSchemaRegistryService().putSchema(
+        pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(property, cluster, namespace, topic),
-            Schema.newBuilder()
+            SchemaData.builder()
                 .data(payload.schema.getBytes())
                 .isDeleted(false)
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.type))
                 .user(clientAppId())
-                .properties(payload.properties)
                 .build()
         ).thenAccept(version ->
             response.resume(
@@ -188,14 +187,14 @@ public class SchemasResource extends AdminResource {
     }
 
     private void validateDestinationAndAdminOperation(String property, String cluster, String namespace, String topic) {
-        DestinationName destinationName = DestinationName.get(
+        TopicName topicName = TopicName.get(
             domain(), property, cluster, namespace, decode(topic)
         );
 
         try {
-            validateDestinationExists(destinationName);
-            validateAdminAccessOnProperty(destinationName.getProperty());
-            validateDestinationOwnership(destinationName, false);
+            validateDestinationExists(topicName);
+            validateAdminAccessOnProperty(topicName.getProperty());
+            validateTopicOwnership(topicName, false);
         } catch (RestException e) {
             if (e.getResponse().getStatus() == Response.Status.UNAUTHORIZED.getStatusCode()) {
                 throw new RestException(Response.Status.NOT_FOUND, "Not Found");
@@ -205,7 +204,7 @@ public class SchemasResource extends AdminResource {
         }
     }
 
-    private void validateDestinationExists(DestinationName dn) {
+    private void validateDestinationExists(TopicName dn) {
         try {
             Topic topic = pulsar().getBrokerService().getTopicReference(dn.toString());
             checkNotNull(topic);
@@ -216,9 +215,9 @@ public class SchemasResource extends AdminResource {
 
     static class GetSchemaResponse {
         public final SchemaVersion version;
-        public final Schema schema;
+        public final SchemaData schema;
 
-        GetSchemaResponse(Schema schema, SchemaVersion version) {
+        GetSchemaResponse(SchemaData schema, SchemaVersion version) {
             this.schema = schema;
             this.version = version;
         }
