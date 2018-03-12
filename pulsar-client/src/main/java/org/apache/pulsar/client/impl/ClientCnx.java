@@ -33,7 +33,9 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.net.ssl.SSLSession;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.commons.lang3.tuple.ImmutableTriple;
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.http.conn.ssl.DefaultHostnameVerifier;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -77,7 +79,7 @@ public class ClientCnx extends PulsarHandler {
     private final Authentication authentication;
     private State state;
 
-    private final ConcurrentLongHashMap<CompletableFuture<Pair<String, Long>>> pendingRequests = new ConcurrentLongHashMap<>(
+    private final ConcurrentLongHashMap<CompletableFuture<Triple<String, Long, byte[]>>> pendingRequests = new ConcurrentLongHashMap<>(
             16, 1);
     private final ConcurrentLongHashMap<CompletableFuture<LookupDataResult>> pendingLookupRequests = new ConcurrentLongHashMap<>(
             16, 1);
@@ -280,7 +282,7 @@ public class ClientCnx extends PulsarHandler {
             log.debug("{} Received success response from server: {}", ctx.channel(), success.getRequestId());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
+        CompletableFuture<Triple<String, Long, byte[]>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.complete(null);
         } else {
@@ -313,9 +315,9 @@ public class ClientCnx extends PulsarHandler {
                     success.getRequestId(), success.getProducerName());
         }
         long requestId = success.getRequestId();
-        CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
+        CompletableFuture<Triple<String, Long, byte[]>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
-            requestFuture.complete(new ImmutablePair<>(success.getProducerName(), success.getLastSequenceId()));
+            requestFuture.complete(ImmutableTriple.of(success.getProducerName(), success.getLastSequenceId(), success.getSchemaVersion().toByteArray()));
         } else {
             log.warn("{} Received unknown request id from server: {}", ctx.channel(), success.getRequestId());
         }
@@ -460,7 +462,7 @@ public class ClientCnx extends PulsarHandler {
             log.warn("{} Producer creation has been blocked because backlog quota exceeded for producer topic",
                     ctx.channel());
         }
-        CompletableFuture<Pair<String, Long>> requestFuture = pendingRequests.remove(requestId);
+        CompletableFuture<Triple<String, Long, byte[]>> requestFuture = pendingRequests.remove(requestId);
         if (requestFuture != null) {
             requestFuture.completeExceptionally(getPulsarClientException(error.getError(), error.getMessage()));
         } else {
@@ -575,8 +577,8 @@ public class ClientCnx extends PulsarHandler {
         return connectionFuture;
     }
 
-    CompletableFuture<Pair<String, Long>> sendRequestWithId(ByteBuf cmd, long requestId) {
-        CompletableFuture<Pair<String, Long>> future = new CompletableFuture<>();
+    CompletableFuture<Triple<String, Long, byte[]>> sendRequestWithId(ByteBuf cmd, long requestId) {
+        CompletableFuture<Triple<String, Long, byte[]>> future = new CompletableFuture<>();
         pendingRequests.put(requestId, future);
         ctx.writeAndFlush(cmd).addListener(writeFuture -> {
             if (!writeFuture.isSuccess()) {
