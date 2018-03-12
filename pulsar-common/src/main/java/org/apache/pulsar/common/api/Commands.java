@@ -311,6 +311,13 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
             Map<String, String> metadata, boolean readCompacted) {
+        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName, isDurable,
+            startMessageId, metadata, readCompacted, null);
+    }
+
+    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
+            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
+            Map<String, String> metadata, boolean readCompacted, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -325,6 +332,10 @@ public class Commands {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
+
+        if (null != schemaInfo) {
+            subscribeBuilder.setSchema(getSchema(schemaInfo));
+        }
 
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
@@ -437,6 +448,21 @@ public class Commands {
         }
     }
 
+    private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
+        return PulsarApi.Schema.newBuilder()
+            .setName(schemaInfo.getName())
+            .setSchemaData(copyFrom(schemaInfo.getSchema()))
+            .setType(getSchemaType(schemaInfo.getType()))
+            .addAllProperties(
+                schemaInfo.getProperties().entrySet().stream().map(entry ->
+                    PulsarApi.KeyValue.newBuilder()
+                        .setKey(entry.getKey())
+                        .setValue(entry.getValue())
+                        .build()
+                ).collect(Collectors.toList())
+            ).build();
+    }
+
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
@@ -451,19 +477,7 @@ public class Commands {
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
 
         if (null != schemaInfo) {
-            producerBuilder.setSchema(PulsarApi.Schema.newBuilder()
-                .setName(schemaInfo.getName())
-                .setSchemaData(copyFrom(schemaInfo.getSchema()))
-                .setType(getSchemaType(schemaInfo.getType()))
-                .addAllProperties(
-                    schemaInfo.getProperties().entrySet().stream().map( entry ->
-                        PulsarApi.KeyValue.newBuilder()
-                            .setKey(entry.getKey())
-                            .setValue(entry.getValue())
-                            .build()
-                    ).collect(Collectors.toList())
-                )
-            );
+            producerBuilder.setSchema(getSchema(schemaInfo));
         }
 
         CommandProducer producer = producerBuilder.build();

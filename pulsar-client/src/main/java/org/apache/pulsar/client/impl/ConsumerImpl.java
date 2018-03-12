@@ -568,7 +568,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, metadata, readCompacted);
+                consumerName, isDurable, startMessageIdData, metadata, readCompacted, schema.getSchemaInfo());
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
