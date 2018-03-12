@@ -717,6 +717,20 @@ public class PersistentTopicsImpl extends BaseResource implements PersistentTopi
         return future;
     }
 
+    @Override
+    public void triggerCompaction(String topic)
+            throws PulsarAdminException {
+        try {
+            TopicName ds = validateTopic(topic);
+            request(persistentTopics.path(ds.getNamespace())
+                           .path(ds.getEncodedLocalName())
+                           .path("compaction"))
+                .put(Entity.entity("", MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
     /*
      * returns topic name with encoded Local Name
      */

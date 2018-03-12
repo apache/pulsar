@@ -52,9 +52,11 @@ import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NamingException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
@@ -161,6 +163,9 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     public static final int MESSAGE_RATE_BACKOFF_MS = 1000;
 
     private final MessageDeduplication messageDeduplication;
+
+    private static final long COMPACTION_NEVER_RUN = -0xfebecffeL;
+    CompletableFuture<Long> currentCompaction = CompletableFuture.completedFuture(COMPACTION_NEVER_RUN);
     final CompactedTopic compactedTopic;
 
     // Whether messages published must be encrypted or not in this topic
@@ -1600,6 +1605,15 @@ public class PersistentTopic implements Topic, AddEntryCallback {
     @Override
     public Position getLastMessageId() {
         return ledger.getLastConfirmedEntry();
+    }
+
+    public synchronized void triggerCompaction()
+            throws PulsarServerException, AlreadyRunningException {
+        if (currentCompaction.isDone()) {
+            currentCompaction = brokerService.pulsar().getCompactor().compact(topic);
+        } else {
+            throw new AlreadyRunningException("Compaction already in progress");
+        }
     }
 
     private static final Logger log = LoggerFactory.getLogger(PersistentTopic.class);

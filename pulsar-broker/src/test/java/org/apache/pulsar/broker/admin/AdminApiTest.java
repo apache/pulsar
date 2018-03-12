@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.broker.admin;
 
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
@@ -91,6 +95,7 @@ import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
+import org.apache.pulsar.compaction.Compactor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -1776,6 +1781,40 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         final String topicName = "persistent://prop-xyz/use/getBundleNs/topic1";
         String bundleRange = admin.lookups().getBundleRange(topicName);
         assertEquals(bundleRange, pulsar.getNamespaceService().getBundle(TopicName.get(topicName)).getBundleRange());
+    }
+
+    @Test
+    public void testTriggerCompaction() throws Exception {
+        String topicName = "persistent://prop-xyz/use/ns1/topic1";
+
+        // create a topic by creating a producer
+        pulsarClient.newProducer().topic(topicName).create().close();
+        assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
+
+        // mock actual compaction, we don't need to really run it
+        CompletableFuture<Long> promise = new CompletableFuture<Long>();
+        Compactor compactor = pulsar.getCompactor();
+        doReturn(promise).when(compactor).compact(topicName);
+        admin.persistentTopics().triggerCompaction(topicName);
+
+        // verify compact called once
+        verify(compactor).compact(topicName);
+        try {
+            admin.persistentTopics().triggerCompaction(topicName);
+
+            fail("Shouldn't be able to run while already running");
+        } catch (ConflictException e) {
+            // expected
+        }
+        // compact shouldn't have been called again
+        verify(compactor).compact(topicName);
+
+        // complete first compaction, and trigger again
+        promise.complete(1L);
+        admin.persistentTopics().triggerCompaction(topicName);
+
+        // verify compact was called again
+        verify(compactor, times(2)).compact(topicName);
     }
 
 }

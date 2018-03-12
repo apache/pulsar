@@ -55,6 +55,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+import org.apache.pulsar.broker.service.BrokerServiceException.AlreadyRunningException;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
@@ -1068,6 +1069,19 @@ public class PersistentTopicsBase extends AdminResource {
                         expireTimeInSeconds, topicName, subName, exception);
                 throw new RestException(exception);
             }
+        }
+    }
+
+    protected void internalTriggerCompaction(boolean authoritative) {
+        validateAdminOperationOnTopic(authoritative);
+
+        PersistentTopic topic = (PersistentTopic) getTopicReference(topicName);
+        try {
+            topic.triggerCompaction();
+        } catch (AlreadyRunningException e) {
+            throw new RestException(Status.CONFLICT, e.getMessage());
+        } catch (Exception e) {
+            throw new RestException(e);
         }
     }
 
