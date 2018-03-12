@@ -21,7 +21,6 @@ package org.apache.pulsar.functions.worker;
 import java.io.IOException;
 import java.util.function.Function;
 
-import com.google.protobuf.InvalidProtocolBufferException;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -68,7 +67,7 @@ public class FunctionMetaDataTopicTailer
 
         try {
             serviceRequest = ServiceRequest.parseFrom(msg.getData());
-        } catch (InvalidProtocolBufferException e) {
+        } catch (IOException e) {
             log.error("Received bad service request at message {}", msg.getMessageId(), e);
             // TODO: find a better way to handle bad request
             throw new RuntimeException(e);

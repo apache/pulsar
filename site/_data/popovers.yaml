@@ -88,6 +88,9 @@ pub-sub:
 pulsar:
   q: What is Pulsar?
   def: Pulsar is a distributed messaging system originally created by Yahoo but now under the stewardship of the Apache Software Foundation.
+pulsar-functions:
+  q: What are Pulsar Functions?
+  def: Pulsar Functions are lightweight functions that can consume messages from Pulsar topics, apply custom processing logic, and, if desired, publish results to topics.
 retention-policy:
   q: What is a retention policy?
   def: Size and/or time limits that you can set on a namespace to configure retention of messages that have already been acknowledged.

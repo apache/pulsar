@@ -113,6 +113,15 @@
       <!-- make sure the api examples are compiled before assembly -->
       <scope>provided</scope>
     </dependency>
+
+    <!-- runtime-all -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-runtime-all</artifactId>
+      <version>${project.version}</version>
+      <!-- make sure the api examples are compiled before assembly -->
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>

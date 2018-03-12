@@ -69,6 +69,9 @@ public class JavaInstanceMain {
     @Parameter(names = "--output_serde_classname", description = "Output SerDe\n")
     protected String outputSerdeClassName;
 
+    @Parameter(names = "--log_topic", description = "Log Topic")
+    protected String logTopic;
+
     @Parameter(names = "--processing_guarantees", description = "Processing Guarantees\n", required = true)
     protected FunctionConfig.ProcessingGuarantees processingGuarantees;
 
@@ -136,6 +139,9 @@ public class JavaInstanceMain {
         }
         if (sinkTopicName != null) {
             functionConfigBuilder.setOutput(sinkTopicName);
+        }
+        if (logTopic != null) {
+            functionConfigBuilder.setLogTopic(logTopic);
         }
         functionConfigBuilder.setProcessingGuarantees(processingGuarantees);
         if (autoAck.equals("true")) {

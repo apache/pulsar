@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -26,11 +26,11 @@ import lombok.Data;
 @Builder
 @Data
 public class SchemaData {
-    public final SchemaType type;
-    public final boolean isDeleted;
-    public final long timestamp;
-    public final String user;
-    public final byte[] data;
+    private final SchemaType type;
+    private final boolean isDeleted;
+    private final long timestamp;
+    private final String user;
+    private final byte[] data;
     @Builder.Default
     public final Map<String, String> props = new HashMap<>();
 }
