@@ -3,24 +3,45 @@ title: The Pulsar Functions API
 new: true
 ---
 
-Pulsar Functions provides an easy-to-use API that developers can use to easily create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#java) or [Python](#python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
+Pulsar Functions provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#java) or [Python](#python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
 
-{% include admonition.html type="info" content="For a more in-depth overview of the Pulsar Functions feature, see the [Concepts and Architecture](../../getting-started/ConceptsAndArchitecture#pulsar-functions) guide." %}
+{% include admonition.html type="info" content="For a more in-depth overview of the Pulsar Functions feature, see the [Pulsar Functions overview](../overview)." %}
 
 ## Core programming model
 
-Pulsar Functions provide a wide range of functionality but are based on a very simple programming model. You can think of Pulsar Functions as lightweight processes that combine
+Pulsar Functions provide a wide range of functionality but are based on a very simple programming model. You can think of Pulsar Functions as lightweight processes that
 
-But there are some important differences between Pulsar Functions and normal Pulsar producers and consumers:
+* {% popover consume %} messages from one or more Pulsar {% popover topics %} and then
+* apply some user-defined processing logic (just about anything you want). This could involve
+  * {% popover producing %} the resulting, processed message on another Pulsar topic or
+  * doing something else with the message, like [storing state](#state-storage), incrementing a [counter](#counter), writing results to an external database, etc.
 
-* With Pulsar Functions, you don't need to instantiate a client, producer, or consumer. You only need to specify how you want each incoming message to be processed.
-* You don't need to specify the function's {% popover topic %}, {% popover tenant %}, or {% popover namespace %} inside of the function itself. That information is supplied via the [CLI](../../reference/CliTools#pulsar-admin-functions) when you run the function. That means that functions can be easily used and re-used across topics.
+You could use Pulsar Functions, for example, to set up the following processing chain:
 
-### Input and output topics
+* A [Python](#python) function listens on the `raw-sentences` topic and "[sanitizes](#example-function)" incoming strings (removing extraneous whitespace and converting all characters to lower case) and then publishes the results to a `sanitized-sentences` topic
+* A [Java](#java) function listens on the `sanitized-sentences` topic, counts the number of times each word appears within a specified time window, and publishes the results to a `results` topic
+* Finally, a Python function listens on the `results` topic and writes the results to a MySQL table
 
-All Pulsar Functions have one or more **input topics** that supply messages to the function.
+### Example function
 
-At the moment, Pulsar Functions can only have one output topic.
+Here's an example of the "input sanitizer" Python function method above:
+
+```python
+def clean_string(input_string):
+    return input_string.strip().lower()
+
+def process(input):
+    return clean_string(input)
+```
+
+Some things to note about this Pulsar Function:
+
+* There is no client, producer, or consumer object involved. All message "plumbing" is already taken care of for you.
+* No topics, subscription types, {% popover tenants %}, or {% popover namespaces %} are specified in the function logic itself. Instead, topics are specified upon [deployment](#example-deployment).
+
+### Example deployment
+
+Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command.
 
 ### Serialization and deserialization (SerDe) {#serde}
 
