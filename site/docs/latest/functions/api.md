@@ -53,7 +53,7 @@ $ bin/pulsar-admin functions localrun \
 
 For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](../deployment) guide.
 
-## The Pulsar Functions SDK {#sdk}
+### The Pulsar Functions SDK {#sdk}
 
 In both Java and Python, you have two options for writing Pulsar Functions:
 
@@ -72,10 +72,7 @@ This function, however, would use the Pulsar Functions SDK for Python:
 ```python
 from pulsarfunction import pulsar_function
 
-class Exclaim(pulsar_function.Function):
-    def __init__(self):
-        pass
-    
+class Exclaim(pulsar_function.Function):    
     def process(self, input, context):
         return "{}!".format(input)
 ```
@@ -116,9 +113,20 @@ For example, a function might have
 
 ## User config
 
+When you run or update Pulsar Functions created using the [SDK](#sdk), you can pass arbitrary key/values to them via the command line with the `--userConfig` flag. Key/values must be specified as JSON. Here's an example:
+
 ```bash
 $ bin/pulsar-admin functions create \
-  --userConfig key=value
+  --name \
+  # Other function configs
+  --userConfig '{"forbidden-subject":"fight club"}'
+```
+
+```python
+from pulsarfunction import pulsar_function
+
+class SubjectFilter(pulsar_function.PulsarFunction):
+
 ```
 
 ## Java
@@ -130,7 +138,37 @@ Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 ### Getting started
 
-To get started developing Pulsar Functions in Java, you'll need to add a dependency on the `pulsar-functions-api` artifact to your project.
+
+### Java native functions
+
+If your function doesn't require access to its [context](#context), you can implement the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
+
+```java
+public interface Function<I, O> {
+    O apply(I input);
+}
+```
+
+Here's a simple example that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:
+
+```java
+import java.util.Function;
+
+public class ExclamationFunction implements Function<String, String> {
+    @Override
+    public String process(String input) {
+        return String.format("%s!", input);
+    }
+}
+```
+
+In general, you should use native functions when you don't need access to the function's [context](#context). If you do need access to the function's context, then we recommend using the [Pulsar Functions Java SDK](#java-sdk).
+
+the [Java SDK](#java-sdk)
+
+### Java SDK functions {#java-sdk}
+
+To get started developing Pulsar Functions using the Java SDK, you'll need to add a dependency on the `pulsar-functions-api` artifact to your project.
 
 {% include admonition.html type='success' content='An easy way to get up and running with Pulsar Functions in Java is to clone the [`pulsar-functions-java-starter`](https://github.com/streamlio/pulsar-functions-java-starter) repo and follow the instructions there.' %}
 
@@ -167,27 +205,7 @@ dependencies {
 }
 ```
 
-### Java functions without context
-
-If your function doesn't require access to its [context](#context), you can implement the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
-
-```java
-public interface Function<I, O> {
-    O apply(I input);
-}
-```
-
-Here's a simple example that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:
-
-```java
-import java.util.Function;
-
-public class ExclamationFunction implements Function<String, String> {
-
-}
-```
-
-### Java functions with context
+#### 
 
 ```java
 public interface PulsarFunction<I, O> {
@@ -241,9 +259,7 @@ public class IncrementFunction implements PulsarFunction<String, Void> {
 
 ### Java SerDe
 
-> Serde stands for **Ser**ialization and **De**serialization.
-
-The following Java types are supported by default:
+Pulsar Functions use [SerDe](#serde) when publishing data to and consuming data from Pulsar topics. When you're writing Pulsar Functions in Java, the following basic Java types are built in and supported by default:
 
 * `String`
 * `Double`
@@ -262,10 +278,63 @@ public interface SerDe<T> {
 }
 ```
 
+#### SerDe example
+
+Imagine that you're writing Pulsar Functions in Java that are processing tweet objects. Here's a simple example `Tweet` class:
+
+```java
+public class Tweet {
+    private String username;
+    private String tweetContent;
+
+    public Tweet(String username, String tweetContent) {
+        this.username = username;
+        this.tweetContent = tweetContent;
+    }
+
+    // Standard setters and getters
+}
+```
+
+In order to be able to pass `Tweet` objects directly between Pulsar Functions, you'll need to provide a custom SerDe class. In the example below, `Tweet` objects are basically strings in which the username and tweet content are separated by a `|`.
+
+```java
+package com.example.serde;
+
+import org.apache.pulsar.functions.api.SerDe;
+
+import java.util.regex.Pattern;
+
+public class TweetSerde implements SerDe<Tweet> {
+    public Tweet deserialize(byte[] input) {
+        String s = new String(input);
+        String[] fields = s.split(Pattern.quote("|"));
+        return new Tweet(fields[0], fields[1]);
+    }
+
+    public byte[] serialize(Tweet input) {
+        return "%s|%s".format(input.getUsername(), input.getTweetContent()).getBytes();
+    }
+}
+```
+
+To apply this custom SerDe to a particular Pulsar Function, you would need to:
+
+* Package the `Tweet` and `TweetSerde` classes into a JAR
+* Specify a path to the JAR and SerDe class name when deploying the function
+
+Here's an example [`create`](../../reference/CliTools#pulsar-admin-functions-create) operation:
+
 ```bash
 $ bin/pulsar-admin functions create \
-  --ser
+  --jar /path/to/your.jar \
+  --outputSerdeClassName com.example.serde.TweetSerde \
+  # Other function attributes
 ```
+
+{% include admonition.html type="warning" title="Custom SerDe classes must be packaged with your function JARs" content="
+Pulsar does not store your custom SerDe classes separately from your Pulsar Functions. That means that you'll need to always include your SerDe classes in your function JARs. If not, Pulsar will return an error.
+" %}
 
 ### Java logging
 
@@ -273,12 +342,26 @@ $ bin/pulsar-admin functions create \
 
 ## Python
 
+### Getting started
+
+```bash
+$ pip install pulsarfunctions
+```
+
+### Basic example
+
 ```python
 def process(input):
 ```
 
+### Python SDK example
+
 ### With context
 
 ```python
-def 
+from pulsarfunction import pulsar_function
+
+class CounterIncrementingFunction(pulsar_function.Function):
+    def process(self, context, input):
+        log = context.
 ```

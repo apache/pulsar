@@ -22,10 +22,11 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.PulsarFunction;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
-public class PublishFunction implements PulsarFunction<String, Void> {
+import java.util.ArrayList;
+
+public class PublishFunction implements PulsarFunction<String, byte[]> {
     @Override
-    public Void process(String input, Context context) {
-        context.publish(context.getUserConfigValue("PublishTopic"), input + "!", DefaultSerDe.class.getName());
-        return null;
+    public byte[] process(String input, Context context) {
+        return "foo".getBytes();
     }
 }
