@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- * <p>
- * http://www.apache.org/licenses/LICENSE-2.0
- * <p>
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -71,7 +71,9 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @VisibleForTesting
     public void init() throws KeeperException, InterruptedException {
         try {
-            zooKeeper.create(SchemaPath, new byte[]{}, Acl, CreateMode.PERSISTENT);
+            if (zooKeeper.exists(SchemaPath, false) == null) {
+                zooKeeper.create(SchemaPath, new byte[]{}, Acl, CreateMode.PERSISTENT);
+            }
         } catch (KeeperException.NodeExistsException error) {
             // race on startup, ignore.
         }
@@ -127,7 +129,7 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @Override
     public SchemaVersion versionFromBytes(byte[] version) {
         ByteBuffer bb = ByteBuffer.wrap(version);
-        return new LongSchemaVersion(bb.get());
+        return new LongSchemaVersion(bb.getLong());
     }
 
     @Override
