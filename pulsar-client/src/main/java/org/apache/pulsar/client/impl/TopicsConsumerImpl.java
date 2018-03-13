@@ -704,7 +704,6 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     // handling failure during subscribe new topic, unsubscribe success created partitions
     private void handleSubscribeOneTopicError(String topicName, Throwable error, CompletableFuture<Void> subscribeFuture) {
         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer {}", topic, topicName, error.getMessage());
-        topics.remove(topicName);
 
         client.externalExecutorProvider().getExecutor().submit(() -> {
             AtomicInteger toCloseNum = new AtomicInteger(0);
@@ -724,6 +723,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                     if (toCloseNum.decrementAndGet() == 0) {
                         log.warn("[{}] Failed to subscribe for topic [{}] in topics consumer, subscribe error: {}",
                             topic, topicName, error.getMessage());
+                        topics.remove(topicName);
                         checkState(numberTopicPartitions.get() == consumers.values().size());
                         subscribeFuture.completeExceptionally(error);
                     }
