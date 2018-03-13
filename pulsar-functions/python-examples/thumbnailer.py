@@ -18,10 +18,10 @@
 # under the License.
 #
 
-from pulsarfunction import pulsar_function
+from pulsar import Function
 from PIL import Image
 
-class Thumbnailer(pulsar_function.PulsarFunction):
+class Thumbnailer(Function):
 
   def process(self, input, context):
     im = Image.frombytes(input)

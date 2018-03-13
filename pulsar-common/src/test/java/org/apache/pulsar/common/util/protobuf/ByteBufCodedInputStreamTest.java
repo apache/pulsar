@@ -46,8 +46,13 @@ public class ByteBufCodedInputStreamTest {
         assertFalse(inputStream.skipField(WireFormat.WIRETYPE_END_GROUP));
         inputStream = ByteBufCodedInputStream.get(Unpooled.wrappedBuffer("1000".getBytes()));
         assertTrue(inputStream.skipField(WireFormat.WIRETYPE_FIXED32));
-        assertTrue(inputStream.skipField(WireFormat.WIRETYPE_START_GROUP));
 
+        try {
+            inputStream.skipField(WireFormat.WIRETYPE_START_GROUP);
+            fail("Should not happend");
+        } catch (Exception e) {
+            // pass
+        }
         try {
             assertTrue(inputStream.skipField(-1));
             fail("Should not happend");
