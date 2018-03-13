@@ -477,9 +477,7 @@ public class CmdFunctions extends CmdBase {
                     RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                             instanceConfig,
                             userCodeFile,
-                            containerFactory,
-                            null,
-                            0);
+                            containerFactory);
                     spawners.add(runtimeSpawner);
                     runtimeSpawner.start();
                 }

@@ -16,14 +16,12 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.stats.prometheus;
+package org.apache.pulsar.functions.worker;
 
-import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.runtime.Runtime;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
-import org.apache.pulsar.functions.worker.FunctionRuntimeInfo;
-import org.apache.pulsar.utils.SimpleTextOutputStream;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,11 +35,10 @@ public class FunctionsStatsGenerator {
 
     private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
-    public static void generate(PulsarService pulsar, SimpleTextOutputStream out) {
-        if (pulsar.getWorkerService() != null) {
+    public static void generate(WorkerService workerService, String cluster, SimpleTextOutputStream out) {
+        if (workerService != null) {
             Map<String, FunctionRuntimeInfo> functionRuntimes
-                    = pulsar.getWorkerService().getFunctionRuntimeManager().getFunctionRuntimeInfos();
-            String cluster = pulsar.getConfiguration().getClusterName();
+                    = workerService.getFunctionRuntimeManager().getFunctionRuntimeInfos();
 
             for (Map.Entry<String, FunctionRuntimeInfo> entry : functionRuntimes.entrySet()) {
                 String fullyQualifiedInstanceName = entry.getKey();

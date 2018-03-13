@@ -49,7 +49,6 @@ public class WorkerConfig implements Serializable {
     private String pulsarFunctionsNamespace;
     private int numFunctionPackageReplicas;
     private String downloadDirectory;
-    private MetricsConfig metricsConfig;
     private long snapshotFreqMs;
     private String stateStorageServiceUrl;
     private String functionAssignmentTopicName;
@@ -96,31 +95,5 @@ public class WorkerConfig implements Serializable {
     public static WorkerConfig load(String yamlFile) throws IOException {
         ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
         return mapper.readValue(new File(yamlFile), WorkerConfig.class);
-    }
-
-    @Data
-    @Setter
-    @Getter
-    @EqualsAndHashCode
-    @ToString
-    @AllArgsConstructor
-    @NoArgsConstructor
-    @Accessors(chain = true)
-    /**
-     * This represents the config related to the resource limits of function calls
-     */
-    public static class MetricsConfig implements Serializable {
-
-        private static final long serialVersionUID = 1L;
-
-        private String metricsSinkClassName;
-        private int metricsCollectionInterval;
-        private Map<String, String> metricsSinkConfig;
-
-        public static MetricsConfig load(String yamlFile) throws IOException {
-            ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-            return mapper.readValue(new File(yamlFile), MetricsConfig.class);
-        }
-
     }
 }
