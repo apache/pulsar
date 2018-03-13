@@ -55,7 +55,7 @@ import org.apache.pulsar.client.admin.Functions;
 import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -85,7 +85,7 @@ public class CmdFunctionsTest {
     private Functions functions;
     private CmdFunctions cmd;
 
-    public class DummyFunction implements PulsarFunction<String, String> {
+    public class DummyFunction implements Function<String, String> {
         @Override
         public String process(String input, Context context) throws Exception {
             return null;
@@ -111,7 +111,7 @@ public class CmdFunctionsTest {
         mockStatic(Reflections.class);
         when(Reflections.classExistsInJar(any(File.class), anyString())).thenReturn(true);
         when(Reflections.classExists(anyString())).thenReturn(true);
-        when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(PulsarFunction.class)))
+        when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(Function.class)))
             .thenReturn(true);
         when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
         when(Reflections.createInstance(eq(DummyFunction.class.getName()), any(File.class))).thenReturn(new DummyFunction());
