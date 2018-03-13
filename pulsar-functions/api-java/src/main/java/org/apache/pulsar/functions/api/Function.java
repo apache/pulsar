@@ -16,16 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.functions.api;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-
-public class PublishFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        context.publish(context.getUserConfigValue("PublishTopic"), input + "!", DefaultSerDe.class.getName());
-        return null;
-    }
+/**
+ * This is the core interface of the function api. The process is called
+ * for every message of the input topic of the function. The incoming input bytes
+ * are converted to the input type I for simple Java types(String, Integer, Boolean,
+ * Map, and List types) and for org.Json type. If this serialization approach does not
+ * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
+ */
+@FunctionalInterface
+public interface Function<I, O> {
+    /**
+     * Process the input.
+     * @return the output
+     */
+    O process(I input, Context context) throws Exception;
 }
