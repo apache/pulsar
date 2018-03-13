@@ -32,6 +32,7 @@ import java.util.Set;
 public class DefaultSerDe implements SerDe<Object> {
 
     private static final Set<Class> supportedInputTypes = new HashSet<>(Arrays.asList(
+            byte[].class,
             Integer.class,
             Double.class,
             Long.class,
@@ -49,7 +50,10 @@ public class DefaultSerDe implements SerDe<Object> {
     @Override
     public Object deserialize(byte[] input) {
         String data = new String(input, StandardCharsets.UTF_8);
-        if (type.equals(Integer.class)) {
+
+        if (type.equals(byte[].class)) {
+            return input;
+        } else if (type.equals(Integer.class)) {
             return Integer.valueOf(data);
         } else if (type.equals(Double.class)) {
             return Double.valueOf(data);
@@ -70,7 +74,9 @@ public class DefaultSerDe implements SerDe<Object> {
 
     @Override
     public byte[] serialize(Object input) {
-        if (type.equals(Integer.class)) {
+        if (type.equals(byte[].class)) {
+            return (byte[]) input;
+        } else if (type.equals(Integer.class)) {
             return ((Integer) input).toString().getBytes(StandardCharsets.UTF_8);
         } else if (type.equals(Double.class)) {
             return ((Double) input).toString().getBytes(StandardCharsets.UTF_8);
