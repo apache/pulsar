@@ -75,8 +75,8 @@ public class ProcessRuntimeTest {
         functionConfigBuilder.setNamespace(TEST_NAMESPACE);
         functionConfigBuilder.setName(TEST_NAME);
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
-        functionConfigBuilder.addInputs(TEST_NAME + "-source1");
-        functionConfigBuilder.addInputs(TEST_NAME + "-source2");
+        functionConfigBuilder.addInputs(TEST_NAME + "-input1");
+        functionConfigBuilder.addInputs(TEST_NAME + "-input2");
         functionConfigBuilder.setOutput(TEST_NAME + "-output");
         functionConfigBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         functionConfigBuilder.setLogTopic(TEST_NAME + "-log");
@@ -113,7 +113,7 @@ public class ProcessRuntimeTest {
                 + " --name " + config.getFunctionConfig().getName()
                 + " --function_classname " + config.getFunctionConfig().getClassName()
                 + " --log_topic " + config.getFunctionConfig().getLogTopic()
-                + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
+                + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
                 + " --output_topic " + config.getFunctionConfig().getOutput()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
@@ -140,7 +140,7 @@ public class ProcessRuntimeTest {
                 + " --name " + config.getFunctionConfig().getName()
                 + " --function_classname " + config.getFunctionConfig().getClassName()
                 + " --log_topic " + config.getFunctionConfig().getLogTopic()
-                + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
+                + " --input_topics " + TEST_NAME + "-input1," + TEST_NAME + "-input2"
                 + " --auto_ack false"
                 + " --output_topic " + config.getFunctionConfig().getOutput()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()

@@ -86,13 +86,13 @@ class ContextImpl implements Context {
     private ProducerConfiguration producerConfiguration;
     private PulsarClient pulsarClient;
     private ClassLoader classLoader;
-    private Map<String, Consumer> sourceConsumers;
+    private Map<String, Consumer> inputConsumers;
     @Getter
     @Setter
     private StateContextImpl stateContext;
 
     public ContextImpl(InstanceConfig config, Logger logger, PulsarClient client,
-                       ClassLoader classLoader, Map<String, Consumer> sourceConsumers) {
+                       ClassLoader classLoader, Map<String, Consumer> inputConsumers) {
         this.config = config;
         this.logger = logger;
         this.pulsarClient = client;
@@ -100,7 +100,7 @@ class ContextImpl implements Context {
         this.accumulatedMetrics = new ConcurrentHashMap<>();
         this.publishProducers = new HashMap<>();
         this.publishSerializers = new HashMap<>();
-        this.sourceConsumers = sourceConsumers;
+        this.inputConsumers = inputConsumers;
         producerConfiguration = new ProducerConfiguration();
         producerConfiguration.setBlockIfQueueFull(true);
         producerConfiguration.setBatchingEnabled(true);
@@ -125,7 +125,7 @@ class ContextImpl implements Context {
 
     @Override
     public Collection<String> getInputTopics() {
-        return sourceConsumers.keySet();
+        return inputConsumers.keySet();
     }
 
     @Override
@@ -236,7 +236,7 @@ class ContextImpl implements Context {
 
     @Override
     public CompletableFuture<Void> ack(byte[] messageId, String topic) {
-        if (!sourceConsumers.containsKey(topic)) {
+        if (!inputConsumers.containsKey(topic)) {
             throw new RuntimeException("No such input topic " + topic);
         }
 
@@ -246,7 +246,7 @@ class ContextImpl implements Context {
         } catch (IOException e) {
             throw new RuntimeException("Invalid message id to ack", e);
         }
-        return sourceConsumers.get(topic).acknowledgeAsync(actualMessageId);
+        return inputConsumers.get(topic).acknowledgeAsync(actualMessageId);
     }
 
     @Override

@@ -57,9 +57,9 @@ def main():
   parser.add_argument('--name', required=True, help='Function Name')
   parser.add_argument('--tenant', required=True, help='Tenant Name')
   parser.add_argument('--namespace', required=True, help='Namespace name')
-  parser.add_argument('--custom_serde_source_topics', required=False, help='Source Topics Requiring Custom Deserialization')
+  parser.add_argument('--custom_serde_input_topics', required=False, help='Input Topics Requiring Custom Deserialization')
   parser.add_argument('--custom_serde_classnames', required=False, help='Input Serde Classnames')
-  parser.add_argument('--source_topics', required=False, help='Input topics with default serde')
+  parser.add_argument('--input_topics', required=False, help='Input topics with default serde')
   parser.add_argument('--output_topic', required=False, help='Output Topic')
   parser.add_argument('--output_serde_classname', required=False, help='Output Serde Classnames')
   parser.add_argument('--instance_id', required=True, help='Instance Id')
@@ -87,19 +87,19 @@ def main():
   function_config.namespace = args.namespace
   function_config.name = args.name
   function_config.className = args.function_classname
-  if args.custom_serde_source_topics is None and args.source_topics is None:
-    Log.critical("Atleast one source topic must be present")
+  if args.custom_serde_input_topics is None and args.input_topics is None:
+    Log.critical("Atleast one input topic must be present")
     sys.exit(1)
-  if args.custom_serde_source_topics is not None and args.custom_serde_classnames is not None:
-    source_topics = args.custom_serde_source_topics.split(",")
-    source_serde = args.custom_serde_classnames.split(",")
-    if len(source_topics) != len(source_serde):
-      Log.critical("CustomSerde SourceTopics and Serde classnames should match")
+  if args.custom_serde_input_topics is not None and args.custom_serde_classnames is not None:
+    input_topics = args.custom_serde_input_topics.split(",")
+    input_serde = args.custom_serde_classnames.split(",")
+    if len(input_topics) != len(input_serde):
+      Log.critical("CustomSerde InputTopcis and Serde classnames should match")
       sys.exit(1)
-    for i in xrange(len(source_topics)):
-      function_config.customSerdeInputs[source_topics[i]] = source_serde[i]
-  if args.source_topics is not None:
-    for topic in args.source_topics.split(","):
+    for i in xrange(len(input_topics)):
+      function_config.customSerdeInputs[input_topics[i]] = input_serde[i]
+  if args.input_topics is not None:
+    for topic in args.input_topics.split(","):
       function_config.inputs.append(topic)
   if args.output_topic != None and len(args.output_topic) != 0:
     function_config.output = args.output_topic

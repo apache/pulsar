@@ -49,11 +49,11 @@ public class JavaInstance implements AutoCloseable {
     public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
                  PulsarClient pulsarClient,
-                 Map<String, Consumer> sourceConsumers) {
+                 Map<String, Consumer> inputConsumers) {
         // TODO: cache logger instances by functions?
         Logger instanceLog = LoggerFactory.getLogger("function-" + config.getFunctionConfig().getName());
 
-        this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, sourceConsumers);
+        this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, inputConsumers);
 
         // create the functions
         if (userClassObject instanceof PulsarFunction) {
