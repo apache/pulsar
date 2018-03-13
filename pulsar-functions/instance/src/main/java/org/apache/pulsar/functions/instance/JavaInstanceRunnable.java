@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
+
 import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.Setter;
@@ -53,7 +53,7 @@ import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
@@ -171,16 +171,16 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         Object object = Reflections.createInstance(
                 instanceConfig.getFunctionConfig().getClassName(),
                 clsLoader);
-        if (!(object instanceof PulsarFunction) && !(object instanceof Function)) {
-            throw new RuntimeException("User class must either be PulsarFunction or java.util.Function");
+        if (!(object instanceof Function) && !(object instanceof java.util.function.Function)) {
+            throw new RuntimeException("User class must either be Function or java.util.Function");
         }
         Class<?>[] typeArgs;
-        if (object instanceof PulsarFunction) {
-            PulsarFunction pulsarFunction = (PulsarFunction) object;
-            typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
-        } else {
+        if (object instanceof Function) {
             Function function = (Function) object;
             typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
+        } else {
+            java.util.function.Function function = (java.util.function.Function) object;
+            typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
         }
 
         // setup serde

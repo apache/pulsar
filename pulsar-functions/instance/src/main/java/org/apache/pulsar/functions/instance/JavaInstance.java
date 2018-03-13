@@ -24,11 +24,10 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 
 import java.util.Map;
-import java.util.function.Function;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,8 +42,8 @@ public class JavaInstance implements AutoCloseable {
 
     @Getter(AccessLevel.PACKAGE)
     private final ContextImpl context;
-    private PulsarFunction pulsarFunction;
-    private Function javaUtilFunction;
+    private Function function;
+    private java.util.function.Function javaUtilFunction;
 
     public JavaInstance(InstanceConfig config, Object userClassObject,
                  ClassLoader clsLoader,
@@ -56,10 +55,10 @@ public class JavaInstance implements AutoCloseable {
         this.context = new ContextImpl(config, instanceLog, pulsarClient, clsLoader, sourceConsumers);
 
         // create the functions
-        if (userClassObject instanceof PulsarFunction) {
-            this.pulsarFunction = (PulsarFunction) userClassObject;
+        if (userClassObject instanceof Function) {
+            this.function = (Function) userClassObject;
         } else {
-            this.javaUtilFunction = (Function) userClassObject;
+            this.javaUtilFunction = (java.util.function.Function) userClassObject;
         }
     }
 
@@ -73,8 +72,8 @@ public class JavaInstance implements AutoCloseable {
         JavaExecutionResult executionResult = new JavaExecutionResult();
         try {
             Object output;
-            if (pulsarFunction != null) {
-                output = pulsarFunction.process(input, context);
+            if (function != null) {
+                output = function.process(input, context);
             } else {
                 output = javaUtilFunction.apply(input);
             }
