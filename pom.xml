@@ -113,6 +113,7 @@ flexible messaging model and an intuitive client API.</description>
   <properties>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    <redirectTestOutputToFile>true</redirectTestOutputToFile>
 
     <bookkeeper.version>4.7.0-SNAPSHOT</bookkeeper.version>
     <zookeeper.version>3.4.10</zookeeper.version>
@@ -806,7 +807,7 @@ flexible messaging model and an intuitive client API.</description>
           </argLine>
           <reuseForks>false</reuseForks>
           <forkCount>1</forkCount>
-          <redirectTestOutputToFile>true</redirectTestOutputToFile>
+          <redirectTestOutputToFile>${redirectTestOutputToFile}</redirectTestOutputToFile>
           <trimStackTrace>false</trimStackTrace>
         </configuration>
       </plugin>
