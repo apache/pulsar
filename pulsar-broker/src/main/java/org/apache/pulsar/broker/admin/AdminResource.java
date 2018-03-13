@@ -20,11 +20,11 @@ package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -451,6 +451,19 @@ public abstract class AdminResource extends PulsarWebResource {
             throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to get namespace policies {}/{}/{}", clientAppId(), property, cluster, namespace, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected boolean isNamespaceReplicated(NamespaceName namespaceName) {
+        try {
+            final Policies policies = policiesCache().get(ZkAdminPaths.namespacePoliciesPath(namespaceName))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            return policies.replication_clusters.size() > 1;
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }
