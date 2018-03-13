@@ -26,7 +26,7 @@
 import time
 import os
 
-from pulsarfunction import context
+import pulsar
 import util
 import InstanceCommunication_pb2
 
@@ -46,7 +46,7 @@ class AccumulatedMetricDatum(object):
     if value < self.min:
       self.min = value
 
-class ContextImpl(context.Context):
+class ContextImpl(pulsar.Context):
   def __init__(self, instance_config, logger, pulsar_client, user_code, consumers):
     self.instance_config = instance_config
     self.log = logger
