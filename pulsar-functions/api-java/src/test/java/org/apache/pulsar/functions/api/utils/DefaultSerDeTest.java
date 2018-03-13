@@ -21,7 +21,7 @@ package org.apache.pulsar.functions.api.utils;
 
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.testng.annotations.Test;
 
@@ -82,7 +82,7 @@ public class DefaultSerDeTest {
         assertEquals(result, input);
     }
 
-    private class SimplePulsarFunction implements PulsarFunction<String, String> {
+    private class SimplePulsarFunction implements Function<String, String> {
         @Override
         public String process(String input, Context context) {
             return null;
@@ -92,7 +92,7 @@ public class DefaultSerDeTest {
     @Test
     public void testPulsarFunction() {
         SimplePulsarFunction pulsarFunction = new SimplePulsarFunction();
-        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+        Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
         SerDe serDe = new DefaultSerDe(String.class);
         Class<?>[] inputSerdeTypeArgs = TypeResolver.resolveRawArguments(SerDe.class, serDe.getClass());
         assertTrue(inputSerdeTypeArgs[0].isAssignableFrom(typeArgs[0]));

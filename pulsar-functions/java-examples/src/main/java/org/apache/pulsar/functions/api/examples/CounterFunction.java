@@ -19,9 +19,9 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 
-public class CounterFunction implements PulsarFunction<String, Void> {
+public class CounterFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) throws Exception {
         String[] parts = input.split("\\.");
