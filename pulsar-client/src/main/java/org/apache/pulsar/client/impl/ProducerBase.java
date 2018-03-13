@@ -39,7 +39,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
             CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
         super(client, topic);
-        //new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
         this.schema = schema;

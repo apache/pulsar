@@ -21,7 +21,7 @@ package org.apache.pulsar.client.impl;
 import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.UnaryOperator;
 
-public abstract class HandlerState {
+abstract class HandlerState {
     protected final PulsarClientImpl client;
     protected final String topic;
 

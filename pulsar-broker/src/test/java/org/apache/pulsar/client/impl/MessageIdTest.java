@@ -455,7 +455,7 @@ public class MessageIdTest extends BrokerTestBase {
 
         // 5. Verify
         /**
-         * (5.3) verify: ProducerImpl.verifyLocalBufferIsNotCorrupted() => validates if message is corrupt
+         * verify: ProducerImpl.verifyLocalBufferIsNotCorrupted() => validates if message is corrupt
          */
         MessageImpl<byte[]> msg2 = (MessageImpl<byte[]>) MessageBuilder.create().setContent("message-1".getBytes())
                 .build();
