@@ -19,9 +19,9 @@
 #
 
 
-from pulsarfunction import pulsar_function
+from pulsar import Function
 
-class Exclamation(pulsar_function.PulsarFunction):
+class Exclamation(Function):
   def __init__(self):
     pass
 
