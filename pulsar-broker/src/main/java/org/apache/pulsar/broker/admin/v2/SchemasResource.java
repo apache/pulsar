@@ -42,6 +42,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.commons.lang.StringUtils;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
@@ -118,17 +119,21 @@ public class SchemasResource extends AdminResource {
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
                 if (isNull(error)) {
-                    response.resume(
-                        Response.ok()
-                            .encoding(MediaType.APPLICATION_JSON)
-                            .entity(new GetSchemaResponse(
-                                schema.version,
-                                schema.schema.getType(),
-                                schema.schema.getTimestamp(),
-                                new String(schema.schema.getData()),
-                                schema.schema.props
-                            )).build()
-                    );
+                    if (schema.schema.isDeleted()) {
+                        response.resume(Response.noContent());
+                    } else {
+                        response.resume(
+                            Response.ok()
+                                .encoding(MediaType.APPLICATION_JSON)
+                                .entity(new GetSchemaResponse(
+                                    schema.version,
+                                    schema.schema.getType(),
+                                    schema.schema.getTimestamp(),
+                                    new String(schema.schema.getData()),
+                                    schema.schema.props
+                                )).build()
+                        );
+                    }
                 } else {
                     response.resume(error);
                 }
@@ -149,7 +154,7 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
-        pulsar().getSchemaRegistryService().deleteSchema(schemaId, clientAppId())
+        pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""))
             .handle((version, error) -> {
                 if (isNull(error)) {
                     response.resume(
