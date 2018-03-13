@@ -160,6 +160,10 @@
                   <shadedPattern>org.apache.pulsar.shade.org.apache.http</shadedPattern>
                 </relocation>
               </relocations>
+              <transformers>
+                <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
+                <transformer implementation="org.apache.maven.plugins.shade.resource.PluginXmlResourceTransformer" />
+              </transformers>
             </configuration>
           </execution>
         </executions>
