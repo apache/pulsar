@@ -16,15 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.broker.admin;
+package org.apache.pulsar.broker.admin.v2;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.util.Objects.isNull;
+import static org.apache.commons.lang.StringUtils.defaultIfEmpty;
 import static org.apache.pulsar.common.util.Codec.decode;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import io.swagger.annotations.ApiOperation;
 import java.time.Clock;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import javax.ws.rs.Consumes;
@@ -39,6 +42,7 @@ import javax.ws.rs.container.AsyncResponse;
 import javax.ws.rs.container.Suspended;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.common.naming.TopicName;
@@ -51,14 +55,14 @@ public class SchemasResource extends AdminResource {
 
     private final Clock clock;
 
-    @VisibleForTesting
-    SchemasResource(Clock clock) {
-        super();
-        this.clock = clock;
-    }
-
     public SchemasResource() {
         this(Clock.systemUTC());
+    }
+
+    @VisibleForTesting
+    public SchemasResource(Clock clock) {
+        super();
+        this.clock = clock;
     }
 
     @GET @Path("/{property}/{cluster}/{namespace}/{topic}/schema")
@@ -80,7 +84,13 @@ public class SchemasResource extends AdminResource {
                     response.resume(
                         Response.ok()
                             .encoding(MediaType.APPLICATION_JSON)
-                            .entity(schema)
+                            .entity(new GetSchemaResponse(
+                                schema.version,
+                                schema.schema.getType(),
+                                schema.schema.getTimestamp(),
+                                new String(schema.schema.getData()),
+                                schema.schema.props
+                            ))
                             .build()
                     );
                 } else {
@@ -112,8 +122,12 @@ public class SchemasResource extends AdminResource {
                         Response.ok()
                             .encoding(MediaType.APPLICATION_JSON)
                             .entity(new GetSchemaResponse(
-                                schema.schema, schema.version)
-                            ).build()
+                                schema.version,
+                                schema.schema.getType(),
+                                schema.schema.getTimestamp(),
+                                new String(schema.schema.getData()),
+                                schema.schema.props
+                            )).build()
                     );
                 } else {
                     response.resume(error);
@@ -167,11 +181,11 @@ public class SchemasResource extends AdminResource {
         pulsar().getSchemaRegistryService().putSchemaIfAbsent(
             buildSchemaId(property, cluster, namespace, topic),
             SchemaData.builder()
-                .data(payload.schema.getBytes())
+                .data(payload.schema.getBytes(Charsets.UTF_8))
                 .isDeleted(false)
                 .timestamp(clock.millis())
                 .type(SchemaType.valueOf(payload.type))
-                .user(clientAppId())
+                .user(defaultIfEmpty(clientAppId(), ""))
                 .build()
         ).thenAccept(version ->
             response.resume(
@@ -183,12 +197,12 @@ public class SchemasResource extends AdminResource {
     }
 
     private String buildSchemaId(String property, String cluster, String namespace, String topic) {
-        return property + "_" + cluster + "_" + namespace + "_" + topic;
+        return TopicName.get("persistent", property, cluster, namespace, topic).getSchemaName();
     }
 
     private void validateDestinationAndAdminOperation(String property, String cluster, String namespace, String topic) {
         TopicName destinationName = TopicName.get(
-            domain(), property, cluster, namespace, decode(topic)
+            "persistent", property, cluster, namespace, decode(topic)
         );
 
         try {
@@ -214,26 +228,25 @@ public class SchemasResource extends AdminResource {
     }
 
     static class GetSchemaResponse {
-        public final SchemaVersion version;
-        public final SchemaData schema;
+        public SchemaVersion version;
+        public SchemaType type;
+        public long timestamp;
+        public String data;
+        public Map<String, String> props;
 
-        GetSchemaResponse(SchemaData schema, SchemaVersion version) {
-            this.schema = schema;
+        public GetSchemaResponse(SchemaVersion version, SchemaType type, long timestamp, String data, Map<String, String> props) {
             this.version = version;
+            this.type = type;
+            this.timestamp = timestamp;
+            this.data = data;
+            this.props = props;
         }
     }
 
     static class PostSchemaPayload {
-        public final String type;
-        public final String schema;
-        public final Map<String, String> properties;
-
-        @VisibleForTesting
-        PostSchemaPayload(String type, String schema, Map<String, String> properties) {
-            this.type = type;
-            this.schema = schema;
-            this.properties = properties;
-        }
+        public String type;
+        public String schema;
+        public Map<String, String> properties;
     }
 
     static class PostSchemaResponse {
