@@ -26,7 +26,7 @@ package org.apache.pulsar.functions.api;
  * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
  */
 @FunctionalInterface
-public interface PulsarFunction<I, O> {
+public interface Function<I, O> {
     /**
      * Process the input.
      * @return the output

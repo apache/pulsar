@@ -20,12 +20,12 @@ package org.apache.pulsar.functions.api.examples;
 
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 
 /**
  * A function with logging example.
  */
-public class LoggingFunction implements PulsarFunction<String, String> {
+public class LoggingFunction implements Function<String, String> {
 
     private static final AtomicIntegerFieldUpdater<LoggingFunction> COUNTER_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(LoggingFunction.class, "counter");

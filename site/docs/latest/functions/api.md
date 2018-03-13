@@ -39,7 +39,7 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 * The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
-* The {% javadoc PulsarFunction client org.apache.pulsar.functions.api.PulsarFunction %} interface. This interface works much like the `java.util.Function` ihterface, but with the important difference
+* The {% javadoc PulsarFunction client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` ihterface, but with the important difference
 
 ### Java functions without context
 

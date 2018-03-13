@@ -74,7 +74,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
@@ -87,7 +87,6 @@ import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockObjectFactory;
 import org.powermock.reflect.Whitebox;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
@@ -107,14 +106,14 @@ public class JavaInstanceRunnableProcessTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static class TestFunction implements PulsarFunction<String, String> {
+    private static class TestFunction implements Function<String, String> {
         @Override
         public String process(String input, Context context) throws Exception {
             return input + "!";
         }
     }
 
-    private static class TestFailureFunction implements PulsarFunction<String, String> {
+    private static class TestFailureFunction implements Function<String, String> {
 
         private int processId2Count = 0;
 
@@ -134,7 +133,7 @@ public class JavaInstanceRunnableProcessTest {
         }
     }
 
-    private static class TestVoidFunction implements PulsarFunction<String, Void> {
+    private static class TestVoidFunction implements Function<String, Void> {
 
         @Override
         public Void process(String input, Context context) throws Exception {

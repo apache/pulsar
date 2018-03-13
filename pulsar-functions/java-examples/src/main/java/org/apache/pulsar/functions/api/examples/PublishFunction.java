@@ -19,10 +19,10 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
-public class PublishFunction implements PulsarFunction<String, Void> {
+public class PublishFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) {
         context.publish(context.getUserConfigValue("PublishTopic"), input + "!", DefaultSerDe.class.getName());
