@@ -2180,12 +2180,8 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(earliestPositionAndCounter.first.getNext(), p2);
 
         assertEquals(latestPositionAndCounter.second.longValue(), totalInsertedEntries);
-        assertEquals(earliestPositionAndCounter.second.longValue(), 0);
+        assertEquals(earliestPositionAndCounter.second.longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
 
-        assertEquals(latestCursor.getNumberOfEntriesInBacklog(), 0);
-        assertEquals(earliestCursor.getNumberOfEntriesInBacklog(), totalInsertedEntries);
-
-        assertEquals(ledger.getNumberOfEntries(), latestPositionAndCounter.second.longValue());
         ledger.close();
     }
 }

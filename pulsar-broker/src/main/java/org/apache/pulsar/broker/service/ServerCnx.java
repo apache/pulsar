@@ -560,11 +560,7 @@ public class ServerCnx extends PulsarHandler {
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
-<<<<<<< HEAD
         final InitialPosition initialPosition = subscribe.getInitialPosition();
-=======
-        final InitialPosition initialPositon = subscribe.getInitialPosition();
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -628,11 +624,7 @@ public class ServerCnx extends PulsarHandler {
                         service.getTopic(topicName.toString())
                                 .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                       subType, priorityLevel, consumerName, isDurable,
-<<<<<<< HEAD
                                                                       startMessageId, metadata, readCompacted, initialPosition))
-=======
-                                                                      startMessageId, metadata, readCompacted, initialPositon))
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,

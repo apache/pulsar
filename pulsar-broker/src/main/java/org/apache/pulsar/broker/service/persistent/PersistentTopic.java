@@ -553,7 +553,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 USAGE_COUNT_UPDATER.decrementAndGet(PersistentTopic.this);
                 subscriptionFuture.completeExceptionally(new PersistenceException(exception));
             }
-        }, null, initializeOnLatest);
+        }, null);
         return subscriptionFuture;
     }
 
@@ -926,7 +926,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 future.completeExceptionally(new PersistenceException(exception));
             }
 
-        }, null, true);
+        }, null);
 
         return future;
     }

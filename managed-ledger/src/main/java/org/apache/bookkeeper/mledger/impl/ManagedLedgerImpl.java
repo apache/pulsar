@@ -573,7 +573,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 counter.countDown();
             }
 
-        }, null, initialPosition);
+        }, null);
 
         if (!counter.await(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS)) {
             throw new ManagedLedgerException("Timeout during open-cursor operation");
@@ -2045,13 +2045,14 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     Pair<PositionImpl, Long> getFirstPositionAndCounter() {
         PositionImpl pos;
         long count;
-        long entries;
         Pair<PositionImpl, Long> lastPositionAndCounter;
 
         do {
             pos = getFirstPosition();
-        } while (pos.compareTo(getFirstPosition()) != 0);
-        return Pair.create(pos, 0L);
+            lastPositionAndCounter = getLastPositionAndCounter();
+            count = lastPositionAndCounter.second - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.first));
+        } while (pos.compareTo(getFirstPosition()) != 0 && lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
+        return Pair.create(pos, count);
     }
 
     public void activateCursor(ManagedCursor cursor) {

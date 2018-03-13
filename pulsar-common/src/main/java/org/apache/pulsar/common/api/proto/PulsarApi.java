@@ -6684,6 +6684,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.Schema schema = 12;
     boolean hasSchema();
     org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema();
+    
+    // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
+    boolean hasInitialPosition();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -6763,6 +6767,47 @@ public final class PulsarApi {
       }
       
       // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandSubscribe.SubType)
+    }
+    
+    public enum InitialPosition
+        implements com.google.protobuf.Internal.EnumLite {
+      Latest(0, 0),
+      Earliest(1, 1),
+      ;
+      
+      public static final int Latest_VALUE = 0;
+      public static final int Earliest_VALUE = 1;
+      
+      
+      public final int getNumber() { return value; }
+      
+      public static InitialPosition valueOf(int value) {
+        switch (value) {
+          case 0: return Latest;
+          case 1: return Earliest;
+          default: return null;
+        }
+      }
+      
+      public static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
+          internalGetValueMap() {
+        return internalValueMap;
+      }
+      private static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
+          internalValueMap =
+            new com.google.protobuf.Internal.EnumLiteMap<InitialPosition>() {
+              public InitialPosition findValueByNumber(int number) {
+                return InitialPosition.valueOf(number);
+              }
+            };
+      
+      private final int value;
+      
+      private InitialPosition(int index, int value) {
+        this.value = value;
+      }
+      
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandSubscribe.InitialPosition)
     }
     
     private int bitField0_;
@@ -6963,6 +7008,16 @@ public final class PulsarApi {
       return schema_;
     }
     
+    // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
+    public static final int INITIALPOSITION_FIELD_NUMBER = 13;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition initialPosition_;
+    public boolean hasInitialPosition() {
+      return ((bitField0_ & 0x00000800) == 0x00000800);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition() {
+      return initialPosition_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -6976,6 +7031,7 @@ public final class PulsarApi {
       metadata_ = java.util.Collections.emptyList();
       readCompacted_ = false;
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
+      initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -7068,6 +7124,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
         output.writeMessage(12, schema_);
       }
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        output.writeEnum(13, initialPosition_.getNumber());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -7123,6 +7182,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(12, schema_);
+      }
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(13, initialPosition_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -7261,6 +7324,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000400);
         schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000800);
+        initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        bitField0_ = (bitField0_ & ~0x00001000);
         return this;
       }
       
@@ -7343,6 +7408,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000400;
         }
         result.schema_ = schema_;
+        if (((from_bitField0_ & 0x00001000) == 0x00001000)) {
+          to_bitField0_ |= 0x00000800;
+        }
+        result.initialPosition_ = initialPosition_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7391,6 +7460,9 @@ public final class PulsarApi {
         }
         if (other.hasSchema()) {
           mergeSchema(other.getSchema());
+        }
+        if (other.hasInitialPosition()) {
+          setInitialPosition(other.getInitialPosition());
         }
         return this;
       }
@@ -7532,6 +7604,15 @@ public final class PulsarApi {
               input.readMessage(subBuilder, extensionRegistry);
               setSchema(subBuilder.buildPartial());
               subBuilder.recycle();
+              break;
+            }
+            case 104: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition value = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00001000;
+                initialPosition_ = value;
+              }
               break;
             }
           }
@@ -7949,6 +8030,30 @@ public final class PulsarApi {
         schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x00000800);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+      public boolean hasInitialPosition() {
+        return ((bitField0_ & 0x00001000) == 0x00001000);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition() {
+        return initialPosition_;
+      }
+      public Builder setInitialPosition(org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00001000;
+        initialPosition_ = value;
+        
+        return this;
+      }
+      public Builder clearInitialPosition() {
+        bitField0_ = (bitField0_ & ~0x00001000);
+        initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        
         return this;
       }
       
@@ -8696,19 +8801,9 @@ public final class PulsarApi {
     boolean hasError();
     org.apache.pulsar.common.api.proto.PulsarApi.ServerError getError();
     
-<<<<<<< HEAD
     // optional string message = 5;
     boolean hasMessage();
     String getMessage();
-=======
-    // optional bool read_compacted = 11;
-    boolean hasReadCompacted();
-    boolean getReadCompacted();
-    
-    // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 12 [default = Latest];
-    boolean hasInitialPosition();
-    org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
   }
   public static final class CommandPartitionedTopicMetadataResponse extends
       com.google.protobuf.GeneratedMessageLite
@@ -8787,47 +8882,6 @@ public final class PulsarApi {
       // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType)
     }
     
-    public enum InitialPosition
-        implements com.google.protobuf.Internal.EnumLite {
-      Latest(0, 0),
-      Earliest(1, 1),
-      ;
-      
-      public static final int Latest_VALUE = 0;
-      public static final int Earliest_VALUE = 1;
-      
-      
-      public final int getNumber() { return value; }
-      
-      public static InitialPosition valueOf(int value) {
-        switch (value) {
-          case 0: return Latest;
-          case 1: return Earliest;
-          default: return null;
-        }
-      }
-      
-      public static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
-          internalGetValueMap() {
-        return internalValueMap;
-      }
-      private static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
-          internalValueMap =
-            new com.google.protobuf.Internal.EnumLiteMap<InitialPosition>() {
-              public InitialPosition findValueByNumber(int number) {
-                return InitialPosition.valueOf(number);
-              }
-            };
-      
-      private final int value;
-      
-      private InitialPosition(int index, int value) {
-        this.value = value;
-      }
-      
-      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandSubscribe.InitialPosition)
-    }
-    
     private int bitField0_;
     // optional uint32 partitions = 1;
     public static final int PARTITIONS_FIELD_NUMBER = 1;
@@ -8901,96 +8955,12 @@ public final class PulsarApi {
       }
     }
     
-<<<<<<< HEAD
-=======
-    // optional int32 priority_level = 7;
-    public static final int PRIORITY_LEVEL_FIELD_NUMBER = 7;
-    private int priorityLevel_;
-    public boolean hasPriorityLevel() {
-      return ((bitField0_ & 0x00000040) == 0x00000040);
-    }
-    public int getPriorityLevel() {
-      return priorityLevel_;
-    }
-    
-    // optional bool durable = 8 [default = true];
-    public static final int DURABLE_FIELD_NUMBER = 8;
-    private boolean durable_;
-    public boolean hasDurable() {
-      return ((bitField0_ & 0x00000080) == 0x00000080);
-    }
-    public boolean getDurable() {
-      return durable_;
-    }
-    
-    // optional .pulsar.proto.MessageIdData start_message_id = 9;
-    public static final int START_MESSAGE_ID_FIELD_NUMBER = 9;
-    private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData startMessageId_;
-    public boolean hasStartMessageId() {
-      return ((bitField0_ & 0x00000100) == 0x00000100);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getStartMessageId() {
-      return startMessageId_;
-    }
-    
-    // repeated .pulsar.proto.KeyValue metadata = 10;
-    public static final int METADATA_FIELD_NUMBER = 10;
-    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> metadata_;
-    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.KeyValue> getMetadataList() {
-      return metadata_;
-    }
-    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder> 
-        getMetadataOrBuilderList() {
-      return metadata_;
-    }
-    public int getMetadataCount() {
-      return metadata_.size();
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.KeyValue getMetadata(int index) {
-      return metadata_.get(index);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.KeyValueOrBuilder getMetadataOrBuilder(
-        int index) {
-      return metadata_.get(index);
-    }
-    
-    // optional bool read_compacted = 11;
-    public static final int READ_COMPACTED_FIELD_NUMBER = 11;
-    private boolean readCompacted_;
-    public boolean hasReadCompacted() {
-      return ((bitField0_ & 0x00000200) == 0x00000200);
-    }
-    public boolean getReadCompacted() {
-      return readCompacted_;
-    }
-    
-    // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 12 [default = Latest];
-    public static final int INITIALPOSITION_FIELD_NUMBER = 12;
-    private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition initialPosition_;
-    public boolean hasInitialPosition() {
-      return ((bitField0_ & 0x00000400) == 0x00000400);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition() {
-      return initialPosition_;
-    }
-    
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
     private void initFields() {
       partitions_ = 0;
       requestId_ = 0L;
-<<<<<<< HEAD
       response_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadataResponse.LookupType.Success;
       error_ = org.apache.pulsar.common.api.proto.PulsarApi.ServerError.UnknownError;
       message_ = "";
-=======
-      consumerName_ = "";
-      priorityLevel_ = 0;
-      durable_ = true;
-      startMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-      metadata_ = java.util.Collections.emptyList();
-      readCompacted_ = false;
-      initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -9028,9 +8998,6 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         output.writeBytes(5, getMessageBytes());
       }
-      if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        output.writeEnum(12, initialPosition_.getNumber());
-      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -9058,10 +9025,6 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000010) == 0x00000010)) {
         size += com.google.protobuf.CodedOutputStream
           .computeBytesSize(5, getMessageBytes());
-      }
-      if (((bitField0_ & 0x00000400) == 0x00000400)) {
-        size += com.google.protobuf.CodedOutputStream
-          .computeEnumSize(12, initialPosition_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -9186,23 +9149,6 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000008);
         message_ = "";
         bitField0_ = (bitField0_ & ~0x00000010);
-<<<<<<< HEAD
-=======
-        consumerName_ = "";
-        bitField0_ = (bitField0_ & ~0x00000020);
-        priorityLevel_ = 0;
-        bitField0_ = (bitField0_ & ~0x00000040);
-        durable_ = true;
-        bitField0_ = (bitField0_ & ~0x00000080);
-        startMessageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-        bitField0_ = (bitField0_ & ~0x00000100);
-        metadata_ = java.util.Collections.emptyList();
-        bitField0_ = (bitField0_ & ~0x00000200);
-        readCompacted_ = false;
-        bitField0_ = (bitField0_ & ~0x00000400);
-        initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
-        bitField0_ = (bitField0_ & ~0x00000800);
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
         return this;
       }
       
@@ -9255,40 +9201,7 @@ public final class PulsarApi {
         if (((from_bitField0_ & 0x00000010) == 0x00000010)) {
           to_bitField0_ |= 0x00000010;
         }
-<<<<<<< HEAD
         result.message_ = message_;
-=======
-        result.requestId_ = requestId_;
-        if (((from_bitField0_ & 0x00000020) == 0x00000020)) {
-          to_bitField0_ |= 0x00000020;
-        }
-        result.consumerName_ = consumerName_;
-        if (((from_bitField0_ & 0x00000040) == 0x00000040)) {
-          to_bitField0_ |= 0x00000040;
-        }
-        result.priorityLevel_ = priorityLevel_;
-        if (((from_bitField0_ & 0x00000080) == 0x00000080)) {
-          to_bitField0_ |= 0x00000080;
-        }
-        result.durable_ = durable_;
-        if (((from_bitField0_ & 0x00000100) == 0x00000100)) {
-          to_bitField0_ |= 0x00000100;
-        }
-        result.startMessageId_ = startMessageId_;
-        if (((bitField0_ & 0x00000200) == 0x00000200)) {
-          metadata_ = java.util.Collections.unmodifiableList(metadata_);
-          bitField0_ = (bitField0_ & ~0x00000200);
-        }
-        result.metadata_ = metadata_;
-        if (((from_bitField0_ & 0x00000400) == 0x00000400)) {
-          to_bitField0_ |= 0x00000200;
-        }
-        result.readCompacted_ = readCompacted_;
-        if (((from_bitField0_ & 0x00000800) == 0x00000800)) {
-          to_bitField0_ |= 0x00000400;
-        }
-        result.initialPosition_ = initialPosition_;
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -9301,54 +9214,8 @@ public final class PulsarApi {
         if (other.hasRequestId()) {
           setRequestId(other.getRequestId());
         }
-<<<<<<< HEAD
         if (other.hasResponse()) {
           setResponse(other.getResponse());
-=======
-        if (other.hasConsumerName()) {
-          setConsumerName(other.getConsumerName());
-        }
-        if (other.hasPriorityLevel()) {
-          setPriorityLevel(other.getPriorityLevel());
-        }
-        if (other.hasDurable()) {
-          setDurable(other.getDurable());
-        }
-        if (other.hasStartMessageId()) {
-          mergeStartMessageId(other.getStartMessageId());
-        }
-        if (!other.metadata_.isEmpty()) {
-          if (metadata_.isEmpty()) {
-            metadata_ = other.metadata_;
-            bitField0_ = (bitField0_ & ~0x00000200);
-          } else {
-            ensureMetadataIsMutable();
-            metadata_.addAll(other.metadata_);
-          }
-          
-        }
-        if (other.hasReadCompacted()) {
-          setReadCompacted(other.getReadCompacted());
-        }
-        if (other.hasInitialPosition()) {
-          setInitialPosition(other.getInitialPosition());
-        }
-        return this;
-      }
-      
-      public final boolean isInitialized() {
-        if (!hasTopic()) {
-          
-          return false;
-        }
-        if (!hasSubscription()) {
-          
-          return false;
-        }
-        if (!hasSubType()) {
-          
-          return false;
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
         }
         if (other.hasError()) {
           setError(other.getError());
@@ -9420,15 +9287,6 @@ public final class PulsarApi {
             case 42: {
               bitField0_ |= 0x00000010;
               message_ = input.readBytes();
-              break;
-            }
-            case 96: {
-              int rawValue = input.readEnum();
-              org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition value = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.valueOf(rawValue);
-              if (value != null) {
-                bitField0_ |= 0x00000800;
-                initialPosition_ = value;
-              }
               break;
             }
           }
@@ -9563,35 +9421,7 @@ public final class PulsarApi {
         
       }
       
-<<<<<<< HEAD
       // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandPartitionedTopicMetadataResponse)
-=======
-      // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 12 [default = Latest];
-      private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
-      public boolean hasInitialPosition() {
-        return ((bitField0_ & 0x00000800) == 0x00000800);
-      }
-      public org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition() {
-        return initialPosition_;
-      }
-      public Builder setInitialPosition(org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition value) {
-        if (value == null) {
-          throw new NullPointerException();
-        }
-        bitField0_ |= 0x00000800;
-        initialPosition_ = value;
-        
-        return this;
-      }
-      public Builder clearInitialPosition() {
-        bitField0_ = (bitField0_ & ~0x00000800);
-        initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
-        
-        return this;
-      }
-      
-      // @@protoc_insertion_point(builder_scope:pulsar.proto.CommandSubscribe)
->>>>>>> 1.add option initializeSubscriptionOnLatest in ConsumerConfiguration to enable set initial position of subscription
     }
     
     static {
