@@ -71,7 +71,7 @@ public class PrometheusMetricsGenerator {
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, stream);
 
-            FunctionsStats.generate(pulsar, stream);
+            FunctionsStatsGenerator.generate(pulsar, stream);
 
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {

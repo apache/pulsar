@@ -12,9 +12,12 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 
-public class FunctionsStats {
+/**
+ * A class to generate stats for pulsar functions running on this broker
+ */
+public class FunctionsStatsGenerator {
 
-    private static final Logger log = LoggerFactory.getLogger(FunctionsStats.class);
+    private static final Logger log = LoggerFactory.getLogger(FunctionsStatsGenerator.class);
 
     public static void generate(PulsarService pulsar, SimpleTextOutputStream out) {
         if (pulsar.getWorkerService() != null) {
