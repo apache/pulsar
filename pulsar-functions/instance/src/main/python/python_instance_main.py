@@ -51,7 +51,7 @@ def main():
   signal.signal(signal.SIGHUP, atexit_function)
   signal.signal(signal.SIGINT, atexit_function)
 
-  parser = argparse.ArgumentParser(description='Heron Python Instance')
+  parser = argparse.ArgumentParser(description='Pulsar Functions Python Instance')
   parser.add_argument('--function_classname', required=True, help='Function Class Name')
   parser.add_argument('--py', required=True, help='Full Path of Function Code File')
   parser.add_argument('--name', required=True, help='Function Name')

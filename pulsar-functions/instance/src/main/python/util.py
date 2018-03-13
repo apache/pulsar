@@ -29,7 +29,7 @@ import sys
 import log
 
 Log = log.Log
-PULSARFUNCTIONAPIROOT = 'pulsarfunction'
+PULSARFUNCTIONAPIROOT = 'functions'
 
 def import_class(from_path, full_class_name):
   kclass = import_class_from_path(from_path, full_class_name)
