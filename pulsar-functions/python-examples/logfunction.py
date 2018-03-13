@@ -19,9 +19,9 @@
 #
 
 
-from pulsarfunction import pulsar_function
+from pulsar import Function
 
-class LogFunction(pulsar_function.PulsarFunction):
+class LogFunction(Function):
   def __init__(self):
     pass
 

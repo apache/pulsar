@@ -1074,7 +1074,7 @@ public abstract class NamespacesBase extends AdminResource {
 
     private boolean checkQuotas(Policies policies, RetentionPolicies retention) {
         Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = policies.backlog_quota_map;
-        if (backlog_quota_map.isEmpty() || retention.getRetentionSizeInMB() == 0) {
+        if (backlog_quota_map.isEmpty() || retention.getRetentionSizeInMB() == 0 || retention.getRetentionSizeInMB() == -1) {
             return true;
         }
         BacklogQuota quota = backlog_quota_map.get(BacklogQuotaType.destination_storage);
