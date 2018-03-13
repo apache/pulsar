@@ -428,6 +428,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
+    public Map<String, FunctionRuntimeInfo> getFunctionRuntimeInfos() {
+        return this.functionRuntimeInfoMap;
+    }
     /**
      * Private methods for internal use.  Should not be used outside of this class
      */
