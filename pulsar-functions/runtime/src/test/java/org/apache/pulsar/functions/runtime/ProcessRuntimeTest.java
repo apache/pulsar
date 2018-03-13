@@ -77,7 +77,7 @@ public class ProcessRuntimeTest {
         functionConfigBuilder.setClassName("org.apache.pulsar.functions.utils.functioncache.AddFunction");
         functionConfigBuilder.addInputs(TEST_NAME + "-source1");
         functionConfigBuilder.addInputs(TEST_NAME + "-source2");
-        functionConfigBuilder.setOutput(TEST_NAME + "-sink");
+        functionConfigBuilder.setOutput(TEST_NAME + "-output");
         functionConfigBuilder.setOutputSerdeClassName("org.apache.pulsar.functions.runtime.serde.Utf8Serializer");
         functionConfigBuilder.setLogTopic(TEST_NAME + "-log");
         return functionConfigBuilder.build();
@@ -115,7 +115,7 @@ public class ProcessRuntimeTest {
                 + " --log_topic " + config.getFunctionConfig().getLogTopic()
                 + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
                 + " --auto_ack false"
-                + " --sink_topic " + config.getFunctionConfig().getOutput()
+                + " --output_topic " + config.getFunctionConfig().getOutput()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl
@@ -142,7 +142,7 @@ public class ProcessRuntimeTest {
                 + " --log_topic " + config.getFunctionConfig().getLogTopic()
                 + " --source_topics " + TEST_NAME + "-source1," + TEST_NAME + "-source2"
                 + " --auto_ack false"
-                + " --sink_topic " + config.getFunctionConfig().getOutput()
+                + " --output_topic " + config.getFunctionConfig().getOutput()
                 + " --output_serde_classname " + config.getFunctionConfig().getOutputSerdeClassName()
                 + " --processing_guarantees ATLEAST_ONCE"
                 + " --pulsar_serviceurl " + pulsarServiceUrl

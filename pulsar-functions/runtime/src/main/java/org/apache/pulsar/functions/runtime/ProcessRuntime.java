@@ -151,7 +151,7 @@ class ProcessRuntime implements Runtime {
         }
         if (instanceConfig.getFunctionConfig().getOutput() != null
                 && !instanceConfig.getFunctionConfig().getOutput().isEmpty()) {
-            args.add("--sink_topic");
+            args.add("--output_topic");
             args.add(instanceConfig.getFunctionConfig().getOutput());
         }
         if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null

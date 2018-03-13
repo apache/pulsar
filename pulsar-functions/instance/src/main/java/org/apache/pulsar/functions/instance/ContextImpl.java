@@ -124,12 +124,12 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public Collection<String> getSourceTopics() {
+    public Collection<String> getInputTopics() {
         return sourceConsumers.keySet();
     }
 
     @Override
-    public String getSinkTopic() {
+    public String getOutputTopic() {
         return config.getFunctionConfig().getOutput();
     }
 

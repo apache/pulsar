@@ -60,7 +60,7 @@ def main():
   parser.add_argument('--custom_serde_source_topics', required=False, help='Source Topics Requiring Custom Deserialization')
   parser.add_argument('--custom_serde_classnames', required=False, help='Input Serde Classnames')
   parser.add_argument('--source_topics', required=False, help='Input topics with default serde')
-  parser.add_argument('--sink_topic', required=False, help='Sink Topic')
+  parser.add_argument('--output_topic', required=False, help='Output Topic')
   parser.add_argument('--output_serde_classname', required=False, help='Output Serde Classnames')
   parser.add_argument('--instance_id', required=True, help='Instance Id')
   parser.add_argument('--function_id', required=True, help='Function Id')
@@ -101,8 +101,8 @@ def main():
   if args.source_topics is not None:
     for topic in args.source_topics.split(","):
       function_config.inputs.append(topic)
-  if args.sink_topic != None and len(args.sink_topic) != 0:
-    function_config.output = args.sink_topic
+  if args.output_topic != None and len(args.output_topic) != 0:
+    function_config.output = args.output_topic
   if args.output_serde_classname != None and len(args.output_serde_classname) != 0:
     function_config.outputSerdeClassName = args.output_serde_classname
   function_config.processingGuarantees = Function_pb2.FunctionConfig.ProcessingGuarantees.Value(args.processing_guarantees)

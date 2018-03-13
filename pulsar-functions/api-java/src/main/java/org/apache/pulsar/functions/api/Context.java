@@ -44,16 +44,16 @@ public interface Context {
     String getTopicName();
 
     /**
-     * Get a list of all source topics
-     * @return a list of all source topics
+     * Get a list of all input topics
+     * @return a list of all input topics
      */
-    Collection<String> getSourceTopics();
+    Collection<String> getInputTopics();
 
     /**
-     * Get sink topic of function
-     * @return sink topic name
+     * Get the output topic of the function
+     * @return output topic name
      */
-    String getSinkTopic();
+    String getOutputTopic();
 
     /**
      * Get output Serde class

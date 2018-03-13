@@ -56,8 +56,8 @@ public class JavaInstanceMain {
     @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
     protected String namespace;
 
-    @Parameter(names = "--sink_topic", description = "Output Topic Name\n")
-    protected String sinkTopicName;
+    @Parameter(names = "--output_topic", description = "Output Topic Name\n")
+    protected String outputTopicName;
 
     @Parameter(names = "--custom_serde_source_topics", description = "Input Topics that need custom deserialization\n", required = false)
     protected String customSerdeSourceTopics;
@@ -137,8 +137,8 @@ public class JavaInstanceMain {
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
-        if (sinkTopicName != null) {
-            functionConfigBuilder.setOutput(sinkTopicName);
+        if (outputTopicName != null) {
+            functionConfigBuilder.setOutput(outputTopicName);
         }
         if (logTopic != null) {
             functionConfigBuilder.setLogTopic(logTopic);
