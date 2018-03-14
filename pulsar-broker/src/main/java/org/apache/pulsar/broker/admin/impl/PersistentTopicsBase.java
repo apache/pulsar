@@ -24,11 +24,7 @@ import static org.apache.pulsar.common.util.Codec.decode;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -54,6 +50,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
+import org.apache.pulsar.broker.admin.ZkAdminPaths;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.NotAllowedException;
 import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
@@ -89,6 +86,7 @@ import org.apache.pulsar.common.policies.data.PersistentTopicStats;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.zookeeper.KeeperException;
 import org.apache.zookeeper.data.Stat;
 import org.slf4j.Logger;
@@ -335,8 +333,7 @@ public class PersistentTopicsBase extends AdminResource {
             throw new RestException(Status.NOT_ACCEPTABLE, "Number of partitions should be more than 1");
         }
         try {
-            String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(),
-                    topicName.getEncodedLocalName());
+            String path = ZkAdminPaths.partitionedTopicPath(topicName);
             byte[] data = jsonMapper().writeValueAsBytes(new PartitionedTopicMetadata(numPartitions));
             zkCreateOptimistic(path, data);
             // we wait for the data to be synced in all quorums and the observers
@@ -364,7 +361,8 @@ public class PersistentTopicsBase extends AdminResource {
      */
     protected void internalUpdatePartitionedTopic(int numPartitions) {
         validateAdminAccessOnProperty(topicName.getProperty());
-        if (topicName.isGlobal()) {
+
+        if (topicName.isGlobal() && isNamespaceReplicated(topicName.getNamespaceObject())) {
             log.error("[{}] Update partitioned-topic is forbidden on global namespace {}", clientAppId(),
                     topicName);
             throw new RestException(Status.FORBIDDEN, "Update forbidden on global namespace");
@@ -1164,8 +1162,7 @@ public class PersistentTopicsBase extends AdminResource {
     }
 
     private CompletableFuture<Void> updatePartitionedTopic(TopicName topicName, int numPartitions) {
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, topicName.getProperty(), topicName.getCluster(), topicName.getNamespacePortion(),
-                domain(), topicName.getEncodedLocalName());
+        final String path = ZkAdminPaths.partitionedTopicPath(topicName);
 
         CompletableFuture<Void> updatePartition = new CompletableFuture<>();
         createSubscriptions(topicName, numPartitions).thenAccept(res -> {

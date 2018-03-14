@@ -19,9 +19,9 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 
-public class UserMetricFunction implements PulsarFunction<String, Void> {
+public class UserMetricFunction implements Function<String, Void> {
 
     @Override
     public Void process(String input, Context context) {

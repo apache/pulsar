@@ -46,7 +46,7 @@ import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -62,7 +62,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import org.apache.pulsar.functions.utils.Utils;
 
 @Slf4j
@@ -250,13 +249,13 @@ public class CmdFunctions extends CmdBase {
 
         private void doJavaSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
             File file = new File(jarFile);
-            // check if the function class exists in Jar and it implements PulsarFunction class
+            // check if the function class exists in Jar and it implements Function class
             if (!Reflections.classExistsInJar(file, functionConfigBuilder.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfigBuilder.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), PulsarFunction.class)
-                    && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither PulsarFunction nor java.util.Function",
+            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)
+                    && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), java.util.function.Function.class)) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither Function nor java.util.function.Function",
                         functionConfigBuilder.getClassName(), jarFile));
             }
 
@@ -269,20 +268,20 @@ public class CmdFunctions extends CmdBase {
 
             Object userClass = Reflections.createInstance(functionConfigBuilder.getClassName(), file);
             Class<?>[] typeArgs;
-            if (userClass instanceof PulsarFunction) {
-                PulsarFunction pulsarFunction = (PulsarFunction) userClass;
+            if (userClass instanceof Function) {
+                Function pulsarFunction = (Function) userClass;
                 if (pulsarFunction == null) {
                     throw new IllegalArgumentException(String.format("Pulsar function class %s could not be instantiated from jar %s",
                             functionConfigBuilder.getClassName(), jarFile));
                 }
-                typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
             } else {
-                Function function = (Function) userClass;
+                java.util.function.Function function = (java.util.function.Function) userClass;
                 if (function == null) {
                     throw new IllegalArgumentException(String.format("Java Util function class %s could not be instantiated from jar %s",
                             functionConfigBuilder.getClassName(), jarFile));
                 }
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
             }
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
