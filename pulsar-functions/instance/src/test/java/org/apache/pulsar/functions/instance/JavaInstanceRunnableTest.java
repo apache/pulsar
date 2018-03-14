@@ -22,11 +22,10 @@ import lombok.Getter;
 import lombok.Setter;
 import net.jodah.typetools.TypeResolver;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.SerDe;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.instance.InstanceConfig;
 import org.testng.annotations.Test;
 
 import java.lang.reflect.InvocationTargetException;
@@ -84,7 +83,7 @@ public class JavaInstanceRunnableTest {
         private Integer age;
     }
 
-    private class ComplexTypeHandler implements PulsarFunction<String, ComplexUserDefinedType> {
+    private class ComplexTypeHandler implements Function<String, ComplexUserDefinedType> {
         @Override
         public ComplexUserDefinedType process(String input, Context context) throws Exception {
             return new ComplexUserDefinedType();
@@ -103,14 +102,14 @@ public class JavaInstanceRunnableTest {
         }
     }
 
-    private class VoidInputHandler implements PulsarFunction<Void, String> {
+    private class VoidInputHandler implements Function<Void, String> {
         @Override
         public String process(Void input, Context context) throws Exception {
             return new String("Interesting");
         }
     }
 
-    private class VoidOutputHandler implements PulsarFunction<String, Void> {
+    private class VoidOutputHandler implements Function<String, Void> {
         @Override
         public Void process(String input, Context context) throws Exception {
             return null;
@@ -127,7 +126,7 @@ public class JavaInstanceRunnableTest {
             Method method = makeAccessible(runnable);
             VoidInputHandler pulsarFunction = new VoidInputHandler();
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
             assertFalse(true);
         } catch (InvocationTargetException ex) {
@@ -147,7 +146,7 @@ public class JavaInstanceRunnableTest {
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
             VoidOutputHandler pulsarFunction = new VoidOutputHandler();
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
         } catch (Exception ex) {
             assertTrue(false);
@@ -163,8 +162,8 @@ public class JavaInstanceRunnableTest {
             JavaInstanceRunnable runnable = createRunnable(true, DefaultSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (InvocationTargetException ex) {
@@ -183,8 +182,8 @@ public class JavaInstanceRunnableTest {
             JavaInstanceRunnable runnable = createRunnable(false, null);
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -202,8 +201,8 @@ public class JavaInstanceRunnableTest {
             JavaInstanceRunnable runnable = createRunnable(false, DefaultSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
         } catch (Exception ex) {
             assertTrue(false);
@@ -219,8 +218,8 @@ public class JavaInstanceRunnableTest {
             JavaInstanceRunnable runnable = createRunnable(false, IntegerSerDe.class.getName());
             Method method = makeAccessible(runnable);
             ClassLoader clsLoader = Thread.currentThread().getContextClassLoader();
-            PulsarFunction pulsarFunction = (PulsarFunction<String, String>) (input, context) -> input + "-lambda";
-            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+            Function function = (Function<String, String>) (input, context) -> input + "-lambda";
+            Class<?>[] typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
             method.invoke(runnable, typeArgs, clsLoader);
             fail("Should fail constructing java instance if function type is inconsistent with serde type");
         } catch (InvocationTargetException ex) {

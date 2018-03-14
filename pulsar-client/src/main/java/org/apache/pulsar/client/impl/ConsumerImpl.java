@@ -79,7 +79,7 @@ import io.netty.util.Timeout;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-public class ConsumerImpl<T> extends ConsumerBase<T> {
+public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandler.Connection {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     private final long consumerId;
@@ -122,6 +122,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
+
+    private final ConnectionHandler connectionHandler;
 
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -183,7 +185,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
+        this.connectionHandler = new ConnectionHandler(this,
+            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS),
+            this);
+
         grabCnx();
+    }
+
+    public ConnectionHandler getConnectionHandler() {
+        return connectionHandler;
     }
 
     public UnAckedMessageTracker getUnAckedMessageTracker() {
@@ -533,7 +543,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    void connectionOpened(final ClientCnx cnx) {
+    public void connectionOpened(final ClientCnx cnx) {
         setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
@@ -612,7 +622,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
                 return null;
             }
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription, cnx.channel().remoteAddress());
-            if (e.getCause() instanceof PulsarClientException && isRetriableError((PulsarClientException) e.getCause())
+            if (e.getCause() instanceof PulsarClientException && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
                     && System.currentTimeMillis() < subscribeTimeout) {
                 reconnectLater(e.getCause());
                 return null;
@@ -677,7 +687,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    void connectionFailed(PulsarClientException exception) {
+    public void connectionFailed(PulsarClientException exception) {
         if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(exception)) {
             setState(State.Failed);
             log.info("[{}] Consumer creation failed for consumer {}", topic, consumerId);
@@ -1429,6 +1439,35 @@ public class ConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public int hashCode() {
         return Objects.hash(topic, subscription, consumerName);
+    }
+
+    // wrapper for connection methods
+    ClientCnx cnx() {
+        return this.connectionHandler.cnx();
+    }
+
+    void resetBackoff() {
+        this.connectionHandler.resetBackoff();
+    }
+
+    void connectionClosed(ClientCnx cnx) {
+        this.connectionHandler.connectionClosed(cnx);
+    }
+
+    ClientCnx getClientCnx() {
+        return this.connectionHandler.getClientCnx();
+    }
+
+    void setClientCnx(ClientCnx clientCnx) {
+        this.connectionHandler.setClientCnx(clientCnx);
+    }
+
+    void reconnectLater(Throwable exception) {
+        this.connectionHandler.reconnectLater(exception);
+    }
+
+    void grabCnx() {
+        this.connectionHandler.grabCnx();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

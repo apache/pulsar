@@ -27,7 +27,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Charsets;
 import io.swagger.annotations.ApiOperation;
 import java.time.Clock;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
 import javax.ws.rs.Consumes;
@@ -118,17 +117,21 @@ public class SchemasResource extends AdminResource {
         pulsar().getSchemaRegistryService().getSchema(schemaId, v)
             .handle((schema, error) -> {
                 if (isNull(error)) {
-                    response.resume(
-                        Response.ok()
-                            .encoding(MediaType.APPLICATION_JSON)
-                            .entity(new GetSchemaResponse(
-                                schema.version,
-                                schema.schema.getType(),
-                                schema.schema.getTimestamp(),
-                                new String(schema.schema.getData()),
-                                schema.schema.props
-                            )).build()
-                    );
+                    if (schema.schema.isDeleted()) {
+                        response.resume(Response.noContent());
+                    } else {
+                        response.resume(
+                            Response.ok()
+                                .encoding(MediaType.APPLICATION_JSON)
+                                .entity(new GetSchemaResponse(
+                                    schema.version,
+                                    schema.schema.getType(),
+                                    schema.schema.getTimestamp(),
+                                    new String(schema.schema.getData()),
+                                    schema.schema.props
+                                )).build()
+                        );
+                    }
                 } else {
                     response.resume(error);
                 }
@@ -149,7 +152,7 @@ public class SchemasResource extends AdminResource {
         validateDestinationAndAdminOperation(property, cluster, namespace, topic);
 
         String schemaId = buildSchemaId(property, cluster, namespace, topic);
-        pulsar().getSchemaRegistryService().deleteSchema(schemaId, clientAppId())
+        pulsar().getSchemaRegistryService().deleteSchema(schemaId, defaultIfEmpty(clientAppId(), ""))
             .handle((version, error) -> {
                 if (isNull(error)) {
                     response.resume(

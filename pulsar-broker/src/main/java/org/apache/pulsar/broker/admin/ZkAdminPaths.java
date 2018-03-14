@@ -16,20 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api;
+package org.apache.pulsar.broker.admin;
 
-/**
- * This is the core interface of the function api. The process is called
- * for every message of the input topic of the function. The incoming input bytes
- * are converted to the input type I for simple Java types(String, Integer, Boolean,
- * Map, and List types) and for org.Json type. If this serialization approach does not
- * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
- */
-@FunctionalInterface
-public interface PulsarFunction<I, O> {
-    /**
-     * Process the input.
-     * @return the output
-     */
-    O process(I input, Context context) throws Exception;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
+
+public class ZkAdminPaths {
+
+    public static final String POLICIES = "policies";
+    public static final String PARTITIONED_TOPIC_PATH_ZNODE = "partitioned-topics";
+
+    public static String partitionedTopicPath(TopicName name) {
+        return adminPath(PARTITIONED_TOPIC_PATH_ZNODE,
+                name.getNamespace(), name.getDomain().value(), name.getEncodedLocalName());
+    }
+
+    public static String namespacePoliciesPath(NamespaceName name) {
+        return adminPath(POLICIES, name.toString());
+    }
+
+    private static String adminPath(String... parts) {
+        return "/admin/" + String.join("/", parts);
+    }
+
+    private ZkAdminPaths() {}
 }

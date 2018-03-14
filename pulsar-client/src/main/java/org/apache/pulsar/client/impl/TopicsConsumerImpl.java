@@ -189,7 +189,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         }
         if (getState() == State.Ready) {
             newConsumers.forEach(consumer -> {
-                consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
+                consumer.sendFlowPermitsToBroker(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
                 receiveMessageFromConsumer(consumer);
             });
         }
@@ -467,18 +467,6 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public boolean isConnected() {
         return consumers.values().stream().allMatch(consumer -> consumer.isConnected());
-    }
-
-    @Override
-    void connectionFailed(PulsarClientException exception) {
-        // noop
-
-    }
-
-    @Override
-    void connectionOpened(ClientCnx cnx) {
-        // noop
-
     }
 
     @Override
