@@ -61,19 +61,22 @@ public class RuntimeSpawner implements AutoCloseable {
                 this.instanceConfig.getInstanceId());
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
         runtime.start();
+
         // monitor function runtime to make sure it is running.  If not, restart the function runtime
-        processLivenessCheckTimer = new Timer();
-        processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
-            @Override
-            public void run() {
-                if (!runtime.isAlive()) {
-                    log.error("Function Container is dead with exception", runtime.getDeathException());
-                    log.error("Restarting...");
-                    runtime.start();
-                    numRestarts++;
+        if (instanceLivenessCheckFreqMs != null) {
+            processLivenessCheckTimer = new Timer();
+            processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
+                @Override
+                public void run() {
+                    if (!runtime.isAlive()) {
+                        log.error("Function Container is dead with exception", runtime.getDeathException());
+                        log.error("Restarting...");
+                        runtime.start();
+                        numRestarts++;
+                    }
                 }
-            }
-        }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs);
+            }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs);
+        }
     }
 
     public void join() throws Exception {
