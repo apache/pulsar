@@ -495,7 +495,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         MessageBuilder msgBuilder = MessageBuilder.create()
             .setContent(output)
             .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
-            .setProperty("__pfn_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
+            .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             msgBuilder = msgBuilder
                 .setSequenceId(Utils.getSequenceId(srcMsg.getActualMessage().getMessageId()));
