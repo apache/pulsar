@@ -18,11 +18,14 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.proto.Function;
@@ -198,10 +201,13 @@ public class FunctionActioner implements AutoCloseable {
                                 functionMetaData.getFunctionConfig().getName(),
                         },
                         File.separatorChar));
+
         if (pkgDir.exists()) {
-            if (!Utils.deleteDirectory(pkgDir)) {
+            try {
+                FileUtils.deleteDirectory(pkgDir);
+            } catch (IOException e) {
                 log.warn("Failed to delete package for function: {}",
-                        FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()));
+                        FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()), e);
             }
         }
     }
