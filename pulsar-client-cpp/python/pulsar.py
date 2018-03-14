@@ -645,7 +645,7 @@ class Producer:
         mb = _pulsar.MessageBuilder()
         mb.content(content)
         if properties:
-            for k, v in properties:
+            for k, v in properties.items():
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)
