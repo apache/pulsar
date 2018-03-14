@@ -43,7 +43,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 
-public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T> {
+public abstract class ConsumerBase<T> extends HandlerState implements Consumer<T> {
 
     enum ConsumerType {
         PARTITIONED, NON_PARTITIONED
@@ -61,9 +61,10 @@ public abstract class ConsumerBase<T> extends HandlerBase implements Consumer<T>
     protected int maxReceiverQueueSize;
     protected Schema<T> schema;
 
-    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf, int receiverQueueSize,
-                           ExecutorService listenerExecutor, CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
-        super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS));
+    protected ConsumerBase(PulsarClientImpl client, String topic, ConsumerConfigurationData<T> conf,
+                           int receiverQueueSize, ExecutorService listenerExecutor,
+                           CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
+        super(client, topic);
         this.maxReceiverQueueSize = receiverQueueSize;
         this.subscription = conf.getSubscriptionName();
         this.conf = conf;
