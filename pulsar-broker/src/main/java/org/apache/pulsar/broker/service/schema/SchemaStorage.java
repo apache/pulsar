@@ -23,7 +23,7 @@ import org.apache.pulsar.common.schema.SchemaVersion;
 
 public interface SchemaStorage {
 
-    CompletableFuture<SchemaVersion> put(String key, byte[] value);
+    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
 
     CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
 
