@@ -153,11 +153,6 @@
       <artifactId>jetty-servlet</artifactId>
     </dependency>
 
-    <dependency>
-      <groupId>com.google.guava</groupId>
-      <artifactId>guava</artifactId>
-    </dependency>
-
     <!-- use shaded dependency util pulsar bump zookeeper version to 3.5 -->
     <dependency>
       <groupId>org.apache.distributedlog</groupId>
