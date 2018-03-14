@@ -166,7 +166,8 @@ public class JavaInstanceMain {
         RuntimeSpawner runtimeSpawner = new RuntimeSpawner(
                 instanceConfig,
                 jarFile,
-                containerFactory);
+                containerFactory,
+                null);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))

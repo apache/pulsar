@@ -24,6 +24,7 @@
 package org.apache.pulsar.functions.runtime;
 
 import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.CompletableFuture;
 
 import lombok.Getter;
@@ -40,16 +41,19 @@ public class RuntimeSpawner implements AutoCloseable {
 
     @Getter
     private Runtime runtime;
-    private Timer metricsCollectionTimer;
+    private Timer processLivenessCheckTimer;
     private int numRestarts;
+    private Long instanceLivenessCheckFreqMs;
+
 
     public RuntimeSpawner(InstanceConfig instanceConfig,
                           String codeFile,
-                          RuntimeFactory containerFactory) {
+                          RuntimeFactory containerFactory, Long instanceLivenessCheckFreqMs) {
         this.instanceConfig = instanceConfig;
         this.runtimeFactory = containerFactory;
         this.codeFile = codeFile;
         this.numRestarts = 0;
+        this.instanceLivenessCheckFreqMs = instanceLivenessCheckFreqMs;
     }
 
     public void start() throws Exception {
@@ -57,6 +61,19 @@ public class RuntimeSpawner implements AutoCloseable {
                 this.instanceConfig.getInstanceId());
         runtime = runtimeFactory.createContainer(this.instanceConfig, codeFile);
         runtime.start();
+        // monitor function runtime to make sure it is running.  If not, restart the function runtime
+        processLivenessCheckTimer = new Timer();
+        processLivenessCheckTimer.scheduleAtFixedRate(new TimerTask() {
+            @Override
+            public void run() {
+                if (!runtime.isAlive()) {
+                    log.error("Function Container is dead with exception", runtime.getDeathException());
+                    log.error("Restarting...");
+                    runtime.start();
+                    numRestarts++;
+                }
+            }
+        }, instanceLivenessCheckFreqMs, instanceLivenessCheckFreqMs);
     }
 
     public void join() throws Exception {
@@ -82,9 +99,9 @@ public class RuntimeSpawner implements AutoCloseable {
             runtime.stop();
             runtime = null;
         }
-        if (metricsCollectionTimer != null) {
-            metricsCollectionTimer.cancel();
-            metricsCollectionTimer = null;
+        if (processLivenessCheckTimer != null) {
+            processLivenessCheckTimer.cancel();
+            processLivenessCheckTimer = null;
         }
     }
 }
