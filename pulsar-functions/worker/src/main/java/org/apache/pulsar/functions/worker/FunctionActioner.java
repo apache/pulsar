@@ -115,13 +115,7 @@ public class FunctionActioner implements AutoCloseable {
                 functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                StringUtils.join(
-                        new String[]{
-                                functionMetaData.getFunctionConfig().getTenant(),
-                                functionMetaData.getFunctionConfig().getNamespace(),
-                                functionMetaData.getFunctionConfig().getName(),
-                        },
-                        File.separatorChar));
+                getDownloadPackagePath(functionMetaData));
         pkgDir.mkdirs();
 
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
@@ -194,13 +188,7 @@ public class FunctionActioner implements AutoCloseable {
         // clean up function package
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                StringUtils.join(
-                        new String[]{
-                                functionMetaData.getFunctionConfig().getTenant(),
-                                functionMetaData.getFunctionConfig().getNamespace(),
-                                functionMetaData.getFunctionConfig().getName(),
-                        },
-                        File.separatorChar));
+                getDownloadPackagePath(functionMetaData));
 
         if (pkgDir.exists()) {
             try {
@@ -210,5 +198,15 @@ public class FunctionActioner implements AutoCloseable {
                         FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()), e);
             }
         }
+    }
+
+    private String getDownloadPackagePath(FunctionMetaData functionMetaData) {
+        return StringUtils.join(
+                new String[]{
+                        functionMetaData.getFunctionConfig().getTenant(),
+                        functionMetaData.getFunctionConfig().getNamespace(),
+                        functionMetaData.getFunctionConfig().getName(),
+                },
+                File.separatorChar);
     }
 }
