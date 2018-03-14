@@ -833,6 +833,26 @@ public class Commands {
         return builder.getSequenceId();
     }
 
+    public static ByteBuf serializeSingleMessageInBatchWithPayload(
+            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder,
+            ByteBuf payload, ByteBuf batchBuffer) {
+        int payLoadSize = payload.readableBytes();
+        PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.setPayloadSize(payLoadSize)
+                .build();
+        // serialize meta-data size, meta-data and payload for single message in batch
+        int singleMsgMetadataSize = singleMessageMetadata.getSerializedSize();
+        try {
+            batchBuffer.writeInt(singleMsgMetadataSize);
+            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(batchBuffer);
+            singleMessageMetadata.writeTo(outStream);
+            singleMessageMetadata.recycle();
+            outStream.recycle();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return batchBuffer.writeBytes(payload);
+    }
+
     public static ByteBuf serializeSingleMessageInBatchWithPayload(PulsarApi.MessageMetadata.Builder msgBuilder,
             ByteBuf payload, ByteBuf batchBuffer) {
 
@@ -846,23 +866,11 @@ public class Commands {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
                     .addAllProperties(msgBuilder.getPropertiesList());
         }
-        int payLoadSize = payload.readableBytes();
-        PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.setPayloadSize(payLoadSize)
-                .build();
-        singleMessageMetadataBuilder.recycle();
-
-        // serialize meta-data size, meta-data and payload for single message in batch
-        int singleMsgMetadataSize = singleMessageMetadata.getSerializedSize();
         try {
-            batchBuffer.writeInt(singleMsgMetadataSize);
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(batchBuffer);
-            singleMessageMetadata.writeTo(outStream);
-            singleMessageMetadata.recycle();
-            outStream.recycle();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
+        } finally {
+            singleMessageMetadataBuilder.recycle();
         }
-        return batchBuffer.writeBytes(payload);
     }
 
     public static ByteBuf deSerializeSingleMessageInBatch(ByteBuf uncompressedPayload,
