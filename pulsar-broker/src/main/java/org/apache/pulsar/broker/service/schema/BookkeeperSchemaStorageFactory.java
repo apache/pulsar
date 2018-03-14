@@ -16,21 +16,18 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.broker.service.schema;
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Builder;
-import lombok.Data;
+import javax.validation.constraints.NotNull;
+import org.apache.pulsar.broker.PulsarService;
 
-@Builder
-@Data
-public class SchemaData {
-    private final SchemaType type;
-    private final boolean isDeleted;
-    private final long timestamp;
-    private final String user;
-    private final byte[] data;
-    @Builder.Default
-    public final Map<String, String> props = new HashMap<>();
+@SuppressWarnings("unused")
+public class BookkeeperSchemaStorageFactory implements SchemaStorageFactory {
+    @Override
+    @NotNull
+    public SchemaStorage create(PulsarService pulsar) throws Exception {
+        BookkeeperSchemaStorage service = new BookkeeperSchemaStorage(pulsar);
+        service.init();
+        return service;
+    }
 }

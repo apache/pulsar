@@ -16,21 +16,29 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+syntax = "proto2";
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Builder;
-import lombok.Data;
+package pulsar.schema;
+option java_package = "org.apache.pulsar.broker.service.schema";
+option optimize_for = LITE_RUNTIME;
 
-@Builder
-@Data
-public class SchemaData {
-    private final SchemaType type;
-    private final boolean isDeleted;
-    private final long timestamp;
-    private final String user;
-    private final byte[] data;
-    @Builder.Default
-    public final Map<String, String> props = new HashMap<>();
+message PositionInfo {
+    required int64 ledgerId = 1;
+    required int64 entryId = 2;
+}
+
+message IndexEntry {
+    required int64 version = 1;
+    required PositionInfo position = 2;
+    required bytes hash = 3;
+}
+
+message SchemaEntry {
+    required bytes schema_data = 2;
+    repeated IndexEntry index = 5;
+}
+
+message SchemaLocator {
+    required IndexEntry info = 1;
+    repeated IndexEntry index = 2;
 }
