@@ -218,16 +218,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
 
     @Override
-    void connectionFailed(PulsarClientException exception) {
-        // noop
-    }
-
-    @Override
-    void connectionOpened(ClientCnx cnx) {
-        // noop
-    }
-
-    @Override
     String getHandlerName() {
         return "partition-producer";
     }
