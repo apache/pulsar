@@ -178,7 +178,7 @@ public class FunctionActioner implements AutoCloseable {
         runtimeSpawner.start();
     }
 
-    private boolean stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    private void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         log.info("Stopping function {} - {}...",
@@ -186,8 +186,23 @@ public class FunctionActioner implements AutoCloseable {
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
             functionRuntimeInfo.setRuntimeSpawner(null);
-            return true;
         }
-        return false;
+
+        // clean up function package
+        File pkgDir = new File(
+                workerConfig.getDownloadDirectory(),
+                StringUtils.join(
+                        new String[]{
+                                functionMetaData.getFunctionConfig().getTenant(),
+                                functionMetaData.getFunctionConfig().getNamespace(),
+                                functionMetaData.getFunctionConfig().getName(),
+                        },
+                        File.separatorChar));
+        if (pkgDir.exists()) {
+            if (!Utils.deleteDirectory(pkgDir)) {
+                log.warn("Failed to delete package for function: {}",
+                        FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()));
+            }
+        }
     }
 }

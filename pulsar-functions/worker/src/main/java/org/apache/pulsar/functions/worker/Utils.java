@@ -35,6 +35,7 @@ import org.apache.pulsar.functions.worker.dlog.DLOutputStream;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.ObjectInputStream;
@@ -205,5 +206,15 @@ public final class Utils {
     public static String getFullyQualifiedInstanceId(String tenant, String namespace,
                                                      String functionName, int instanceId) {
         return String.format("%s/%s/%s:%d", tenant, namespace, functionName, instanceId);
+    }
+
+    public static boolean deleteDirectory(File directoryToBeDeleted) {
+        File[] allContents = directoryToBeDeleted.listFiles();
+        if (allContents != null) {
+            for (File file : allContents) {
+                deleteDirectory(file);
+            }
+        }
+        return directoryToBeDeleted.delete();
     }
 }
