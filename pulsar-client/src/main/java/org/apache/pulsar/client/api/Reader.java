@@ -42,9 +42,10 @@ public interface Reader<T> extends Closeable {
     Message<T> readNext() throws PulsarClientException;
 
     /**
-     * Read the next message in the topic.
+     * Read the next message in the topic waiting for a maximum of timeout
+     * time units. Returns null if no message is recieved in that time.
      *
-     * @return the next messasge
+     * @return the next message(Could be null if none received in time)
      * @throws PulsarClientException
      */
     Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException;
