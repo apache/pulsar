@@ -41,11 +41,11 @@ import org.apache.pulsar.common.policies.data.PersistentTopicInternalStats;
 
 public class NonPersistentTopicsImpl extends BaseResource implements NonPersistentTopics {
 
-    private final WebTarget nonPersistentTopics;
+    private final WebTarget adminNonPersistentTopics;
 
     public NonPersistentTopicsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.nonPersistentTopics = web.path("/non-persistent");
+        adminNonPersistentTopics = web.path("/admin/non-persistent");
     }
 
     @Override
@@ -65,7 +65,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
         checkArgument(numPartitions > 1, "Number of partitions should be more than 1");
         TopicName ds = validateTopic(topic);
         return asyncPutRequest(
-                nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
+                adminNonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 Entity.entity(numPartitions, MediaType.APPLICATION_JSON));
     }
 
@@ -85,7 +85,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic) {
         TopicName ds = validateTopic(topic);
         final CompletableFuture<PartitionedTopicMetadata> future = new CompletableFuture<>();
-        asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
+        asyncGetRequest(adminNonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("partitions"),
                 new InvocationCallback<PartitionedTopicMetadata>() {
 
                     @Override
@@ -117,7 +117,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<NonPersistentTopicStats> getStatsAsync(String topic) {
         TopicName ds = validateTopic(topic);
         final CompletableFuture<NonPersistentTopicStats> future = new CompletableFuture<>();
-        asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("stats"),
+        asyncGetRequest(adminNonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("stats"),
                 new InvocationCallback<NonPersistentTopicStats>() {
 
                     @Override
@@ -149,7 +149,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic) {
         TopicName ds = validateTopic(topic);
         final CompletableFuture<PersistentTopicInternalStats> future = new CompletableFuture<>();
-        asyncGetRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("internalStats"),
+        asyncGetRequest(adminNonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("internalStats"),
                 new InvocationCallback<PersistentTopicInternalStats>() {
 
                     @Override
@@ -180,7 +180,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     @Override
     public CompletableFuture<Void> unloadAsync(String topic) {
         TopicName ds = validateTopic(topic);
-        return asyncPutRequest(nonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("unload"),
+        return asyncPutRequest(adminNonPersistentTopics.path(ds.getNamespace()).path(ds.getEncodedLocalName()).path("unload"),
                 Entity.entity("", MediaType.APPLICATION_JSON));
     }
 
@@ -200,7 +200,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<List<String>> getListInBundleAsync(String namespace, String bundleRange) {
         NamespaceName ns = NamespaceName.get(namespace);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(nonPersistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+        asyncGetRequest(adminNonPersistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
                 .path(bundleRange), new InvocationCallback<List<String>>() {
                     @Override
                     public void completed(List<String> response) {
@@ -230,7 +230,7 @@ public class NonPersistentTopicsImpl extends BaseResource implements NonPersiste
     public CompletableFuture<List<String>> getListAsync(String namespace) {
         NamespaceName ns = NamespaceName.get(namespace);
         final CompletableFuture<List<String>> future = new CompletableFuture<>();
-        asyncGetRequest(nonPersistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()),
+        asyncGetRequest(adminNonPersistentTopics.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()),
                 new InvocationCallback<List<String>>() {
                     @Override
                     public void completed(List<String> response) {
