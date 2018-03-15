@@ -170,13 +170,13 @@ public class CmdFunctionsTest {
     @Test
     public void testCreateFunction() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String sourceTopicName = TEST_NAME + "-source-topic";
-        String sinkTopicName = TEST_NAME + "-sink-topic";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
         cmd.run(new String[] {
             "create",
             "--name", fnName,
-            "--inputs", sourceTopicName,
-            "--output", sinkTopicName,
+            "--inputs", inputTopicName,
+            "--output", outputTopicName,
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",
@@ -185,8 +185,8 @@ public class CmdFunctionsTest {
 
         CreateFunction creater = cmd.getCreater();
         assertEquals(fnName, creater.getFunctionName());
-        assertEquals(sourceTopicName, creater.getInputs());
-        assertEquals(sinkTopicName, creater.getOutput());
+        assertEquals(inputTopicName, creater.getInputs());
+        assertEquals(outputTopicName, creater.getOutput());
 
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
 
@@ -195,13 +195,13 @@ public class CmdFunctionsTest {
     @Test
     public void testCreateWithoutTenant() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String sourceTopicName = "persistent://tenant/standalone/namespace/source-topic";
-        String sinkTopicName = "persistent://tenant/standalone/namespace/sink-topic";
+        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
+        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         cmd.run(new String[] {
                 "create",
                 "--name", fnName,
-                "--inputs", sourceTopicName,
-                "--output", sinkTopicName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
                 "--jar", "SomeJar.jar",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -215,13 +215,13 @@ public class CmdFunctionsTest {
     @Test
     public void testCreateWithoutNamespace() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String sourceTopicName = "persistent://tenant/standalone/namespace/source-topic";
-        String sinkTopicName = "persistent://tenant/standalone/namespace/sink-topic";
+        String inputTopicName = "persistent://tenant/standalone/namespace/input-topic";
+        String outputTopicName = "persistent://tenant/standalone/namespace/output-topic";
         cmd.run(new String[] {
                 "create",
                 "--name", fnName,
-                "--inputs", sourceTopicName,
-                "--output", sinkTopicName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
                 "--jar", "SomeJar.jar",
                 "--className", DummyFunction.class.getName(),
         });
@@ -234,12 +234,12 @@ public class CmdFunctionsTest {
 
     @Test
     public void testCreateWithoutFunctionName() throws Exception {
-        String sourceTopicName = TEST_NAME + "-source-topic";
-        String sinkTopicName = TEST_NAME + "-sink-topic";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
         cmd.run(new String[] {
                 "create",
-                "--inputs", sourceTopicName,
-                "--output", sinkTopicName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
@@ -252,11 +252,11 @@ public class CmdFunctionsTest {
     }
 
     @Test
-    public void testCreateWithoutSinkTopic() throws Exception {
-        String sourceTopicName = TEST_NAME + "-source-topic";
+    public void testCreateWithoutOutputTopic() throws Exception {
+        String inputTopicName = TEST_NAME + "-input-topic";
         cmd.run(new String[] {
                 "create",
-                "--inputs", sourceTopicName,
+                "--inputs", inputTopicName,
                 "--jar", "SomeJar.jar",
                 "--tenant", "sample",
                 "--namespace", "ns1",
@@ -264,7 +264,7 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(sourceTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getOutput());
+        assertEquals(inputTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getOutput());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
@@ -313,16 +313,16 @@ public class CmdFunctionsTest {
     @Test
     public void testUpdateFunction() throws Exception {
         String fnName = TEST_NAME + "-function";
-        String sourceTopicName = TEST_NAME + "-source-topic";
-        String sinkTopicName = TEST_NAME + "-sink-topic";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
 
 
 
         cmd.run(new String[] {
             "update",
             "--name", fnName,
-            "--inputs", sourceTopicName,
-            "--output", sinkTopicName,
+            "--inputs", inputTopicName,
+            "--output", outputTopicName,
             "--jar", "SomeJar.jar",
             "--tenant", "sample",
             "--namespace", "ns1",
@@ -331,8 +331,8 @@ public class CmdFunctionsTest {
 
         UpdateFunction updater = cmd.getUpdater();
         assertEquals(fnName, updater.getFunctionName());
-        assertEquals(sourceTopicName, updater.getInputs());
-        assertEquals(sinkTopicName, updater.getOutput());
+        assertEquals(inputTopicName, updater.getInputs());
+        assertEquals(outputTopicName, updater.getOutput());
 
         verify(functions, times(1)).updateFunction(any(FunctionConfig.class), anyString());
     }
