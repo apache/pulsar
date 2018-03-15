@@ -473,10 +473,10 @@ public class FunctionsImpl {
 
         FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
         String inputTopicToWrite;
-        if (functionMetaData.getFunctionConfig().getInputs().size() > 0) {
-            inputTopicToWrite = functionMetaData.getFunctionConfig().getInputs().get(0);
+        if (functionMetaData.getFunctionConfig().getInputsList().size() > 0) {
+            inputTopicToWrite = functionMetaData.getFunctionConfig().getInputsList().get(0);
         } else {
-            inputTopicToWrite = functionMetaData.getFunctionConfig().getCustomSerdeInputs().iterator().next().first;
+            inputTopicToWrite = functionMetaData.getFunctionConfig().getCustomSerdeInputs().entrySet().iterator().next().getKey();
         }
         String outputTopic = functionMetaData.getFunctionConfig().getOutput();
         Reader reader = null;
@@ -498,7 +498,8 @@ public class FunctionsImpl {
             long maxTime = curTime + 1000;
             while (curTime < maxTime) {
                 Message msg = reader.readNext((int)(maxTime - curTime), TimeUnit.MILLISECONDS);
-                if (msg != null && msg.getProperties().containsKey("__pfn_input_msg_id__") &&
+                if (msg == null) break;
+                if (msg.getProperties().containsKey("__pfn_input_msg_id__") &&
                         msg.getProperties().containsKey("__pfn_input_topic__")) {
                     if (msg.getProperties().get("__pfn_input_msg_id__").equals(expectedProperty) &&
                             msg.getProperties().get("__pfn_input_topic__").equals(inputTopicToWrite)) {
@@ -507,8 +508,9 @@ public class FunctionsImpl {
                 }
                 curTime = System.currentTimeMillis();
             }
+            return Response.status(Status.REQUEST_TIMEOUT).build();
         } catch (Exception e) {
-            return Response.status(Status.).build();
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
         } finally {
             if (reader != null) {
                 reader.closeAsync();
