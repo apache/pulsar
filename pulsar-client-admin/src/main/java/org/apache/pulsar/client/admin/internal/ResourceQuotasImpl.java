@@ -31,16 +31,16 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 
 public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
-    private final WebTarget quotas;
+    private final WebTarget adminQuotas;
 
     public ResourceQuotasImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.quotas = web.path("/resource-quotas");
+        adminQuotas = web.path("/admin/resource-quotas");
     }
 
     public ResourceQuota getDefaultResourceQuota() throws PulsarAdminException {
         try {
-            return request(quotas).get(ResourceQuota.class);
+            return request(adminQuotas).get(ResourceQuota.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -48,7 +48,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     public void setDefaultResourceQuota(ResourceQuota quota) throws PulsarAdminException {
         try {
-            request(quotas).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminQuotas).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -58,7 +58,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             return request(
-                    quotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
+                    adminQuotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
                     .get(ResourceQuota.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -70,7 +70,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(
-                quotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
+                    adminQuotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
                     .post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -81,7 +81,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             request(
-                quotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
+                    adminQuotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
                     .delete();
         } catch (Exception e) {
             throw getApiException(e);
