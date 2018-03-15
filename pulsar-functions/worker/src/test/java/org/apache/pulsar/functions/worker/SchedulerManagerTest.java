@@ -69,8 +69,6 @@ public class SchedulerManagerTest {
         workerConfig.setPulsarServiceUrl("pulsar://localhost:6650");
         workerConfig.setStateStorageServiceUrl("foo");
         workerConfig.setFunctionAssignmentTopicName("assignments");
-        workerConfig.setMetricsConfig(new WorkerConfig.MetricsConfig()
-                .setMetricsSinkClassName(FunctionRuntimeManagerTest.TestSink.class.getName()));
         workerConfig.setSchedulerClassName(RoundRobinScheduler.class.getName());
         workerConfig.setAssignmentWriteMaxRetries(0);
 

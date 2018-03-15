@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A function container implemented using java thread.
@@ -166,8 +167,7 @@ public class JavaInstanceMain {
                 instanceConfig,
                 jarFile,
                 containerFactory,
-                null,
-                0);
+                null);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))
@@ -221,5 +221,22 @@ public class JavaInstanceMain {
                 throw new RuntimeException(e);
             }
         }
+
+        @Override
+        public void getAndResetMetrics(com.google.protobuf.Empty request,
+                                       io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData> responseObserver) {
+            Runtime runtime = runtimeSpawner.getRuntime();
+            if (runtime != null) {
+                try {
+                    InstanceCommunication.MetricsData metrics = runtime.getAndResetMetrics().get();
+                    responseObserver.onNext(metrics);
+                    responseObserver.onCompleted();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
     }
 }
