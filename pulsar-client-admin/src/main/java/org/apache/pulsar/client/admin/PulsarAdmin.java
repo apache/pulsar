@@ -74,7 +74,10 @@ public class PulsarAdmin implements Closeable {
     private final Client client;
     private final URL serviceUrl;
     private final Lookup lookups;
+    protected final WebTarget root;
     protected final Authentication auth;
+
+
 
     static {
         /**
@@ -168,7 +171,7 @@ public class PulsarAdmin implements Closeable {
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
-        WebTarget root = client.target(serviceUrl.toString());
+        root = client.target(serviceUrl.toString());
 
         this.clusters = new ClustersImpl(root, auth);
         this.brokers = new BrokersImpl(root, auth);
