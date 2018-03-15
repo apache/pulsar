@@ -32,17 +32,17 @@ import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 
 public class PropertiesImpl extends BaseResource implements Properties {
-    private final WebTarget properties;
+    private final WebTarget adminProperties;
 
     public PropertiesImpl(WebTarget web, Authentication auth) {
         super(auth);
-        properties = web.path("/properties");
+        adminProperties = web.path("/admin/properties");
     }
 
     @Override
     public List<String> getProperties() throws PulsarAdminException {
         try {
-            return request(properties).get(new GenericType<List<String>>() {
+            return request(adminProperties).get(new GenericType<List<String>>() {
             });
         } catch (Exception e) {
             throw getApiException(e);
@@ -52,7 +52,7 @@ public class PropertiesImpl extends BaseResource implements Properties {
     @Override
     public PropertyAdmin getPropertyAdmin(String property) throws PulsarAdminException {
         try {
-            return request(properties.path(property)).get(PropertyAdmin.class);
+            return request(adminProperties.path(property)).get(PropertyAdmin.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -61,7 +61,8 @@ public class PropertiesImpl extends BaseResource implements Properties {
     @Override
     public void createProperty(String property, PropertyAdmin config) throws PulsarAdminException {
         try {
-            request(properties.path(property)).put(Entity.entity(config, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminProperties.path(property))
+                    .put(Entity.entity(config, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -70,7 +71,8 @@ public class PropertiesImpl extends BaseResource implements Properties {
     @Override
     public void updateProperty(String property, PropertyAdmin config) throws PulsarAdminException {
         try {
-            request(properties.path(property)).post(Entity.entity(config, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminProperties.path(property))
+                    .post(Entity.entity(config, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -79,13 +81,13 @@ public class PropertiesImpl extends BaseResource implements Properties {
     @Override
     public void deleteProperty(String property) throws PulsarAdminException {
         try {
-            request(properties.path(property)).delete(ErrorData.class);
+            request(adminProperties.path(property)).delete(ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
     }
 
     public WebTarget getWebTarget() {
-        return properties;
+        return adminProperties;
     }
 }
