@@ -55,23 +55,6 @@ public abstract class ProducerBase<T> extends HandlerState implements Producer<T
     }
 
     @Override
-    public MessageId send(Message<T> message) throws PulsarClientException {
-        try {
-            return sendAsync(message).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
-        }
-    }
-
-    @Override
     abstract public CompletableFuture<MessageId> sendAsync(Message<T> message);
 
     @Override

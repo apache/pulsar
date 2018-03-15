@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -1161,6 +1162,39 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             client.timer().newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
         }
     };
+
+    @Override
+    public MessageId send(Message<T> message) throws PulsarClientException {
+        try {
+            // enqueue the message to the buffer
+            CompletableFuture<MessageId> sendFuture = sendAsync(message);
+
+            if (!sendFuture.isDone()) {
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to flush it out
+                flush();
+            }
+
+            return sendFuture.get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    private void flush() {
+        if (isBatchMessagingEnabled()) {
+            synchronized (ProducerImpl.this) {
+                batchMessageAndSend();
+            }
+        }
+    }
 
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend() {
