@@ -81,7 +81,7 @@ import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuara
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.producers.Producers;
-import org.apache.pulsar.functions.instance.producers.SimpleOneSinkTopicProducers;
+import org.apache.pulsar.functions.instance.producers.SimpleOneOuputTopicProducers;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
@@ -231,7 +231,7 @@ public class JavaInstanceRunnableProcessTest {
             .setClassName(TestFunction.class.getName())
             .addInputs("test-src-topic")
             .setName("test-function")
-            .setOutput("test-sink-topic")
+            .setOutput("test-output-topic")
             .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
             .setTenant("test-tenant")
             .setNamespace("test-namespace")
@@ -430,15 +430,15 @@ public class JavaInstanceRunnableProcessTest {
         }
 
         // 3. verify producers and consumers are setup
-        Producers producers = runnable.getSinkProducer();
-        assertTrue(producers instanceof SimpleOneSinkTopicProducers);
+        Producers producers = runnable.getOutputProducer();
+        assertTrue(producers instanceof SimpleOneOuputTopicProducers);
         assertSame(mockProducers.get(Pair.of(
             fnConfig.getOutput(),
             null
-        )).getProducer(), ((SimpleOneSinkTopicProducers) producers).getProducer());
+        )).getProducer(), ((SimpleOneOuputTopicProducers) producers).getProducer());
 
-        assertEquals(mockConsumers.size(), runnable.getSourceConsumers().size());
-        for (Map.Entry<String, Consumer> consumerEntry : runnable.getSourceConsumers().entrySet()) {
+        assertEquals(mockConsumers.size(), runnable.getInputConsumers().size());
+        for (Map.Entry<String, Consumer> consumerEntry : runnable.getInputConsumers().entrySet()) {
             String topic = consumerEntry.getKey();
 
             Consumer mockConsumer = mockConsumers.get(Pair.of(
@@ -457,7 +457,7 @@ public class JavaInstanceRunnableProcessTest {
         for (ConsumerInstance consumer : mockConsumers.values()) {
             verify(consumer.getConsumer(), times(1)).close();
         }
-        assertTrue(runnable.getSourceConsumers().isEmpty());
+        assertTrue(runnable.getInputConsumers().isEmpty());
 
         for (ProducerInstance producer : mockProducers.values()) {
             verify(producer.getProducer(), times(1)).close();
