@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.functions.instance;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.ThreadLocalRandom;
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
@@ -32,9 +33,14 @@ public class FunctionResultRouter extends RoundRobinPartitionMessageRouterImpl {
     private static final FunctionResultRouter INSTANCE = new FunctionResultRouter();
 
     public FunctionResultRouter() {
+        this(Math.abs(ThreadLocalRandom.current().nextInt()));
+    }
+
+    @VisibleForTesting
+    public FunctionResultRouter(int startPtnIdx) {
         super(
             HashingScheme.Murmur3_32Hash,
-            Math.abs(ThreadLocalRandom.current().nextInt()),
+            startPtnIdx,
             true,
             1);
     }
