@@ -1649,7 +1649,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         pulsarClient.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
 
         PersistentTopicsImpl persistent = (PersistentTopicsImpl) admin.persistentTopics();
-        Field field = PersistentTopicsImpl.class.getDeclaredField("persistentTopics");
+        Field field = PersistentTopicsImpl.class.getDeclaredField("adminPersistentTopics");
         field.setAccessible(true);
         WebTarget persistentTopics = (WebTarget) field.get(persistent);
 

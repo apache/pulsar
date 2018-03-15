@@ -73,9 +73,11 @@ public class PulsarAdmin implements Closeable {
 
     private final Client client;
     private final URL serviceUrl;
-    protected final WebTarget web;
     private final Lookup lookups;
+    protected final WebTarget root;
     protected final Authentication auth;
+
+
 
     static {
         /**
@@ -169,17 +171,16 @@ public class PulsarAdmin implements Closeable {
         this.client = clientBuilder.build();
 
         this.serviceUrl = serviceUrl;
-        WebTarget root = client.target(serviceUrl.toString());
-        web = root.path("/admin");
+        root = client.target(serviceUrl.toString());
 
-        this.clusters = new ClustersImpl(web, auth);
-        this.brokers = new BrokersImpl(web, auth);
-        this.brokerStats = new BrokerStatsImpl(web, auth);
-        this.properties = new PropertiesImpl(web, auth);
-        this.namespaces = new NamespacesImpl(web, auth);
-        this.persistentTopics = new PersistentTopicsImpl(web, auth);
-        this.nonPersistentTopics = new NonPersistentTopicsImpl(web, auth);
-        this.resourceQuotas = new ResourceQuotasImpl(web, auth);
+        this.clusters = new ClustersImpl(root, auth);
+        this.brokers = new BrokersImpl(root, auth);
+        this.brokerStats = new BrokerStatsImpl(root, auth);
+        this.properties = new PropertiesImpl(root, auth);
+        this.namespaces = new NamespacesImpl(root, auth);
+        this.persistentTopics = new PersistentTopicsImpl(root, auth);
+        this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
+        this.resourceQuotas = new ResourceQuotasImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, pulsarConfig.isUseTls());
     }
 
