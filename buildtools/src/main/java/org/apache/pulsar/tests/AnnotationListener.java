@@ -27,7 +27,7 @@ import org.testng.annotations.ITestAnnotation;
 @SuppressWarnings("rawtypes")
 public class AnnotationListener implements IAnnotationTransformer {
 
-    private static final int DEFAULT_TEST_TIMEOUT_MILLIS = 30000;
+    private static final int DEFAULT_TEST_TIMEOUT_MILLIS = 120000;
 
     public AnnotationListener() {
         System.out.println("Created annotation listener");
