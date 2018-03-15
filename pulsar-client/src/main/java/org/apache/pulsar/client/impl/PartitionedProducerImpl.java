@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -76,7 +77,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             messageRouter = customMessageRouter;
             break;
         case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl(conf.getHashingScheme());
+            messageRouter = new RoundRobinPartitionMessageRouterImpl(
+                conf.getHashingScheme(),
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
+                conf.isBatchingEnabled(),
+                TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
             break;
         case SinglePartition:
         default:
