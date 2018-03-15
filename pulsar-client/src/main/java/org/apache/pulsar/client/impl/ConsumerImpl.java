@@ -55,6 +55,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
@@ -62,6 +63,7 @@ import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -79,7 +81,7 @@ import io.netty.util.Timeout;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.GenericFutureListener;
 
-public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandler.Connection {
+public class ConsumerImpl<T> extends ConsumerBase<T> {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
     private final long consumerId;
@@ -122,8 +124,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final Map<String, String> metadata;
 
     private final boolean readCompacted;
-
-    private final ConnectionHandler connectionHandler;
+    private final InitialPosition subscriptionInitialPosition;
 
     enum SubscriptionMode {
         // Make the subscription to be backed by a durable cursor that will retain messages and persist the current
@@ -154,6 +155,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.priorityLevel = conf.getPriorityLevel();
         this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
         this.readCompacted = conf.isReadCompacted();
+        this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition() == SubscriptionInitialPosition.Latest 
+            ? InitialPosition.Latest: InitialPosition.Earliest;
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -185,15 +188,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
-        this.connectionHandler = new ConnectionHandler(this,
-            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, 0, TimeUnit.MILLISECONDS),
-            this);
-
         grabCnx();
-    }
-
-    public ConnectionHandler getConnectionHandler() {
-        return connectionHandler;
     }
 
     public UnAckedMessageTracker getUnAckedMessageTracker() {
@@ -543,7 +538,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void connectionOpened(final ClientCnx cnx) {
+    void connectionOpened(final ClientCnx cnx) {
         setClientCnx(cnx);
         cnx.registerConsumer(consumerId, this);
 
@@ -578,7 +573,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, metadata, readCompacted);
+                consumerName, isDurable, startMessageIdData, metadata, readCompacted, subscriptionInitialPosition);
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -622,7 +617,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return null;
             }
             log.warn("[{}][{}] Failed to subscribe to topic on {}", topic, subscription, cnx.channel().remoteAddress());
-            if (e.getCause() instanceof PulsarClientException && getConnectionHandler().isRetriableError((PulsarClientException) e.getCause())
+            if (e.getCause() instanceof PulsarClientException && isRetriableError((PulsarClientException) e.getCause())
                     && System.currentTimeMillis() < subscribeTimeout) {
                 reconnectLater(e.getCause());
                 return null;
@@ -687,7 +682,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     }
 
     @Override
-    public void connectionFailed(PulsarClientException exception) {
+    void connectionFailed(PulsarClientException exception) {
         if (System.currentTimeMillis() > subscribeTimeout && subscribeFuture.completeExceptionally(exception)) {
             setState(State.Failed);
             log.info("[{}] Consumer creation failed for consumer {}", topic, consumerId);
@@ -953,14 +948,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                         log.debug("[{}] [{}] Ignoring message from before the startMessageId", subscription,
                                 consumerName);
                     }
-
-                    ++skippedMessages;
-                    continue;
-                }
-                if (singleMessageMetadataBuilder.getCompactedOut()) {
-                    // message has been compacted out, so don't send to the user
-                    singleMessagePayload.release();
-                    singleMessageMetadataBuilder.recycle();
 
                     ++skippedMessages;
                     continue;
@@ -1447,35 +1434,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public int hashCode() {
         return Objects.hash(topic, subscription, consumerName);
-    }
-
-    // wrapper for connection methods
-    ClientCnx cnx() {
-        return this.connectionHandler.cnx();
-    }
-
-    void resetBackoff() {
-        this.connectionHandler.resetBackoff();
-    }
-
-    void connectionClosed(ClientCnx cnx) {
-        this.connectionHandler.connectionClosed(cnx);
-    }
-
-    ClientCnx getClientCnx() {
-        return this.connectionHandler.getClientCnx();
-    }
-
-    void setClientCnx(ClientCnx clientCnx) {
-        this.connectionHandler.setClientCnx(clientCnx);
-    }
-
-    void reconnectLater(Throwable exception) {
-        this.connectionHandler.reconnectLater(exception);
-    }
-
-    void grabCnx() {
-        this.connectionHandler.grabCnx();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ConsumerImpl.class);

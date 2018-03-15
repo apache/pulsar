@@ -78,6 +78,7 @@ import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
@@ -546,7 +547,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException {
+    public ManagedCursor openCursor(String cursorName) throws InterruptedException, ManagedLedgerException{
+        return openCursor(cursorName, InitialPosition.Latest);
+    }
+
+    @Override
+    public ManagedCursor openCursor(String cursorName, InitialPosition initialPosition) throws InterruptedException, ManagedLedgerException {
         final CountDownLatch counter = new CountDownLatch(1);
         class Result {
             ManagedCursor cursor = null;
@@ -554,7 +560,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         }
         final Result result = new Result();
 
-        asyncOpenCursor(cursorName, new OpenCursorCallback() {
+        asyncOpenCursor(cursorName, initialPosition, new OpenCursorCallback() {
             @Override
             public void openCursorComplete(ManagedCursor cursor, Object ctx) {
                 result.cursor = cursor;
@@ -582,9 +588,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     }
 
     @Override
-    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback,
-            final Object ctx) {
+    public synchronized void asyncOpenCursor(final String cursorName, final OpenCursorCallback callback, Object ctx){
+        this.asyncOpenCursor(cursorName, InitialPosition.Latest, callback, ctx);
+    }
 
+    @Override
+    public synchronized void asyncOpenCursor(final String cursorName, final InitialPosition initialPosition, final OpenCursorCallback callback, final Object ctx){
         try {
             checkManagedLedgerIsOpen();
             checkFenced();
@@ -624,7 +633,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 log.info("[{}] Opened new cursor: {}", name, cursor);
                 cursor.setActive();
                 // Update the ack position (ignoring entries that were written while the cursor was being created)
-                cursor.initializeCursorPosition(getLastPositionAndCounter());
+                cursor.initializeCursorPosition(initialPosition == InitialPosition.Latest ? getLastPositionAndCounter() : getFirstPositionAndCounter());
 
                 synchronized (this) {
                     cursors.add(cursor);
@@ -2027,6 +2036,22 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             // Ensure no entry was written while reading the two values
         } while (pos.compareTo(lastConfirmedEntry) != 0);
 
+        return Pair.create(pos, count);
+    }
+
+    /**
+     * Get the first position written in the managed ledger, alongside with the associated counter
+     */
+    Pair<PositionImpl, Long> getFirstPositionAndCounter() {
+        PositionImpl pos;
+        long count;
+        Pair<PositionImpl, Long> lastPositionAndCounter;
+
+        do {
+            pos = getFirstPosition();
+            lastPositionAndCounter = getLastPositionAndCounter();
+            count = lastPositionAndCounter.second - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.first));
+        } while (pos.compareTo(getFirstPosition()) != 0 && lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
         return Pair.create(pos, count);
     }
 
