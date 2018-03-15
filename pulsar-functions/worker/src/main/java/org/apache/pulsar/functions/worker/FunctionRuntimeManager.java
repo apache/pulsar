@@ -31,7 +31,6 @@ import org.apache.pulsar.functions.proto.Request.AssignmentsUpdate;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.ThreadRuntimeFactory;
-import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 
 import javax.ws.rs.client.Client;
@@ -73,8 +72,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
 
     private final FunctionAssignmentTailer functionAssignmentTailer;
 
-    private MetricsSink metricsSink;
-
     private FunctionActioner functionActioner;
 
     private RuntimeFactory runtimeFactory;
@@ -110,12 +107,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
             throw new RuntimeException("Either Thread or Process Container Factory need to be set");
         }
 
-        this.metricsSink = createMetricsSink();
-
         this.actionQueue = new LinkedBlockingQueue<>();
 
         this.functionActioner = new FunctionActioner(this.workerConfig, runtimeFactory,
-                this.metricsSink, this.workerConfig.getMetricsConfig().getMetricsCollectionInterval(),
                 dlogNamespace, actionQueue);
 
         this.membershipManager = membershipManager;
@@ -127,7 +121,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void start() {
         log.info("/** Starting Function Runtime Manager **/");
         log.info("Initialize metrics sink...");
-        this.metricsSink.init(this.workerConfig.getMetricsConfig().getMetricsSinkConfig());
         log.info("Starting function actioner...");
         this.functionActioner.start();
         log.info("Starting function assignment tailer...");
@@ -428,6 +421,9 @@ public class FunctionRuntimeManager implements AutoCloseable{
         }
     }
 
+    public Map<String, FunctionRuntimeInfo> getFunctionRuntimeInfos() {
+        return this.functionRuntimeInfoMap;
+    }
     /**
      * Private methods for internal use.  Should not be used outside of this class
      */
@@ -515,20 +511,6 @@ public class FunctionRuntimeManager implements AutoCloseable{
     public void close() throws Exception {
         this.functionActioner.close();
         this.functionAssignmentTailer.close();
-    }
-
-    private MetricsSink createMetricsSink() {
-        String className = workerConfig.getMetricsConfig().getMetricsSinkClassName();
-        try {
-            MetricsSink sink = (MetricsSink) Class.forName(className).newInstance();
-            return sink;
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e + " IMetricsSink class must have a no-arg constructor.");
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e + " IMetricsSink class must be concrete.");
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e + " IMetricsSink class must be a class path.");
-        }
     }
 
     private Map<String, Assignment> diff(Map<String, Assignment> assignmentMap1, Map<String, Assignment> assignmentMap2) {

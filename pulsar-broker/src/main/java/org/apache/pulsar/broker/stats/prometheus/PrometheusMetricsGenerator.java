@@ -24,7 +24,7 @@ import java.util.Enumeration;
 
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.stats.metrics.JvmMetrics;
-import org.apache.pulsar.utils.SimpleTextOutputStream;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufAllocator;
@@ -36,6 +36,7 @@ import io.prometheus.client.CollectorRegistry;
 import io.prometheus.client.Gauge;
 import io.prometheus.client.Gauge.Child;
 import io.prometheus.client.hotspot.DefaultExports;
+import org.apache.pulsar.functions.worker.FunctionsStatsGenerator;
 
 /**
  * Generate metrics aggregated at the namespace level and optionally at a topic level and formats them out
@@ -70,6 +71,9 @@ public class PrometheusMetricsGenerator {
             generateSystemMetrics(stream, pulsar.getConfiguration().getClusterName());
 
             NamespaceStatsAggregator.generate(pulsar, includeTopicMetrics, stream);
+
+            FunctionsStatsGenerator.generate(pulsar.getWorkerService(),
+                    pulsar.getConfiguration().getClusterName(), stream);
 
             out.write(buf.array(), buf.arrayOffset(), buf.readableBytes());
         } finally {

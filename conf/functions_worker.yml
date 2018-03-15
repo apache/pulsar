@@ -28,12 +28,6 @@ pulsarServiceUrl: pulsar://localhost:6650
 pulsarWebServiceUrl: http://localhost:8080
 numFunctionPackageReplicas: 1
 downloadDirectory: /tmp/pulsar_functions
-metricsConfig:
-  metricsSinkClassName: org.apache.pulsar.functions.metrics.sink.PrometheusSink
-  metricsCollectionInterval: 30
-  metricsSinkConfig:
-    path: /metrics
-    port: 9099
 #threadContainerFactory:
 #  threadGroupName: "Thread Function Container Group"
 processContainerFactory:
@@ -45,3 +39,4 @@ failureCheckFreqMs: 30000
 rescheduleTimeoutMs: 60000
 initialBrokerReconnectMaxRetries: 60
 assignmentWriteMaxRetries: 60
+instanceLivenessCheckFreqMs: 30000

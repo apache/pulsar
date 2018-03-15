@@ -32,7 +32,6 @@ import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
@@ -52,8 +51,6 @@ public class FunctionActioner implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
     private final RuntimeFactory runtimeFactory;
-    private final MetricsSink metricsSink;
-    private final int metricsCollectionInterval;
     private final Namespace dlogNamespace;
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
@@ -61,14 +58,10 @@ public class FunctionActioner implements AutoCloseable {
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
-                            MetricsSink metricsSink,
-                            int metricCollectionInterval,
                             Namespace dlogNamespace,
                             LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
-        this.metricsSink = metricsSink;
-        this.metricsCollectionInterval = metricCollectionInterval;
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
         actioner = new Thread(() -> {
@@ -168,8 +161,8 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(), runtimeFactory,
-                metricsSink, metricsCollectionInterval);
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
         functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
         runtimeSpawner.start();
