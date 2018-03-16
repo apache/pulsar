@@ -33,8 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.apache.bookkeeper.client.AsyncCallback.ReadCallback;
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.client.LedgerEntry;
-import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.LedgerEntry;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -190,37 +190,35 @@ public class EntryCacheManager {
         }
 
         @Override
-        public void asyncReadEntry(LedgerHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+        public void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
                 final ReadEntriesCallback callback, Object ctx) {
-            lh.asyncReadEntries(firstEntry, lastEntry, new ReadCallback() {
-                public void readComplete(int rc, LedgerHandle lh, Enumeration<LedgerEntry> seq, Object bkctx) {
-                    if (rc != BKException.Code.OK) {
-                        callback.readEntriesFailed(createManagedLedgerException(rc), ctx);
-                        return;
-                    }
+            lh.readAsync(firstEntry, lastEntry).whenComplete(
+                    (ledgerEntries, exception) -> {
+                        if (exception != null) {
+                            callback.readEntriesFailed(createManagedLedgerException(exception), ctx);
+                            return;
+                        }
+                        List<Entry> entries = Lists.newArrayList();
+                        long totalSize = 0;
+                        try {
+                            for (LedgerEntry e : ledgerEntries) {
+                                // Insert the entries at the end of the list (they will be unsorted for now)
+                                EntryImpl entry = EntryImpl.create(e);
+                                entries.add(entry);
+                                totalSize += entry.getLength();
+                            }
+                        } finally {
+                            ledgerEntries.close();
+                        }
+                        mlFactoryMBean.recordCacheMiss(entries.size(), totalSize);
+                        ml.mbean.addReadEntriesSample(entries.size(), totalSize);
 
-                    List<Entry> entries = Lists.newArrayList();
-                    long totalSize = 0;
-                    while (seq.hasMoreElements()) {
-                        // Insert the entries at the end of the list (they will be unsorted for now)
-                        LedgerEntry ledgerEntry = seq.nextElement();
-                        EntryImpl entry = EntryImpl.create(ledgerEntry);
-                        ledgerEntry.getEntryBuffer().release();
-
-                        entries.add(entry);
-                        totalSize += entry.getLength();
-                    }
-
-                    mlFactoryMBean.recordCacheMiss(entries.size(), totalSize);
-                    ml.mbean.addReadEntriesSample(entries.size(), totalSize);
-
-                    callback.readEntriesComplete(entries, null);
-                }
-            }, null);
+                        callback.readEntriesComplete(entries, null);
+                    });
         }
 
         @Override
-        public void asyncReadEntry(LedgerHandle lh, PositionImpl position, AsyncCallbacks.ReadEntryCallback callback,
+        public void asyncReadEntry(ReadHandle lh, PositionImpl position, AsyncCallbacks.ReadEntryCallback callback,
                 Object ctx) {
         }
 

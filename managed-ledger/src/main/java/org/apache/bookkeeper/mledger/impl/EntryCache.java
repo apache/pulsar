@@ -18,7 +18,7 @@
  */
 package org.apache.bookkeeper.mledger.impl;
 
-import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.client.api.ReadHandle;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntriesCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.util.Pair;
@@ -94,7 +94,7 @@ public interface EntryCache extends Comparable<EntryCache> {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(LedgerHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
+    void asyncReadEntry(ReadHandle lh, long firstEntry, long lastEntry, boolean isSlowestReader,
             ReadEntriesCallback callback, Object ctx);
 
     /**
@@ -111,7 +111,7 @@ public interface EntryCache extends Comparable<EntryCache> {
      * @param ctx
      *            the context object
      */
-    void asyncReadEntry(LedgerHandle lh, PositionImpl position, ReadEntryCallback callback, Object ctx);
+    void asyncReadEntry(ReadHandle lh, PositionImpl position, ReadEntryCallback callback, Object ctx);
 
     /**
      * Get the total size in bytes of all the entries stored in this cache.
