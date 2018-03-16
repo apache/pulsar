@@ -30,5 +30,6 @@
             <AppenderRef ref="Console" />
         </Root>
         <Logger name="org.apache.pulsar" level="info"/>
+        <Logger name="org.apache.bookkeeper" level="info"/>
     </Loggers>
 </Configuration>
