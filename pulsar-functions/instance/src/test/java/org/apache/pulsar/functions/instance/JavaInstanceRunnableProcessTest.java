@@ -98,7 +98,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @PrepareForTest({ JavaInstanceRunnable.class, StorageClientBuilder.class, MessageBuilder.class, Reflections.class })
-@PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*", "org.apache.logging.log4j.*" })
+@PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*", "org.apache.logging.log4j.*", "org/apache/pulsar/common/api/proto/PulsarApi*", "org.apache.pulsar.common.util.protobuf.*", "org.apache.pulsar.shade.*" })
 public class JavaInstanceRunnableProcessTest {
 
     @ObjectFactory
@@ -389,6 +389,13 @@ public class JavaInstanceRunnableProcessTest {
                         when(msg.getSequenceId()).thenReturn(seqId);
                         return builder;
                     });
+                when(builder.setProperty(anyString(), anyString()))
+                        .thenAnswer(invocationOnMock1 -> {
+                            String key = invocationOnMock1.getArgumentAt(0, String.class);
+                            String value = invocationOnMock1.getArgumentAt(1, String.class);
+                            when(msg.getProperty(eq(key))).thenReturn(value);
+                            return builder;
+                            });
                 when(builder.build()).thenReturn(msg);
                 return builder;
             });

@@ -24,12 +24,8 @@ import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_ST
 
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
@@ -497,7 +493,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                                    JavaExecutionResult result,
                                    byte[] output) {
         MessageBuilder msgBuilder = MessageBuilder.create()
-            .setContent(output);
+            .setContent(output)
+            .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
+            .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             msgBuilder = msgBuilder
                 .setSequenceId(Utils.getSequenceId(srcMsg.getActualMessage().getMessageId()));
