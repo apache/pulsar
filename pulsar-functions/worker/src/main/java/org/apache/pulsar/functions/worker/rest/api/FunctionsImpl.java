@@ -449,11 +449,12 @@ public class FunctionsImpl {
     public Response triggerFunction(final @PathParam("tenant") String tenant,
                                     final @PathParam("namespace") String namespace,
                                     final @PathParam("name") String functionName,
-                                    final @FormDataParam("data") InputStream uploadedInputStream) {
+                                    final @FormDataParam("data") String input,
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
         FunctionConfig functionConfig;
         // validate parameters
         try {
-            validateTriggerRequestParams(tenant, namespace, functionName, uploadedInputStream);
+            validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
         } catch (IllegalArgumentException e) {
             log.error("Invalid trigger function request @ /{}/{}/{}",
                     tenant, namespace, functionName, e);
@@ -486,7 +487,12 @@ public class FunctionsImpl {
                 reader = worker().getClient().newReader().topic(outputTopic).startMessageId(MessageId.latest).create();
             }
             producer = worker().getClient().newProducer().topic(inputTopicToWrite).create();
-            byte[] targetArray = new byte[uploadedInputStream.available()];
+            byte[] targetArray;
+            if (uploadedInputStream != null) {
+                targetArray = new byte[uploadedInputStream.available()];
+            } else {
+                targetArray = input.getBytes();
+            }
             uploadedInputStream.read(targetArray);
             MessageId msgId = producer.send(targetArray);
             producer.close();
@@ -630,9 +636,10 @@ public class FunctionsImpl {
     }
 
     private void validateTriggerRequestParams(String tenant,
-                                                        String namespace,
-                                                        String functionName,
-                                                        InputStream uploadedInputStream) {
+                                              String namespace,
+                                              String functionName,
+                                              String input,
+                                              InputStream uploadedInputStream) {
         if (tenant == null) {
             throw new IllegalArgumentException("Tenant is not provided");
         }
@@ -642,7 +649,7 @@ public class FunctionsImpl {
         if (functionName == null) {
             throw new IllegalArgumentException("Function Name is not provided");
         }
-        if (uploadedInputStream == null) {
+        if (uploadedInputStream == null && input == null) {
             throw new IllegalArgumentException("Trigger Data is not provided");
         }
     }

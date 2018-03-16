@@ -77,6 +77,7 @@ public class CmdFunctions extends CmdBase {
     private final GetFunctionStatus statuser;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
+    private final TriggerFunction triggerer;
 
     /**
      * Base command
@@ -617,6 +618,22 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Trigger function")
+    class TriggerFunction extends FunctionCommand {
+        @Parameter(names = "--triggerValue", description = "The value the function needs to be triggered with")
+        protected String triggerValue;
+        @Parameter(names = "--triggerFile", description = "The fileName that contains data the function needs to be triggered with")
+        protected String triggerFile;
+        @Override
+        void runCmd() throws Exception {
+            if (triggerFile == null && triggerValue == null) {
+                throw new RuntimeException("One of triggerValue/triggerFile has to be present");
+            }
+            String retval = fnAdmin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
+            System.out.println(retval);
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
         this.fnAdmin = (PulsarAdminWithFunctions) admin;
@@ -628,6 +645,7 @@ public class CmdFunctions extends CmdBase {
         statuser = new GetFunctionStatus();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
+        triggerer = new TriggerFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -636,6 +654,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
+        jcommander.addCommand("trigger", getTriggerer());
     }
 
     @VisibleForTesting
@@ -674,5 +693,10 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     StateGetter getStateGetter() {
         return stateGetter;
+    }
+
+    @VisibleForTesting
+    TriggerFunction getTriggerer() {
+        return triggerer;
     }
 }
