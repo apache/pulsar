@@ -104,6 +104,7 @@ message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
 	optional string partition_key   = 2;
 	required int32 payload_size	= 3;
+        optional bool compacted_out     = 4 [default = false];
 }
 
 enum ServerError {

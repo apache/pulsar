@@ -138,5 +138,4 @@ public class FunctionApiV2Resource extends FunctionApiResource {
                                     final @FormDataParam("data") InputStream uploadedInputStream) {
         return functions.triggerFunction(tenant, namespace, functionName, uploadedInputStream);
     }
-
 }

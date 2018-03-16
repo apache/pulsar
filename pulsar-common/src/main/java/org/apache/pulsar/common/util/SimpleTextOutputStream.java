@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.utils;
+package org.apache.pulsar.common.util;
 
 import io.netty.buffer.ByteBuf;
 
@@ -99,17 +99,17 @@ public class SimpleTextOutputStream {
         return this;
     }
 
-    SimpleTextOutputStream write(boolean b) {
+    public SimpleTextOutputStream write(boolean b) {
         write(b ? "true" : "false");
         return this;
     }
 
-    SimpleTextOutputStream write(long n) {
+    public SimpleTextOutputStream write(long n) {
         NumberFormat.format(this.buffer, n);
         return this;
     }
 
-    SimpleTextOutputStream write(double d) {
+    public SimpleTextOutputStream write(double d) {
         long i = (long) d;
         write(i);
 
@@ -131,5 +131,4 @@ public class SimpleTextOutputStream {
         write(r);
         return this;
     }
-
 }

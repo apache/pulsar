@@ -90,7 +90,7 @@ public class PulsarClusterMetadataSetup {
             }
         } catch (Exception e) {
             jcommander.usage();
-            return;
+            throw e;
         }
 
         log.info("Setting up cluster {} with zk={} global-zk={}", arguments.cluster, arguments.zookeeper,

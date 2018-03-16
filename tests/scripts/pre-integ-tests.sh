@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -18,11 +18,12 @@
 # under the License.
 #
 
+set -ex
+id
+ulimit -a
+pwd
+df -h
+ps -eo euser,pid,ppid,pgid,start,pcpu,pmem,cmd
+docker network prune -f --filter name=pulsarnet_*
+docker system events > docker.debug-info & echo $! > docker-log.pid
 
-bin/pulsar-functions functions create \
-    --function-config conf/example.yml \
-    --output-topic persistent://sample/standalone/ns1/test_result \
-    --input-topics persistent://sample/standalone/ns1/test_src \
-    --output-serde-classname pulsarfunction.serde.IdentitySerDe \
-    --py python-examples/exclamation.py \
-    --function-classname exclamation.Exclamation

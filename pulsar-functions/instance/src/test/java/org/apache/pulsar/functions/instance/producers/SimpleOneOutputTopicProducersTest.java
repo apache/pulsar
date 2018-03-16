@@ -34,15 +34,15 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link SimpleOneSinkTopicProducers}.
+ * Unit test of {@link SimpleOneOuputTopicProducers}.
  */
-public class SimpleOneSinkTopicProducersTest {
+public class SimpleOneOutputTopicProducersTest {
 
-    private static final String TEST_SINK_TOPIC = "test-sink-topic";
+    private static final String TEST_OUTPUT_TOPIC = "test-output-topic";
 
     private PulsarClient mockClient;
     private Producer mockProducer;
-    private SimpleOneSinkTopicProducers producers;
+    private SimpleOneOuputTopicProducers producers;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -52,7 +52,7 @@ public class SimpleOneSinkTopicProducersTest {
         when(mockClient.createProducer(anyString(), any(ProducerConfiguration.class)))
             .thenReturn(mockProducer);
 
-        this.producers = new SimpleOneSinkTopicProducers(mockClient, TEST_SINK_TOPIC);
+        this.producers = new SimpleOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC);
     }
 
     @Test
@@ -60,7 +60,7 @@ public class SimpleOneSinkTopicProducersTest {
         this.producers.initialize();
 
         verify(mockClient, times(1))
-            .createProducer(eq(TEST_SINK_TOPIC), any(ProducerConfiguration.class));
+            .createProducer(eq(TEST_OUTPUT_TOPIC), any(ProducerConfiguration.class));
 
         this.producers.close();
 
@@ -77,12 +77,12 @@ public class SimpleOneSinkTopicProducersTest {
         this.producers.initialize();
 
         verify(mockClient, times(1))
-            .createProducer(eq(TEST_SINK_TOPIC), any(ProducerConfiguration.class));
+            .createProducer(eq(TEST_OUTPUT_TOPIC), any(ProducerConfiguration.class));
 
         assertSame(mockProducer, this.producers.getProducer("test-src-topic", 0));
 
         verify(mockClient, times(1))
-            .createProducer(eq(TEST_SINK_TOPIC), any(ProducerConfiguration.class));
+            .createProducer(eq(TEST_OUTPUT_TOPIC), any(ProducerConfiguration.class));
 
         producers.closeProducer("test-src-topic", 0);
 
