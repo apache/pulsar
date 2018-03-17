@@ -152,9 +152,9 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (triggerValue != null) {
                 mp.bodyPart(new FormDataBodyPart("data", triggerValue, MediaType.TEXT_PLAIN_TYPE));
             }
-            ErrorData response = request(functions.path(tenant).path(namespace).path(functionName).path("trigger"))
-                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
-            return response.reason;
+            String response = request(functions.path(tenant).path(namespace).path(functionName).path("trigger"))
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), String.class);
+            return response;
         } catch (Exception e) {
             throw getApiException(e);
         }

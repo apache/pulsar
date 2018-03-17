@@ -23,6 +23,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -490,25 +491,23 @@ public class FunctionsImpl {
             byte[] targetArray;
             if (uploadedInputStream != null) {
                 targetArray = new byte[uploadedInputStream.available()];
+                uploadedInputStream.read(targetArray);
             } else {
                 targetArray = input.getBytes();
             }
-            uploadedInputStream.read(targetArray);
             MessageId msgId = producer.send(targetArray);
-            producer.close();
             if (reader == null) {
                 return Response.status(Status.OK).build();
             }
-            String expectedProperty = new String(Base64.getEncoder().encode(msgId.toByteArray()));
             long curTime = System.currentTimeMillis();
             long maxTime = curTime + 1000;
             while (curTime < maxTime) {
-                Message msg = reader.readNext((int)(maxTime - curTime), TimeUnit.MILLISECONDS);
+                Message msg = reader.readNext(10000, TimeUnit.MILLISECONDS);
                 if (msg == null) break;
                 if (msg.getProperties().containsKey("__pfn_input_msg_id__") &&
                         msg.getProperties().containsKey("__pfn_input_topic__")) {
-                    if (msg.getProperties().get("__pfn_input_msg_id__").equals(expectedProperty) &&
-                            msg.getProperties().get("__pfn_input_topic__").equals(inputTopicToWrite)) {
+                    MessageId newMsgId = MessageId.fromByteArray(Base64.getDecoder().decode((String) msg.getProperties().get("__pfn_input_msg_id__")));
+                    if (msgId.equals(newMsgId) && msg.getProperties().get("__pfn_input_topic__").equals(inputTopicToWrite)) {
                         return Response.status(Status.OK).entity(msg.getData()).build();
                     }
                 }
