@@ -21,7 +21,6 @@ package org.apache.bookkeeper.mledger.impl;
 import static org.testng.Assert.*;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -2155,11 +2154,11 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
     }
 
     @Test
-    public void testOpenCursorOnLatestAndEarliest() throws Exception {
+    public void testConsumerSubscriptionInitializePosition() throws Exception{
         final int MAX_ENTRY_PER_LEDGER = 2;
         ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(MAX_ENTRY_PER_LEDGER);
         ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger", config);
-        // ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger");
+
         final int totalInsertedEntries = 20;
         for (int i = 0; i < totalInsertedEntries; i++) {
             String content = "entry" + i; // 5 bytes
@@ -2183,5 +2182,6 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         assertEquals(earliestPositionAndCounter.second.longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
 
         ledger.close();
+
     }
 }

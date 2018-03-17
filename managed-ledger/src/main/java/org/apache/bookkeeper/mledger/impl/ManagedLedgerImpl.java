@@ -2051,7 +2051,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             pos = getFirstPosition();
             lastPositionAndCounter = getLastPositionAndCounter();
             count = lastPositionAndCounter.second - getNumberOfEntries(Range.openClosed(pos, lastPositionAndCounter.first));
-        } while (pos.compareTo(getFirstPosition()) != 0 && lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
+        } while (pos.compareTo(getFirstPosition()) != 0 || lastPositionAndCounter.first.compareTo(getLastPosition()) != 0);
         return Pair.create(pos, count);
     }
 
