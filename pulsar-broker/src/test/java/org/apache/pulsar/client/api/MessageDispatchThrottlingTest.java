@@ -847,7 +847,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-    private void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
+    protected void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
         Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
         statsUpdaterField.setAccessible(true);
         ScheduledExecutorService statsUpdater = (ScheduledExecutorService) statsUpdaterField

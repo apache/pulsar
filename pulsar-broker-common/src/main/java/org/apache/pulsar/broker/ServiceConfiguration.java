@@ -146,6 +146,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // default message-byte dispatch-throttling
     @FieldContext(dynamic = true)
     private long dispatchThrottlingRatePerTopicInByte = 0;
+    // Default number of message dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private int dispatchThrottlingRatePerSubscribeInMsg = 0;
+    // Default number of message-bytes dispatching throttling-limit for a subscription.
+    // Using a value of 0, is disabling.
+    @FieldContext(dynamic = true)
+    private long dispatchThrottlingRatePerSubscribeInByte = 0;
     // Default dispatch-throttling is disabled for consumers which already caught-up with published messages and
     // don't have backlog. This enables dispatch-throttling for non-backlog consumers as well.
     @FieldContext(dynamic = true)
@@ -703,6 +711,22 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setDispatchThrottlingRatePerTopicInByte(long dispatchThrottlingRatePerTopicInByte) {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
+    }
+
+    public int getDispatchThrottlingRatePerSubscribeInMsg() {
+        return dispatchThrottlingRatePerSubscribeInMsg;
+    }
+
+    public void setDispatchThrottlingRatePerSubscribeInMsg(int dispatchThrottlingRatePerSubscribeInMsg) {
+        this.dispatchThrottlingRatePerSubscribeInMsg = dispatchThrottlingRatePerSubscribeInMsg;
+    }
+
+    public long getDispatchThrottlingRatePerSubscribeInByte() {
+        return dispatchThrottlingRatePerSubscribeInByte;
+    }
+
+    public void setDispatchThrottlingRatePerSubscribeInByte(long dispatchThrottlingRatePerSubscribeInByte) {
+        this.dispatchThrottlingRatePerSubscribeInByte = dispatchThrottlingRatePerSubscribeInByte;
     }
 
     public boolean isDispatchThrottlingOnNonBacklogConsumerEnabled() {
