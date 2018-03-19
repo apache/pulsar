@@ -121,6 +121,7 @@ public class ProxyServiceStarter {
         server.addServlet("/metrics", new ServletHolder(MetricsServlet.class));
         server.addRestResources("/", VipStatus.class.getPackage().getName(),
                 VipStatus.ATTRIBUTE_STATUS_FILE_PATH, config.getStatusFilePath());
+        server.addServlet("/admin", new ServletHolder(new AdminProxyHandler(config)));
 
         // start web-service
         server.start();
