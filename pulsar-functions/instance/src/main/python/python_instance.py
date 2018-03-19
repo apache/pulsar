@@ -22,6 +22,7 @@
 
 """python_instance.py: Python Instance for running python functions
 """
+import base64
 import os
 import time
 import Queue
@@ -223,8 +224,9 @@ class PythonInstance(object):
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
       if output_bytes is not None:
+        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : str(base64.b64encode(msg.message.message_id().serialize()))}
         try:
-          self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message))
+          self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
         except Exception as e:
           self.current_stats.record_system_exception(e)
           self.total_stats.record_system_exception(e)

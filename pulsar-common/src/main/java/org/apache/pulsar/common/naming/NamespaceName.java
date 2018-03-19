@@ -206,4 +206,12 @@ public class NamespaceName implements ServiceUnitId {
     public boolean includes(TopicName topicName) {
         return this.equals(topicName.getNamespaceObject());
     }
+
+    /**
+     * Returns true if this is a V2 namespace prop/namespace-name
+     * @return true if v2
+     */
+    public boolean isV2() {
+        return cluster == null;
+    }
 }

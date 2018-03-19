@@ -46,7 +46,7 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
     public FunctionsImpl(WebTarget web, Authentication auth) {
         super(auth);
-        this.functions = web.path("/functions");
+        this.functions = web.path("/admin/functions");
     }
 
     @Override

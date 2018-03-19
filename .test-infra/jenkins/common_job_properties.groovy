@@ -77,11 +77,28 @@ class common_job_properties {
       daysToKeep(14)
     }
 
+    context.parameters {
+      // This is a recommended setup if you want to run the job manually. The
+      // ${gitrepo} parameter needs to be provided, and defaults to the main repo.
+      stringParam(
+          'gitrepo',
+          scmUrl,
+          'Git repository to build.')
+
+      // This is a recommended setup if you want to run the job manually. The
+      // ${sha1} parameter needs to be provided, and defaults to the main branch.
+      stringParam(
+          'sha1',
+          defaultBranch,
+          'Commit id or refname (eg: origin/pr/9/head) you want to build.')
+    }
+
+
     // Source code management.
     context.scm {
       git {
         remote {
-          url(scmUrl)
+          url('${gitrepo}')
           refspec('+refs/heads/*:refs/remotes/origin/* ' +
                   '+refs/pull/${ghprbPullId}/*:refs/remotes/origin/pr/${ghprbPullId}/*')
         }
@@ -90,15 +107,6 @@ class common_job_properties {
           cleanAfterCheckout()
         }
       }
-    }
-
-    context.parameters {
-      // This is a recommended setup if you want to run the job manually. The
-      // ${sha1} parameter needs to be provided, and defaults to the main branch.
-      stringParam(
-          'sha1',
-          defaultBranch,
-          'Commit id or refname (eg: origin/pr/9/head) you want to build.')
     }
 
     context.wrappers {
