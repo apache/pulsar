@@ -60,7 +60,7 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
         PARTITION_INDEX_UPDATER.set(this, startPtnIdx);
         this.startPtnIdx = startPtnIdx;
         this.isBatchingEnabled = isBatchingEnabled;
-        this.maxBatchingDelayMs = maxBatchingDelayMs;
+        this.maxBatchingDelayMs = Math.max(1, maxBatchingDelayMs);
     }
 
     @Override
