@@ -38,7 +38,7 @@ public interface SchemaRegistryService extends SchemaRegistry {
             schemaStorage.start();
             return new SchemaRegistryServiceImpl(schemaStorage);
         } catch (Exception e) {
-            log.warn("Error when trying to create scehema registry storage: {}", e);
+            log.warn("Unable to create schema registry storage, defaulting to empty storage: {}", e);
         }
         return new DefaultSchemaRegistryService();
     }
