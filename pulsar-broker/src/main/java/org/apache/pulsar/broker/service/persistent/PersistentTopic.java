@@ -499,7 +499,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         subscriptionFuture.thenAccept(subscription -> {
             try {
                 Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName,
-                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted);
+                                                 maxUnackedMessages, cnx, cnx.getRole(), metadata, readCompacted, initialPosition);
                 subscription.addConsumer(consumer);
                 if (!cnx.isActive()) {
                     consumer.close();
@@ -542,7 +542,7 @@ public class PersistentTopic implements Topic, AddEntryCallback {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}][{}] Opened cursor", topic, subscriptionName);
                 }
-                
+
                 subscriptionFuture.complete(subscriptions.computeIfAbsent(subscriptionName,
                         name -> createPersistentSubscription(subscriptionName, cursor)));
             }

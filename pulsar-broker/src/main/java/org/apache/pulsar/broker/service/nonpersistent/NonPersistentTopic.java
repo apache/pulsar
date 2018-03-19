@@ -367,7 +367,7 @@ public class NonPersistentTopic implements Topic {
 
         try {
             Consumer consumer = new Consumer(subscription, subType, topic, consumerId, priorityLevel, consumerName, 0, cnx,
-                                             cnx.getRole(), metadata, readCompacted);
+                                             cnx.getRole(), metadata, readCompacted, initialPosition);
             subscription.addConsumer(consumer);
             if (!cnx.isActive()) {
                 consumer.close();
