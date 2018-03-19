@@ -217,7 +217,6 @@ public class SchemasResource extends AdminResource {
         );
 
         try {
-//            validateDestinationExists(destinationName);
             validateAdminAccessOnProperty(destinationName.getProperty());
             validateTopicOwnership(destinationName, false);
         } catch (RestException e) {
