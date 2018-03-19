@@ -86,8 +86,8 @@ public class FunctionApiV2ResourceTest {
     private static final String tenant = "test-tenant";
     private static final String namespace = "test-namespace";
     private static final String function = "test-function";
-    private static final String sinkTopic = "test-sink-topic";
-    private static final String sourceTopic = "test-source-topic";
+    private static final String outputTopic = "test-output-topic";
+    private static final String inputTopic = "test-input-topic";
     private static final String inputSerdeClassName = DefaultSerDe.class.getName();
     private static final String outputSerdeClassName = DefaultSerDe.class.getName();
     private static final String className = TestFunction.class.getName();
@@ -136,8 +136,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -153,8 +153,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -170,8 +170,8 @@ public class FunctionApiV2ResourceTest {
             null,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -187,8 +187,8 @@ public class FunctionApiV2ResourceTest {
             function,
             null,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -204,8 +204,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             null,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -214,14 +214,14 @@ public class FunctionApiV2ResourceTest {
     }
 
     @Test
-    public void testRegisterFunctionMissingSourceTopic() throws IOException {
+    public void testRegisterFunctionMissingInputTopic() throws IOException {
         testRegisterFunctionMissingArguments(
             tenant,
             namespace,
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
+            outputTopic,
             null,
             inputSerdeClassName,
             outputSerdeClassName,
@@ -238,8 +238,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             null,
             outputSerdeClassName,
             className,
@@ -255,8 +255,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             null,
@@ -272,8 +272,8 @@ public class FunctionApiV2ResourceTest {
                 function,
                 mockedInputStream,
                 mockedFormData,
-                sinkTopic,
-                sourceTopic,
+                outputTopic,
+                inputTopic,
                 inputSerdeClassName,
                 outputSerdeClassName,
                 className,
@@ -287,8 +287,8 @@ public class FunctionApiV2ResourceTest {
         String function,
         InputStream inputStream,
         FormDataContentDisposition details,
-        String sinkTopic,
-        String sourceTopic,
+        String outputTopic,
+        String inputTopic,
         String inputSerdeClassName,
         String outputSerdeClassName,
         String className,
@@ -305,11 +305,11 @@ public class FunctionApiV2ResourceTest {
         if (function != null) {
             functionConfigBuilder.setName(function);
         }
-        if (sinkTopic != null) {
-            functionConfigBuilder.setOutput(sinkTopic);
+        if (outputTopic != null) {
+            functionConfigBuilder.setOutput(outputTopic);
         }
-        if (sourceTopic != null && inputSerdeClassName != null) {
-            functionConfigBuilder.putCustomSerdeInputs(sourceTopic, inputSerdeClassName);
+        if (inputTopic != null && inputSerdeClassName != null) {
+            functionConfigBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -341,7 +341,7 @@ public class FunctionApiV2ResourceTest {
     private Response registerDefaultFunction() throws IOException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setOutput(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
+                .setOutput(outputTopic).putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className)
                 .setParallelism(parallelism).build();
@@ -456,8 +456,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -473,8 +473,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -490,8 +490,8 @@ public class FunctionApiV2ResourceTest {
             null,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -507,8 +507,8 @@ public class FunctionApiV2ResourceTest {
             function,
             null,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -524,8 +524,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             null,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             className,
@@ -541,7 +541,7 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
+            outputTopic,
             null,
             inputSerdeClassName,
             outputSerdeClassName,
@@ -558,8 +558,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             null,
             outputSerdeClassName,
             className,
@@ -575,8 +575,8 @@ public class FunctionApiV2ResourceTest {
             function,
             mockedInputStream,
             mockedFormData,
-            sinkTopic,
-            sourceTopic,
+            outputTopic,
+            inputTopic,
             inputSerdeClassName,
             outputSerdeClassName,
             null,
@@ -591,8 +591,8 @@ public class FunctionApiV2ResourceTest {
                 function,
                 mockedInputStream,
                 mockedFormData,
-                sinkTopic,
-                sourceTopic,
+                outputTopic,
+                inputTopic,
                 inputSerdeClassName,
                 outputSerdeClassName,
                 className,
@@ -607,8 +607,8 @@ public class FunctionApiV2ResourceTest {
         String function,
         InputStream inputStream,
         FormDataContentDisposition details,
-        String sinkTopic,
-        String sourceTopic,
+        String outputTopic,
+        String inputTopic,
         String inputSerdeClassName,
         String outputSerdeClassName,
         String className,
@@ -625,11 +625,11 @@ public class FunctionApiV2ResourceTest {
         if (function != null) {
             functionConfigBuilder.setName(function);
         }
-        if (sinkTopic != null) {
-            functionConfigBuilder.setOutput(sinkTopic);
+        if (outputTopic != null) {
+            functionConfigBuilder.setOutput(outputTopic);
         }
-        if (sourceTopic != null && inputSerdeClassName != null) {
-            functionConfigBuilder.putCustomSerdeInputs(sourceTopic, inputSerdeClassName);
+        if (inputTopic != null && inputSerdeClassName != null) {
+            functionConfigBuilder.putCustomSerdeInputs(inputTopic, inputSerdeClassName);
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
@@ -661,7 +661,7 @@ public class FunctionApiV2ResourceTest {
     private Response updateDefaultFunction() throws IOException {
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setTenant(tenant).setNamespace(namespace).setName(function)
-                .setOutput(sinkTopic).putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
+                .setOutput(outputTopic).putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setClassName(className)
                 .setParallelism(parallelism).build();
@@ -935,12 +935,12 @@ public class FunctionApiV2ResourceTest {
 
         FunctionConfig functionConfig = FunctionConfig.newBuilder()
                 .setClassName(className)
-                .putCustomSerdeInputs(sourceTopic, inputSerdeClassName)
+                .putCustomSerdeInputs(inputTopic, inputSerdeClassName)
                 .setOutputSerdeClassName(outputSerdeClassName)
                 .setName(function)
                 .setNamespace(namespace)
                 .setProcessingGuarantees(FunctionConfig.ProcessingGuarantees.ATMOST_ONCE)
-                .setOutput(sinkTopic)
+                .setOutput(outputTopic)
                 .setTenant(tenant)
                 .setParallelism(parallelism).build();
         FunctionMetaData metaData = FunctionMetaData.newBuilder()

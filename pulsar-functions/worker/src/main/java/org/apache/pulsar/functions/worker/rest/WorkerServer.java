@@ -31,6 +31,10 @@ import java.net.URI;
 import org.eclipse.jetty.server.handler.ContextHandlerCollection;
 import org.eclipse.jetty.server.handler.DefaultHandler;
 import org.eclipse.jetty.server.handler.HandlerCollection;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.glassfish.jersey.server.ResourceConfig;
+import org.glassfish.jersey.servlet.ServletContainer;
 
 @Slf4j
 public class WorkerServer implements Runnable {
@@ -57,8 +61,13 @@ public class WorkerServer implements Runnable {
         final Server server = new Server(this.workerConfig.getWorkerPort());
 
         List<Handler> handlers = new ArrayList<>(2);
-        handlers.add(WorkerService.newServletContextHandler("/admin", workerService));
-        handlers.add(WorkerService.newServletContextHandler("/admin/v2", workerService));
+        handlers.add(newServletContextHandler("/admin",
+                new ResourceConfig(Resources.getApiResources()), workerService));
+        handlers.add(newServletContextHandler("/admin/v2",
+                new ResourceConfig(Resources.getApiResources()), workerService));
+        handlers.add(newServletContextHandler("/",
+                new ResourceConfig(Resources.getRootResources()), workerService));
+
         ContextHandlerCollection contexts = new ContextHandlerCollection();
         contexts.setHandlers(handlers.toArray(new Handler[handlers.size()]));
         HandlerCollection handlerCollection = new HandlerCollection();
@@ -85,5 +94,19 @@ public class WorkerServer implements Runnable {
 
     public String getThreadName() {
         return "worker-server-thread-" + this.workerConfig.getWorkerId();
+    }
+
+    public static ServletContextHandler newServletContextHandler(String contextPath, ResourceConfig config, WorkerService workerService) {
+        final ServletContextHandler contextHandler =
+                new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
+
+        contextHandler.setAttribute(FunctionApiResource.ATTRIBUTE_FUNCTION_WORKER, workerService);
+        contextHandler.setContextPath(contextPath);
+
+        final ServletHolder apiServlet =
+                new ServletHolder(new ServletContainer(config));
+        contextHandler.addServlet(apiServlet, "/*");
+
+        return contextHandler;
     }
 }

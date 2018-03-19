@@ -36,6 +36,7 @@ import org.apache.pulsar.functions.proto.InstanceControlGrpc;
 
 import java.lang.reflect.Type;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 /**
  * A function container implemented using java thread.
@@ -56,15 +57,15 @@ public class JavaInstanceMain {
     @Parameter(names = "--namespace", description = "Namespace Name\n", required = true)
     protected String namespace;
 
-    @Parameter(names = "--sink_topic", description = "Output Topic Name\n")
-    protected String sinkTopicName;
+    @Parameter(names = "--output_topic", description = "Output Topic Name\n")
+    protected String outputTopicName;
 
-    @Parameter(names = "--custom_serde_source_topics", description = "Input Topics that need custom deserialization\n", required = false)
-    protected String customSerdeSourceTopics;
+    @Parameter(names = "--custom_serde_input_topics", description = "Input Topics that need custom deserialization\n", required = false)
+    protected String customSerdeInputTopics;
     @Parameter(names = "--custom_serde_classnames", description = "Input SerDe\n", required = false)
     protected String customSerdeClassnames;
-    @Parameter(names = "--source_topics", description = "Input Topics\n", required = false)
-    protected String defaultSerdeSourceTopics;
+    @Parameter(names = "--input_topics", description = "Input Topics\n", required = false)
+    protected String defaultSerdeInputTopics;
 
     @Parameter(names = "--output_serde_classname", description = "Output SerDe\n")
     protected String outputSerdeClassName;
@@ -118,27 +119,27 @@ public class JavaInstanceMain {
         functionConfigBuilder.setNamespace(namespace);
         functionConfigBuilder.setName(functionName);
         functionConfigBuilder.setClassName(className);
-        if (defaultSerdeSourceTopics != null) {
-            String[] sourceTopics = defaultSerdeSourceTopics.split(",");
-            for (String sourceTopic : sourceTopics) {
-                functionConfigBuilder.addInputs(sourceTopic);
+        if (defaultSerdeInputTopics != null) {
+            String[] inputTopics = defaultSerdeInputTopics.split(",");
+            for (String inputTopic : inputTopics) {
+                functionConfigBuilder.addInputs(inputTopic);
             }
         }
-        if (customSerdeSourceTopics != null && customSerdeClassnames != null) {
-            String[] sourceTopics = customSerdeSourceTopics.split(",");
+        if (customSerdeInputTopics != null && customSerdeClassnames != null) {
+            String[] inputTopics = customSerdeInputTopics.split(",");
             String[] inputSerdeClassNames = customSerdeClassnames.split(",");
-            if (sourceTopics.length != inputSerdeClassNames.length) {
+            if (inputTopics.length != inputSerdeClassNames.length) {
                 throw new RuntimeException("Error specifying inputs");
             }
-            for (int i = 0; i < sourceTopics.length; ++i) {
-                functionConfigBuilder.putCustomSerdeInputs(sourceTopics[i], inputSerdeClassNames[i]);
+            for (int i = 0; i < inputTopics.length; ++i) {
+                functionConfigBuilder.putCustomSerdeInputs(inputTopics[i], inputSerdeClassNames[i]);
             }
         }
         if (outputSerdeClassName != null) {
             functionConfigBuilder.setOutputSerdeClassName(outputSerdeClassName);
         }
-        if (sinkTopicName != null) {
-            functionConfigBuilder.setOutput(sinkTopicName);
+        if (outputTopicName != null) {
+            functionConfigBuilder.setOutput(outputTopicName);
         }
         if (logTopic != null) {
             functionConfigBuilder.setLogTopic(logTopic);
@@ -166,8 +167,7 @@ public class JavaInstanceMain {
                 instanceConfig,
                 jarFile,
                 containerFactory,
-                null,
-                0);
+                null);
 
         server = ServerBuilder.forPort(port)
                 .addService(new InstanceControlImpl(runtimeSpawner))
@@ -221,5 +221,22 @@ public class JavaInstanceMain {
                 throw new RuntimeException(e);
             }
         }
+
+        @Override
+        public void getAndResetMetrics(com.google.protobuf.Empty request,
+                                       io.grpc.stub.StreamObserver<org.apache.pulsar.functions.proto.InstanceCommunication.MetricsData> responseObserver) {
+            Runtime runtime = runtimeSpawner.getRuntime();
+            if (runtime != null) {
+                try {
+                    InstanceCommunication.MetricsData metrics = runtime.getAndResetMetrics().get();
+                    responseObserver.onNext(metrics);
+                    responseObserver.onCompleted();
+                } catch (InterruptedException | ExecutionException e) {
+                    log.error("Exception in JavaInstance doing getAndResetMetrics", e);
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
     }
 }
