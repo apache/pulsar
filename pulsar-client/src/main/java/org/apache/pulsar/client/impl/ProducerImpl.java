@@ -83,6 +83,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final BlockingQueue<OpSendMsg> pendingCallbacks;
     private final Semaphore semaphore;
     private volatile Timeout sendTimeout = null;
+    private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
@@ -518,6 +519,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         if (timeout != null) {
             timeout.cancel();
             sendTimeout = null;
+        }
+
+        Timeout batchTimeout = batchMessageAndSendTimeout;
+        if (batchTimeout != null) {
+            batchTimeout.cancel();
+            batchMessageAndSendTimeout = null;
         }
 
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
@@ -1150,7 +1157,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 batchMessageAndSend();
             }
             // schedule the next batch message task
-            client.timer().newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
+            batchMessageAndSendTimeout = client.timer()
+                .newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
         }
     };
 
