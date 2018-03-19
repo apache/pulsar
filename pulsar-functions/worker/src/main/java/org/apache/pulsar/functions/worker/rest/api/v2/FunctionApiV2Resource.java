@@ -128,5 +128,4 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response getAssignments() {
         return functions.getAssignments();
     }
-
 }

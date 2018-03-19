@@ -27,18 +27,18 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 @Slf4j
-public class SimpleOneSinkTopicProducers extends AbstractOneSinkTopicProducers {
+public class SimpleOneOuputTopicProducers extends AbstractOneOuputTopicProducers {
 
     @Getter
     private Producer producer;
 
-    public SimpleOneSinkTopicProducers(PulsarClient client, String sinkTopic) throws PulsarClientException {
-        super(client, sinkTopic);
+    public SimpleOneOuputTopicProducers(PulsarClient client, String outputTopic) throws PulsarClientException {
+        super(client, outputTopic);
     }
 
     @Override
     public void initialize() throws PulsarClientException {
-        producer = createProducer(sinkTopic);
+        producer = createProducer(outputTopic);
     }
 
     @Override
@@ -57,7 +57,7 @@ public class SimpleOneSinkTopicProducers extends AbstractOneSinkTopicProducers {
         try {
             producer.close();
         } catch (PulsarClientException e) {
-            log.warn("Fail to close producer of topic {}", sinkTopic, e);
+            log.warn("Fail to close producer of topic {}", outputTopic, e);
         }
     }
 }

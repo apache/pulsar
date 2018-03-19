@@ -16,18 +16,20 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.admin.internal;
 
-import java.util.Map;
-import lombok.Builder;
-import lombok.Data;
+import javax.ws.rs.client.WebTarget;
 
-@Data
-@Builder
-public class GetSchemaResponse {
-    private SchemaVersion version;
-    private SchemaType type;
-    private long timestamp;
-    private String data;
-    private Map<String, String> props;
+class WebTargets {
+
+    static WebTarget addParts(WebTarget target, String[] parts) {
+        if (parts != null && parts.length > 0) {
+            for (String part : parts) {
+                target = target.path(part);
+            }
+        }
+        return target;
+    }
+
+    private WebTargets() {}
 }

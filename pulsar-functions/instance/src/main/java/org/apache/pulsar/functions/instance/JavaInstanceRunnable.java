@@ -24,12 +24,8 @@ import static org.apache.bookkeeper.stream.protocol.ProtocolConstants.DEFAULT_ST
 
 import com.google.common.collect.Maps;
 import io.netty.buffer.ByteBuf;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+
+import java.util.*;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
 
@@ -60,9 +56,9 @@ import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuara
 import org.apache.pulsar.functions.proto.InstanceCommunication;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.api.SerDe;
-import org.apache.pulsar.functions.instance.producers.MultiConsumersOneSinkTopicProducers;
+import org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.producers.Producers;
-import org.apache.pulsar.functions.instance.producers.SimpleOneSinkTopicProducers;
+import org.apache.pulsar.functions.instance.producers.SimpleOneOuputTopicProducers;
 import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
@@ -82,13 +78,13 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     private final LinkedBlockingDeque<InputMessage> queue;
     private final String jarFile;
 
-    // source topic consumer & sink topic producer
+    // input topic consumer & output topic producer
     private final PulsarClientImpl client;
     @Getter(AccessLevel.PACKAGE)
-    private Producers sinkProducer;
+    private Producers outputProducer;
     @Getter(AccessLevel.PACKAGE)
-    private final Map<String, Consumer> sourceConsumers;
-    private LinkedList<String> sourceTopicsToResubscribe = null;
+    private final Map<String, Consumer> inputConsumers;
+    private LinkedList<String> inputTopicsToResubscribe = null;
 
     // provide tables for storing states
     private final String stateStorageServiceUrl;
@@ -137,7 +133,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         this.client = (PulsarClientImpl) pulsarClient;
         this.stateStorageServiceUrl = stateStorageServiceUrl;
         this.stats = new FunctionStats();
-        this.sourceConsumers = Maps.newConcurrentMap();
+        this.inputConsumers = Maps.newConcurrentMap();
     }
 
     private SubscriptionType getSubscriptionType() {
@@ -188,12 +184,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
 
         // start the state table
         setupStateTable();
-        // start the sink producer
-        startSinkProducer();
-        // start the source consumer
-        startSourceConsumers();
+        // start the output producer
+        startOutputProducer();
+        // start the input consumer
+        startInputConsumer();
 
-        return new JavaInstance(instanceConfig, object, clsLoader, client, sourceConsumers);
+        return new JavaInstance(instanceConfig, object, clsLoader, client, inputConsumers);
     }
 
     /**
@@ -222,23 +218,23 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                 if (ProcessingGuarantees.EFFECTIVELY_ONCE == processingGuarantees) {
                     // if the messages are received from old consumers, we discard it since new consumer was
                     // re-created for the correctness of effectively-once
-                    if (msg.getConsumer() != sourceConsumers.get(msg.getTopicName())) {
+                    if (msg.getConsumer() != inputConsumers.get(msg.getTopicName())) {
                         continue;
                     }
                 }
 
-                if (null != sinkProducer) {
+                if (null != outputProducer) {
                     // before processing the message, we have a producer connection setup for producing results.
                     Producer producer = null;
                     while (null == producer) {
                         try {
-                            producer = sinkProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
+                            producer = outputProducer.getProducer(msg.getTopicName(), msg.getTopicPartition());
                         } catch (PulsarClientException e) {
                             // `ProducerBusy` is thrown when an producer with same name is still connected.
-                            // This can happen when a active consumer is changed for a given source topic partition
+                            // This can happen when a active consumer is changed for a given input topic partition
                             // so we need to wait until the old active consumer release the produce connection.
                             if (!(e instanceof ProducerBusyException)) {
-                                log.error("Failed to get a producer for producing results computed from source topic {}",
+                                log.error("Failed to get a producer for producing results computed from input topic {}",
                                     msg.getTopicName());
                             }
                             TimeUnit.MILLISECONDS.sleep(500);
@@ -318,9 +314,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     public void becameActive(Consumer consumer, int partitionId) {
         // if the instance becomes active for a given topic partition,
         // open a producer for the results computed from this topic partition.
-        if (null != sinkProducer) {
+        if (null != outputProducer) {
             try {
-                this.sinkProducer.getProducer(consumer.getTopic(), partitionId);
+                this.outputProducer.getProducer(consumer.getTopic(), partitionId);
             } catch (PulsarClientException e) {
                 // this can be ignored, because producer can be lazily created when accessing it.
                 log.warn("Fail to create a producer for results computed from messages of topic: {}, partition: {}",
@@ -331,10 +327,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
 
     @Override
     public void becameInactive(Consumer consumer, int partitionId) {
-        if (null != sinkProducer) {
+        if (null != outputProducer) {
             // if I lost the ownership of a partition, close its corresponding topic partition.
             // this is to allow the new active consumer be able to produce to the result topic.
-            this.sinkProducer.closeProducer(consumer.getTopic(), partitionId);
+            this.outputProducer.closeProducer(consumer.getTopic(), partitionId);
         }
     }
 
@@ -380,33 +376,33 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         this.stateTable = result(storageClient.openTable(tableName));
     }
 
-    private void startSinkProducer() throws Exception {
+    private void startOutputProducer() throws Exception {
         if (instanceConfig.getFunctionConfig().getOutput() != null
                 && !instanceConfig.getFunctionConfig().getOutput().isEmpty()
                 && this.outputSerDe != null) {
-            log.info("Starting Producer for Sink Topic " + instanceConfig.getFunctionConfig().getOutput());
+            log.info("Starting producer for output topic " + instanceConfig.getFunctionConfig().getOutput());
 
             if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
-                this.sinkProducer = new MultiConsumersOneSinkTopicProducers(
+                this.outputProducer = new MultiConsumersOneOuputTopicProducers(
                     client, instanceConfig.getFunctionConfig().getOutput());
             } else {
-                this.sinkProducer = new SimpleOneSinkTopicProducers(
+                this.outputProducer = new SimpleOneOuputTopicProducers(
                     client, instanceConfig.getFunctionConfig().getOutput());
             }
-            this.sinkProducer.initialize();
+            this.outputProducer.initialize();
         }
     }
 
-    private void startSourceConsumers() throws Exception {
+    private void startInputConsumer() throws Exception {
         log.info("Consumer map {}", instanceConfig.getFunctionConfig());
         for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
             ConsumerConfiguration conf = createConsumerConfiguration(entry.getKey());
-            this.sourceConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
+            this.inputConsumers.put(entry.getKey(), client.subscribe(entry.getKey(),
                     FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
         }
         for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
             ConsumerConfiguration conf = createConsumerConfiguration(topicName);
-            this.sourceConsumers.put(topicName, client.subscribe(topicName,
+            this.inputConsumers.put(topicName, client.subscribe(topicName,
                     FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()), conf));
         }
     }
@@ -457,7 +453,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
             handleProcessException(msg.getTopicName());
         } else {
             stats.incrementSuccessfullyProcessed(endTime - startTime);
-            if (result.getResult() != null && sinkProducer != null) {
+            if (result.getResult() != null && outputProducer != null) {
                 byte[] output;
                 try {
                     output = outputSerDe.serialize(result.getResult());
@@ -497,16 +493,18 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                                    JavaExecutionResult result,
                                    byte[] output) {
         MessageBuilder msgBuilder = MessageBuilder.create()
-            .setContent(output);
+            .setContent(output)
+            .setProperty("__pfn_input_topic__", srcMsg.getTopicName())
+            .setProperty("__pfn_input_msg_id__", new String(Base64.getEncoder().encode(srcMsg.getActualMessage().getMessageId().toByteArray())));
         if (processingGuarantees == ProcessingGuarantees.EFFECTIVELY_ONCE) {
             msgBuilder = msgBuilder
                 .setSequenceId(Utils.getSequenceId(srcMsg.getActualMessage().getMessageId()));
         }
         Producer producer;
         try {
-            producer = sinkProducer.getProducer(srcMsg.getTopicName(), srcMsg.getTopicPartition());
+            producer = outputProducer.getProducer(srcMsg.getTopicName(), srcMsg.getTopicPartition());
         } catch (PulsarClientException e) {
-            log.error("Failed to get a producer for producing results computed from source topic {}",
+            log.error("Failed to get a producer for producing results computed from input topic {}",
                 srcMsg.getTopicName());
 
             // if we fail to get a producer, put this message back to queue and reprocess it.
@@ -522,7 +520,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                 }
             })
             .exceptionally(cause -> {
-                log.error("Failed to send the process result {} of message {} to sink topic {}",
+                log.error("Failed to send the process result {} of message {} to output topic {}",
                     result, srcMsg, instanceConfig.getFunctionConfig().getOutput(), cause);
                 handleProcessException(srcMsg.getTopicName());
                 return null;
@@ -549,17 +547,17 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     }
 
     private synchronized void addTopicToResubscribeList(String topicName) {
-        if (null == sourceTopicsToResubscribe) {
-            sourceTopicsToResubscribe = new LinkedList<>();
+        if (null == inputTopicsToResubscribe) {
+            inputTopicsToResubscribe = new LinkedList<>();
         }
-        sourceTopicsToResubscribe.add(topicName);
+        inputTopicsToResubscribe.add(topicName);
     }
 
     private void resubscribeTopicsIfNeeded() {
         List<String> topicsToResubscribe;
         synchronized (this) {
-            topicsToResubscribe = sourceTopicsToResubscribe;
-            sourceTopicsToResubscribe = null;
+            topicsToResubscribe = inputTopicsToResubscribe;
+            inputTopicsToResubscribe = null;
         }
         if (null != topicsToResubscribe) {
             for (String topic : topicsToResubscribe) {
@@ -571,7 +569,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     private void resubscribe(String srcTopic) {
         // if we can not produce a message to output topic, then close the consumer of the src topic
         // and retry to instantiate a consumer again.
-        Consumer consumer = sourceConsumers.remove(srcTopic);
+        Consumer consumer = inputConsumers.remove(srcTopic);
         if (consumer != null) {
             // TODO (sijie): currently we have to close the entire consumer for a given topic. However
             //               ideally we should do this in a finer granularity - we can close consumer
@@ -579,14 +577,14 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
             try {
                 consumer.close();
             } catch (PulsarClientException e) {
-                log.error("Failed to close consumer for source topic {} when handling produce exceptions",
+                log.error("Failed to close consumer for input topic {} when handling produce exceptions",
                     srcTopic, e);
             }
         }
         // subscribe to the src topic again
         ConsumerConfiguration conf = createConsumerConfiguration(srcTopic);
         try {
-            sourceConsumers.put(
+            inputConsumers.put(
                 srcTopic,
                 client.subscribe(
                     srcTopic,
@@ -594,7 +592,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                     conf
                 ));
         } catch (PulsarClientException e) {
-            log.error("Failed to resubscribe to source topic {}. Added it to retry list and retry it later",
+            log.error("Failed to resubscribe to input topic {}. Added it to retry list and retry it later",
                 srcTopic, e);
             addTopicToResubscribeList(srcTopic);
         }
@@ -607,19 +605,19 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         }
         running = false;
         // stop the consumer first, so no more messages are coming in
-        sourceConsumers.forEach((k, v) -> {
+        inputConsumers.forEach((k, v) -> {
             try {
                 v.close();
             } catch (PulsarClientException e) {
-                log.warn("Failed to close consumer to source topic {}", k, e);
+                log.warn("Failed to close consumer to input topic {}", k, e);
             }
         });
-        sourceConsumers.clear();
+        inputConsumers.clear();
 
         // kill the result producer
-        if (null != sinkProducer) {
-            sinkProducer.close();
-            sinkProducer = null;
+        if (null != outputProducer) {
+            outputProducer.close();
+            outputProducer = null;
         }
 
         // kill the state table
