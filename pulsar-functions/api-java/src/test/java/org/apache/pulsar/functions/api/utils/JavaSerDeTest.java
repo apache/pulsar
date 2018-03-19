@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.runtime.serde;
+package org.apache.pulsar.functions.api.utils;
 
 import static org.testng.Assert.assertEquals;
 
@@ -29,7 +29,7 @@ import org.apache.pulsar.functions.api.utils.JavaSerDe;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link JavaSerDeTest}.
+ * Unit test of {@link JavaSerDe}.
  */
 public class JavaSerDeTest {
 
