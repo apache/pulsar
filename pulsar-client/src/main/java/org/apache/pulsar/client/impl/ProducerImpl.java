@@ -1154,11 +1154,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             // semaphore acquired when message was enqueued to container
             synchronized (ProducerImpl.this) {
+                // If it's closing/closed we need to ignore the send batch timer and not schedule next timeout.
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    return;
+                }
+
                 batchMessageAndSend();
+                // schedule the next batch message task
+                batchMessageAndSendTimeout = client.timer()
+                    .newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
             }
-            // schedule the next batch message task
-            batchMessageAndSendTimeout = client.timer()
-                .newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
         }
     };
 
