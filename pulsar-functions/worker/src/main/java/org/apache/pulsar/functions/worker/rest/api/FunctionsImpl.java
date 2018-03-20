@@ -23,13 +23,11 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import com.google.gson.Gson;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.lang.reflect.Array;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -43,6 +41,10 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.Producer;
+import org.apache.pulsar.client.api.Reader;
 import org.apache.pulsar.common.policies.data.ErrorData;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
@@ -442,6 +444,88 @@ public class FunctionsImpl {
                 new Gson().toJson(ret)).build();
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/trigger")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response triggerFunction(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("name") String functionName,
+                                    final @FormDataParam("data") String input,
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+        FunctionConfig functionConfig;
+        // validate parameters
+        try {
+            validateTriggerRequestParams(tenant, namespace, functionName, input, uploadedInputStream);
+        } catch (IllegalArgumentException e) {
+            log.error("Invalid trigger function request @ /{}/{}/{}",
+                    tenant, namespace, functionName, e);
+            return Response.status(Status.BAD_REQUEST)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(e.getMessage())).build();
+        }
+
+        FunctionMetaDataManager functionMetaDataManager = worker().getFunctionMetaDataManager();
+        if (!functionMetaDataManager.containsFunction(tenant, namespace, functionName)) {
+            log.error("Function in getFunction does not exist @ /{}/{}/{}",
+                    tenant, namespace, functionName);
+            return Response.status(Status.NOT_FOUND)
+                    .type(MediaType.APPLICATION_JSON)
+                    .entity(new ErrorData(String.format("Function %s doesn't exist", functionName))).build();
+        }
+
+        FunctionMetaData functionMetaData = functionMetaDataManager.getFunctionMetaData(tenant, namespace, functionName);
+        String inputTopicToWrite;
+        if (functionMetaData.getFunctionConfig().getInputsList().size() > 0) {
+            inputTopicToWrite = functionMetaData.getFunctionConfig().getInputsList().get(0);
+        } else {
+            inputTopicToWrite = functionMetaData.getFunctionConfig().getCustomSerdeInputs().entrySet().iterator().next().getKey();
+        }
+        String outputTopic = functionMetaData.getFunctionConfig().getOutput();
+        Reader reader = null;
+        Producer producer = null;
+        try {
+            if (outputTopic != null && !outputTopic.isEmpty()) {
+                reader = worker().getClient().newReader().topic(outputTopic).startMessageId(MessageId.latest).create();
+            }
+            producer = worker().getClient().newProducer().topic(inputTopicToWrite).create();
+            byte[] targetArray;
+            if (uploadedInputStream != null) {
+                targetArray = new byte[uploadedInputStream.available()];
+                uploadedInputStream.read(targetArray);
+            } else {
+                targetArray = input.getBytes();
+            }
+            MessageId msgId = producer.send(targetArray);
+            if (reader == null) {
+                return Response.status(Status.OK).build();
+            }
+            long curTime = System.currentTimeMillis();
+            long maxTime = curTime + 1000;
+            while (curTime < maxTime) {
+                Message msg = reader.readNext(10000, TimeUnit.MILLISECONDS);
+                if (msg == null) break;
+                if (msg.getProperties().containsKey("__pfn_input_msg_id__") &&
+                        msg.getProperties().containsKey("__pfn_input_topic__")) {
+                    MessageId newMsgId = MessageId.fromByteArray(Base64.getDecoder().decode((String) msg.getProperties().get("__pfn_input_msg_id__")));
+                    if (msgId.equals(newMsgId) && msg.getProperties().get("__pfn_input_topic__").equals(inputTopicToWrite)) {
+                        return Response.status(Status.OK).entity(msg.getData()).build();
+                    }
+                }
+                curTime = System.currentTimeMillis();
+            }
+            return Response.status(Status.REQUEST_TIMEOUT).build();
+        } catch (Exception e) {
+            return Response.status(Status.INTERNAL_SERVER_ERROR).build();
+        } finally {
+            if (reader != null) {
+                reader.closeAsync();
+            }
+            if (producer != null) {
+                producer.closeAsync();
+            }
+        }
+    }
+
     private void validateListFunctionRequestParams(String tenant, String namespace) throws IllegalArgumentException {
 
         if (tenant == null) {
@@ -547,6 +631,25 @@ public class FunctionsImpl {
             throw ex;
         } catch (Exception ex) {
             throw new IllegalArgumentException("Invalid FunctionConfig");
+        }
+    }
+
+    private void validateTriggerRequestParams(String tenant,
+                                              String namespace,
+                                              String functionName,
+                                              String input,
+                                              InputStream uploadedInputStream) {
+        if (tenant == null) {
+            throw new IllegalArgumentException("Tenant is not provided");
+        }
+        if (namespace == null) {
+            throw new IllegalArgumentException("Namespace is not provided");
+        }
+        if (functionName == null) {
+            throw new IllegalArgumentException("Function Name is not provided");
+        }
+        if (uploadedInputStream == null && input == null) {
+            throw new IllegalArgumentException("Trigger Data is not provided");
         }
     }
 

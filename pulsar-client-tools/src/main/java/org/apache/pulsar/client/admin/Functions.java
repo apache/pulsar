@@ -140,4 +140,24 @@ public interface Functions {
      */
     FunctionStatusList getFunctionStatus(String tenant, String namespace, String function) throws PulsarAdminException;
 
+    /**
+     * Triggers the function by writing to the input topic.
+     *
+     * @param tenant
+     *            Tenant name
+     * @param namespace
+     *            Namespace name
+     * @param function
+     *            Function name
+     * @param triggerValue
+     *            The input that will be written to input topic
+     * @param triggerFile
+     *            The file which contains the input that will be written to input topic
+     *
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    String triggerFunction(String tenant, String namespace, String function, String triggerValue, String triggerFile) throws PulsarAdminException;
+
+
 }
