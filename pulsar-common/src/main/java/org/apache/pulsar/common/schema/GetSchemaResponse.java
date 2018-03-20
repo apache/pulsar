@@ -29,5 +29,5 @@ public class GetSchemaResponse {
     private SchemaType type;
     private long timestamp;
     private String data;
-    private Map<String, String> props;
+    private Map<String, String> properties;
 }

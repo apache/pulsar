@@ -90,7 +90,7 @@ public class SchemasResource extends AdminResource {
                                 .type(schema.schema.getType())
                                 .timestamp(schema.schema.getTimestamp())
                                 .data(new String(schema.schema.getData()))
-                                .props(schema.schema.props)
+                                .properties(schema.schema.props)
                                 .build()
                             )
                             .build()
@@ -131,7 +131,7 @@ public class SchemasResource extends AdminResource {
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
-                                    .props(schema.schema.props)
+                                    .properties(schema.schema.props)
                                     .build()
                                 ).build()
                         );
@@ -217,7 +217,6 @@ public class SchemasResource extends AdminResource {
         );
 
         try {
-//            validateDestinationExists(destinationName);
             validateAdminAccessOnProperty(destinationName.getProperty());
             validateTopicOwnership(destinationName, false);
         } catch (RestException e) {

@@ -179,33 +179,32 @@ class PythonInstance(object):
       self.contextimpl.set_current_message_context(msg.message.message_id(), msg.topic)
       output_object = None
       self.saved_log_handler = None
+      if self.log_topic_handler is not None:
+        self.saved_log_handler = log.remove_all_handlers()
+        log.add_handler(self.log_topic_handler)
+      start_time = time.time()
+      self.current_stats.increment_processed(int(start_time) * 1000)
+      self.total_stats.increment_processed(int(start_time) * 1000)
+      successfully_executed = False
       try:
-        if self.log_topic_handler is not None:
-          self.saved_log_handler = log.remove_all_handlers()
-          log.add_handler(self.log_topic_handler)
-        start_time = time.time()
-        self.current_stats.increment_processed(int(start_time) * 1000)
-        self.total_stats.increment_processed(int(start_time) * 1000)
         if self.function_class is not None:
           output_object = self.function_class.process(input_object, self.contextimpl)
         else:
           output_object = self.function_purefunction.process(input_object)
-        end_time = time.time()
-        latency = (end_time - start_time) * 1000
-        self.total_stats.increment_successfully_processed(latency)
-        self.current_stats.increment_successfully_processed(latency)
-        self.process_result(output_object, msg)
+        successfully_executed = True
       except Exception as e:
-        if self.log_topic_handler is not None:
-          log.remove_all_handlers()
-          log.add_handler(self.saved_log_handler)
         Log.exception("Exception while executing user method")
         self.total_stats.record_user_exception(e)
         self.current_stats.record_user_exception(e)
-      finally:
-        if self.log_topic_handler is not None:
-          log.remove_all_handlers()
-          log.add_handler(self.saved_log_handler)
+      end_time = time.time()
+      latency = (end_time - start_time) * 1000
+      self.total_stats.increment_successfully_processed(latency)
+      self.current_stats.increment_successfully_processed(latency)
+      if self.log_topic_handler is not None:
+        log.remove_all_handlers()
+        log.add_handler(self.saved_log_handler)
+      if successfully_executed:
+        self.process_result(output_object, msg)
 
   def done_producing(self, consumer, orig_message, result, sent_message):
     if result == pulsar.Result.Ok and self.auto_ack and self.atleast_once:
@@ -224,7 +223,7 @@ class PythonInstance(object):
         self.current_stats.nserialization_exceptions += 1
         self.total_stats.nserialization_exceptions += 1
       if output_bytes is not None:
-        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : str(base64.b64encode(msg.message.message_id().serialize()))}
+        props = {"__pfn_input_topic__" : str(msg.topic), "__pfn_input_msg_id__" : base64.b64encode(msg.message.message_id().serialize())}
         try:
           self.producer.send_async(output_bytes, partial(self.done_producing, msg.consumer, msg.message), properties=props)
         except Exception as e:

@@ -139,4 +139,18 @@ public class FunctionsBase extends AdminResource implements Supplier<WorkerServi
         return functions.getAssignments();
     }
 
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/trigger")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response triggerFunction(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("functionName") String functionName,
+                                    final @FormDataParam("data") String triggerValue,
+                                    final @FormDataParam("dataStream") InputStream triggerStream) {
+
+        return functions.triggerFunction(
+                tenant, namespace, functionName, triggerValue, triggerStream);
+
+    }
+
 }
