@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License.  You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing,
  * software distributed under the License is distributed on an
  * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
@@ -21,7 +21,6 @@ package org.apache.pulsar.broker.service.schema;
 import static com.google.common.collect.Iterables.concat;
 import static com.google.common.collect.Lists.newArrayList;
 import static com.google.protobuf.ByteString.copyFrom;
-import static java.util.Collections.emptyMap;
 import static java.util.Objects.isNull;
 import static java.util.Objects.nonNull;
 import static java.util.concurrent.CompletableFuture.completedFuture;
@@ -40,7 +39,6 @@ import java.util.concurrent.CompletableFuture;
 import javax.validation.constraints.NotNull;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.client.LedgerEntry;
 import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.util.ZkUtils;
@@ -58,6 +56,7 @@ import org.apache.zookeeper.data.ACL;
 public class BookkeeperSchemaStorage implements SchemaStorage {
     private static final String SchemaPath = "/schemas";
     private static final List<ACL> Acl = ZooDefs.Ids.OPEN_ACL_UNSAFE;
+    private static final byte[] LedgerPassword = "".getBytes();
 
     private final PulsarService pulsar;
     private final ZooKeeper zooKeeper;
@@ -385,7 +384,8 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
             config.getManagedLedgerDefaultEnsembleSize(),
             config.getManagedLedgerDefaultWriteQuorum(),
             config.getManagedLedgerDefaultAckQuorum(),
-            DigestType.MAC, "".getBytes(Charsets.UTF_8),
+            config.getManagedLedgerDigestType(),
+            LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
                     future.completeExceptionally(BKException.create(rc));
@@ -400,7 +400,10 @@ public class BookkeeperSchemaStorage implements SchemaStorage {
     @NotNull
     private CompletableFuture<LedgerHandle> openLedger(Long ledgerId) {
         final CompletableFuture<LedgerHandle> future = new CompletableFuture<>();
-        bookKeeper.asyncOpenLedger(ledgerId, DigestType.MAC, "".getBytes(Charsets.UTF_8),
+        bookKeeper.asyncOpenLedger(
+            ledgerId,
+            config.getManagedLedgerDigestType(),
+            LedgerPassword,
             (rc, handle, ctx) -> {
                 if (rc != BKException.Code.OK) {
                     future.completeExceptionally(BKException.create(rc));
