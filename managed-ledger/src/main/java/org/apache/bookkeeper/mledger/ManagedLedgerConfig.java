@@ -51,7 +51,7 @@ public class ManagedLedgerConfig {
     private long retentionSizeInMB = 0;
     private boolean autoSkipNonRecoverableData;
 
-    private DigestType digestType = DigestType.MAC;
+    private DigestType digestType = DigestType.CRC32C;
     private byte[] password = "".getBytes(Charsets.UTF_8);
 
     /**

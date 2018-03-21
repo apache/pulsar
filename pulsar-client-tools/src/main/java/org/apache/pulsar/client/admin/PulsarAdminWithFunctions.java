@@ -49,7 +49,7 @@ public class PulsarAdminWithFunctions extends PulsarAdmin {
      */
     public PulsarAdminWithFunctions(URL serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
         super(serviceUrl, pulsarConfig);
-        this.functions = new FunctionsImpl(web, auth);
+        this.functions = new FunctionsImpl(root, auth);
         this.clientConf = pulsarConfig;
     }
 

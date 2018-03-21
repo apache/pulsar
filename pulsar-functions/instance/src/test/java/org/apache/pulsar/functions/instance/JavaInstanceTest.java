@@ -22,7 +22,7 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 import org.apache.pulsar.client.api.MessageId;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.testng.annotations.Test;
@@ -49,7 +49,7 @@ public class JavaInstanceTest {
         InstanceConfig config = createInstanceConfig();
         JavaInstance instance = new JavaInstance(
             config,
-            (PulsarFunction<String, String>) (input, context) -> input + "-lambda",
+            (Function<String, String>) (input, context) -> input + "-lambda",
             null, null, new HashMap<>());
         String testString = "ABC123";
         JavaExecutionResult result = instance.handleMessage(MessageId.earliest, "random", testString);

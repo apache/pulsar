@@ -34,15 +34,15 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
 @Slf4j
-public class MultiConsumersOneSinkTopicProducers extends AbstractOneSinkTopicProducers {
+public class MultiConsumersOneOuputTopicProducers extends AbstractOneOuputTopicProducers {
 
     @Getter(AccessLevel.PACKAGE)
     private final Map<String, IntObjectMap<Producer>> producers;
 
-    public MultiConsumersOneSinkTopicProducers(PulsarClient client,
-                                               String sinkTopic)
+    public MultiConsumersOneOuputTopicProducers(PulsarClient client,
+                                                String outputTopic)
             throws PulsarClientException {
-        super(client, sinkTopic);
+        super(client, outputTopic);
         this.producers = new ConcurrentHashMap<>();
     }
 
@@ -65,7 +65,7 @@ public class MultiConsumersOneSinkTopicProducers extends AbstractOneSinkTopicPro
 
         Producer producer = producerMap.get(srcTopicPartition);
         if (null == producer) {
-            producer = createProducer(sinkTopic, makeProducerName(srcTopicName, srcTopicPartition));
+            producer = createProducer(outputTopic, makeProducerName(srcTopicName, srcTopicPartition));
             producerMap.put(srcTopicPartition, producer);
         }
         return producer;
@@ -97,7 +97,7 @@ public class MultiConsumersOneSinkTopicProducers extends AbstractOneSinkTopicPro
         try {
             FutureUtils.result(FutureUtils.collect(closeFutures));
         } catch (Exception e) {
-            log.warn("Fail to close all the producers for sink topic {}", sinkTopic, e);
+            log.warn("Fail to close all the producers for output topic {}", outputTopic, e);
         }
     }
 }

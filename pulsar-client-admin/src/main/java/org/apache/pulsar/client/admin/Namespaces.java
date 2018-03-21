@@ -87,6 +87,7 @@ public interface Namespaces {
      * @throws PulsarAdminException
      *             Unexpected error
      */
+    @Deprecated
     List<String> getNamespaces(String property, String cluster) throws PulsarAdminException;
 
     /**

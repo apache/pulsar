@@ -18,18 +18,20 @@
  */
 package org.apache.pulsar.functions.worker;
 
+import java.io.IOException;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+
 import lombok.*;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.distributedlog.api.namespace.Namespace;
 import org.apache.pulsar.functions.proto.Function;
 import org.apache.pulsar.functions.proto.Function.FunctionMetaData;
 import org.apache.pulsar.functions.runtime.RuntimeFactory;
 import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.metrics.MetricsSink;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 
@@ -49,8 +51,6 @@ public class FunctionActioner implements AutoCloseable {
 
     private final WorkerConfig workerConfig;
     private final RuntimeFactory runtimeFactory;
-    private final MetricsSink metricsSink;
-    private final int metricsCollectionInterval;
     private final Namespace dlogNamespace;
     private LinkedBlockingQueue<FunctionAction> actionQueue;
     private volatile boolean running;
@@ -58,14 +58,10 @@ public class FunctionActioner implements AutoCloseable {
 
     public FunctionActioner(WorkerConfig workerConfig,
                             RuntimeFactory runtimeFactory,
-                            MetricsSink metricsSink,
-                            int metricCollectionInterval,
                             Namespace dlogNamespace,
                             LinkedBlockingQueue<FunctionAction> actionQueue) {
         this.workerConfig = workerConfig;
         this.runtimeFactory = runtimeFactory;
-        this.metricsSink = metricsSink;
-        this.metricsCollectionInterval = metricCollectionInterval;
         this.dlogNamespace = dlogNamespace;
         this.actionQueue = actionQueue;
         actioner = new Thread(() -> {
@@ -112,13 +108,7 @@ public class FunctionActioner implements AutoCloseable {
                 functionMetaData.getFunctionConfig().getName(), instance.getInstanceId());
         File pkgDir = new File(
                 workerConfig.getDownloadDirectory(),
-                StringUtils.join(
-                        new String[]{
-                                functionMetaData.getFunctionConfig().getTenant(),
-                                functionMetaData.getFunctionConfig().getNamespace(),
-                                functionMetaData.getFunctionConfig().getName(),
-                        },
-                        File.separatorChar));
+                getDownloadPackagePath(functionMetaData));
         pkgDir.mkdirs();
 
         int instanceId = functionRuntimeInfo.getFunctionInstance().getInstanceId();
@@ -171,14 +161,14 @@ public class FunctionActioner implements AutoCloseable {
         instanceConfig.setFunctionVersion(UUID.randomUUID().toString());
         instanceConfig.setInstanceId(String.valueOf(instanceId));
         instanceConfig.setMaxBufferedTuples(1024);
-        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(), runtimeFactory,
-                metricsSink, metricsCollectionInterval);
+        RuntimeSpawner runtimeSpawner = new RuntimeSpawner(instanceConfig, pkgFile.getAbsolutePath(),
+                runtimeFactory, workerConfig.getInstanceLivenessCheckFreqMs());
 
         functionRuntimeInfo.setRuntimeSpawner(runtimeSpawner);
         runtimeSpawner.start();
     }
 
-    private boolean stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
+    private void stopFunction(FunctionRuntimeInfo functionRuntimeInfo) {
         Function.Instance instance = functionRuntimeInfo.getFunctionInstance();
         FunctionMetaData functionMetaData = instance.getFunctionMetaData();
         log.info("Stopping function {} - {}...",
@@ -186,8 +176,30 @@ public class FunctionActioner implements AutoCloseable {
         if (functionRuntimeInfo.getRuntimeSpawner() != null) {
             functionRuntimeInfo.getRuntimeSpawner().close();
             functionRuntimeInfo.setRuntimeSpawner(null);
-            return true;
         }
-        return false;
+
+        // clean up function package
+        File pkgDir = new File(
+                workerConfig.getDownloadDirectory(),
+                getDownloadPackagePath(functionMetaData));
+
+        if (pkgDir.exists()) {
+            try {
+                FileUtils.deleteDirectory(pkgDir);
+            } catch (IOException e) {
+                log.warn("Failed to delete package for function: {}",
+                        FunctionConfigUtils.getFullyQualifiedName(functionMetaData.getFunctionConfig()), e);
+            }
+        }
+    }
+
+    private String getDownloadPackagePath(FunctionMetaData functionMetaData) {
+        return StringUtils.join(
+                new String[]{
+                        functionMetaData.getFunctionConfig().getTenant(),
+                        functionMetaData.getFunctionConfig().getNamespace(),
+                        functionMetaData.getFunctionConfig().getName(),
+                },
+                File.separatorChar);
     }
 }

@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
 import org.apache.pulsar.client.impl.conf.ProducerConfigurationData;
 
-public abstract class ProducerBase<T> extends HandlerBase implements Producer<T> {
+public abstract class ProducerBase<T> extends HandlerState implements Producer<T> {
 
     protected final CompletableFuture<Producer<T>> producerCreatedFuture;
     protected final ProducerConfigurationData conf;
@@ -38,8 +38,7 @@ public abstract class ProducerBase<T> extends HandlerBase implements Producer<T>
 
     protected ProducerBase(PulsarClientImpl client, String topic, ProducerConfigurationData conf,
             CompletableFuture<Producer<T>> producerCreatedFuture, Schema<T> schema) {
-        super(client, topic, new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS,
-                Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS));
+        super(client, topic);
         this.producerCreatedFuture = producerCreatedFuture;
         this.conf = conf;
         this.schema = schema;
@@ -53,23 +52,6 @@ public abstract class ProducerBase<T> extends HandlerBase implements Producer<T>
     @Override
     public CompletableFuture<MessageId> sendAsync(T message) {
         return sendAsync(MessageBuilder.create(schema).setValue(message).build());
-    }
-
-    @Override
-    public MessageId send(Message<T> message) throws PulsarClientException {
-        try {
-            return sendAsync(message).get();
-        } catch (ExecutionException e) {
-            Throwable t = e.getCause();
-            if (t instanceof PulsarClientException) {
-                throw (PulsarClientException) t;
-            } else {
-                throw new PulsarClientException(t);
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new PulsarClientException(e);
-        }
     }
 
     @Override
