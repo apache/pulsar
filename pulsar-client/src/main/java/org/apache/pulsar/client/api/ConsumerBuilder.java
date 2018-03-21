@@ -292,4 +292,8 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      */
     ConsumerBuilder<T> properties(Map<String, String> properties);
 
+    /**
+     * Set subscriptionInitialPosition for the consumer
+    */
+    ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
 }
