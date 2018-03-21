@@ -99,6 +99,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (cb != null) {
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
+            this.recycle();
         }
     }
 
