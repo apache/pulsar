@@ -36,12 +36,12 @@ def process(input):
 
 Some things to note about this Pulsar Function:
 
-* There is no client, producer, or consumer object involved. All message "plumbing" is already taken care of for you.
-* No topics, subscription types, {% popover tenants %}, or {% popover namespaces %} are specified in the function logic itself. Instead, topics are specified upon [deployment](#example-deployment). This means that you can use Pulsar Functions across topics, tenants, and namespaces without needing to hard-code those attributes.
+* There is no client, producer, or consumer object involved. All message "plumbing" is already taken care of for you, enabling you to worry only about processing logic.
+* No topics, subscription types, {% popover tenants %}, or {% popover namespaces %} are specified in the function logic itself. Instead, topics are specified upon [deployment](#example-deployment). This means that you can use and re-use Pulsar Functions across topics, tenants, and namespaces without needing to hard-code those attributes.
 
 ### Example deployment
 
-Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command. Here's an example command that would run our [sanitizer](#example-function) function above in [local run](../deployment#local-run-mode) mode:
+Deploying Pulsar Functions is handled by the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool, in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command. Here's an example command that would run our [sanitizer](#example-function) function from above in [local run](../deployment#local-run) mode:
 
 ```bash
 $ bin/pulsar-admin functions localrun \
@@ -59,10 +59,10 @@ In both Java and Python, you have two options for writing Pulsar Functions:
 
 Interface | Description | Use cases
 :---------|:------------|:---------
-"Native" interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python) | Functions that don't require access to the function's [context](#context)
+Language-native interface | No Pulsar-specific libraries or special dependencies required (only core libraries from Java/Python) | Functions that don't require access to the function's [context](#context)
 Pulsar Function SDK for Java/Python | Pulsar-specific libraries that provide a range of functionality not provided by "native" interfaces | Functions that require access to the function's [context](#context)
 
-In Python, for example, this "native" function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:
+In Python, for example, this language-native function, which adds an exclamation point to all incoming strings and publishes the resulting string to a topic, would have no external dependencies:
 
 ```python
 def process(input):
@@ -77,7 +77,7 @@ from pulsarfunction import pulsar_function
 class DisplayFunctionName(pulsar_function.Function):
     def process(self, input, context):
         function_name = context.function_name()
-        return "The function processing this message is called {0}".format(function_name)
+        return "The function processing this message has the name {0}".format(function_name)
 ```
 
 ### Serialization and deserialization (SerDe) {#serde}
@@ -109,6 +109,12 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 ## Counters
 
 All Pulsar Functions that use the [Pulsar Functions SDK](#sdk) have access to a distributed counter that functions can increment and decrement on a per-key basis.
+
+```java
+import org.apache.pulsar.functions.api.Function;
+
+public class WordCountFunction implements Function<
+```
 
 
 
@@ -238,7 +244,8 @@ public interface Context {
     String getInstanceId();
     String getFunctionVersion();
     Logger getLogger();
-    void incrCounter(String key, long amount);
+    void incrementCounter(String key, long amount);
+    void decrementCounter(String key, long amount);
     String getUserConfigValue(String key);
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
@@ -249,16 +256,14 @@ public interface Context {
 
 ### Void functions
 
-Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, increment a [counter](#counters), write results to a database, etc.
-
-
+Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, increment a [counter](#counters), write results to a database, etc. Here's an example void function that increments a counter 
 
 ```java
 public class IncrementFunction implements PulsarFunction<String, Void> {
     @Override
     public String apply(String input, Context context) {
         String counterKey = input;
-        context.incrCounter(counterKey, 1);
+        context.incrementCounter(counterKey, 1);
         return null;
     }
 }

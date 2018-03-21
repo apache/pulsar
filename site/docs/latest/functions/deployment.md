@@ -3,7 +3,7 @@ title: Deploying Pulsar Functions
 new: true
 ---
 
-## Local run mode
+## Local run mode {#local-run}
 
 At the moment, Pulsar Functions are deployed
 
