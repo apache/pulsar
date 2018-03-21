@@ -100,7 +100,7 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private Set<String> tlsCiphers = Sets.newTreeSet();
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
-    private boolean tlsReqTrustedClientCertOnConnect = false;
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
     
     private Properties properties = new Properties();
 
@@ -336,11 +336,11 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.tlsCiphers = tlsCiphers;
     }
     
-    public boolean getTlsReqTrustedClientCertOnConnect() {
-        return tlsReqTrustedClientCertOnConnect;
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
     }
 
-    public void setTlsReqTrustedClientCertOnConnect(boolean tlsReqTrustedClientCertOnConnect) {
-        this.tlsReqTrustedClientCertOnConnect = tlsReqTrustedClientCertOnConnect;
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
     }
 }

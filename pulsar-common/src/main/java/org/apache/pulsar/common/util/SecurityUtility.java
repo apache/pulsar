@@ -96,7 +96,7 @@ public class SecurityUtility {
 
     public static SslContext createNettySslContextForServer(boolean allowInsecureConnection, String trustCertsFilePath,
             String certFilePath, String keyFilePath, Set<String> ciphers, Set<String> protocols,
-            boolean reqTrustedClientCertOnConnect)
+            boolean requireTrustedClientCertOnConnect)
             throws GeneralSecurityException, SSLException, FileNotFoundException, IOException {
         X509Certificate[] certificates = loadCertificatesFromPemFile(certFilePath);
         PrivateKey privateKey = loadPrivateKeyFromPemFile(keyFilePath);
@@ -106,7 +106,7 @@ public class SecurityUtility {
         setupProtocols(builder, protocols);
         setupTrustCerts(builder, allowInsecureConnection, trustCertsFilePath);
         setupKeyManager(builder, privateKey, certificates);
-        setupClientAuthentication(builder, reqTrustedClientCertOnConnect);
+        setupClientAuthentication(builder, requireTrustedClientCertOnConnect);
         return builder.build();
     }
 
@@ -239,8 +239,8 @@ public class SecurityUtility {
         }
     }
 
-    private static void setupClientAuthentication(SslContextBuilder builder, boolean reqTrustedClientCertOnConnect) {
-        if (reqTrustedClientCertOnConnect) {
+    private static void setupClientAuthentication(SslContextBuilder builder, boolean requireTrustedClientCertOnConnect) {
+        if (requireTrustedClientCertOnConnect) {
             builder.clientAuth(ClientAuth.REQUIRE);
         } else {
             builder.clientAuth(ClientAuth.OPTIONAL);
@@ -249,12 +249,12 @@ public class SecurityUtility {
 
     public static SslContextFactory createSslContextFactory(boolean tlsAllowInsecureConnection,
             String tlsTrustCertsFilePath, String tlsCertificateFilePath, String tlsKeyFilePath,
-            boolean tlsReqTrustedClientCertOnConnect) throws GeneralSecurityException {
+            boolean tlsRequireTrustedClientCertOnConnect) throws GeneralSecurityException {
         SslContextFactory sslCtxFactory = new SslContextFactory();
         SSLContext sslCtx = createSslContext(tlsAllowInsecureConnection, tlsTrustCertsFilePath, tlsCertificateFilePath,
                 tlsKeyFilePath);
         sslCtxFactory.setSslContext(sslCtx);
-        if (tlsReqTrustedClientCertOnConnect) {
+        if (tlsRequireTrustedClientCertOnConnect) {
             sslCtxFactory.setNeedClientAuth(true);
         } else {
             sslCtxFactory.setWantClientAuth(true);

@@ -85,7 +85,7 @@ public class ProxyServer {
                         config.getTlsTrustCertsFilePath(),
                         config.getTlsCertificateFilePath(),
                         config.getTlsKeyFilePath(),
-                        config.getTlsReqTrustedClientCertOnConnect());
+                        config.getTlsRequireTrustedClientCertOnConnect());
                 ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
                 tlsConnector.setPort(config.getWebServicePortTls());
                 connectors.add(tlsConnector);

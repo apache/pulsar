@@ -53,7 +53,7 @@ public class ServiceChannelInitializer extends ChannelInitializer<SocketChannel>
                     serviceConfig.isTlsAllowInsecureConnection(), serviceConfig.getTlsTrustCertsFilePath(),
                     serviceConfig.getTlsCertificateFilePath(), serviceConfig.getTlsKeyFilePath(),
                     serviceConfig.getTlsCiphers(), serviceConfig.getTlsProtocols(),
-                    serviceConfig.getTlsReqTrustedClientCertOnConnect());
+                    serviceConfig.getTlsRequireTrustedClientCertOnConnect());
             ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
         }
         ch.pipeline().addLast("frameDecoder", new LengthFieldBasedFrameDecoder(PulsarDecoder.MaxFrameSize, 0, 4, 0, 4));

@@ -69,7 +69,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setClusterName(clusterName);
-        conf.setTlsReqTrustedClientCertOnConnect(true);
+        conf.setTlsRequireTrustedClientCertOnConnect(true);
         Set<String> tlsProtocols = Sets.newConcurrentHashSet();
         tlsProtocols.add("TLSv1.2");
         conf.setTlsProtocols(tlsProtocols);
