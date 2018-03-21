@@ -3,7 +3,7 @@ title: The Pulsar Functions API
 new: true
 ---
 
-Pulsar Functions provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#java) or [Python](#python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
+[Pulsar Functions](../overview) provides an easy-to-use API that developers can use to create and manage processing logic for the Apache Pulsar messaging system. With Pulsar Functions, you can write functions of any level of complexity in [Java](#java) or [Python](#python) and run them in conjunction with a Pulsar cluster without needing to run a separate stream processing engine.
 
 {% include admonition.html type="info" content="For a more in-depth overview of the Pulsar Functions feature, see the [Pulsar Functions overview](../overview)." %}
 
@@ -84,7 +84,7 @@ class DisplayFunctionName(pulsar_function.Function):
 
 SerDe stands for **Ser**ialization and **De**serialization. All Pulsar Functions use SerDe for message handling. How SerDe works by default depends on the language you're using for a particular function:
 
-* In [Python](#python-serde), the default SerDe is identity, meaning that the type is serialized as whatever the producer
+* In [Python](#python-serde), the default SerDe is identity, meaning that the type is serialized as whatever type the producer function returns
 * In [Java](#java-serde), a number of commonly used types (`String`s, `Integer`s, etc.) are supported by default
 
 In both languages, however, you can write your own custom SerDe logic for more complex, application-specific types. See the docs for [Java](#java-serde) and [Python](#python-serde) for language-specific instructions.
@@ -109,6 +109,8 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 ## Counters
 
 All Pulsar Functions that use the [Pulsar Functions SDK](#sdk) have access to a distributed counter that functions can increment and decrement on a per-key basis.
+
+
 
 ## User config
 
@@ -213,7 +215,6 @@ dependencies {
 }
 ```
 
-#### 
 
 ```java
 public interface PulsarFunction<I, O> {
