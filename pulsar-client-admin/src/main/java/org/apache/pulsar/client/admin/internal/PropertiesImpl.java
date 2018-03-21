@@ -36,7 +36,7 @@ public class PropertiesImpl extends BaseResource implements Properties {
 
     public PropertiesImpl(WebTarget web, Authentication auth) {
         super(auth);
-        adminProperties = web.path("/admin/properties");
+        adminProperties = web.path("/admin/v2/properties");
     }
 
     @Override
