@@ -20,13 +20,11 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
-import java.util.ArrayList;
-
-public class PublishFunction implements PulsarFunction<String, byte[]> {
+public class PublishFunction implements Function<String, byte[]> {
     @Override
     public byte[] process(String input, Context context) {
+        
         return "foo".getBytes();
     }
 }

@@ -14,7 +14,7 @@ Pulsar Functions provide a wide range of functionality but are based on a very s
 * {% popover consume %} messages from one or more Pulsar {% popover topics %} and then
 * apply some user-defined processing logic (just about anything you want). This could involve
   * {% popover producing %} the resulting, processed message on another Pulsar topic or
-  * doing something else with the message, like [storing state](#state-storage), incrementing a [counter](#counter), writing results to an external database, etc.
+  * doing something else with the message, like [storing state](#state-storage), writing results to an external database, etc.
 
 You could use Pulsar Functions, for example, to set up the following processing chain:
 
@@ -72,9 +72,9 @@ def process(input):
 This function, however, would use the Pulsar Functions [SDK for Python](#python-sdk):
 
 ```python
-from pulsarfunction import pulsar_function
+from pulsar import Function
 
-class DisplayFunctionName(pulsar_function.Function):
+class DisplayFunctionName(Function):
     def process(self, input, context):
         function_name = context.function_name()
         return "The function processing this message has the name {0}".format(function_name)
@@ -102,21 +102,8 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 * The ID of the Pulsar Functions instance running the function
 * The version of the function
 * The [logger object](#logging) used by the function, which can be used to create function log messages
-* A built-in distributed [counter](#counters) that can be incremented on a per-key basis
 * Access to arbitrary [user config](#user-config) values supplied via the CLI
 * An interface for recording [metrics](../metrics-and-stats)
-
-## Counters
-
-All Pulsar Functions that use the [Pulsar Functions SDK](#sdk) have access to a distributed counter that functions can increment and decrement on a per-key basis.
-
-```java
-import org.apache.pulsar.functions.api.Function;
-
-public class WordCountFunction implements Function<
-```
-
-
 
 ## User config
 
@@ -124,21 +111,21 @@ When you run or update Pulsar Functions created using the [SDK](#sdk), you can p
 
 ```bash
 $ bin/pulsar-admin functions create \
-  --name \
+  --name word-filter \
   # Other function configs
-  --userConfig '{"forbidden-subject":"fight club"}'
+  --userConfig '{"forbidden-word":"rosebud"}'
 ```
 
 ```python
-from pulsarfunction import pulsar_function
+from pulsar import Function
 
-class SubjectFilter(pulsar_function.PulsarFunction):
+class WordFilter(Function):
     def process(self, context, input):
-        forbidden_subject = context.user_config()["forbidden-subject"]
+        forbidden_word = context.user_config()["forbidden-word"]
 
-        # Don't publish the message if it pertains to the user-specified
-        # forbidden subject
-        if input.subject == forbidden_subject:
+        # Don't publish the message if it contains the user-supplied
+        # forbidden word
+        if forbidden_word in input:
             pass
         # Otherwise publish the message
         else:
@@ -150,7 +137,7 @@ class SubjectFilter(pulsar_function.PulsarFunction):
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 * The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
-* The {% javadoc PulsarFunction client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` ihterface, but with the important difference
+* The {% javadoc Function client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` ihterface, but with the important difference that it provides a {% javadoc Context client org.apache.pulsar.functions.api.Context %} object that you can use in a [variety of ways](#context)
 
 ### Getting started
 
@@ -244,8 +231,6 @@ public interface Context {
     String getInstanceId();
     String getFunctionVersion();
     Logger getLogger();
-    void incrementCounter(String key, long amount);
-    void decrementCounter(String key, long amount);
     String getUserConfigValue(String key);
     void recordMetric(String metricName, double value);
     <O> CompletableFuture<Void> publish(String topicName, O object, String serDeClassName);
@@ -256,20 +241,22 @@ public interface Context {
 
 ### Void functions
 
-Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, increment a [counter](#counters), write results to a database, etc. Here's an example void function that increments a counter 
+Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, write results to a database, etc. Here's a function that writes a simple log every time a message is received:
 
 ```java
-public class IncrementFunction implements PulsarFunction<String, Void> {
+import org.slf4j.Logger;
+
+public class LogFunction implements PulsarFunction<String, Void> {
     @Override
     public String apply(String input, Context context) {
-        String counterKey = input;
-        context.incrementCounter(counterKey, 1);
+        Logger LOG = context.getLogger();
+        LOG.info("The following message was received: {}", input);
         return null;
     }
 }
 ```
 
-{% include admonition.html type="warning" content="When using Java functions that return `Void`, the function must *always* return `null`." %}
+{% include admonition.html type="warning" content="When using Java functions in which the output type is `Void`, the function must *always* return `null`." %}
 
 ### Java SerDe
 
@@ -352,30 +339,26 @@ Pulsar does not store your custom SerDe classes separately from your Pulsar Func
 
 ### Java logging
 
+Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html).
 
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
 
-## Python
+public class LoggingFunction implements Function<String, Void> {
+    @Override
+    public void apply(String input, Context context) {
+        Logger LOG = context.getLogger();
+        String messageId = new String(context.getMessageId());
 
-### Getting started
+        if (input.contains("danger")) {
+            LOG.warn("A warning was received in message {}", messageId);
+        } else {
+            LOG.info("Message {} received\nContent: {}", messageId, input);
+        }
 
-```bash
-$ pip install pulsarfunctions
-```
-
-### Basic example
-
-```python
-def process(input):
-```
-
-### Python SDK example
-
-### With context
-
-```python
-from pulsarfunction import pulsar_function
-
-class CounterIncrementingFunction(pulsar_function.Function):
-    def process(self, context, input):
-        log = context.
+        return null;
+    }
+}
 ```
