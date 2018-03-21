@@ -105,18 +105,11 @@ public interface Context {
     Logger getLogger();
 
     /**
-     * Increment the built-in distributed counter referred to by key
-     * @param key The key of the counter to be incremented
-     * @param amount The amount by which the counter will be incremented
+     * Increment the builtin distributed counter refered by key
+     * @param key The name of the key
+     * @param amount The amount to be incremented
      */
-    void incrementCounter(String key, long amount);
-
-    /**
-     * Decrement the built-in distributed counter referred to by key
-     * @param key The key of the counter to be decremented
-     * @param amount The amount by which the counter will be decremented
-     */
-    void decrementCounter(String key, long amount);
+    void incrCounter(String key, long amount);
 
     /**
      * Get Any user defined key/value

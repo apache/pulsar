@@ -14,7 +14,7 @@ Pulsar Functions provide a wide range of functionality but are based on a very s
 * {% popover consume %} messages from one or more Pulsar {% popover topics %} and then
 * apply some user-defined processing logic (just about anything you want). This could involve
   * {% popover producing %} the resulting, processed message on another Pulsar topic or
-  * doing something else with the message, like [storing state](#state-storage), writing results to an external database, etc.
+  * doing something else with the message, such as writing results to an external database
 
 You could use Pulsar Functions, for example, to set up the following processing chain:
 
