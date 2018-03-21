@@ -59,7 +59,7 @@ public class NonPersistentReplicator extends AbstractReplicator implements Repli
     }
 
     @Override
-    protected void readEntries(Producer producer) {
+    protected void readEntries(Producer<byte[]> producer) {
         this.producer = (ProducerImpl) producer;
 
         if (STATE_UPDATER.compareAndSet(this, State.Starting, State.Started)) {

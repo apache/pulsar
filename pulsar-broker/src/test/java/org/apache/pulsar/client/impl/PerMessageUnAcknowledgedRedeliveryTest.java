@@ -24,14 +24,10 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.PartitionedConsumerImpl;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,14 +61,12 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(50);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -82,13 +76,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
 
@@ -109,13 +103,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             consumer.acknowledge(message);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((ConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
+        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -131,7 +125,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 10);
 
@@ -148,7 +142,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 5);
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
     }
@@ -162,14 +156,12 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(50);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Exclusive).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -179,13 +171,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
 
@@ -206,13 +198,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             consumer.acknowledge(message);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((ConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
+        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -228,7 +220,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 10);
 
@@ -245,7 +237,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 10);
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
     }
@@ -259,14 +251,12 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         final int totalMessages = 15;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(50);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Failover);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Failover).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -276,13 +266,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
 
@@ -303,13 +293,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             consumer.acknowledge(message);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((ConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
+        ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -325,7 +315,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 10);
 
@@ -342,15 +332,15 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 10);
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
     }
 
-    private static long getUnackedMessagesCountInPartitionedConsumer(Consumer c) {
-        PartitionedConsumerImpl pc = (PartitionedConsumerImpl) c;
-        return pc.getUnAckedMessageTracker().size() + pc.getConsumers().stream()
-                .mapToLong(consumer -> consumer.getUnAckedMessageTracker().size()).sum();
+    private static long getUnackedMessagesCountInPartitionedConsumer(Consumer<byte[]> c) {
+        PartitionedConsumerImpl<byte[]> pc = (PartitionedConsumerImpl<byte[]>) c;
+        return pc.getUnAckedMessageTracker().size()
+                + pc.getConsumers().stream().mapToLong(consumer -> consumer.getUnAckedMessageTracker().size()).sum();
     }
 
     @Test(timeOut = testTimeout)
@@ -365,16 +355,13 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         admin.persistentTopics().createPartitionedTopic(topicName, numberOfPartitions);
 
         // 1. producer connect
-        ProducerConfiguration prodConfig = new ProducerConfiguration();
-        prodConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer producer = pulsarClient.createProducer(topicName, prodConfig);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(50);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(50).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -384,7 +371,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message, doesn't ack
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         while (message != null) {
             String data = new String(message.getData());
             log.info("Consumer received : " + data);
@@ -418,8 +405,8 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
         assertEquals(received, 5);
 
         // 7. Simulate ackTimeout
-        ((PartitionedConsumerImpl) consumer).getUnAckedMessageTracker().toggle();
-        ((PartitionedConsumerImpl) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
+        ((PartitionedConsumerImpl<byte[]>) consumer).getUnAckedMessageTracker().toggle();
+        ((PartitionedConsumerImpl<byte[]>) consumer).getConsumers().forEach(c -> c.getUnAckedMessageTracker().toggle());
 
         // 8. producer publish more messages
         for (int i = 0; i < totalMessages / 3; i++) {
@@ -435,7 +422,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             log.info("Consumer received : " + data);
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
-        size =  getUnackedMessagesCountInPartitionedConsumer(consumer);
+        size = getUnackedMessagesCountInPartitionedConsumer(consumer);
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 10);
 
@@ -452,7 +439,7 @@ public class PerMessageUnAcknowledgedRedeliveryTest extends BrokerTestBase {
             message = consumer.receive(100, TimeUnit.MILLISECONDS);
         }
         assertEquals(redelivered, 5);
-        size =  getUnackedMessagesCountInPartitionedConsumer(consumer);
+        size = getUnackedMessagesCountInPartitionedConsumer(consumer);
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 5);
     }

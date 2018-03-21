@@ -86,8 +86,8 @@ public class ClientCnx extends PulsarHandler {
     private final ConcurrentLongHashMap<CompletableFuture<List<String>>> pendingGetTopicsRequests = new ConcurrentLongHashMap<>(
         16, 1);
 
-    private final ConcurrentLongHashMap<ProducerImpl> producers = new ConcurrentLongHashMap<>(16, 1);
-    private final ConcurrentLongHashMap<ConsumerImpl> consumers = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<ProducerImpl<?>> producers = new ConcurrentLongHashMap<>(16, 1);
+    private final ConcurrentLongHashMap<ConsumerImpl<?>> consumers = new ConcurrentLongHashMap<>(16, 1);
 
     private final CompletableFuture<Void> connectionFuture = new CompletableFuture<Void>();
     private final Semaphore pendingLookupRequestSemaphore;
@@ -253,7 +253,7 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Received a message from the server: {}", ctx.channel(), cmdMessage);
         }
-        ConsumerImpl consumer = consumers.get(cmdMessage.getConsumerId());
+        ConsumerImpl<?> consumer = consumers.get(cmdMessage.getConsumerId());
         if (consumer != null) {
             consumer.messageReceived(cmdMessage.getMessageId(), headersAndPayload, this);
         }
@@ -266,7 +266,7 @@ public class ClientCnx extends PulsarHandler {
         if (log.isDebugEnabled()) {
             log.debug("{} Received a consumer group change message from the server : {}", ctx.channel(), change);
         }
-        ConsumerImpl consumer = consumers.get(change.getConsumerId());
+        ConsumerImpl<?> consumer = consumers.get(change.getConsumerId());
         if (consumer != null) {
             consumer.activeConsumerChanged(change.getIsActive());
         }
@@ -398,7 +398,7 @@ public class ClientCnx extends PulsarHandler {
 
         log.info("[{}] Broker notification reached the end of topic: {}", remoteAddress, consumerId);
 
-        ConsumerImpl consumer = consumers.get(consumerId);
+        ConsumerImpl<?> consumer = consumers.get(consumerId);
         if (consumer != null) {
             consumer.setTerminated();
         }
@@ -472,7 +472,7 @@ public class ClientCnx extends PulsarHandler {
     protected void handleCloseProducer(CommandCloseProducer closeProducer) {
         log.info("[{}] Broker notification of Closed producer: {}", remoteAddress, closeProducer.getProducerId());
         final long producerId = closeProducer.getProducerId();
-        ProducerImpl producer = producers.get(producerId);
+        ProducerImpl<?> producer = producers.get(producerId);
         if (producer != null) {
             producer.connectionClosed(this);
         } else {
@@ -484,7 +484,7 @@ public class ClientCnx extends PulsarHandler {
     protected void handleCloseConsumer(CommandCloseConsumer closeConsumer) {
         log.info("[{}] Broker notification of Closed consumer: {}", remoteAddress, closeConsumer.getConsumerId());
         final long consumerId = closeConsumer.getConsumerId();
-        ConsumerImpl consumer = consumers.get(consumerId);
+        ConsumerImpl<?> consumer = consumers.get(consumerId);
         if (consumer != null) {
             consumer.connectionClosed(this);
         } else {
@@ -666,11 +666,11 @@ public class ClientCnx extends PulsarHandler {
         return false;
     }
 
-    void registerConsumer(final long consumerId, final ConsumerImpl consumer) {
+    void registerConsumer(final long consumerId, final ConsumerImpl<?> consumer) {
         consumers.put(consumerId, consumer);
     }
 
-    void registerProducer(final long producerId, final ProducerImpl producer) {
+    void registerProducer(final long producerId, final ProducerImpl<?> producer) {
         producers.put(producerId, producer);
     }
 

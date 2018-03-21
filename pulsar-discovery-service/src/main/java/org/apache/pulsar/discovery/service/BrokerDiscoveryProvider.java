@@ -30,6 +30,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.PulsarServerException;
@@ -59,7 +60,8 @@ public class BrokerDiscoveryProvider implements Closeable {
     final GlobalZooKeeperCache globalZkCache;
     private final AtomicInteger counter = new AtomicInteger();
 
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(4, "pulsar-discovery-ordered");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(4)
+            .name("pulsar-discovery-ordered").build();
     private final ScheduledExecutorService scheduledExecutorScheduler = Executors.newScheduledThreadPool(4,
             new DefaultThreadFactory("pulsar-discovery"));
 

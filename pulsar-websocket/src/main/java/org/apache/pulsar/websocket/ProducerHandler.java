@@ -68,7 +68,7 @@ import com.google.common.base.Enums;
 
 public class ProducerHandler extends AbstractWebSocketHandler {
 
-    private Producer producer;
+    private Producer<byte[]> producer;
     private final LongAdder numMsgsSent;
     private final LongAdder numMsgsFailed;
     private final LongAdder numBytesSent;
@@ -178,7 +178,7 @@ public class ProducerHandler extends AbstractWebSocketHandler {
         if (sendRequest.replicationClusters != null) {
             builder.setReplicationClusters(sendRequest.replicationClusters);
         }
-        Message msg = builder.build();
+        Message<byte[]> msg = builder.build();
 
         final long now = System.nanoTime();
         producer.sendAsync(msg).thenAccept(msgId -> {

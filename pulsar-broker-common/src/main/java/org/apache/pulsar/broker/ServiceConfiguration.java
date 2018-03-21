@@ -24,6 +24,7 @@ import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.pulsar.broker.authorization.PulsarAuthorizationProvider;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.configuration.PulsarConfiguration;
@@ -204,6 +205,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Specify whether Client certificates are required for TLS
     // Reject the Connection if the Client Certificate is not trusted.
     private boolean tlsReqTrustedClientCertOnConnect = false;
+
     /***** --- Authentication --- ****/
     // Enable authentication
     private boolean authenticationEnabled = false;
@@ -224,7 +226,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private Set<String> proxyRoles = Sets.newTreeSet();
 
     // If this flag is set then the broker authenticates the original Auth data
-    // else it just accepts the originalPrincipal and authorizes it (if required). 
+    // else it just accepts the originalPrincipal and authorizes it (if required).
     private boolean authenticateOriginalAuthData = false;
 
     // Allow wildcard matching in authorization
@@ -238,7 +240,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     private String brokerClientAuthenticationParameters = "";
     // Path for the trusted TLS certificate file for outgoing connection to a server (broker)
     private String brokerClientTrustCertsFilePath = "";
-    
+
     // When this parameter is not empty, unauthenticated users perform as anonymousUserRole
     private String anonymousUserRole = null;
 
@@ -280,6 +282,11 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Number of guaranteed copies (acks to wait before write is complete)
     @FieldContext(minValue = 1)
     private int managedLedgerDefaultAckQuorum = 1;
+
+    // Default type of checksum to use when writing to BookKeeper. Default is "CRC32"
+    // Other possible options are "CRC32C" (which is faster), "MAC" or "DUMMY" (no checksum).
+    private DigestType managedLedgerDigestType = DigestType.CRC32;
+
     // Max number of bookies to use when creating a ledger
     @FieldContext(minValue = 1)
     private int managedLedgerMaxEnsembleSize = 5;
@@ -417,6 +424,8 @@ public class ServiceConfiguration implements PulsarConfiguration {
     @FieldContext(dynamic = true)
     private boolean preferLaterVersions = false;
 
+    private String schemaRegistryStorageClassName = "org.apache.pulsar.broker.service.schema.BookkeeperSchemaStorageFactory";
+
     /**** --- WebSocket --- ****/
     // Number of IO threads in Pulsar Client used in WebSocket proxy
     private int webSocketNumIoThreads = Runtime.getRuntime().availableProcessors();
@@ -426,6 +435,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     /**** --- Metrics --- ****/
     // If true, export topic level metrics otherwise namespace level
     private boolean exposeTopicLevelMetricsInPrometheus = true;
+
+    /**** --- Functions --- ****/
+    private boolean functionsWorkerEnabled = false;
 
     public String getZookeeperServers() {
         return zookeeperServers;
@@ -861,15 +873,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public Set<String> getSuperUserRoles() {
         return superUserRoles;
     }
- 
+
     public Set<String> getProxyRoles() {
         return proxyRoles;
     }
-    
+
     public void setProxyRoles(Set<String> proxyRoles) {
         this.proxyRoles = proxyRoles;
     }
-    
+
     public boolean getAuthorizationAllowWildcardsMatching() {
         return authorizationAllowWildcardsMatching;
     }
@@ -905,7 +917,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setBrokerClientTrustCertsFilePath(String brokerClientTrustCertsFilePath) {
         this.brokerClientTrustCertsFilePath = brokerClientTrustCertsFilePath;
     }
-    
+
     public String getAnonymousUserRole() {
         return anonymousUserRole;
     }
@@ -1026,6 +1038,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setManagedLedgerDefaultAckQuorum(int managedLedgerDefaultAckQuorum) {
         this.managedLedgerDefaultAckQuorum = managedLedgerDefaultAckQuorum;
+    }
+
+    public DigestType getManagedLedgerDigestType() {
+        return managedLedgerDigestType;
+    }
+
+    public void setManagedLedgerDigestType(DigestType managedLedgerDigestType) {
+        this.managedLedgerDigestType = managedLedgerDigestType;
     }
 
     public int getManagedLedgerMaxEnsembleSize() {
@@ -1448,7 +1468,15 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setExposeTopicLevelMetricsInPrometheus(boolean exposeTopicLevelMetricsInPrometheus) {
         this.exposeTopicLevelMetricsInPrometheus = exposeTopicLevelMetricsInPrometheus;
     }
-    
+
+    public String getSchemaRegistryStorageClassName() {
+       return schemaRegistryStorageClassName;
+    }
+
+    public void setSchemaRegistryStorageClassName(String className) {
+        schemaRegistryStorageClassName = className;
+    }
+
     public boolean authenticateOriginalAuthData() {
         return authenticateOriginalAuthData;
     }
@@ -1456,7 +1484,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setAuthenticateOriginalAuthData(boolean authenticateOriginalAuthData) {
         this.authenticateOriginalAuthData = authenticateOriginalAuthData;
     }
-    
+
     public Set<String> getTlsProtocols() {
         return tlsProtocols;
     }
@@ -1479,5 +1507,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public void setTlsReqTrustedClientCertOnConnect(boolean tlsReqTrustedClientCertOnConnect) {
         this.tlsReqTrustedClientCertOnConnect = tlsReqTrustedClientCertOnConnect;
+    }
+    /**** --- Function ---- ****/
+
+    public void setFunctionsWorkerEnabled(boolean enabled) {
+        this.functionsWorkerEnabled = enabled;
+    }
+
+    public boolean isFunctionsWorkerEnabled() {
+        return functionsWorkerEnabled;
     }
 }

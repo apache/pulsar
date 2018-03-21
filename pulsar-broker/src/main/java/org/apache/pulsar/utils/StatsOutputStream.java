@@ -21,6 +21,7 @@ package org.apache.pulsar.utils;
 import java.util.Stack;
 
 import io.netty.buffer.ByteBuf;
+import org.apache.pulsar.common.util.SimpleTextOutputStream;
 
 public class StatsOutputStream extends SimpleTextOutputStream {
     private final Stack<Boolean> separators = new Stack<>();

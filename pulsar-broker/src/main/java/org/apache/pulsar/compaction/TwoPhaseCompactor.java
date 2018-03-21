@@ -21,6 +21,7 @@ package org.apache.pulsar.compaction;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -82,6 +83,7 @@ public class TwoPhaseCompactor extends Compactor {
                     if (exception != null) {
                         loopPromise.completeExceptionally(exception);
                     } else {
+                        log.info("Commencing phase one of compaction for {}, reading to {}", reader, lastMessageId);
                         phaseOneLoop(reader, Optional.empty(), lastMessageId, latestForKey, loopPromise);
                     }
                 });
@@ -135,8 +137,12 @@ public class TwoPhaseCompactor extends Compactor {
 
     private CompletableFuture<Long> phaseTwo(RawReader reader, MessageId from, MessageId to,
                                              Map<String,MessageId> latestForKey, BookKeeper bk) {
-        return createLedger(bk).thenCompose(
-                (ledger) -> phaseTwoSeekThenLoop(reader, from, to, latestForKey, bk, ledger));
+
+        return createLedger(bk).thenCompose((ledger) -> {
+                log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
+                         reader, from, to, latestForKey.size(), ledger.getId());
+                return phaseTwoSeekThenLoop(reader, from, to, latestForKey, bk, ledger);
+            });
     }
 
     private CompletableFuture<Long> phaseTwoSeekThenLoop(RawReader reader, MessageId from, MessageId to,
@@ -224,7 +230,7 @@ public class TwoPhaseCompactor extends Compactor {
                                  } else {
                                      bkf.complete(ledger);
                                  }
-                             }, null);
+                             }, null, Collections.emptyMap());
         return bkf;
     }
 

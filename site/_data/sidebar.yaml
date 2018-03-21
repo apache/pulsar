@@ -30,6 +30,22 @@ groups:
   - title: Concepts and architecture
     endpoint: ConceptsAndArchitecture
 
+- title: Pulsar Functions
+  dir: functions
+  docs:
+  - title: Getting started with Pulsar Functions
+    endpoint: quickstart
+  #- title: Pulsar Functions overview
+  #  endpoint: overview
+  #- title: The Pulsar Functions API
+  #  endpoint: api
+  #- title: Deploying Pulsar Functions
+  #  endpoint: deployment
+  #- title: Processing guarantees
+  #  endpoint: guarantees
+  #- title: Metrics and stats for Pulsar Functions
+  #  endpoint: metrics-and-stats
+
 - title: Deployment
   dir: deployment
   docs:

@@ -25,10 +25,11 @@ rm -rf ./pulsar-dist
 mkdir pulsar-dist
 tar xfz ../all/target/apache-pulsar*bin.tar.gz  -C pulsar-dist --strip-components 1
 
-PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone > broker.log &
+PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone.conf pulsar-dist/bin/pulsar standalone --no-functions-worker > broker.log &
 standalone_pid=$!;
 
 PULSAR_STANDALONE_CONF=$PWD/test-conf/standalone-ssl.conf pulsar-dist/bin/pulsar standalone \
+              --no-functions-worker \
               --zookeeper-port 2191 --bookkeeper-port 3191 \
               --zookeeper-dir data2/standalone/zookeeper --bookkeeper-dir \
               data2/standalone/bookkeeper > broker-tls.log &

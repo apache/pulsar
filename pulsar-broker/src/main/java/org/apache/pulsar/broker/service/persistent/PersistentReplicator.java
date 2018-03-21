@@ -105,7 +105,7 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
     }
 
     @Override
-    protected void readEntries(org.apache.pulsar.client.api.Producer producer) {
+    protected void readEntries(org.apache.pulsar.client.api.Producer<byte[]> producer) {
         // Rewind the cursor to be sure to read again all non-acked messages sent while restarting
         cursor.rewind();
 
@@ -232,9 +232,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
 
                 if (msg.hasReplicateTo() && !msg.getReplicateTo().contains(remoteCluster)) {
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{} -> {}] Skipping message at {} / msg-id: {}: replicateTo {}", topicName,
-                                localCluster, remoteCluster, entry.getPosition(), msg.getMessageId(),
-                                msg.getReplicateTo());
+                        log.debug("[{}][{} -> {}] Skipping message at position {}, replicateTo {}", topicName,
+                                localCluster, remoteCluster, entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();
@@ -245,8 +244,8 @@ public class PersistentReplicator extends AbstractReplicator implements Replicat
                 if (msg.isExpired(messageTTLInSeconds)) {
                     msgExpired.recordEvent(0 /* no value stat */);
                     if (log.isDebugEnabled()) {
-                        log.debug("[{}][{} -> {}] Discarding expired message at {} / msg-id: {}", topicName,
-                                localCluster, remoteCluster, entry.getPosition(), msg.getMessageId());
+                        log.debug("[{}][{} -> {}] Discarding expired message at position {}, replicateTo {}", topicName,
+                                localCluster, remoteCluster, entry.getPosition(), msg.getReplicateTo());
                     }
                     cursor.asyncDelete(entry.getPosition(), this, entry.getPosition());
                     entry.release();

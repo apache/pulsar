@@ -145,13 +145,15 @@ public class LocalBookkeeperEnsemble {
             if (zkc.exists("/ledgers/available", false) == null) {
                 zkc.create("/ledgers/available", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
             }
+            if (zkc.exists("/ledgers/available/readonly", false) == null) {
+                zkc.create("/ledgers/available/readonly", new byte[0], Ids.OPEN_ACL_UNSAFE, CreateMode.PERSISTENT);
+            }
             // No need to create an entry for each requested bookie anymore as the
             // BookieServers will register themselves with ZooKeeper on startup.
         } catch (KeeperException e) {
-            // TODO Auto-generated catch block
             LOG.error("Exception while creating znodes", e);
         } catch (InterruptedException e) {
-            // TODO Auto-generated catch block
+            Thread.currentThread().interrupt();
             LOG.error("Interrupted while creating znodes", e);
         }
     }
@@ -232,6 +234,9 @@ public class LocalBookkeeperEnsemble {
         conf.setFlushInterval(60000);
         conf.setProperty("journalMaxGroupWaitMSec", 1L);
         conf.setAdvertisedAddress(advertisedAddress);
+        // use high disk usage thresholds for standalone
+        conf.setDiskUsageWarnThreshold(0.9999f);
+        conf.setDiskUsageThreshold(0.99999f);
 
         runZookeeper(1000);
         initializeZookeper();

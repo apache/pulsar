@@ -34,12 +34,12 @@ import org.apache.pulsar.client.impl.conf.ReaderConfigurationData;
 @Deprecated
 public class ReaderConfiguration implements Serializable {
 
-    private final ReaderConfigurationData conf = new ReaderConfigurationData();
+    private final ReaderConfigurationData<byte[]> conf = new ReaderConfigurationData<>();
 
     /**
      * @return the configured {@link ReaderListener} for the reader
      */
-    public ReaderListener getReaderListener() {
+    public ReaderListener<byte[]> getReaderListener() {
         return conf.getReaderListener();
     }
 
@@ -52,7 +52,7 @@ public class ReaderConfiguration implements Serializable {
      * @param readerListener
      *            the listener object
      */
-    public ReaderConfiguration setReaderListener(ReaderListener readerListener) {
+    public ReaderConfiguration setReaderListener(ReaderListener<byte[]> readerListener) {
         checkNotNull(readerListener);
         conf.setReaderListener(readerListener);
         return this;
@@ -86,7 +86,7 @@ public class ReaderConfiguration implements Serializable {
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
-     *
+     * 
      * @param action
      *            The action to take when the decoding fails
      */
@@ -155,7 +155,7 @@ public class ReaderConfiguration implements Serializable {
         return this;
     }
 
-    public ReaderConfigurationData getReaderConfigurationData() {
+    public ReaderConfigurationData<byte[]> getReaderConfigurationData() {
         return conf;
     }
 

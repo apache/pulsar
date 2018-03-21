@@ -26,7 +26,7 @@ import java.util.concurrent.TimeUnit;
  * A Reader can be used to scan through all the messages currently available in a topic.
  *
  */
-public interface Reader extends Closeable {
+public interface Reader<T> extends Closeable {
 
     /**
      * @return the topic from which this reader is reading from
@@ -39,17 +39,18 @@ public interface Reader extends Closeable {
      * @return the next messasge
      * @throws PulsarClientException
      */
-    Message readNext() throws PulsarClientException;
+    Message<T> readNext() throws PulsarClientException;
 
     /**
-     * Read the next message in the topic.
+     * Read the next message in the topic waiting for a maximum of timeout
+     * time units. Returns null if no message is recieved in that time.
      *
-     * @return the next messasge
+     * @return the next message(Could be null if none received in time)
      * @throws PulsarClientException
      */
-    Message readNext(int timeout, TimeUnit unit) throws PulsarClientException;
+    Message<T> readNext(int timeout, TimeUnit unit) throws PulsarClientException;
 
-    CompletableFuture<Message> readNextAsync();
+    CompletableFuture<Message<T>> readNextAsync();
 
     /**
      * Asynchronously close the reader and stop the broker to push more messages

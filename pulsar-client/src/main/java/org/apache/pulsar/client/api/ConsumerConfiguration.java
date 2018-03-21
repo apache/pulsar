@@ -44,7 +44,7 @@ public class ConsumerConfiguration implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    private final ConsumerConfigurationData conf = new ConsumerConfigurationData();
+    private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
@@ -95,7 +95,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * @return the configured {@link MessageListener} for the consumer
      */
-    public MessageListener getMessageListener() {
+    public MessageListener<byte[]> getMessageListener() {
         return conf.getMessageListener();
     }
 
@@ -108,7 +108,7 @@ public class ConsumerConfiguration implements Serializable {
      * @param messageListener
      *            the listener object
      */
-    public ConsumerConfiguration setMessageListener(MessageListener messageListener) {
+    public ConsumerConfiguration setMessageListener(MessageListener<byte[]> messageListener) {
         checkNotNull(messageListener);
         conf.setMessageListener(messageListener);
         return this;
@@ -193,7 +193,7 @@ public class ConsumerConfiguration implements Serializable {
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
      *
-     * @param The
+     * @param action
      *            consumer action
      */
     public void setCryptoFailureAction(ConsumerCryptoFailureAction action) {
@@ -336,7 +336,7 @@ public class ConsumerConfiguration implements Serializable {
         return conf.getProperties();
     }
 
-    public ConsumerConfigurationData getConfigurationData() {
+    public ConsumerConfigurationData<byte[]> getConfigurationData() {
         return conf;
     }
 }
