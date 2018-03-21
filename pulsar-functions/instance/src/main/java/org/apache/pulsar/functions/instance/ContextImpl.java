@@ -183,12 +183,17 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public void incrCounter(String key, long amount) {
+    public void incrementCounter(String key, long amount) {
         if (null != stateContext) {
             stateContext.incr(key, amount);
         } else {
             throw new RuntimeException("State is not enabled.");
         }
+    }
+
+    @Override
+    public void decrementCounter(String key, long amount) {
+        incrementCounter(key, -1 * amount);
     }
 
     @Override

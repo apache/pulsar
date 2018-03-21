@@ -24,7 +24,7 @@ You could use Pulsar Functions, for example, to set up the following processing 
 
 ### Example function
 
-Here's an example of the "input sanitizer" Python function method above:
+Here's an example "input sanitizer" function written in Python:
 
 ```python
 def clean_string(s):
@@ -108,7 +108,7 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 
 ## Counters
 
-All Pulsar Functions that use the Pulsar Functions SDK have access to a distributed counter
+All Pulsar Functions that use the [Pulsar Functions SDK](#sdk) have access to a distributed counter that functions can increment and decrement on a per-key basis.
 
 ## User config
 

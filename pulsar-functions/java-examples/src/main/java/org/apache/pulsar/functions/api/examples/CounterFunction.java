@@ -27,7 +27,7 @@ public class CounterFunction implements PulsarFunction<String, Void> {
         String[] parts = input.split("\\.");
 
         for (String part : parts) {
-            context.incrCounter(part, 1);
+            context.incrementCounter(part, 1);
         }
 
         return null;
