@@ -41,7 +41,7 @@ clean_local:
 	rm -rf generated
 
 ruby_setup:
-	gem install bundler \
+	gem install --user-install bundler \
 		--no-rdoc \
 		--no-ri
 	NOKOGIRI_USE_SYSTEM_LIBRARIES=true $(BUNDLE) install \
