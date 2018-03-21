@@ -112,13 +112,13 @@ class ProcessRuntime implements Runtime {
             args.add(instanceConfig.getFunctionConfig().getLogTopic());
         }
         if (instanceConfig.getFunctionConfig().getCustomSerdeInputsCount() > 0) {
-            String sourceTopicString = "";
+            String inputTopicString = "";
             String inputSerdeClassNameString = "";
             for (Map.Entry<String, String> entry : instanceConfig.getFunctionConfig().getCustomSerdeInputsMap().entrySet()) {
-                if (sourceTopicString.isEmpty()) {
-                    sourceTopicString = entry.getKey();
+                if (inputTopicString.isEmpty()) {
+                    inputTopicString = entry.getKey();
                 } else {
-                    sourceTopicString = sourceTopicString + "," + entry.getKey();
+                    inputTopicString = inputTopicString + "," + entry.getKey();
                 }
                 if (inputSerdeClassNameString.isEmpty()) {
                     inputSerdeClassNameString = entry.getValue();
@@ -126,22 +126,22 @@ class ProcessRuntime implements Runtime {
                     inputSerdeClassNameString = inputSerdeClassNameString + "," + entry.getValue();
                 }
             }
-            args.add("--custom_serde_source_topics");
-            args.add(sourceTopicString);
+            args.add("--custom_serde_input_topics");
+            args.add(inputTopicString);
             args.add("--custom_serde_classnames");
             args.add(inputSerdeClassNameString);
         }
         if (instanceConfig.getFunctionConfig().getInputsCount() > 0) {
-            String sourceTopicString = "";
+            String inputTopicString = "";
             for (String topicName : instanceConfig.getFunctionConfig().getInputsList()) {
-                if (sourceTopicString.isEmpty()) {
-                    sourceTopicString = topicName;
+                if (inputTopicString.isEmpty()) {
+                    inputTopicString = topicName;
                 } else {
-                    sourceTopicString = sourceTopicString + "," + topicName;
+                    inputTopicString = inputTopicString + "," + topicName;
                 }
             }
-            args.add("--source_topics");
-            args.add(sourceTopicString);
+            args.add("--input_topics");
+            args.add(inputTopicString);
         }
         args.add("--auto_ack");
         if (instanceConfig.getFunctionConfig().getAutoAck()) {
@@ -151,7 +151,7 @@ class ProcessRuntime implements Runtime {
         }
         if (instanceConfig.getFunctionConfig().getOutput() != null
                 && !instanceConfig.getFunctionConfig().getOutput().isEmpty()) {
-            args.add("--sink_topic");
+            args.add("--output_topic");
             args.add(instanceConfig.getFunctionConfig().getOutput());
         }
         if (instanceConfig.getFunctionConfig().getOutputSerdeClassName() != null

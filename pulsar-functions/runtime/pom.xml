@@ -70,9 +70,10 @@
               <tasks>
                 <echo>building python instance</echo>
                 <mkdir dir="${basedir}/target/python-instance"/>
-                <mkdir dir="${basedir}/target/python-instance/pulsarfunction"/>
                 <copydir src="${basedir}/../instance/src/main/python" dest="${basedir}/target/python-instance"/>
-                <copydir src="${basedir}/../api-python" dest="${basedir}/target/python-instance/pulsarfunction"/>
+                <copy file="${basedir}/../../pulsar-client-cpp/python/pulsar.py" tofile="${basedir}/target/python-instance/pulsar.py"/>
+                <mkdir dir="${basedir}/target/python-instance/functions"/>
+                <copydir src="${basedir}/../../pulsar-client-cpp/python/functions" dest="${basedir}/target/python-instance/functions"/>
               </tasks>
             </configuration>
           </execution>

@@ -19,9 +19,9 @@
 package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 
-public class ExclamationFunction implements PulsarFunction<String, String> {
+public class ExclamationFunction implements Function<String, String> {
 
     @Override
     public String process(String input, Context context) {

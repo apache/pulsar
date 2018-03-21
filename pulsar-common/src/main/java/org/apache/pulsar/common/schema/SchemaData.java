@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.schema;
 
+import java.util.HashMap;
 import java.util.Map;
 import lombok.Builder;
 import lombok.Data;
@@ -30,5 +31,6 @@ public class SchemaData {
     private final long timestamp;
     private final String user;
     private final byte[] data;
-    private final Map<String, String> props;
+    @Builder.Default
+    public final Map<String, String> props = new HashMap<>();
 }

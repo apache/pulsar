@@ -2515,7 +2515,7 @@ public class ManagedCursorTest extends MockedBookKeeperTestCase {
         // verify cursor-ledger's last entry has individual-deleted positions
         final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger individualDeletedMessagesCount = new AtomicInteger(0);
-        bkc.asyncOpenLedger(c1.getCursorLedger(), DigestType.MAC, "".getBytes(), (rc, lh, ctx) -> {
+        bkc.asyncOpenLedger(c1.getCursorLedger(), DigestType.CRC32C, "".getBytes(), (rc, lh, ctx) -> {
             if (rc == BKException.Code.OK) {
                 long lastEntry = lh.getLastAddConfirmed();
                 lh.asyncReadEntries(lastEntry, lastEntry, (rc1, lh1, seq, ctx1) -> {

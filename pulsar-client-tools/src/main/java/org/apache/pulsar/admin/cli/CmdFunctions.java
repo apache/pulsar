@@ -46,7 +46,7 @@ import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
 import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.instance.InstanceConfig;
@@ -62,7 +62,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.Function;
 import org.apache.pulsar.functions.utils.Utils;
 
 @Slf4j
@@ -78,6 +77,7 @@ public class CmdFunctions extends CmdBase {
     private final GetFunctionStatus statuser;
     private final ListFunctions lister;
     private final StateGetter stateGetter;
+    private final TriggerFunction triggerer;
 
     /**
      * Base command
@@ -250,13 +250,13 @@ public class CmdFunctions extends CmdBase {
 
         private void doJavaSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
             File file = new File(jarFile);
-            // check if the function class exists in Jar and it implements PulsarFunction class
+            // check if the function class exists in Jar and it implements Function class
             if (!Reflections.classExistsInJar(file, functionConfigBuilder.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfigBuilder.getClassName(), jarFile));
-            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), PulsarFunction.class)
-                    && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither PulsarFunction nor java.util.Function",
+            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)
+                    && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), java.util.function.Function.class)) {
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither Function nor java.util.function.Function",
                         functionConfigBuilder.getClassName(), jarFile));
             }
 
@@ -269,20 +269,20 @@ public class CmdFunctions extends CmdBase {
 
             Object userClass = Reflections.createInstance(functionConfigBuilder.getClassName(), file);
             Class<?>[] typeArgs;
-            if (userClass instanceof PulsarFunction) {
-                PulsarFunction pulsarFunction = (PulsarFunction) userClass;
+            if (userClass instanceof Function) {
+                Function pulsarFunction = (Function) userClass;
                 if (pulsarFunction == null) {
                     throw new IllegalArgumentException(String.format("Pulsar function class %s could not be instantiated from jar %s",
                             functionConfigBuilder.getClassName(), jarFile));
                 }
-                typeArgs = TypeResolver.resolveRawArguments(PulsarFunction.class, pulsarFunction.getClass());
+                typeArgs = TypeResolver.resolveRawArguments(Function.class, pulsarFunction.getClass());
             } else {
-                Function function = (Function) userClass;
+                java.util.function.Function function = (java.util.function.Function) userClass;
                 if (function == null) {
                     throw new IllegalArgumentException(String.format("Java Util function class %s could not be instantiated from jar %s",
                             functionConfigBuilder.getClassName(), jarFile));
                 }
-                typeArgs = TypeResolver.resolveRawArguments(Function.class, function.getClass());
+                typeArgs = TypeResolver.resolveRawArguments(java.util.function.Function.class, function.getClass());
             }
 
             // Check if the Input serialization/deserialization class exists in jar or already loaded and that it
@@ -478,8 +478,7 @@ public class CmdFunctions extends CmdBase {
                             instanceConfig,
                             userCodeFile,
                             containerFactory,
-                            null,
-                            0);
+                            null);
                     spawners.add(runtimeSpawner);
                     runtimeSpawner.start();
                 }
@@ -619,6 +618,22 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Trigger function")
+    class TriggerFunction extends FunctionCommand {
+        @Parameter(names = "--triggerValue", description = "The value the function needs to be triggered with")
+        protected String triggerValue;
+        @Parameter(names = "--triggerFile", description = "The fileName that contains data the function needs to be triggered with")
+        protected String triggerFile;
+        @Override
+        void runCmd() throws Exception {
+            if (triggerFile == null && triggerValue == null) {
+                throw new RuntimeException("One of triggerValue/triggerFile has to be present");
+            }
+            String retval = fnAdmin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
+            System.out.println(retval);
+        }
+    }
+
     public CmdFunctions(PulsarAdmin admin) {
         super("functions", admin);
         this.fnAdmin = (PulsarAdminWithFunctions) admin;
@@ -630,6 +645,7 @@ public class CmdFunctions extends CmdBase {
         statuser = new GetFunctionStatus();
         lister = new ListFunctions();
         stateGetter = new StateGetter();
+        triggerer = new TriggerFunction();
         jcommander.addCommand("localrun", getLocalRunner());
         jcommander.addCommand("create", getCreater());
         jcommander.addCommand("delete", getDeleter());
@@ -638,6 +654,7 @@ public class CmdFunctions extends CmdBase {
         jcommander.addCommand("getstatus", getStatuser());
         jcommander.addCommand("list", getLister());
         jcommander.addCommand("querystate", getStateGetter());
+        jcommander.addCommand("trigger", getTriggerer());
     }
 
     @VisibleForTesting
@@ -676,5 +693,10 @@ public class CmdFunctions extends CmdBase {
     @VisibleForTesting
     StateGetter getStateGetter() {
         return stateGetter;
+    }
+
+    @VisibleForTesting
+    TriggerFunction getTriggerer() {
+        return triggerer;
     }
 }

@@ -250,6 +250,19 @@ public class TopicName implements ServiceUnitId {
     }
 
     /**
+     * Returns the http rest path for use in the admin web service
+     *
+     * @return topic rest path
+     */
+    public String getRestPath() {
+        if (isV2()) {
+            return String.format("%s/%s/%s", property, namespacePortion, getEncodedLocalName());
+        } else {
+            return String.format("%s/%s/%s/%s", property, cluster, namespacePortion, getEncodedLocalName());
+        }
+    }
+
+    /**
      * Returns the name of the persistence resource associated with the completeTopicName.
      *
      * @return the relative path to be used in persistence
@@ -260,7 +273,7 @@ public class TopicName implements ServiceUnitId {
 
         // For legacy naming scheme, the convention is: domain://property/cluster/namespace/topic
         // We want to persist in the order: property/cluster/namespace/domain/topic
-        if (cluster == null) {
+        if (isV2()) {
             return String.format("%s/%s/%s/%s", property, namespacePortion, domain, getEncodedLocalName());
         } else {
             return String.format("%s/%s/%s/%s/%s", property, cluster, namespacePortion, domain, getEncodedLocalName());
@@ -277,7 +290,7 @@ public class TopicName implements ServiceUnitId {
      * @return
      */
     public String getLookupName() {
-        if (cluster == null) {
+        if (isV2()) {
             return String.format("%s/%s/%s/%s", domain, property, namespacePortion, getEncodedLocalName());
         } else {
             return String.format("%s/%s/%s/%s/%s", domain, property, cluster, namespacePortion, getEncodedLocalName());
@@ -319,4 +332,11 @@ public class TopicName implements ServiceUnitId {
         return this.equals(otherTopicName);
     }
 
+    /**
+     * Returns true if this a V2 topic name prop/ns/topic-name
+     * @return true if V2
+     */
+    public boolean isV2() {
+        return cluster == null;
+    }
 }

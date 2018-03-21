@@ -130,7 +130,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
 
     private void starReceivingMessages() throws PulsarClientException {
         for (ConsumerImpl<T> consumer : consumers) {
-            consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
+            consumer.sendFlowPermitsToBroker(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
             receiveMessageFromConsumer(consumer);
         }
     }
@@ -363,18 +363,6 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public boolean isConnected() {
         return consumers.stream().allMatch(ConsumerImpl::isConnected);
-    }
-
-    @Override
-    void connectionFailed(PulsarClientException exception) {
-        // noop
-
-    }
-
-    @Override
-    void connectionOpened(ClientCnx cnx) {
-        // noop
-
     }
 
     void messageReceived(Message<T> message) {

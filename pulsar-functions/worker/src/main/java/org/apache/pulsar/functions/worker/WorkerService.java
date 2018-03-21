@@ -58,21 +58,6 @@ public class WorkerService {
         this.workerConfig = workerConfig;
     }
 
-    public static ServletContextHandler newServletContextHandler(String contextPath, WorkerService workerService) {
-        final ResourceConfig config = new ResourceConfig(Resources.get());
-        final ServletContextHandler contextHandler =
-                new ServletContextHandler(ServletContextHandler.NO_SESSIONS);
-
-        contextHandler.setAttribute(FunctionApiResource.ATTRIBUTE_FUNCTION_WORKER, workerService);
-        contextHandler.setContextPath(contextPath);
-
-        final ServletHolder apiServlet =
-                new ServletHolder(new ServletContainer(config));
-        contextHandler.addServlet(apiServlet, "/*");
-
-        return contextHandler;
-    }
-
     public void start() throws InterruptedException {
         try {
             start(FunctionMetadataSetup.setupFunctionMetadata(workerConfig));

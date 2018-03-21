@@ -74,20 +74,19 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
 import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.PulsarFunction;
+import org.apache.pulsar.functions.api.Function;
 import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig;
 import org.apache.pulsar.functions.proto.Function.FunctionConfig.ProcessingGuarantees;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.functioncache.FunctionCacheManager;
 import org.apache.pulsar.functions.instance.producers.Producers;
-import org.apache.pulsar.functions.instance.producers.SimpleOneSinkTopicProducers;
+import org.apache.pulsar.functions.instance.producers.SimpleOneOuputTopicProducers;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Utils;
 import org.powermock.api.mockito.PowerMockito;
 import org.powermock.core.classloader.annotations.PowerMockIgnore;
 import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.testng.PowerMockObjectFactory;
 import org.powermock.reflect.Whitebox;
 import org.testng.IObjectFactory;
 import org.testng.annotations.BeforeMethod;
@@ -99,7 +98,7 @@ import org.testng.annotations.Test;
  */
 @Slf4j
 @PrepareForTest({ JavaInstanceRunnable.class, StorageClientBuilder.class, MessageBuilder.class, Reflections.class })
-@PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*", "org.apache.logging.log4j.*" })
+@PowerMockIgnore({ "javax.management.*", "org.apache.pulsar.common.api.proto.*", "org.apache.logging.log4j.*", "org/apache/pulsar/common/api/proto/PulsarApi*", "org.apache.pulsar.common.util.protobuf.*", "org.apache.pulsar.shade.*" })
 public class JavaInstanceRunnableProcessTest {
 
     @ObjectFactory
@@ -107,14 +106,14 @@ public class JavaInstanceRunnableProcessTest {
         return new org.powermock.modules.testng.PowerMockObjectFactory();
     }
 
-    private static class TestFunction implements PulsarFunction<String, String> {
+    private static class TestFunction implements Function<String, String> {
         @Override
         public String process(String input, Context context) throws Exception {
             return input + "!";
         }
     }
 
-    private static class TestFailureFunction implements PulsarFunction<String, String> {
+    private static class TestFailureFunction implements Function<String, String> {
 
         private int processId2Count = 0;
 
@@ -134,7 +133,7 @@ public class JavaInstanceRunnableProcessTest {
         }
     }
 
-    private static class TestVoidFunction implements PulsarFunction<String, Void> {
+    private static class TestVoidFunction implements Function<String, Void> {
 
         @Override
         public Void process(String input, Context context) throws Exception {
@@ -232,7 +231,7 @@ public class JavaInstanceRunnableProcessTest {
             .setClassName(TestFunction.class.getName())
             .addInputs("test-src-topic")
             .setName("test-function")
-            .setOutput("test-sink-topic")
+            .setOutput("test-output-topic")
             .setProcessingGuarantees(ProcessingGuarantees.ATLEAST_ONCE)
             .setTenant("test-tenant")
             .setNamespace("test-namespace")
@@ -390,6 +389,13 @@ public class JavaInstanceRunnableProcessTest {
                         when(msg.getSequenceId()).thenReturn(seqId);
                         return builder;
                     });
+                when(builder.setProperty(anyString(), anyString()))
+                        .thenAnswer(invocationOnMock1 -> {
+                            String key = invocationOnMock1.getArgumentAt(0, String.class);
+                            String value = invocationOnMock1.getArgumentAt(1, String.class);
+                            when(msg.getProperty(eq(key))).thenReturn(value);
+                            return builder;
+                            });
                 when(builder.build()).thenReturn(msg);
                 return builder;
             });
@@ -431,15 +437,15 @@ public class JavaInstanceRunnableProcessTest {
         }
 
         // 3. verify producers and consumers are setup
-        Producers producers = runnable.getSinkProducer();
-        assertTrue(producers instanceof SimpleOneSinkTopicProducers);
+        Producers producers = runnable.getOutputProducer();
+        assertTrue(producers instanceof SimpleOneOuputTopicProducers);
         assertSame(mockProducers.get(Pair.of(
             fnConfig.getOutput(),
             null
-        )).getProducer(), ((SimpleOneSinkTopicProducers) producers).getProducer());
+        )).getProducer(), ((SimpleOneOuputTopicProducers) producers).getProducer());
 
-        assertEquals(mockConsumers.size(), runnable.getSourceConsumers().size());
-        for (Map.Entry<String, Consumer> consumerEntry : runnable.getSourceConsumers().entrySet()) {
+        assertEquals(mockConsumers.size(), runnable.getInputConsumers().size());
+        for (Map.Entry<String, Consumer> consumerEntry : runnable.getInputConsumers().entrySet()) {
             String topic = consumerEntry.getKey();
 
             Consumer mockConsumer = mockConsumers.get(Pair.of(
@@ -458,7 +464,7 @@ public class JavaInstanceRunnableProcessTest {
         for (ConsumerInstance consumer : mockConsumers.values()) {
             verify(consumer.getConsumer(), times(1)).close();
         }
-        assertTrue(runnable.getSourceConsumers().isEmpty());
+        assertTrue(runnable.getInputConsumers().isEmpty());
 
         for (ProducerInstance producer : mockProducers.values()) {
             verify(producer.getProducer(), times(1)).close();

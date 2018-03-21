@@ -16,20 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api;
+package org.apache.pulsar.client.api;
 
 /**
- * This is the core interface of the function api. The process is called
- * for every message of the input topic of the function. The incoming input bytes
- * are converted to the input type I for simple Java types(String, Integer, Boolean,
- * Map, and List types) and for org.Json type. If this serialization approach does not
- * meet your needs, you can use the byte stream handler defined in RawRequestHandler.
+ * intial position at which the cursor will be set when subscribe
+ *
+ *
  */
-@FunctionalInterface
-public interface PulsarFunction<I, O> {
+public enum SubscriptionInitialPosition {
     /**
-     * Process the input.
-     * @return the output
+     * the latest position which means the start consuming position will be the last message
      */
-    O process(I input, Context context) throws Exception;
+    Latest,
+
+    /**
+     * the earliest position which means the start consuming position will be the first message
+     */
+    Earliest,
 }

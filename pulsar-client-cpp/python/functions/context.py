@@ -100,8 +100,8 @@ class Context(object):
     pass
 
   @abstractmethod
-  def get_sink_topic(self):
-    '''Returns the sink topic of function'''
+  def get_output_topic(self):
+    '''Returns the output topic of function'''
     pass
 
   @abstractmethod

@@ -104,6 +104,7 @@ message SingleMessageMetadata {
 	repeated KeyValue properties    = 1;
 	optional string partition_key   = 2;
 	required int32 payload_size	= 3;
+        optional bool compacted_out     = 4 [default = false];
 }
 
 enum ServerError {
@@ -215,6 +216,13 @@ message CommandSubscribe {
     optional bool read_compacted = 11;
 
 	optional Schema schema = 12;
+	enum InitialPosition {
+		Latest   = 0;
+		Earliest = 1;
+	}
+	// Signal wthether the subscription will initialize on latest
+	// or not -- earliest
+	optional InitialPosition initialPosition = 13 [default = Latest];
 }
 
 message CommandPartitionedTopicMetadata {

@@ -18,7 +18,7 @@
  */
 package org.apache.pulsar.functions.instance.producers;
 
-import static org.apache.pulsar.functions.instance.producers.MultiConsumersOneSinkTopicProducers.makeProducerName;
+import static org.apache.pulsar.functions.instance.producers.MultiConsumersOneOuputTopicProducers.makeProducerName;
 import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.anyString;
 import static org.mockito.Matchers.eq;
@@ -41,15 +41,15 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 /**
- * Unit test of {@link MultiConsumersOneSinkTopicProducers}.
+ * Unit test of {@link MultiConsumersOneOuputTopicProducers}.
  */
-public class MultiConsumersOneSinkTopicProducersTest {
+public class MultiConsumersOneOutputTopicProducersTest {
 
-    private static final String TEST_SINK_TOPIC = "test-sink-topic";
+    private static final String TEST_OUTPUT_TOPIC = "test-output-topic";
 
     private PulsarClient mockClient;
     private final Map<String, Producer> mockProducers = new HashMap<>();
-    private MultiConsumersOneSinkTopicProducers producers;
+    private MultiConsumersOneOuputTopicProducers producers;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -70,7 +70,7 @@ public class MultiConsumersOneSinkTopicProducersTest {
                 }
             });
 
-        producers = new MultiConsumersOneSinkTopicProducers(mockClient, TEST_SINK_TOPIC);
+        producers = new MultiConsumersOneOuputTopicProducers(mockClient, TEST_OUTPUT_TOPIC);
         producers.initialize();
     }
 
@@ -97,7 +97,7 @@ public class MultiConsumersOneSinkTopicProducersTest {
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
             .createProducer(
-                eq(TEST_SINK_TOPIC),
+                eq(TEST_OUTPUT_TOPIC),
                 any(ProducerConfiguration.class)
             );
         assertTrue(producers.getProducers().containsKey(srcTopic));
@@ -108,7 +108,7 @@ public class MultiConsumersOneSinkTopicProducersTest {
         assertSame(mockProducers.get(producerName), producer);
         verify(mockClient, times(1))
             .createProducer(
-                eq(TEST_SINK_TOPIC),
+                eq(TEST_OUTPUT_TOPIC),
                 any(ProducerConfiguration.class)
             );
         assertTrue(producers.getProducers().containsKey(srcTopic));

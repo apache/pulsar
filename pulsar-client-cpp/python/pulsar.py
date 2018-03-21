@@ -103,6 +103,9 @@ import _pulsar
 
 from _pulsar import Result, CompressionType, ConsumerType, PartitionsRoutingMode  # noqa: F401
 
+from functions.function import Function
+from functions.context import Context
+from functions.serde import SerDe, IdentitySerDe, PickleSerDe
 
 class MessageId:
     """
@@ -642,7 +645,7 @@ class Producer:
         mb = _pulsar.MessageBuilder()
         mb.content(content)
         if properties:
-            for k, v in properties:
+            for k, v in properties.items():
                 mb.property(k, v)
         if partition_key:
             mb.partition_key(partition_key)

@@ -24,6 +24,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -76,7 +77,11 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             messageRouter = customMessageRouter;
             break;
         case RoundRobinPartition:
-            messageRouter = new RoundRobinPartitionMessageRouterImpl(conf.getHashingScheme());
+            messageRouter = new RoundRobinPartitionMessageRouterImpl(
+                conf.getHashingScheme(),
+                ThreadLocalRandom.current().nextInt(topicMetadata.numPartitions()),
+                conf.isBatchingEnabled(),
+                TimeUnit.MICROSECONDS.toMillis(conf.getBatchingMaxPublishDelayMicros()));
             break;
         case SinglePartition:
         default:
@@ -136,6 +141,14 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
             });
         }
 
+    }
+
+    @Override
+    public MessageId send(Message<T> message) throws PulsarClientException {
+        int partition = routerPolicy.choosePartition(message, topicMetadata);
+        checkArgument(partition >= 0 && partition < topicMetadata.numPartitions(),
+            "Illegal partition index chosen by the message routing policy");
+        return producers.get(partition).send(message);
     }
 
     @Override
@@ -216,16 +229,6 @@ public class PartitionedProducerImpl<T> extends ProducerBase<T> {
     }
 
     private static final Logger log = LoggerFactory.getLogger(PartitionedProducerImpl.class);
-
-    @Override
-    void connectionFailed(PulsarClientException exception) {
-        // noop
-    }
-
-    @Override
-    void connectionOpened(ClientCnx cnx) {
-        // noop
-    }
 
     @Override
     String getHandlerName() {
