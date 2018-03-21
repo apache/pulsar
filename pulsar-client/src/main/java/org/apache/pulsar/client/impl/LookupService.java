@@ -19,9 +19,11 @@
 package org.apache.pulsar.client.impl;
 
 import java.net.InetSocketAddress;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 
@@ -62,4 +64,13 @@ interface LookupService extends AutoCloseable {
 	 * @return
 	 */
 	public String getServiceUrl();
+
+	/**
+	 * Returns all the topics name for a given namespace.
+	 *
+	 * @param namespace : namespace-name
+	 * @return
+	 */
+	public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace);
+
 }

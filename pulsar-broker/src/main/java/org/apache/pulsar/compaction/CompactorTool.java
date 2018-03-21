@@ -20,38 +20,31 @@ package org.apache.pulsar.compaction;
 
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
-import java.io.FileInputStream;
-import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
-import com.beust.jcommander.JCommander;
-import com.beust.jcommander.Parameter;
-import com.beust.jcommander.ParameterException;
-import com.beust.jcommander.Parameters;
-import org.apache.pulsar.broker.ServiceConfiguration;
-import org.apache.pulsar.broker.PulsarService;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import java.util.Properties;
-
-import org.apache.pulsar.client.api.ClientConfiguration;
 import java.nio.file.Paths;
-
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.BookKeeperClientFactory;
 import org.apache.pulsar.broker.BookKeeperClientFactoryImpl;
+import org.apache.pulsar.broker.PulsarService;
+import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
-
+import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
+import com.google.common.util.concurrent.ThreadFactoryBuilder;
 
-import org.apache.bookkeeper.client.BookKeeper;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import lombok.Cleanup;
 
 public class CompactorTool {
 
@@ -102,7 +95,8 @@ public class CompactorTool {
         ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(
                 new ThreadFactoryBuilder().setNameFormat("compaction-%d").setDaemon(true).build());
 
-        ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl();
+        OrderedScheduler executor = OrderedScheduler.newSchedulerBuilder().build();
+        ZooKeeperClientFactory zkClientFactory = new ZookeeperBkClientFactoryImpl(executor);
 
         ZooKeeper zk = zkClientFactory.create(brokerConfig.getZookeeperServers(),
                                               ZooKeeperClientFactory.SessionType.ReadWrite,
@@ -118,6 +112,7 @@ public class CompactorTool {
             bkClientFactory.close();
             zk.close();
             scheduler.shutdownNow();
+            executor.shutdown();
         }
     }
 

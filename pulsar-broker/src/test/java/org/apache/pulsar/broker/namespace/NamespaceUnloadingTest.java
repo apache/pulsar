@@ -53,7 +53,8 @@ public class NamespaceUnloadingTest extends BrokerTestBase {
     public void testUnloadPartiallyLoadedNamespace() throws Exception {
         admin.namespaces().createNamespace("prop/use/ns-test-2", 16);
 
-        Producer producer = pulsarClient.createProducer("persistent://prop/use/ns-test-2/my-topic");
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://prop/use/ns-test-2/my-topic")
+                .create();
 
         assertTrue(admin.namespaces().getNamespaces("prop", "use").contains("prop/use/ns-test-2"));
 

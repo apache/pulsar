@@ -89,7 +89,25 @@ public interface PulsarClient extends Closeable {
      *
      * @since 2.0.0
      */
-    ProducerBuilder newProducer();
+    ProducerBuilder<byte[]> newProducer();
+
+    /**
+     * Create a producer with default for publishing on a specific topic
+     * <p>
+     * Example:
+     *
+     * <code>
+     * Producer producer = client.newProducer(mySchema).topic(myTopic).create();
+     * </code>
+     *
+     * @param schema
+     *          provide a way to convert between serialized data and domain objects
+     *
+     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
+     */
+    <T> ProducerBuilder<T> newProducer(Schema<T> schema);
 
     /**
      * Create a producer with default for publishing on a specific topic
@@ -98,7 +116,19 @@ public interface PulsarClient extends Closeable {
      *
      * @since 2.0.0
      */
-    ConsumerBuilder newConsumer();
+    ConsumerBuilder<byte[]> newConsumer();
+
+    /**
+     * Create a producer with default for publishing on a specific topic
+     *
+     * @param schema
+     *          provide a way to convert between serialized data and domain objects
+     *
+     * @return a {@link ProducerBuilder} object to configure and construct the {@link Producer} instance
+     *
+     * @since 2.0.0
+     */
+    <T> ConsumerBuilder<T> newConsumer(Schema<T> schema);
 
     /**
      * Create a topic reader for reading messages from the specified topic.
@@ -110,7 +140,22 @@ public interface PulsarClient extends Closeable {
      *
      * @since 2.0.0
      */
-    ReaderBuilder newReader();
+    ReaderBuilder<byte[]> newReader();
+
+    /**
+     * Create a topic reader for reading messages from the specified topic.
+     * <p>
+     * The Reader provides a low-level abstraction that allows for manual positioning in the topic, without using a
+     * subscription. Reader can only work on non-partitioned topics.
+     *
+     * @param schema
+     *          provide a way to convert between serialized data and domain objects
+     *
+     * @return a {@link ReaderBuilder} that can be used to configure and construct a {@link Reader} instance
+     *
+     * @since 2.0.0
+     */
+    <T> ReaderBuilder<T> newReader(Schema<T> schema);
 
     /**
      * Create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -129,7 +174,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #newProducer()} to build a new producer
      */
     @Deprecated
-    Producer createProducer(String topic) throws PulsarClientException;
+    Producer<byte[]> createProducer(String topic) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with default {@link ProducerConfiguration} for publishing on a specific topic
@@ -140,7 +185,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #newProducer()} to build a new producer
      */
     @Deprecated
-    CompletableFuture<Producer> createProducerAsync(String topic);
+    CompletableFuture<Producer<byte[]>> createProducerAsync(String topic);
 
     /**
      * Create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -156,7 +201,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #newProducer()} to build a new producer
      */
     @Deprecated
-    Producer createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
+    Producer<byte[]> createProducer(String topic, ProducerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a producer with given {@code ProducerConfiguration} for publishing on a specific topic
@@ -169,7 +214,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated use {@link #newProducer()} to build a new producer
      */
     @Deprecated
-    CompletableFuture<Producer> createProducerAsync(String topic, ProducerConfiguration conf);
+    CompletableFuture<Producer<byte[]>> createProducerAsync(String topic, ProducerConfiguration conf);
 
     /**
      * Subscribe to the given topic and subscription combination with default {@code ConsumerConfiguration}
@@ -185,7 +230,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
     @Deprecated
-    Consumer subscribe(String topic, String subscription) throws PulsarClientException;
+    Consumer<byte[]> subscribe(String topic, String subscription) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using default
@@ -199,7 +244,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
     @Deprecated
-    CompletableFuture<Consumer> subscribeAsync(String topic, String subscription);
+    CompletableFuture<Consumer<byte[]>> subscribeAsync(String topic, String subscription);
 
     /**
      * Subscribe to the given topic and subscription combination with given {@code ConsumerConfiguration}
@@ -215,7 +260,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
     @Deprecated
-    Consumer subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
+    Consumer<byte[]> subscribe(String topic, String subscription, ConsumerConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously subscribe to the given topic and subscription combination using given
@@ -231,7 +276,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated Use {@link #newConsumer()} to build a new consumer
      */
     @Deprecated
-    CompletableFuture<Consumer> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
+    CompletableFuture<Consumer<byte[]>> subscribeAsync(String topic, String subscription, ConsumerConfiguration conf);
 
     /**
      * Create a topic reader with given {@code ReaderConfiguration} for reading messages from the specified topic.
@@ -259,7 +304,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated Use {@link #newReader()} to build a new reader
      */
     @Deprecated
-    Reader createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException;
+    Reader<byte[]> createReader(String topic, MessageId startMessageId, ReaderConfiguration conf) throws PulsarClientException;
 
     /**
      * Asynchronously create a topic reader with given {@code ReaderConfiguration} for reading messages from the
@@ -288,7 +333,7 @@ public interface PulsarClient extends Closeable {
      * @deprecated Use {@link #newReader()} to build a new reader
      */
     @Deprecated
-    CompletableFuture<Reader> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
+    CompletableFuture<Reader<byte[]>> createReaderAsync(String topic, MessageId startMessageId, ReaderConfiguration conf);
 
     /**
      * Close the PulsarClient and release all the resources.

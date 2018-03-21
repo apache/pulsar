@@ -50,12 +50,12 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import org.apache.bookkeeper.client.BookKeeper.DigestType;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -78,10 +78,12 @@ import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventListner;
 import org.apache.pulsar.broker.zookeeper.aspectj.ClientCnxnAspect.EventType;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.ClientBuilderImpl;
 import org.apache.pulsar.client.impl.PulsarClientImpl;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.configuration.FieldContext;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
@@ -143,7 +145,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final EventLoopGroup acceptorGroup;
     private final EventLoopGroup workerGroup;
-    private final OrderedSafeExecutor topicOrderedExecutor;
+    private final OrderedScheduler topicOrderedExecutor;
     // offline topic backlog cache
     private final ConcurrentOpenHashMap<TopicName, PersistentOfflineTopicStats> offlineTopicStatCache;
     private static final ConcurrentOpenHashMap<String, ConfigField> dynamicConfigurationMap = prepareDynamicConfigurationMap();
@@ -197,7 +199,9 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         this.pulsarStats = new PulsarStats(pulsar);
         this.offlineTopicStatCache = new ConcurrentOpenHashMap<>();
 
-        this.topicOrderedExecutor = new OrderedSafeExecutor(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic(), "broker-np-topic-workers");
+        this.topicOrderedExecutor = OrderedScheduler.newSchedulerBuilder()
+                .numThreads(pulsar.getConfiguration().getNumWorkerThreadsForNonPersistentTopic())
+                .name("broker-np-topic-workers").build();
         final DefaultThreadFactory acceptorThreadFactory = new DefaultThreadFactory("pulsar-acceptor");
         final DefaultThreadFactory workersThreadFactory = new DefaultThreadFactory("pulsar-io");
         final int numThreads = Runtime.getRuntime().availableProcessors() * 2;
@@ -496,27 +500,29 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                 String path = PulsarWebResource.path("clusters", cluster);
                 ClusterData data = this.pulsar.getConfigurationCache().clustersCache().get(path)
                         .orElseThrow(() -> new KeeperException.NoNodeException(path));
-                ClientConfiguration configuration = new ClientConfiguration();
-                configuration.setUseTcpNoDelay(false);
-                configuration.setConnectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker());
-                configuration.setStatsInterval(0, TimeUnit.SECONDS);
+                ClientBuilder clientBuilder = PulsarClient.builder()
+                        .enableTcpNoDelay(false)
+                        .connectionsPerBroker(pulsar.getConfiguration().getReplicationConnectionsPerBroker())
+                        .statsInterval(0, TimeUnit.SECONDS);
                 if (pulsar.getConfiguration().isAuthenticationEnabled()) {
-                    configuration.setAuthentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
+                    clientBuilder.authentication(pulsar.getConfiguration().getBrokerClientAuthenticationPlugin(),
                             pulsar.getConfiguration().getBrokerClientAuthenticationParameters());
                 }
-                String clusterUrl = null;
                 if (pulsar.getConfiguration().isReplicationTlsEnabled()) {
-                    clusterUrl = isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
-                            : data.getServiceUrlTls();
-                    configuration.setUseTls(true);
-                    configuration.setTlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath());
-                    configuration
-                            .setTlsAllowInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
+                    clientBuilder
+                            .serviceUrl(isNotBlank(data.getBrokerServiceUrlTls()) ? data.getBrokerServiceUrlTls()
+                                    : data.getServiceUrlTls())
+                            .enableTls(true)
+                            .tlsTrustCertsFilePath(pulsar.getConfiguration().getBrokerClientTrustCertsFilePath())
+                            .allowTlsInsecureConnection(pulsar.getConfiguration().isTlsAllowInsecureConnection());
                 } else {
-                    clusterUrl = isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl()
-                            : data.getServiceUrl();
+                    clientBuilder.serviceUrl(
+                            isNotBlank(data.getBrokerServiceUrl()) ? data.getBrokerServiceUrl() : data.getServiceUrl());
                 }
-                return new PulsarClientImpl(clusterUrl, configuration, this.workerGroup);
+
+                // Share all the IO threads across broker and client connections
+                ClientConfigurationData conf = ((ClientBuilderImpl) clientBuilder).getClientConfigurationData();
+                return new PulsarClientImpl(conf, workerGroup);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -668,7 +674,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             managedLedgerConfig.setWriteQuorumSize(persistencePolicies.getBookkeeperWriteQuorum());
             managedLedgerConfig.setAckQuorumSize(persistencePolicies.getBookkeeperAckQuorum());
             managedLedgerConfig.setThrottleMarkDelete(persistencePolicies.getManagedLedgerMaxMarkDeleteRate());
-            managedLedgerConfig.setDigestType(DigestType.CRC32);
+            managedLedgerConfig.setDigestType(serviceConfig.getManagedLedgerDigestType());
 
             managedLedgerConfig.setMaxUnackedRangesToPersist(serviceConfig.getManagedLedgerMaxUnackedRangesToPersist());
             managedLedgerConfig.setMaxUnackedRangesToPersistInZk(serviceConfig.getManagedLedgerMaxUnackedRangesToPersistInZooKeeper());
@@ -1296,7 +1302,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     }
 
-    public OrderedSafeExecutor getTopicOrderedExecutor() {
+    public OrderedScheduler getTopicOrderedExecutor() {
         return topicOrderedExecutor;
     }
 

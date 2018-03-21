@@ -25,12 +25,20 @@ import static org.apache.pulsar.broker.lookup.TopicLookup.lookupTopicAsync;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion.v5;
 
+import com.google.protobuf.GeneratedMessageLite;
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelOption;
+import io.netty.handler.ssl.SslHandler;
 import java.net.SocketAddress;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import javax.naming.AuthenticationException;
 import javax.net.ssl.SSLSession;
 import org.apache.bookkeeper.mledger.Position;
@@ -41,6 +49,7 @@ import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataCommand;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.web.RestException;
 import org.apache.pulsar.client.api.PulsarClientException;
@@ -50,6 +59,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.CommandUtils;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarHandler;
+import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
@@ -58,6 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStats;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetLastMessageId;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandGetTopicsOfNamespace;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandProducer;
@@ -66,27 +77,23 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSeek;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.Metadata;
+import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
+import org.apache.pulsar.common.schema.SchemaData;
+import org.apache.pulsar.common.schema.SchemaType;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Sets;
-import com.google.protobuf.GeneratedMessageLite;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelHandler;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelOption;
-import io.netty.handler.ssl.SslHandler;
 
 public class ServerCnx extends PulsarHandler {
     private final BrokerService service;
@@ -553,6 +560,7 @@ public class ServerCnx extends PulsarHandler {
         final int priorityLevel = subscribe.hasPriorityLevel() ? subscribe.getPriorityLevel() : 0;
         final boolean readCompacted = subscribe.getReadCompacted();
         final Map<String, String> metadata = CommandUtils.metadataFromCommand(subscribe);
+        final InitialPosition initialPosition = subscribe.getInitialPosition();
 
         CompletableFuture<Boolean> isProxyAuthorizedFuture;
         if (service.isAuthorizationEnabled() && originalPrincipal != null) {
@@ -616,7 +624,7 @@ public class ServerCnx extends PulsarHandler {
                         service.getTopic(topicName.toString())
                                 .thenCompose(topic -> topic.subscribe(ServerCnx.this, subscriptionName, consumerId,
                                                                       subType, priorityLevel, consumerName, isDurable,
-                                                                      startMessageId, metadata, readCompacted))
+                                                                      startMessageId, metadata, readCompacted, initialPosition))
                                 .thenAccept(consumer -> {
                                     if (consumerFuture.complete(consumer)) {
                                         log.info("[{}] Created subscription on topic {} / {}", remoteAddress, topicName,
@@ -693,6 +701,36 @@ public class ServerCnx extends PulsarHandler {
         });
     }
 
+    private static SchemaType getType(PulsarApi.Schema.Type protocolType) {
+        switch (protocolType) {
+            case Json:
+                return SchemaType.JSON;
+            case Avro:
+                return SchemaType.AVRO;
+            case Thrift:
+                return SchemaType.THRIFT;
+            case Protobuf:
+                return SchemaType.PROTOBUF;
+            default:
+                return SchemaType.NONE;
+        }
+    }
+
+    private SchemaData getSchema(PulsarApi.Schema protocolSchema) {
+        return SchemaData.builder()
+            .data(protocolSchema.getSchemaData().toByteArray())
+            .isDeleted(false)
+            .timestamp(System.currentTimeMillis())
+            .user(originalPrincipal)
+            .type(getType(protocolSchema.getType()))
+            .props(protocolSchema.getPropertiesList().stream().collect(
+                Collectors.toMap(
+                    PulsarApi.KeyValue::getKey,
+                    PulsarApi.KeyValue::getValue
+                )
+            )).build();
+    }
+
     @Override
     protected void handleProducer(final CommandProducer cmdProducer) {
         checkArgument(state == State.Connected);
@@ -748,7 +786,8 @@ public class ServerCnx extends PulsarHandler {
                                 Producer producer = existingProducerFuture.getNow(null);
                                 log.info("[{}] Producer with the same id is already created: {}", remoteAddress,
                                         producer);
-                                ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producer.getProducerName()));
+                                ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producer.getProducerName(),
+                                    producer.getSchemaVersion()));
                                 return null;
                             } else {
                                 // There was an early request to create a producer with
@@ -801,41 +840,56 @@ public class ServerCnx extends PulsarHandler {
 
                             disableTcpNoDelayIfNeeded(topicName.toString(), producerName);
 
-                            Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
-                                    isEncrypted, metadata);
-
-                            try {
-                                topic.addProducer(producer);
-
-                                if (isActive()) {
-                                    if (producerFuture.complete(producer)) {
-                                        log.info("[{}] Created new producer: {}", remoteAddress, producer);
-                                        ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
-                                                producer.getLastSequenceId()));
-                                        return;
-                                    } else {
-                                        // The producer's future was completed before by
-                                        // a close command
-                                        producer.closeNow();
-                                        log.info("[{}] Cleared producer created after timeout on client side {}",
-                                                remoteAddress, producer);
-                                    }
-                                } else {
-                                    producer.closeNow();
-                                    log.info("[{}] Cleared producer created after connection was closed: {}",
-                                            remoteAddress, producer);
-                                    producerFuture.completeExceptionally(
-                                            new IllegalStateException("Producer created after connection was closed"));
-                                }
-                            } catch (BrokerServiceException ise) {
-                                log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
-                                        ise.getMessage());
-                                ctx.writeAndFlush(Commands.newError(requestId,
-                                        BrokerServiceException.getClientErrorCode(ise), ise.getMessage()));
-                                producerFuture.completeExceptionally(ise);
+                            CompletableFuture<SchemaVersion> schemaVersionFuture;
+                            if (cmdProducer.hasSchema()) {
+                                schemaVersionFuture = topic.addSchema(getSchema(cmdProducer.getSchema()));
+                            } else {
+                                schemaVersionFuture = CompletableFuture.completedFuture(SchemaVersion.Empty);
                             }
 
-                            producers.remove(producerId, producerFuture);
+                            schemaVersionFuture.exceptionally(exception -> {
+                                ctx.writeAndFlush(Commands.newError(requestId, ServerError.UnknownError, exception.getMessage()));
+                                producers.remove(producerId, producerFuture);
+                                return null;
+                            });
+
+                            schemaVersionFuture.thenAccept(schemaVersion -> {
+                                Producer producer = new Producer(topic, ServerCnx.this, producerId, producerName, authRole,
+                                    isEncrypted, metadata, schemaVersion);
+
+                                try {
+                                    topic.addProducer(producer);
+
+                                    if (isActive()) {
+                                        if (producerFuture.complete(producer)) {
+                                            log.info("[{}] Created new producer: {}", remoteAddress, producer);
+                                            ctx.writeAndFlush(Commands.newProducerSuccess(requestId, producerName,
+                                                producer.getLastSequenceId(), producer.getSchemaVersion()));
+                                            return;
+                                        } else {
+                                            // The producer's future was completed before by
+                                            // a close command
+                                            producer.closeNow();
+                                            log.info("[{}] Cleared producer created after timeout on client side {}",
+                                                remoteAddress, producer);
+                                        }
+                                    } else {
+                                        producer.closeNow();
+                                        log.info("[{}] Cleared producer created after connection was closed: {}",
+                                            remoteAddress, producer);
+                                        producerFuture.completeExceptionally(
+                                            new IllegalStateException("Producer created after connection was closed"));
+                                    }
+                                } catch (BrokerServiceException ise) {
+                                    log.error("[{}] Failed to add producer to topic {}: {}", remoteAddress, topicName,
+                                        ise.getMessage());
+                                    ctx.writeAndFlush(Commands.newError(requestId,
+                                        BrokerServiceException.getClientErrorCode(ise), ise.getMessage()));
+                                    producerFuture.completeExceptionally(ise);
+                                }
+
+                                producers.remove(producerId, producerFuture);
+                            });
                         }).exceptionally(exception -> {
                             Throwable cause = exception.getCause();
                             if (!(cause instanceof ServiceUnitNotReadyException)) {
@@ -1010,7 +1064,7 @@ public class ServerCnx extends PulsarHandler {
             MessageIdData msgIdData = seek.getMessageId();
 
             Position position = new PositionImpl(msgIdData.getLedgerId(), msgIdData.getEntryId());
-            
+
 
             subscription.resetCursor(position).thenRun(() -> {
                 log.info("[{}] [{}][{}] Reset subscription to message id {}", remoteAddress,
@@ -1139,6 +1193,32 @@ public class ServerCnx extends PulsarHandler {
             ctx.writeAndFlush(Commands.newGetLastMessageIdResponse(requestId, messageId));
         } else {
             ctx.writeAndFlush(Commands.newError(getLastMessageId.getRequestId(), ServerError.MetadataError, "Consumer not found"));
+        }
+    }
+
+    @Override
+    protected void handleGetTopicsOfNamespace(CommandGetTopicsOfNamespace commandGetTopicsOfNamespace) {
+        final long requestId = commandGetTopicsOfNamespace.getRequestId();
+        final String namespace = commandGetTopicsOfNamespace.getNamespace();
+
+        try {
+            List<String> topics = getBrokerService().pulsar()
+                .getNamespaceService()
+                .getListOfTopics(NamespaceName.get(namespace));
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Received CommandGetTopicsOfNamespace for namespace [//{}] by {}, size:{}",
+                    remoteAddress, namespace, requestId, topics.size());
+            }
+
+            ctx.writeAndFlush(Commands.newGetTopicsOfNamespaceResponse(topics, requestId));
+        } catch (Exception e) {
+            log.warn("[{]] Error GetTopicsOfNamespace for namespace [//{}] by {}",
+                remoteAddress, namespace, requestId);
+            ctx.writeAndFlush(
+                Commands.newError(requestId,
+                    BrokerServiceException.getClientErrorCode(new ServerMetadataException(e)),
+                    e.getMessage()));
         }
     }
 

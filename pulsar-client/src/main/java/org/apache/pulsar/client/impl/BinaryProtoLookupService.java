@@ -20,17 +20,24 @@ package org.apache.pulsar.client.impl;
 
 import static java.lang.String.format;
 
+import com.google.common.collect.Lists;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.channels.ClosedChannelException;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.partition.PartitionedTopicMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,11 +49,13 @@ public class BinaryProtoLookupService implements LookupService {
     private final PulsarClientImpl client;
     protected final InetSocketAddress serviceAddress;
     private final boolean useTls;
+    private final ExecutorService executor;
 
-    public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, boolean useTls)
+    public BinaryProtoLookupService(PulsarClientImpl client, String serviceUrl, boolean useTls, ExecutorService executor)
             throws PulsarClientException {
         this.client = client;
         this.useTls = useTls;
+        this.executor = executor;
         URI uri;
         try {
             uri = new URI(serviceUrl);
@@ -175,6 +184,66 @@ public class BinaryProtoLookupService implements LookupService {
     public String getServiceUrl() {
         return serviceAddress.toString();
     }
+
+    @Override
+    public CompletableFuture<List<String>> getTopicsUnderNamespace(NamespaceName namespace) {
+        CompletableFuture<List<String>> topicsFuture = new CompletableFuture<List<String>>();
+
+        AtomicLong opTimeoutMs = new AtomicLong(client.getConfiguration().getOperationTimeoutMs());
+        Backoff backoff = new Backoff(100, TimeUnit.MILLISECONDS,
+            opTimeoutMs.get() * 2, TimeUnit.MILLISECONDS,
+            0 , TimeUnit.MILLISECONDS);
+        getTopicsUnderNamespace(serviceAddress, namespace, backoff, opTimeoutMs, topicsFuture);
+        return topicsFuture;
+    }
+
+    private void getTopicsUnderNamespace(InetSocketAddress socketAddress,
+                                         NamespaceName namespace,
+                                         Backoff backoff,
+                                         AtomicLong remainingTime,
+                                         CompletableFuture<List<String>> topicsFuture) {
+        client.getCnxPool().getConnection(socketAddress).thenAccept(clientCnx -> {
+            long requestId = client.newRequestId();
+            ByteBuf request = Commands.newGetTopicsOfNamespaceRequest(
+                namespace.toString(), requestId);
+
+            clientCnx.newGetTopicsOfNamespace(request, requestId).thenAccept(topicsList -> {
+                if (log.isDebugEnabled()) {
+                    log.debug("[namespace: {}] Success get topics list in request: {}", namespace.toString(), requestId);
+                }
+
+                // do not keep partition part of topic name
+                List<String> result = Lists.newArrayList();
+                topicsList.forEach(topic -> {
+                    String filtered = TopicName.get(topic).getPartitionedTopicName();
+                    if (!result.contains(filtered)) {
+                        result.add(filtered);
+                    }
+                });
+
+                topicsFuture.complete(result);
+            }).exceptionally((e) -> {
+                topicsFuture.completeExceptionally(e);
+                return null;
+            });
+        }).exceptionally((e) -> {
+            long nextDelay = Math.min(backoff.next(), remainingTime.get());
+            if (nextDelay <= 0) {
+                topicsFuture.completeExceptionally(new PulsarClientException
+                    .TimeoutException("Could not getTopicsUnderNamespace within configured timeout."));
+                return null;
+            }
+
+            ((ScheduledExecutorService) executor).schedule(() -> {
+                log.warn("[namespace: {}] Could not get connection while getTopicsUnderNamespace -- Will try again in {} ms",
+                    namespace, nextDelay);
+                remainingTime.addAndGet(-nextDelay);
+                getTopicsUnderNamespace(socketAddress, namespace, backoff, remainingTime, topicsFuture);
+            }, nextDelay, TimeUnit.MILLISECONDS);
+            return null;
+        });
+    }
+
 
     @Override
     public void close() throws Exception {

@@ -154,4 +154,8 @@ public class ClientBuilderImpl implements ClientBuilder {
         conf.setMaxNumberOfRejectedRequestPerConnection(maxNumberOfRejectedRequestPerConnection);
         return this;
     }
+
+    public ClientConfigurationData getClientConfigurationData() {
+        return conf;
+    }
 }

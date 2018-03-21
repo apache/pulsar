@@ -24,6 +24,8 @@ import org.apache.commons.codec.digest.Md5Crypt;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 
+import lombok.Cleanup;
+
 import javax.naming.AuthenticationException;
 import java.io.BufferedReader;
 import java.io.File;
@@ -49,7 +51,8 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
         } else if (!confFile.isFile()) {
             throw new IOException("The path is not a file");
         }
-        BufferedReader reader = new BufferedReader(new FileReader(confFile));
+
+        @Cleanup BufferedReader reader = new BufferedReader(new FileReader(confFile));
         users = new HashMap<>();
         for (String line : reader.lines().toArray(s -> new String[s])) {
             List<String> splitLine = Arrays.asList(line.split(":"));
@@ -58,7 +61,6 @@ public class AuthenticationProviderBasic implements AuthenticationProvider {
             }
             users.put(splitLine.get(0), splitLine.get(1));
         }
-        reader.close();
     }
 
     @Override

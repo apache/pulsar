@@ -27,7 +27,6 @@ import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
 import org.apache.bookkeeper.mledger.ManagedLedger;
 import org.apache.pulsar.broker.service.BrokerTestBase;
-import org.apache.pulsar.checksum.utils.Crc32cChecksum;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.RawMessage;
 import org.apache.pulsar.client.api.RawReader;
@@ -35,6 +34,8 @@ import org.apache.pulsar.common.api.Commands;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
 
@@ -58,7 +59,7 @@ public class ChecksumTest extends BrokerTestBase {
     public void verifyChecksumStoredInManagedLedger() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic0";
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
 
@@ -74,7 +75,7 @@ public class ChecksumTest extends BrokerTestBase {
 
         assertTrue(Commands.hasChecksum(b));
         int parsedChecksum = Commands.readChecksum(b).intValue();
-        int computedChecksum = Crc32cChecksum.computeChecksum(b);
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
         assertEquals(parsedChecksum, computedChecksum);
 
         entries.get(0).release();
@@ -85,7 +86,7 @@ public class ChecksumTest extends BrokerTestBase {
     public void verifyChecksumSentToConsumer() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic-1";
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         RawReader reader = RawReader.create(pulsarClient, topicName, "sub").get();
 
         producer.send("Hello".getBytes());
@@ -95,7 +96,7 @@ public class ChecksumTest extends BrokerTestBase {
         ByteBuf b = msg.getHeadersAndPayload();
         assertTrue(Commands.hasChecksum(b));
         int parsedChecksum = Commands.readChecksum(b).intValue();
-        int computedChecksum = Crc32cChecksum.computeChecksum(b);
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
         assertEquals(parsedChecksum, computedChecksum);
 
         producer.close();

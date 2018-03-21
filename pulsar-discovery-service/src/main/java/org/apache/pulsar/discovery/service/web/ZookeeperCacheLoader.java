@@ -25,7 +25,7 @@ import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.LoadManagerReport;
 import org.apache.pulsar.zookeeper.LocalZooKeeperCache;
@@ -53,7 +53,8 @@ public class ZookeeperCacheLoader implements Closeable {
 
     private volatile List<LoadManagerReport> availableBrokers;
 
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(8, "pulsar-discovery-ordered-cache");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder().numThreads(8)
+            .name("pulsar-discovery-ordered-cache").build();
     private final ScheduledExecutorService executor = Executors.newScheduledThreadPool(8,
             new DefaultThreadFactory("pulsar-discovery-cache"));
 

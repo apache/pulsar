@@ -45,6 +45,9 @@ void ReaderImpl::start(const BatchMessageId& startMessageId) {
     }
 
     std::string subscription = "reader-" + generateRandomName();
+    if (!readerConf_.getSubscriptionRolePrefix().empty()) {
+        subscription = readerConf_.getSubscriptionRolePrefix() + "-" + subscription;
+    }
 
     consumer_ = boost::make_shared<ConsumerImpl>(
         client_.lock(), topic_, subscription, consumerConf, ExecutorServicePtr(), NonPartitioned,

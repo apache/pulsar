@@ -25,18 +25,21 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
+import java.util.function.BiFunction;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
+import org.apache.pulsar.client.api.AuthenticationFactory;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
 import com.beust.jcommander.JCommander;
 import com.beust.jcommander.Parameter;
 
 public class PulsarAdminTool {
-    private final Map<String, Class> commandMap;
+    protected final Map<String, Class> commandMap;
     private final JCommander jcommander;
-    private final ClientConfiguration config;
+    protected final ClientConfigurationData config;
 
     @Parameter(names = { "--admin-url" }, description = "Admin Service URL to which to connect.")
     String serviceUrl = null;
@@ -60,7 +63,7 @@ public class PulsarAdminTool {
         boolean tlsAllowInsecureConnection = Boolean.parseBoolean(properties.getProperty("tlsAllowInsecureConnection"));
         String tlsTrustCertsFilePath = properties.getProperty("tlsTrustCertsFilePath");
 
-        config = new ClientConfiguration();
+        config = new ClientConfigurationData();
         config.setUseTls(useTls);
         config.setTlsAllowInsecureConnection(tlsAllowInsecureConnection);
         config.setTlsTrustCertsFilePath(tlsTrustCertsFilePath);
@@ -79,13 +82,14 @@ public class PulsarAdminTool {
         commandMap.put("persistent", CmdPersistentTopics.class);
         commandMap.put("non-persistent", CmdNonPersistentTopics.class);
         commandMap.put("resource-quotas", CmdResourceQuotas.class);
+        commandMap.put("functions", CmdFunctions.class);
     }
 
-    private void setupCommands() {
+    private void setupCommands(BiFunction<URL, ClientConfigurationData, ? extends PulsarAdmin> adminFactory) {
         try {
             URL url = new URL(serviceUrl);
-            config.setAuthentication(authPluginClassName, authParams);
-            PulsarAdmin admin = new PulsarAdmin(url, config);
+            config.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
+            PulsarAdmin admin = adminFactory.apply(url, config);
             for (Map.Entry<String, Class> c : commandMap.entrySet()) {
                 jcommander.addCommand(c.getKey(), c.getValue().getConstructor(PulsarAdmin.class).newInstance(admin));
             }
@@ -99,8 +103,20 @@ public class PulsarAdminTool {
     }
 
     boolean run(String[] args) {
+        return run(args, (url, config) -> {
+            try {
+                return new PulsarAdminWithFunctions(url, config);
+            } catch (Exception ex) {
+                System.err.println(ex.getClass() + ": " + ex.getMessage());
+                System.exit(1);
+                return null;
+            }
+        });
+    }
+
+    boolean run(String[] args, BiFunction<URL, ClientConfigurationData, ? extends PulsarAdmin> adminFactory) {
         if (args.length == 0) {
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
@@ -117,23 +133,23 @@ public class PulsarAdminTool {
         } catch (Exception e) {
             System.err.println(e.getMessage());
             System.err.println();
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
 
         if (help) {
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         }
 
         if (cmdPos == args.length) {
-            setupCommands();
+            setupCommands(adminFactory);
             jcommander.usage();
             return false;
         } else {
-            setupCommands();
+            setupCommands(adminFactory);
             String cmd = args[cmdPos];
             JCommander obj = jcommander.getCommands().get(cmd);
             CmdBase cmdObj = (CmdBase) obj.getObjects().get(0);
@@ -159,7 +175,36 @@ public class PulsarAdminTool {
 
         PulsarAdminTool tool = new PulsarAdminTool(properties);
 
-        if (tool.run(Arrays.copyOfRange(args, 1, args.length))) {
+        int cmdPos;
+        for (cmdPos = 1; cmdPos < args.length; cmdPos++) {
+            if (tool.commandMap.containsKey(args[cmdPos])) {
+                break;
+            }
+        }
+
+        ++cmdPos;
+        boolean isLocalRun = false;
+        if (cmdPos < args.length) {
+            isLocalRun = "localrun" == args[cmdPos].toLowerCase();
+        }
+
+        BiFunction<URL, ClientConfigurationData, ? extends PulsarAdmin> adminFactory;
+        if (isLocalRun) {
+            // bypass constructing admin client
+            adminFactory = (url, config) -> null;
+        } else {
+            adminFactory = (url, config) -> {
+                try {
+                    return new PulsarAdminWithFunctions(url, config);
+                } catch (Exception ex) {
+                    System.err.println(ex.getClass() + ": " + ex.getMessage());
+                    System.exit(1);
+                    return null;
+                }
+            };
+        }
+
+        if (tool.run(Arrays.copyOfRange(args, 1, args.length), adminFactory)) {
             System.exit(0);
         } else {
             System.exit(1);

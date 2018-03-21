@@ -66,6 +66,7 @@ import org.apache.bookkeeper.mledger.proto.MLDataFormats.ManagedLedgerInfo.Ledge
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.bookkeeper.test.MockedBookKeeperTestCase;
 import org.apache.pulsar.common.api.ByteBufPair;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.apache.zookeeper.CreateMode;
@@ -2152,4 +2153,35 @@ public class ManagedLedgerTest extends MockedBookKeeperTestCase {
         return ByteBufPair.coalesce(ByteBufPair.get(headers, payload));
     }
 
+    @Test
+    public void testConsumerSubscriptionInitializePosition() throws Exception{
+        final int MAX_ENTRY_PER_LEDGER = 2;
+        ManagedLedgerConfig config = new ManagedLedgerConfig().setMaxEntriesPerLedger(MAX_ENTRY_PER_LEDGER);
+        ManagedLedgerImpl ledger = (ManagedLedgerImpl) factory.open("lastest_earliest_ledger", config);
+
+        final int totalInsertedEntries = 20;
+        for (int i = 0; i < totalInsertedEntries; i++) {
+            String content = "entry" + i; // 5 bytes
+            ledger.addEntry(content.getBytes());
+        }
+        // Open Cursor also adds cursor into activeCursor-container
+        ManagedCursor latestCursor = ledger.openCursor("c1", InitialPosition.Latest);
+        ManagedCursor earliestCursor = ledger.openCursor("c2", InitialPosition.Earliest);
+
+        // Since getReadPosition returns the next position, we decrease the entryId by 1
+        PositionImpl p1 = (PositionImpl) latestCursor.getReadPosition();
+        PositionImpl p2 = (PositionImpl) earliestCursor.getReadPosition();
+
+        Pair<PositionImpl, Long> latestPositionAndCounter = ledger.getLastPositionAndCounter();
+        Pair<PositionImpl, Long> earliestPositionAndCounter = ledger.getFirstPositionAndCounter();
+
+        assertEquals(latestPositionAndCounter.first.getNext(), p1);
+        assertEquals(earliestPositionAndCounter.first.getNext(), p2);
+
+        assertEquals(latestPositionAndCounter.second.longValue(), totalInsertedEntries);
+        assertEquals(earliestPositionAndCounter.second.longValue(), totalInsertedEntries - earliestCursor.getNumberOfEntriesInBacklog());
+
+        ledger.close();
+
+    }
 }

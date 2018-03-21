@@ -216,7 +216,7 @@ public class ByteBufCodedInputStream {
      */
     public void checkLastTagWas(final int value) throws InvalidProtocolBufferException {
         if (lastTag != value) {
-            new InvalidProtocolBufferException("Protocol message end-group tag did not match expected tag.");
+            throw new InvalidProtocolBufferException("Protocol message end-group tag did not match expected tag.");
         }
     }
 

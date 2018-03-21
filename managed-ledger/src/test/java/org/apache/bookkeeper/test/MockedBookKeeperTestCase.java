@@ -21,16 +21,19 @@ package org.apache.bookkeeper.test;
 import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
 import org.apache.bookkeeper.client.MockBookKeeper;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactoryConfig;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.zookeeper.MockZooKeeper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 
 /**
@@ -51,7 +54,7 @@ public abstract class MockedBookKeeperTestCase {
 
     protected ClientConfiguration baseClientConf = new ClientConfiguration();
 
-    protected OrderedSafeExecutor executor;
+    protected OrderedScheduler executor;
     protected ExecutorService cachedExecutor;
 
     public MockedBookKeeperTestCase() {
@@ -74,8 +77,6 @@ public abstract class MockedBookKeeperTestCase {
             throw e;
         }
 
-        executor = new OrderedSafeExecutor(2, "test");
-        cachedExecutor = Executors.newCachedThreadPool();
         ManagedLedgerFactoryConfig conf = new ManagedLedgerFactoryConfig();
         factory = new ManagedLedgerFactoryImpl(bkc, zkc, conf);
     }
@@ -87,9 +88,19 @@ public abstract class MockedBookKeeperTestCase {
         factory = null;
         stopBookKeeper();
         stopZooKeeper();
+        LOG.info("--------- stopped {}", method);
+    }
+
+    @BeforeClass
+    public void setUpClass() throws Exception {
+        executor = OrderedScheduler.newSchedulerBuilder().numThreads(2).name("test").build();
+        cachedExecutor = Executors.newCachedThreadPool();
+    }
+
+    @AfterClass
+    public void tearDownClass() throws Exception {
         executor.shutdown();
         cachedExecutor.shutdown();
-        LOG.info("--------- stopped {}", method);
     }
 
     /**
@@ -106,7 +117,7 @@ public abstract class MockedBookKeeperTestCase {
 
         zkc.create("/ledgers/LAYOUT", "1\nflat:1".getBytes(), null, null);
 
-        bkc = new MockBookKeeper(baseClientConf, zkc);
+        bkc = new MockBookKeeper(zkc);
     }
 
     protected void stopBookKeeper() throws Exception {

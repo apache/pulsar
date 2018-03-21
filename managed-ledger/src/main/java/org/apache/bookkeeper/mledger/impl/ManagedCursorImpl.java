@@ -269,7 +269,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             // Read the last entry in the ledger
-            lh.asyncReadLastEntry((rc1, lh1, seq, ctx1) -> {
+            long lastEntryInLedger = lh.getLastAddConfirmed();
+            lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
                 }
@@ -1913,6 +1914,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
+
         bookkeeper.asyncCreateLedger(config.getMetadataEnsemblesize(), config.getMetadataWriteQuorumSize(),
                 config.getMetadataAckQuorumSize(), config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
                     ledger.getExecutor().submit(safeRun(() -> {
@@ -1974,7 +1976,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             }
                         });
                     }));
-                }, null);
+                }, null, Collections.emptyMap());
     }
 
     private List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {

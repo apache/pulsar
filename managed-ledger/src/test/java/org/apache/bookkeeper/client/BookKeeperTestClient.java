@@ -27,7 +27,7 @@ import org.apache.zookeeper.ZooKeeper;
  * Test BookKeeperClient which allows access to members we don't wish to expose in the public API.
  */
 public class BookKeeperTestClient extends BookKeeper {
-    public BookKeeperTestClient(ClientConfiguration conf) throws IOException, InterruptedException, KeeperException {
+    public BookKeeperTestClient(ClientConfiguration conf) throws IOException, InterruptedException, BKException {
         super(conf);
     }
 
@@ -45,7 +45,7 @@ public class BookKeeperTestClient extends BookKeeper {
      * @throws InterruptedException
      * @throws KeeperException
      */
-    public void readBookiesBlocking() throws InterruptedException, KeeperException {
-        bookieWatcher.readBookiesBlocking();
+    public void readBookiesBlocking() throws InterruptedException, BKException {
+        bookieWatcher.initialBlockingBookieRead();
     }
 }
