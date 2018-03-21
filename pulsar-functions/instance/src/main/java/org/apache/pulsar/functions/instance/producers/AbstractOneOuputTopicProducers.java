@@ -28,17 +28,17 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.functions.instance.FunctionResultRouter;
 
-abstract class AbstractOneSinkTopicProducers implements Producers {
+abstract class AbstractOneOuputTopicProducers implements Producers {
 
     protected final PulsarClient client;
-    protected final String sinkTopic;
+    protected final String outputTopic;
     protected final ProducerConfiguration conf;
 
-    AbstractOneSinkTopicProducers(PulsarClient client,
-                                  String sinkTopic)
+    AbstractOneOuputTopicProducers(PulsarClient client,
+                                   String outputTopic)
             throws PulsarClientException {
         this.client = client;
-        this.sinkTopic = sinkTopic;
+        this.outputTopic = outputTopic;
         this.conf = newProducerConfiguration();
     }
 
