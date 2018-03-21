@@ -18,12 +18,21 @@
  */
 package org.apache.pulsar.client.impl;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
 import org.apache.pulsar.client.api.HashingScheme;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.TopicMetadata;
 
+/**
+ * The routing strategy here:
+ * <ul>
+ * <li>If a key is present, choose a partition based on a hash of the key.
+ * <li>If no key is present, choose a partition in a "round-robin" fashion. Batching-Awareness is built-in to improve
+ * batching locality.
+ * </ul>
+ */
 public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
 
     private static final long serialVersionUID = 1L;
@@ -33,9 +42,25 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
     @SuppressWarnings("unused")
     private volatile int partitionIndex = 0;
 
-    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme) {
+    private final int startPtnIdx;
+    private final boolean isBatchingEnabled;
+    private final long maxBatchingDelayMs;
+
+    @VisibleForTesting
+    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
+                                                int startPtnIdx) {
+        this(hashingScheme, startPtnIdx, false, 0);
+    }
+
+    public RoundRobinPartitionMessageRouterImpl(HashingScheme hashingScheme,
+                                                int startPtnIdx,
+                                                boolean isBatchingEnabled,
+                                                long maxBatchingDelayMs) {
         super(hashingScheme);
-        PARTITION_INDEX_UPDATER.set(this, 0);
+        PARTITION_INDEX_UPDATER.set(this, startPtnIdx);
+        this.startPtnIdx = startPtnIdx;
+        this.isBatchingEnabled = isBatchingEnabled;
+        this.maxBatchingDelayMs = Math.max(1, maxBatchingDelayMs);
     }
 
     @Override
@@ -45,7 +70,12 @@ public class RoundRobinPartitionMessageRouterImpl extends MessageRouterBase {
             return hash.makeHash(msg.getKey()) % topicMetadata.numPartitions();
         }
 
-        return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());
+        if (isBatchingEnabled) { // if batching is enabled, choose partition on `maxBatchingDelayMs` boundary.
+            long currentMs = System.currentTimeMillis();
+            return (((int) (currentMs / maxBatchingDelayMs)) + startPtnIdx) % topicMetadata.numPartitions();
+        } else {
+            return ((PARTITION_INDEX_UPDATER.getAndIncrement(this) & Integer.MAX_VALUE) % topicMetadata.numPartitions());
+        }
     }
 
 }
