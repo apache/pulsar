@@ -40,8 +40,8 @@ groups:
   #  endpoint: overview
   - title: The Pulsar Functions API
     endpoint: api
-  #- title: Deploying Pulsar Functions
-  #  endpoint: deployment
+  - title: Deploying Pulsar Functions
+    endpoint: deployment
   #- title: Processing guarantees
   #  endpoint: guarantees
   #- title: Metrics and stats for Pulsar Functions

@@ -26,7 +26,7 @@ Functions are executed each time a message is published to the input topic. If a
 
 > Pulsar features automatic message deduplication
 
-### Goals
+## Goals
 
 Core goal: make Pulsar do real heavy lifting without needing to deploy a neighboring system (Storm, Heron, Flink, etc.). Ready-made compute infrastructure at your disposal.
 
@@ -97,3 +97,6 @@ public class MetricsFunction implements PulsarFunction<String, Void> {
 ### Data types
 
 * Strongly typed
+
+## YAML configuration {#yaml}
+
