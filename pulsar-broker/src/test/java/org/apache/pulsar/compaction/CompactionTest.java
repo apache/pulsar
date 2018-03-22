@@ -512,4 +512,72 @@ public class CompactionTest extends MockedPulsarServiceBaseTest {
         }
     }
 
+
+    @Test
+    public void testEmptyPayloadDeletes() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-topic1";
+
+        // subscribe before sending anything, so that we get all messages
+        pulsarClient.newConsumer().topic(topic).subscriptionName("sub1")
+            .readCompacted(true).subscribe().close();
+
+        try (Producer producerNormal = pulsarClient.newProducer().topic(topic).create();
+             Producer producerBatch = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
+                .enableBatching(true).batchingMaxMessages(3)
+                .batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
+
+            // key0 persists through it all
+            producerNormal.sendAsync(MessageBuilder.create()
+                                     .setKey("key0")
+                                     .setContent("my-message-0".getBytes()).build()).get();
+
+            // key1 is added but then deleted
+            producerNormal.sendAsync(MessageBuilder.create()
+                                     .setKey("key1")
+                                     .setContent("my-message-1".getBytes()).build()).get();
+
+            producerNormal.sendAsync(MessageBuilder.create()
+                                     .setKey("key1").build()).get();
+
+            // key2 is added but deleted in same batch
+            producerBatch.sendAsync(MessageBuilder.create()
+                                    .setKey("key2")
+                                    .setContent("my-message-2".getBytes()).build());
+            producerBatch.sendAsync(MessageBuilder.create()
+                                    .setKey("key3")
+                                    .setContent("my-message-3".getBytes()).build());
+            producerBatch.sendAsync(MessageBuilder.create()
+                                    .setKey("key2").build()).get();
+
+            // key3 is added in previous batch, deleted in this batch
+            producerBatch.sendAsync(MessageBuilder.create()
+                                    .setKey("key3").build());
+            producerBatch.sendAsync(MessageBuilder.create()
+                                    .setKey("key4")
+                                    .setContent("my-message-3".getBytes()).build());
+            producerBatch.sendAsync(MessageBuilder.create()
+                                    .setKey("key4").build()).get();
+
+            // key4 is added, deleted, then resurrected
+            producerNormal.sendAsync(MessageBuilder.create()
+                                     .setKey("key4")
+                                     .setContent("my-message-4".getBytes()).build()).get();
+        }
+
+        // compact the topic
+        Compactor compactor = new TwoPhaseCompactor(conf, pulsarClient, bk, compactionScheduler);
+        compactor.compact(topic).get();
+
+        try (Consumer consumer = pulsarClient.newConsumer().topic(topic)
+                .subscriptionName("sub1").readCompacted(true).subscribe()){
+            Message message1 = consumer.receive();
+            Assert.assertEquals(message1.getKey(), "key0");
+            Assert.assertEquals(new String(message1.getData()), "my-message-0");
+
+            Message message2 = consumer.receive();
+            Assert.assertEquals(message2.getKey(), "key4");
+            Assert.assertEquals(new String(message2.getData()), "my-message-4");
+        }
+    }
+
 }
