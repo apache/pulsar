@@ -18,17 +18,8 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
-import lombok.extern.slf4j.Slf4j;
-import org.apache.pulsar.client.admin.Functions;
-import org.apache.pulsar.client.admin.PulsarAdminException;
-import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.policies.data.*;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
-import org.apache.pulsar.functions.utils.Utils;
-import org.glassfish.jersey.media.multipart.FormDataBodyPart;
-import org.glassfish.jersey.media.multipart.FormDataMultiPart;
-import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
+import java.io.File;
+import java.util.List;
 
 import javax.ws.rs.ClientErrorException;
 import javax.ws.rs.client.Entity;
@@ -36,8 +27,19 @@ import javax.ws.rs.client.WebTarget;
 import javax.ws.rs.core.GenericType;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.io.File;
-import java.util.List;
+
+import org.apache.pulsar.client.admin.Functions;
+import org.apache.pulsar.client.admin.PulsarAdminException;
+import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.common.policies.data.ErrorData;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.proto.InstanceCommunication.FunctionStatusList;
+import org.apache.pulsar.functions.utils.Utils;
+import org.glassfish.jersey.media.multipart.FormDataBodyPart;
+import org.glassfish.jersey.media.multipart.FormDataMultiPart;
+import org.glassfish.jersey.media.multipart.file.FileDataBodyPart;
+
+import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class FunctionsImpl extends BaseResource implements Functions {
@@ -103,9 +105,8 @@ public class FunctionsImpl extends BaseResource implements Functions {
 
             mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
 
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                Utils.printJson(functionConfig),
-                MediaType.APPLICATION_JSON_TYPE));
+            mp.bodyPart(new FormDataBodyPart("functionConfig", Utils.printJson(functionConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {
@@ -130,9 +131,8 @@ public class FunctionsImpl extends BaseResource implements Functions {
             if (fileName != null) {
                 mp.bodyPart(new FileDataBodyPart("data", new File(fileName), MediaType.APPLICATION_OCTET_STREAM_TYPE));
             }
-            mp.bodyPart(new FormDataBodyPart("functionConfig",
-                Utils.printJson(functionConfig),
-                MediaType.APPLICATION_JSON_TYPE));
+            mp.bodyPart(new FormDataBodyPart("functionConfig", Utils.printJson(functionConfig),
+                    MediaType.APPLICATION_JSON_TYPE));
             request(functions.path(functionConfig.getTenant()).path(functionConfig.getNamespace()).path(functionConfig.getName()))
                     .put(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), ErrorData.class);
         } catch (Exception e) {

@@ -32,6 +32,7 @@ import javax.ws.rs.client.WebTarget;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
+import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.admin.internal.JacksonConfigurator;
 import org.apache.pulsar.client.admin.internal.LookupImpl;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
@@ -70,6 +71,7 @@ public class PulsarAdmin implements Closeable {
     private final PersistentTopics persistentTopics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
+    private final Functions functions;
 
     private final Client client;
     private final URL serviceUrl;
@@ -181,6 +183,7 @@ public class PulsarAdmin implements Closeable {
         this.persistentTopics = new PersistentTopicsImpl(root, auth);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
+        this.functions = new FunctionsImpl(root, auth);
         this.lookups = new LookupImpl(root, auth, pulsarConfig.isUseTls());
     }
 
@@ -285,6 +288,14 @@ public class PulsarAdmin implements Closeable {
         return resourceQuotas;
     }
 
+    /**
+     * @return the functions management object
+     */
+    public Functions functions() {
+        return functions;
+    }
+
+    
     /**
      * @return does a looks up for the broker serving the topic
      */
