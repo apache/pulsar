@@ -215,6 +215,8 @@ public interface PulsarFunction<I, O> {
 }
 ```
 
+### Java context object {#java-context}
+
 Context interface:
 
 ```java
@@ -362,3 +364,41 @@ public class LoggingFunction implements Function<String, Void> {
     }
 }
 ```
+
+### Java user config
+
+The Java SDK's [`Context`](#java-context) object enables you to access key/value pairs provided to the Pulsar Function via the command line (as JSON). Here's an example function creation command that passes a key/value pair:
+
+```bash
+$ bin/pulsar-admin functions create \
+  # Other function configs
+  --userConfig '{"word-of-the-day":"verdure"}'
+```
+
+To access that value in a Java function:
+
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
+
+public class UserConfigFunction implements Function<String, Void> {
+    @Override
+    public void apply(String input, Context context) {
+        Logger LOG = context.getLogger();
+        String wotd = context.getUserConfigValue("word-of-the-day");
+        LOG.info("The word of the day is {}", wotd);
+        return null;
+    }
+}
+```
+
+{% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
+
+### Publishing
+
+{% include admonition.html type="info" content="Here is some content." %}
+
+## Python
+
+Documentation for the Python SDK for Pulsar Functions is coming soon.
