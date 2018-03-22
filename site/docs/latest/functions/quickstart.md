@@ -212,9 +212,9 @@ $ touch reverse.py
 In that file, add the following:
 
 ```python
-from pulsarfunction import pulsar_function
+from pulsar import Function
 
-class Reverse(pulsar_function.PulsarFunction):
+class Reverse(Function):
   def __init__(self):
     pass
 
