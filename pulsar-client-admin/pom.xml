@@ -80,5 +80,15 @@
       <groupId>com.google.code.gson</groupId>
       <artifactId>gson</artifactId>
     </dependency>
+    
+    <!-- functions related dependencies (begin) -->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-runtime-shaded</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- functions related dependencies (end) -->
   </dependencies>
 </project>
