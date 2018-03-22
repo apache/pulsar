@@ -221,9 +221,9 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --className reverse.Reverse \
-  --inputs persistent://sample/standalone/ns1/backwards \
-  --output persistent://sample/standalone/ns1/forwards \
+  --className reverse \
+  --inputs persistent://sample/standalone/ns1/input \
+  --output persistent://sample/standalone/ns1/output \
   --tenant sample \
   --namespace ns1 \
   --name reverse 
@@ -232,7 +232,7 @@ $ bin/pulsar-admin functions create \
 If you see `Created successfully`, the function is ready to accept incoming messages. Let's publish a string to the input topic:
 
 ```bash
-$ bin/pulsar-client produce persistent://sample/standalone/ns1/backwards \
+$ bin/pulsar-client produce persistent://sample/standalone/ns1/input \
   --num-produce 1 \
   --messages "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
@@ -240,9 +240,9 @@ $ bin/pulsar-client produce persistent://sample/standalone/ns1/backwards \
 Now, let's pull in a message from the output topic:
 
 ```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/forwards \
+$ bin/pulsar-client consume persistent://sample/standalone/ns1/output \
   --subscription-name my-subscription \
-  --num-messages 10
+  --num-messages 1
 ```
 
 You should see the reversed string in the log output:
