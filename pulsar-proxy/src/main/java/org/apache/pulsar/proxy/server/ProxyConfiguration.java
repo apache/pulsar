@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.proxy.server;
 
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 
@@ -43,12 +44,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // Port to use to server binary-proto request
     private int servicePort = 6650;
     // Port to use to server binary-proto-tls request
-    private int servicePortTls = 6651;
+    private int servicePortTls;
 
     // Port to use to server HTTP request
     private int webServicePort = 8080;
     // Port to use to server HTTPS request
-    private int webServicePortTls = 8443;
+    private int webServicePortTls;
     
     // Path for the file used to determine the rotation status for the broker
     // when responding to service discovery health checks
@@ -76,9 +77,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
     private String brokerClientTrustCertsFilePath;
 
     /***** --- TLS --- ****/
-    // Enable TLS for the proxy handler
-    private boolean tlsEnabledInProxy = false;
-
     // Enable TLS when talking with the brokers
     private boolean tlsEnabledWithBroker = false;
 
@@ -149,32 +147,32 @@ public class ProxyConfiguration implements PulsarConfiguration {
         this.zookeeperSessionTimeoutMs = zookeeperSessionTimeoutMs;
     }
 
-    public int getServicePort() {
-        return servicePort;
+    public Optional<Integer> getServicePort() {
+        return Optional.ofNullable(servicePort);
     }
 
     public void setServicePort(int servicePort) {
         this.servicePort = servicePort;
     }
 
-    public int getServicePortTls() {
-        return servicePortTls;
+    public Optional<Integer> getServicePortTls() {
+        return Optional.ofNullable(servicePortTls);
     }
 
     public void setServicePortTls(int servicePortTls) {
         this.servicePortTls = servicePortTls;
     }
 
-    public int getWebServicePort() {
-        return webServicePort;
+    public Optional<Integer> getWebServicePort() {
+        return Optional.ofNullable(webServicePort);
     }
 
     public void setWebServicePort(int webServicePort) {
         this.webServicePort = webServicePort;
     }
 
-    public int getWebServicePortTls() {
-        return webServicePortTls;
+    public Optional<Integer> getWebServicePortTls() {
+        return Optional.ofNullable(webServicePortTls);
     }
 
     public void setWebServicePortTls(int webServicePortTls) {
@@ -187,14 +185,6 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setStatusFilePath(String statusFilePath) {
         this.statusFilePath = statusFilePath;
-    }
-
-    public boolean isTlsEnabledInProxy() {
-        return tlsEnabledInProxy;
-    }
-
-    public void setTlsEnabledInProxy(boolean tlsEnabledInProxy) {
-        this.tlsEnabledInProxy = tlsEnabledInProxy;
     }
 
     public boolean isTlsEnabledWithBroker() {
