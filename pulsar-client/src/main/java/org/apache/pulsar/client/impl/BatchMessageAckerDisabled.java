@@ -27,6 +27,11 @@ class BatchMessageAckerDisabled extends BatchMessageAcker {
     }
 
     @Override
+    public synchronized int getBatchSize() {
+        return 0;
+    }
+
+    @Override
     public boolean ackIndividual(int batchIndex) {
         return true;
     }
