@@ -221,14 +221,8 @@ $ touch reverse.py
 In that file, add the following:
 
 ```python
-from pulsar import Function
-
-class Reverse(Function):
-  def __init__(self):
-    pass
-
-  def process(self, input):
-    return input[::-1]
+def process(input):
+  return input[::-1]
 ```
 
 Here, the `process` method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using `create`:
