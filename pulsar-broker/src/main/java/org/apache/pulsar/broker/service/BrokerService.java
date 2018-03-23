@@ -1022,7 +1022,18 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public List<Topic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
-        return multiLayerTopicsMap.get(namespace).get(bundle).values();
+        if (multiLayerTopicsMap.get(namespace) == null) {
+            return Lists.newArrayList();
+        }
+
+        if (multiLayerTopicsMap.get(namespace).get(bundle) == null) {
+            return Lists.newArrayList();
+        }
+
+        return multiLayerTopicsMap
+            .get(namespace)
+            .get(bundle)
+            .values();
     }
 
     public ZooKeeperDataCache<Map<String, String>> getDynamicConfigurationCache() {
