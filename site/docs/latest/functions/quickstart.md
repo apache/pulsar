@@ -235,10 +235,18 @@ $ bin/pulsar-admin functions create \
   --output persistent://sample/standalone/ns1/backwards \
   --tenant sample \
   --namespace ns1 \
-  --name reverse 
+  --name reverse
 ```
 
-If you see `Created successfully`, the function is ready to accept incoming messages. Let's publish a string to the input topic:
+If you see `Created successfully`, the function is ready to accept incoming messages. Let's listen for incoming messages on the output topic using the [`pulsar-client consume`](../../CliTools#pulsar-client-consume) command:
+
+```bash
+$ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
+  --subscription-name my-subscription \
+  --num-messages 0
+```
+
+Setting the `--num-messages` flag to 0 means that the consumer will listen on the topic indefinitely. At the moment, no messages are arriving on the topic, so let's produce some, also using [`pulsar-client produce`](../../CliTools#pulsar-client-produce) command:
 
 ```bash
 $ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
@@ -246,19 +254,11 @@ $ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
   --messages "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
 
-Now, let's pull in a message from the output topic:
-
-```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
-  --subscription-name my-subscription \
-  --num-messages 1
-```
-
-You should see the reversed string in the log output:
+You should see the reversed string in the output:
 
 ```
 ----- got message -----
 This string was backwards but is now forwards
 ```
 
-Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, and successfully published to the function's input topic and consumed from its output topic.
+Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, successfully published to the function's input topic, and finally consumed from its output topic.

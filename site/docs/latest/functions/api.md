@@ -12,9 +12,9 @@ new: true
 Pulsar Functions provide a wide range of functionality but are based on a very simple programming model. You can think of Pulsar Functions as lightweight processes that
 
 * {% popover consume %} messages from one or more Pulsar {% popover topics %} and then
-* apply some user-defined processing logic (just about anything you want). This could involve
-  * {% popover producing %} the resulting, processed message on another Pulsar topic or
-  * doing something else with the message, such as writing results to an external database
+* apply some user-defined processing logic to each incoming message. That processing logic could be just about anything you want, including
+  * {% popover producing %} the resulting, processed message on another Pulsar topic, or
+  * doing something else with the message, such as writing results to an external database.
 
 You could use Pulsar Functions, for example, to set up the following processing chain:
 
@@ -24,7 +24,7 @@ You could use Pulsar Functions, for example, to set up the following processing 
 
 ### Example function
 
-Here's an example "input sanitizer" function written in Python:
+Here's an example "input sanitizer" function written in Python and stored in a `sanitizer.py` file:
 
 ```python
 def clean_string(s):
@@ -53,7 +53,7 @@ $ bin/pulsar-admin functions localrun \
 
 For instructions on running functions in your Pulsar cluster, see the [Deploying Pulsar Functions](../deployment) guide.
 
-### The Pulsar Functions SDK {#sdk}
+### Available APIs {#apis}
 
 In both Java and Python, you have two options for writing Pulsar Functions:
 
@@ -107,7 +107,7 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 
 ## User config
 
-When you run or update Pulsar Functions created using the [SDK](#sdk), you can pass arbitrary key/values to them via the command line with the `--userConfig` flag. Key/values must be specified as JSON. Here's an example:
+When you run or update Pulsar Functions created using the [SDK](#apis), you can pass arbitrary key/values to them via the command line with the `--userConfig` flag. Key/values must be specified as JSON. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -141,10 +141,42 @@ Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 ### Getting started
 
+In order to write Pulsar Functions in Java, you'll need to install the proper [dependencies](#java-dependencies) and package your function [as a JAR](#java-packaging).
 
-### Java native functions
+#### Dependencies {#java-dependencies}
 
-If your function doesn't require access to its [context](#context), you can implement the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
+How you get started writing Pulsar Functions in Java depends on which API you're using:
+
+* If you're writing [Java native function](#java-native), you won't need any external dependencies.
+* If you're writing a [Java SDK](#java-sdk) function, you'll need to import the `pulsar-functions-api` library.
+
+  Here's an example for a Maven `pom.xml` configuration file:
+
+  ```xml
+  <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-api</artifactId>
+      <version>2.0.0-incubating-SNAPSHOT</version>
+  </dependency>
+  ```
+
+  Here's an example for a Gradle `build.gradle` configuration file:
+
+  ```groovy
+  dependencies {
+    compile group: 'org.apache.pulsar', name: 'pulsar-functions-api', version: '2.0.0-incubating-SNAPSHOT'
+  }
+  ```
+
+#### Packaging {#java-packaging}
+
+Whether you're writing Java Pulsar Functions using the [native](#java-native) Java `java.util.Function` interface or using the [Java SDK](#java-sdk), you'll need to package your function(s) as a "fat" JAR.
+
+{% include admonition.html type="success" title="Starter repo" content="If you'd like to get up and running quickly, you can use [this repo](https://github.com/streamlio/pulsar-functions-java-starter), which contains the necessary Maven configuration to build a fat JAR as well as some example functions." %}
+
+### Java native functions {#java-native}
+
+If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
 
 ```java
 public interface Function<I, O> {
@@ -152,7 +184,7 @@ public interface Function<I, O> {
 }
 ```
 
-Here's a simple example that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:
+Here's an example function that takes a string as its input, adds an exclamation point to the end of the string, and then publishes the resulting string:
 
 ```java
 import java.util.Function;
@@ -165,55 +197,13 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-In general, you should use native functions when you don't need access to the function's [context](#context). If you do need access to the function's context, then we recommend using the [Pulsar Functions Java SDK](#java-sdk).
-
-the [Java SDK](#java-sdk)
+In general, you should use native functions when you don't need access to the function's [context](#context). If you *do* need access to the function's context, then we recommend using the [Pulsar Functions Java SDK](#java-sdk).
 
 ### Java SDK functions {#java-sdk}
 
-To get started developing Pulsar Functions using the Java SDK, you'll need to add a dependency on the `pulsar-functions-api` artifact to your project.
+To get started developing Pulsar Functions using the Java SDK, you'll need to add a dependency on the `pulsar-functions-api` artifact to your project. Instructions can be found [above](#java-dependencies).
 
 {% include admonition.html type='success' content='An easy way to get up and running with Pulsar Functions in Java is to clone the [`pulsar-functions-java-starter`](https://github.com/streamlio/pulsar-functions-java-starter) repo and follow the instructions there.' %}
-
-#### Maven
-
-Add the following to your `pom.xml` configuration file:
-
-```xml
-<properties>
-    <pulsar.version>2.0.0-incubating-SNAPSHOT</pulsar.version>
-</properties>
-
-<dependencies>
-    <dependency>
-        <groupId>org.apache.pulsar</groupId>
-        <artifactId>pulsar-functions-api</artifactId>
-        <version>${pulsar.version}</version>
-    </dependency>
-</dependencies>
-```
-
-#### Gradle
-
-Add the following to your `build.gradle` configuration file:
-
-```groovy
-dependencies {
-  compile group: 'org.apache.pulsar', name: 'pulsar-functions-api', version: '2.0.0-incubating-SNAPSHOT'
-}
-
-// Alternatively:
-dependencies {
-  compile 'org.apache.pulsar:pulsar-functions-api:2.0.0-incubating-SNAPSHOT'
-}
-```
-
-
-```java
-public interface PulsarFunction<I, O> {
-    O process(I input, Context context) throws Exception;
-}
-```
 
 ### Java context object {#java-context}
 
