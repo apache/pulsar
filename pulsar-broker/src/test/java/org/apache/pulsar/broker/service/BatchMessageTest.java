@@ -42,7 +42,6 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -514,7 +513,6 @@ public class BatchMessageTest extends BrokerTestBase {
         Thread.sleep(100);
         rolloverPerIntervalStats();
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
-        assertTrue(((ConsumerImpl<byte[]>) consumer).isBatchingAckTrackerEmpty());
         consumer.close();
         producer.close();
         noBatchProducer.close();
@@ -574,7 +572,6 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         Thread.sleep(100);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
-        assertTrue(((ConsumerImpl<byte[]>) consumer).isBatchingAckTrackerEmpty());
         consumer.close();
         producer.close();
         noBatchProducer.close();
