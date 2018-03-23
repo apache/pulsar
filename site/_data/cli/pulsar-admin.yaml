@@ -130,6 +130,8 @@ commands:
       description: The path of the YAML config file used to configure the function
     - flags: --inputs
       description: The input topics for the function (as a comma-separated list if more than one topic is desired)
+    - flags: --logTopic
+      description: The topic to which logs from this function are published
     - flags: --jar
       description: A path to the JAR file for the function (if the function is written in Java)
     - flags: --name
@@ -176,6 +178,8 @@ commands:
       default: The value specified by `--className`
     - flags: --namespace
       description: The function's namespace
+    - flags: --logTopic
+      description: The topic to which logs from this function are published
     - flags: --output
       description: The name of the topic to which the function publishes its output (if any)
     - flags: --outputSerdeClassName
@@ -222,6 +226,8 @@ commands:
       default: The value specified by `--className`
     - flags: --namespace
       description: The function's namespace
+    - flags: --logTopic
+      description: The topic to which logs from this function are published
     - flags: --output
       description: The name of the topic to which the function publishes its output (if any)
     - flags: --outputSerdeClassName
