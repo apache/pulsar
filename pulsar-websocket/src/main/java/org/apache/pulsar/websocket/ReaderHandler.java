@@ -54,6 +54,9 @@ import org.slf4j.LoggerFactory;
  *
  */
 public class ReaderHandler extends AbstractWebSocketHandler {
+
+    private static final int DEFAULT_RECEIVER_QUEUE_SIZE = 1000;
+
     private String subscription = "";
     private Reader<byte[]> reader;
 
@@ -243,11 +246,11 @@ public class ReaderHandler extends AbstractWebSocketHandler {
     }
 
     private int getReceiverQueueSize() {
-        int size = 0;
+        int size = DEFAULT_RECEIVER_QUEUE_SIZE;
         if (queryParams.containsKey("receiverQueueSize")) {
-            size =  Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), 1000);
+            size =  Math.min(Integer.parseInt(queryParams.get("receiverQueueSize")), DEFAULT_RECEIVER_QUEUE_SIZE);
         }
-        return size > 0 ? size : 0;
+        return size;
     }
 
     private MessageId getMessageId() throws IOException {
