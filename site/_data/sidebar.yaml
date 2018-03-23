@@ -42,8 +42,8 @@ groups:
     endpoint: api
   - title: Deploying Pulsar Functions
     endpoint: deployment
-  #- title: Processing guarantees
-  #  endpoint: guarantees
+  - title: Processing guarantees
+    endpoint: guarantees
   #- title: Metrics and stats for Pulsar Functions
   #  endpoint: metrics-and-stats
 
