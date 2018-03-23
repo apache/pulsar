@@ -145,7 +145,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    if (!config().isTlsEnabled()) {
+                    if (!config().isReplicationTlsEnabled()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
                     } else if (!replClusterData.getServiceUrlTls().isEmpty()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
@@ -246,7 +246,7 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluser " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    if (!config().isTlsEnabled()) {
+                    if (!config().isReplicationTlsEnabled()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
                     } else if (!replClusterData.getServiceUrlTls().isEmpty()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
