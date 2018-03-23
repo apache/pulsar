@@ -56,7 +56,8 @@ public class ServiceConfigurationTest {
         InputStream newStream = updateProp(zookeeperServer, String.valueOf(brokerServicePort), "ns1,ns2");
         final ServiceConfiguration config = PulsarConfigurationLoader.create(newStream, ServiceConfiguration.class);
         assertTrue(isNotBlank(config.getZookeeperServers()));
-        assertTrue(config.getBrokerServicePort() == brokerServicePort);
+        assertTrue(config.getBrokerServicePort().isPresent()
+                && config.getBrokerServicePort().get().equals(brokerServicePort));
         assertEquals(config.getBootstrapNamespaces().get(1), "ns2");
     }
 
