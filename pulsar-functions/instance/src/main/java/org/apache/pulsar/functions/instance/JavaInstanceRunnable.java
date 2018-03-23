@@ -45,6 +45,9 @@ import org.apache.bookkeeper.clients.exceptions.StreamNotFoundException;
 import org.apache.bookkeeper.clients.utils.NetUtils;
 import org.apache.bookkeeper.stream.proto.NamespaceConfiguration;
 import org.apache.logging.log4j.ThreadContext;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.pulsar.client.api.*;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
 import org.apache.pulsar.client.impl.MessageIdImpl;
@@ -63,6 +66,7 @@ import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
+import org.apache.pulsar.log4j2.appender.PulsarAppender;
 
 /**
  * A function container implemented using java thread.
@@ -85,6 +89,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     @Getter(AccessLevel.PACKAGE)
     private final Map<String, Consumer> inputConsumers;
     private LinkedList<String> inputTopicsToResubscribe = null;
+    private PulsarAppender logAppender;
 
     // provide tables for storing states
     private final String stateStorageServiceUrl;
@@ -188,6 +193,10 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         startOutputProducer();
         // start the input consumer
         startInputConsumer();
+        // start any logging handler
+        log.info("About to setup log appender");
+        setupLogHandler();
+        log.info("Setup log appender");
 
         return new JavaInstance(instanceConfig, object, clsLoader, client, inputConsumers);
     }
@@ -262,10 +271,12 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                 }
                 long processAt = System.currentTimeMillis();
                 stats.incrementProcessed(processAt);
+                addLogTopicHandler();
                 result = javaInstance.handleMessage(
                         msg.getActualMessage().getMessageId(),
                         msg.getTopicName(),
                         input);
+                removeLogTopicHandler();
 
                 long doneProcessing = System.currentTimeMillis();
                 log.debug("Got result: {}", result.getResult());
@@ -754,5 +765,50 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                         + " function type = " + typeArgs[1] + "should be assignable from " + outputSerdeTypeArgs[0]);
             }
         }
+    }
+
+    private void setupLogHandler() {
+        if (instanceConfig.getFunctionConfig().getLogTopic() != null &&
+                !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
+            log.info("D1");
+            // We need to setup logger
+            PulsarAppender.Builder b = PulsarAppender.newBuilder();
+            log.info("D2");
+
+            b.setTopic(instanceConfig.getFunctionConfig().getLogTopic())
+                    .setPulsarClient(client);
+            log.info("D3");
+
+            logAppender = b.build();
+            log.info("D4");
+
+            /*
+            logAppender = PulsarAppender.newBuilder()
+                    .setTopic(instanceConfig.getFunctionConfig().getLogTopic())
+                    .setPulsarClient(client).build();
+                    */
+        }
+        log.info("WTF");
+    }
+
+    private void addLogTopicHandler() {
+        if (logAppender == null) return;
+        LoggerContext context = LoggerContext.getContext(false);
+        Configuration config = context.getConfiguration();
+        config.addAppender(logAppender);
+        for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
+            loggerConfig.addAppender(logAppender, null, null);
+        }
+        config.getRootLogger().addAppender(logAppender, null, null);
+    }
+
+    private void removeLogTopicHandler() {
+        if (logAppender == null) return;
+        LoggerContext context = LoggerContext.getContext(false);
+        Configuration config = context.getConfiguration();
+        for (final LoggerConfig loggerConfig : config.getLoggers().values()) {
+            loggerConfig.removeAppender(logAppender.getName());
+        }
+        config.getRootLogger().removeAppender(logAppender.getName());
     }
 }

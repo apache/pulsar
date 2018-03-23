@@ -68,6 +68,21 @@ public class PulsarManager extends AbstractManager {
         this.key = key;
     }
 
+    public PulsarManager(final LoggerContext loggerContext,
+                         final String name,
+                         final PulsarClient pulsarClient,
+                         final String topic,
+                         final boolean syncSend,
+                         final Property[] properties,
+                         final String key) {
+        super(loggerContext, name);
+        this.client = Objects.requireNonNull(pulsarClient, "pulsarClient");
+        this.serviceUrl = null;
+        this.topic = Objects.requireNonNull(topic, "topic");
+        this.syncSend = syncSend;
+        this.key = key;
+    }
+
     @Override
     public boolean releaseSub(final long timeout, final TimeUnit timeUnit) {
         if (producer != null) {
@@ -111,9 +126,11 @@ public class PulsarManager extends AbstractManager {
 
     public void startup() throws Exception {
         try {
-            client = PULSAR_CLIENT_BUILDER.get()
-                .serviceUrl(serviceUrl)
-                .build();
+            if (client == null) {
+                client = PULSAR_CLIENT_BUILDER.get()
+                        .serviceUrl(serviceUrl)
+                        .build();
+            }
             ProducerBuilder<byte[]> producerBuilder = client.newProducer()
                 .topic(topic)
                 .producerName("pulsar-log4j2-appender-" + topic)

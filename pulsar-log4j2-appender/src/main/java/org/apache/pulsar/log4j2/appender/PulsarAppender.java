@@ -34,6 +34,7 @@ import org.apache.logging.log4j.core.config.plugins.PluginAttribute;
 import org.apache.logging.log4j.core.config.plugins.PluginBuilderFactory;
 import org.apache.logging.log4j.core.config.plugins.PluginElement;
 import org.apache.logging.log4j.core.layout.SerializedLayout;
+import org.apache.pulsar.client.api.PulsarClient;
 
 /**
  * The PulsarAppender logs events to an Apache Pulsar topic.
@@ -63,6 +64,9 @@ public final class PulsarAppender extends AbstractAppender {
         @PluginAttribute("serviceUrl")
         private String serviceUrl;
 
+        @PluginAttribute("pulsarClient")
+        private PulsarClient pulsarClient;
+
         @PluginAttribute(value = "avoidRecursive", defaultBoolean = true)
         private boolean avoidRecursive;
 
@@ -80,14 +84,26 @@ public final class PulsarAppender extends AbstractAppender {
                 AbstractLifeCycle.LOGGER.error("No layout provided for PulsarAppender");
                 return null;
             }
-            PulsarManager manager = new PulsarManager(
-                getConfiguration().getLoggerContext(),
-                getName(),
-                serviceUrl,
-                topic,
-                syncSend,
-                properties,
-                key);
+            PulsarManager manager;
+            if (serviceUrl != null) {
+                manager = new PulsarManager(
+                        getConfiguration().getLoggerContext(),
+                        getName(),
+                        serviceUrl,
+                        topic,
+                        syncSend,
+                        properties,
+                        key);
+            } else {
+                manager = new PulsarManager(
+                        getConfiguration().getLoggerContext(),
+                        getName(),
+                        pulsarClient,
+                        topic,
+                        syncSend,
+                        properties,
+                        key);
+            }
             return new PulsarAppender(
                 getName(),
                 layout,
@@ -121,6 +137,16 @@ public final class PulsarAppender extends AbstractAppender {
 
         public B setProperties(final Property[] properties) {
             this.properties = properties;
+            return asBuilder();
+        }
+
+        public B setServiceUrl(final String serviceUrl) {
+            this.serviceUrl = serviceUrl;
+            return asBuilder();
+        }
+
+        public B setPulsarClient(final PulsarClient pulsarClient) {
+            this.pulsarClient = pulsarClient;
             return asBuilder();
         }
     }

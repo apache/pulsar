@@ -27,17 +27,9 @@ import org.apache.pulsar.functions.api.Function;
  */
 public class LoggingFunction implements Function<String, String> {
 
-    private static final AtomicIntegerFieldUpdater<LoggingFunction> COUNTER_UPDATER =
-        AtomicIntegerFieldUpdater.newUpdater(LoggingFunction.class, "counter");
-    private volatile int counter = 0;
-
     @Override
     public String process(String input, Context context) {
-
-        int counterLocal = COUNTER_UPDATER.incrementAndGet(this);
-        if ((counterLocal & Integer.MAX_VALUE) % 100000 == 0) {
-            context.getLogger().info("Handled {} messages", counterLocal);
-        }
+        context.getLogger().info("Logging Here");
 
         return input + "!";
     }
