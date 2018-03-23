@@ -55,7 +55,6 @@ public class LookupProtocolTest {
         conf.setServiceUrl("http://localhost:8080");
         conf.setServiceUrlTls("https://localhost:8443");
         conf.setBrokerServiceUrl("pulsar://localhost:6650");
-        conf.setTlsEnabled(true);
         WebSocketService service  = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");
@@ -88,7 +87,6 @@ public class LookupProtocolTest {
         conf.setServiceUrlTls("https://localhost:8443");
         conf.setBrokerServiceUrl("pulsar://localhost:6650");
         conf.setBrokerServiceUrlTls("pulsar+ssl://localhost:6651");
-        conf.setTlsEnabled(true);
         WebSocketService service  = new WebSocketService(conf);
         PulsarClientImpl testClient = (PulsarClientImpl) service.getPulsarClient();
         Field lookupField = PulsarClientImpl.class.getDeclaredField("lookup");

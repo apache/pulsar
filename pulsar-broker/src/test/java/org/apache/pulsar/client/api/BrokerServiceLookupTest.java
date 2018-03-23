@@ -392,7 +392,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         conf2.setWebServicePortTls(PortManager.nextFreePort());
         conf2.setAdvertisedAddress("localhost");
         conf2.setTlsAllowInsecureConnection(true);
-        conf2.setTlsEnabled(true);
         conf2.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf2.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         conf2.setClusterName(conf.getClusterName());
@@ -401,7 +400,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // restart broker1 with tls enabled
         conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         stopBroker();
@@ -529,7 +527,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
 
         // (1) restart broker1 with tls enabled
         conf.setTlsAllowInsecureConnection(true);
-        conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         stopBroker();
@@ -539,7 +536,6 @@ public class BrokerServiceLookupTest extends ProducerConsumerBase {
         ServiceConfig config = new ServiceConfig();
         config.setServicePort(nextFreePort());
         config.setServicePortTls(nextFreePort());
-        config.setTlsEnabled(true);
         config.setBindOnLocalhost(true);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
