@@ -282,6 +282,19 @@ commands:
     - flags: -w, --watch
       description: If set, watching for state changes is enabled
       default: "false"
+  - name: trigger
+    description: Triggers the specified Pulsar Function with a supplied value or file data
+    options:
+    - flags: --name
+      description: The name of the Pulsar Function to trigger
+    - flags: --namespace
+      description: The namespace of the Pulsar Function to trigger
+    - flags: --tenant
+      description: The tenant of the Pulsar Function to trigger
+    - flags: --triggerFile
+      description: The path to the file containing the data with which the Pulsar Function is to be triggered
+    - flags: --triggerValue
+      description: The value with which the Pulsar Function is to be triggered
 - name: namespaces
   description: Operations about namespaces
   subcommands:

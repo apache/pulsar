@@ -618,16 +618,16 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Trigger function")
+    @Parameters(commandDescription = "Triggers the specified Pulsar Function with a supplied value")
     class TriggerFunction extends FunctionCommand {
-        @Parameter(names = "--triggerValue", description = "The value the function needs to be triggered with")
+        @Parameter(names = "--triggerValue", description = "The value with which you want to trigger the function")
         protected String triggerValue;
-        @Parameter(names = "--triggerFile", description = "The fileName that contains data the function needs to be triggered with")
+        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function")
         protected String triggerFile;
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
-                throw new RuntimeException("One of triggerValue/triggerFile has to be present");
+                throw new RuntimeException("Either a trigger value or a trigger filepath needs to be present");
             }
             String retval = fnAdmin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
             System.out.println(retval);

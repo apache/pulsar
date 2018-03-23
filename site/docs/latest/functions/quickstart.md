@@ -17,9 +17,9 @@ In order to follow along with this tutorial, you'll need to have [Maven](https:/
 In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. Follow these steps to start up a standalone cluster:
 
 ```bash
-$ wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-$ tar xvf apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-$ cd apache-pulsar-2.0.0-incubating-functions-preview
+$ wget https://github.com/streamlio/incubator-pulsar/releases/download/v{{ site.preview_version }}/apache-pulsar-{{ site.preview_version }}-bin.tar.gz
+$ tar xvf apache-pulsar-{{ site.preview_version }}-bin.tar.gz
+$ cd apache-pulsar-{{ site.preview_version }}
 $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
@@ -221,9 +221,9 @@ $ touch reverse.py
 In that file, add the following:
 
 ```python
-from pulsarfunction import pulsar_function
+from pulsar import Function
 
-class Reverse(pulsar_function.PulsarFunction):
+class Reverse(Function):
   def __init__(self):
     pass
 
