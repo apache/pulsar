@@ -26,6 +26,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
@@ -43,6 +44,8 @@ import org.apache.pulsar.zookeeper.ZooKeeperSessionWatcher.ShutdownService;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Preconditions;
 
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -90,22 +93,36 @@ public class ProxyService implements Closeable {
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
-        this.serviceUrl = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort());
-        this.serviceUrlTls = String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls());
+        
+        Preconditions.checkArgument(
+                proxyConfig.getServicePort().isPresent() || proxyConfig.getServicePortTls().isPresent(),
+                "Need to define the Service ports for proxy.");
+        
+        Preconditions.checkArgument(
+                StringUtils.isNotBlank(proxyConfig.getBrokerServiceURLTLS())
+                        || StringUtils.isNotBlank(proxyConfig.getBrokerServiceURL()),
+                "Need to specify brokerServiceURL or brokerServiceURLTLS.");
+        
+        this.serviceUrl = proxyConfig.getServicePort().isPresent()
+                ? String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePort()) : null;
+        this.serviceUrlTls = proxyConfig.getServicePortTls().isPresent()
+                ? String.format("pulsar://%s:%d/", hostname, proxyConfig.getServicePortTls()) : null;
 
         this.acceptorGroup  = EventLoopUtil.newEventLoopGroup(1, acceptorThreadFactory);
         this.workerGroup = EventLoopUtil.newEventLoopGroup(numThreads, workersThreadFactory);
 
         ClientConfigurationData clientConf = new ClientConfigurationData();
-        clientConf.setServiceUrl(serviceUrl);
-        if (proxyConfig.getBrokerClientAuthenticationPlugin() != null) {
+        if (StringUtils.isNotBlank(proxyConfig.getBrokerClientAuthenticationPlugin())) {
             clientConf.setAuthentication(AuthenticationFactory.create(proxyConfig.getBrokerClientAuthenticationPlugin(),
                     proxyConfig.getBrokerClientAuthenticationParameters()));
         }
-        if (proxyConfig.isTlsEnabledWithBroker()) {
+        if (StringUtils.isNotBlank(proxyConfig.getBrokerServiceURLTLS())) {
+            clientConf.setServiceUrl(proxyConfig.getBrokerServiceURLTLS());
             clientConf.setUseTls(true);
             clientConf.setTlsTrustCertsFilePath(proxyConfig.getBrokerClientTrustCertsFilePath());
             clientConf.setTlsAllowInsecureConnection(proxyConfig.isTlsAllowInsecureConnection());
+        } else {
+            clientConf.setServiceUrl(proxyConfig.getBrokerServiceURL());
         }
 
         this.client = new PulsarClientImpl(clientConf, workerGroup);
@@ -143,14 +160,15 @@ public class ProxyService implements Closeable {
 
         bootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, false));
         // Bind and start to accept incoming connections.
-        bootstrap.bind(proxyConfig.getServicePort()).sync();
-        LOG.info("Started Pulsar Proxy at {}", serviceUrl);
-
-        if (proxyConfig.isTlsEnabledInProxy()) {
+        if (proxyConfig.getServicePort().isPresent()) {
+            bootstrap.bind(proxyConfig.getServicePort().get()).sync();
+            LOG.info("Started Pulsar Proxy at {}", serviceUrl);
+        }
+        if (proxyConfig.getServicePortTls().isPresent()) {
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new ServiceChannelInitializer(this, proxyConfig, true));
-            tlsBootstrap.bind(proxyConfig.getServicePortTls()).sync();
-            LOG.info("Started Pulsar TLS Proxy on port {}", proxyConfig.getServicePortTls());
+            tlsBootstrap.bind(proxyConfig.getServicePortTls().get()).sync();
+            LOG.info("Started Pulsar TLS Proxy at {}", serviceUrlTls);
         }
     }
 

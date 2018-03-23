@@ -58,20 +58,19 @@ public class ServerManager {
     private final Server server;
     private final ExecutorService webServiceExecutor;
     private final List<Handler> handlers = Lists.newArrayList();
-    protected final int externalServicePort;
 
     public ServerManager(ServiceConfig config) {
         this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
         this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
-        this.externalServicePort = config.getWebServicePort();
 
         List<ServerConnector> connectors = Lists.newArrayList();
 
-        ServerConnector connector = new ServerConnector(server, 1, 1);
-        connector.setPort(externalServicePort);
-        connectors.add(connector);
-
-        if (config.isTlsEnabled()) {
+        if (config.getWebServicePort().isPresent()) {
+            ServerConnector connector = new ServerConnector(server, 1, 1);
+            connector.setPort(config.getWebServicePort().get());
+            connectors.add(connector);
+        }
+        if (config.getWebServicePortTls().isPresent()) {
             SslContextFactory sslCtxFactory = new SslContextFactory();
             try {
                 SSLContext sslCtx = SecurityUtility.createSslContext(config.isTlsAllowInsecureConnection(), config.getTlsTrustCertsFilePath(), config.getTlsCertificateFilePath(),
@@ -83,7 +82,7 @@ public class ServerManager {
 
             sslCtxFactory.setWantClientAuth(true);
             ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-            tlsConnector.setPort(config.getWebServicePortTls());
+            tlsConnector.setPort(config.getWebServicePortTls().get());
             connectors.add(tlsConnector);
         }
 
@@ -104,10 +103,6 @@ public class ServerManager {
         holder.setInitParameters(initParameters);
         context.addServlet(holder, path);
         handlers.add(context);
-    }
-
-    public int getExternalServicePort() {
-        return externalServicePort;
     }
 
     public void start() throws Exception {

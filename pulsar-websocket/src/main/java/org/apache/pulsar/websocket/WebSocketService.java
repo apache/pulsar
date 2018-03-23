@@ -178,7 +178,7 @@ public class WebSocketService implements Closeable {
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .statsInterval(0, TimeUnit.SECONDS) //
-                .enableTls(config.isTlsEnabled()) //
+                .enableTls(config.getBrokerServicePortTls().isPresent() || config.getWebServicePortTls().isPresent()) //
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
                 .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
@@ -190,12 +190,10 @@ public class WebSocketService implements Closeable {
                     config.getBrokerClientAuthenticationParameters());
         }
 
-        if (config.isTlsEnabled()) {
-            if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-            } else if (isNotBlank(clusterData.getServiceUrlTls())) {
-                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
-            }
+        if (config.getBrokerServicePortTls().isPresent()) {
+            clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
+        } else if (config.getWebServicePortTls().isPresent()) {
+            clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
         } else {

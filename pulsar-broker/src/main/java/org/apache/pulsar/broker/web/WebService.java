@@ -84,28 +84,29 @@ public class WebService implements AutoCloseable {
         this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
         List<ServerConnector> connectors = new ArrayList<>();
 
-        ServerConnector connector = new PulsarServerConnector(server, 1, 1);
-        connector.setPort(pulsar.getConfiguration().getWebServicePort());
-        connector.setHost(pulsar.getBindAddress());
-        connectors.add(connector);
-
-        if (pulsar.getConfiguration().isTlsEnabled()) {
+        if (pulsar.getConfiguration().getWebServicePort().isPresent()) {
+            ServerConnector connector = new PulsarServerConnector(server, 1, 1);
+            connector.setPort(pulsar.getConfiguration().getWebServicePort().get());
+            connector.setHost(pulsar.getBindAddress());
+            connectors.add(connector);
+        }
+        
+        if (pulsar.getConfiguration().getWebServicePortTls().isPresent()) {
             SslContextFactory sslCtxFactory = new SslContextFactory();
 
             try {
                 sslCtxFactory.setSslContext(
-                        SecurityUtility.createSslContext(
-                            pulsar.getConfiguration().isTlsAllowInsecureConnection(),
-                            pulsar.getConfiguration().getTlsTrustCertsFilePath(),
-                            pulsar.getConfiguration().getTlsCertificateFilePath(),
-                            pulsar.getConfiguration().getTlsKeyFilePath()));
+                        SecurityUtility.createSslContext(pulsar.getConfiguration().isTlsAllowInsecureConnection(),
+                                pulsar.getConfiguration().getTlsTrustCertsFilePath(),
+                                pulsar.getConfiguration().getTlsCertificateFilePath(),
+                                pulsar.getConfiguration().getTlsKeyFilePath()));
             } catch (GeneralSecurityException e) {
                 throw new PulsarServerException(e);
             }
 
             sslCtxFactory.setWantClientAuth(true);
             ServerConnector tlsConnector = new PulsarServerConnector(server, 1, 1, sslCtxFactory);
-            tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls());
+            tlsConnector.setPort(pulsar.getConfiguration().getWebServicePortTls().get());
             tlsConnector.setHost(pulsar.getBindAddress());
             connectors.add(tlsConnector);
         }

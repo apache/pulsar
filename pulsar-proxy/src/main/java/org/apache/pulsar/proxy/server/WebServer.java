@@ -59,20 +59,20 @@ public class WebServer {
     private final Server server;
     private final ExecutorService webServiceExecutor;
     private final List<Handler> handlers = Lists.newArrayList();
-    protected final int externalServicePort;
 
     public WebServer(ProxyConfiguration config) {
         this.webServiceExecutor = Executors.newFixedThreadPool(32, new DefaultThreadFactory("pulsar-external-web"));
         this.server = new Server(new ExecutorThreadPool(webServiceExecutor));
-        this.externalServicePort = config.getWebServicePort();
 
         List<ServerConnector> connectors = Lists.newArrayList();
 
         ServerConnector connector = new ServerConnector(server, 1, 1);
-        connector.setPort(externalServicePort);
-        connectors.add(connector);
+        if (config.getWebServicePort().isPresent()) {
+            connector.setPort(config.getWebServicePort().get());
+            connectors.add(connector);
+        }
 
-        if (config.isTlsEnabledInProxy()) {
+        if (config.getWebServicePortTls().isPresent()) {
             SslContextFactory sslCtxFactory = new SslContextFactory();
             try {
                 SSLContext sslCtx = SecurityUtility.createSslContext(false, null, config.getTlsCertificateFilePath(),
@@ -84,7 +84,7 @@ public class WebServer {
 
             sslCtxFactory.setWantClientAuth(false);
             ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-            tlsConnector.setPort(config.getWebServicePortTls());
+            tlsConnector.setPort(config.getWebServicePortTls().get());
             connectors.add(tlsConnector);
         }
 
@@ -116,10 +116,6 @@ public class WebServer {
         context.addServlet(servletHolder, "/*");
         context.setAttribute(attribute, attributeValue);
         handlers.add(context);
-    }
-    
-    public int getExternalServicePort() {
-        return externalServicePort;
     }
 
     public void start() throws Exception {
