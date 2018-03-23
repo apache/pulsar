@@ -251,6 +251,10 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doJavaSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
+            if (!Files.exists(Paths.get(jarFilePath))) {
+                throw new IllegalArgumentException(String.format("There is no file at the path %s", jarFilePath));
+            }
+
             if (Files.isDirectory(Paths.get(jarFilePath))) {
                 throw new IllegalArgumentException(String.format(
                         "The path %s is a directory, not a jar file", jarFilePath));
@@ -259,10 +263,6 @@ public class CmdFunctions extends CmdBase {
             if (!jarFilePath.endsWith(".jar")) {
                 throw new IllegalArgumentException(String.format(
                         "The path you specify must be a jar (the file %s does not have a *.jar filename)", jarFilePath));
-            }
-
-            if (!Files.exists(Paths.get(jarFilePath))) {
-                throw new IllegalArgumentException(String.format("There is no file at the path %s", jarFilePath));
             }
 
             File file = new File(jarFilePath);
