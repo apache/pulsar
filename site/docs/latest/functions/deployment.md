@@ -56,18 +56,23 @@ $ bin/pulsar-admin functions create \
 
 ### Updating cluster mode functions
 
-You can use the [`update`](../../CliTools#pulsar-admin-functions-update) command to update a Pulsar Function running in cluster mode.
+You can use the [`update`](../../CliTools#pulsar-admin-functions-update) command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section [above](#cluster-mode):
 
 ```bash
 $ bin/pulsar-admin functions update \
-
+  --py myfunc.py \
+  --className myfunc.SomeFunction \
+  --inputs persistent://sample/standalone/ns1/new-input-topic \
+  --output persistent://sample/standalone/ns1/new-output-topic
 ```
 
 {% include admonition.html type="info" content="Something" %}
 
 ### Parallelism
 
-Pulsar Functions run as processes called **instances**. When you run a Pulsar Function, it runs as a single instance by default (and in [local run mode](#local-run) you can *only* run a single instance of a function). You can also specify the parallelism of a function (i.e. the number of instances to run) via the [command line](../../references/CliTools#pulsar-admin-functions). Here's an example:
+Pulsar Functions run as processes called **instances**. When you run a Pulsar Function, it runs as a single instance by default (and in [local run mode](#local-run) you can *only* run a single instance of a function).
+
+You can also specify the *parallelism* of a function, i.e. the number of instances to run, when you create the function. You can set the parallelism factor using the `--parallelism` flag of the [`create`](../../references/CliTools#pulsar-admin-functions-create) command. Here's an example:
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -83,12 +88,20 @@ $ bin/pulsar-admin functions update \
   # Other function
 ```
 
-If you're specifying a function's configuration via YAML, use the `parallelism` parameter. Here's an example:
+If you're specifying a function's configuration via YAML, use the `parallelism` parameter. Here's an example config file:
 
 ```yaml
+# function-config.yaml
 parallelism: 3
 inputs:
 - persistent://sample/standalone/ns1/input-1
 output: persistent://sample/standalone/ns1/output-1
 # other parameters
+```
+
+And here's the corresponding update command:
+
+```bash
+$ bin/pulsar-admin functions update \
+  --functionConfigFile function-config.yaml
 ```

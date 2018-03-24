@@ -89,7 +89,7 @@ SerDe stands for **Ser**ialization and **De**serialization. All Pulsar Functions
 
 In both languages, however, you can write your own custom SerDe logic for more complex, application-specific types. See the docs for [Java](#java-serde) and [Python](#python-serde) for language-specific instructions.
 
-## Context
+### Context
 
 Both the [Java](#java-sdk) and [Python](#python-sdk) SDKs provide access to a **context object** that can be used by the function. This context object provides a wide variety of information and functionality to the function:
 
@@ -105,7 +105,7 @@ Both the [Java](#java-sdk) and [Python](#python-sdk) SDKs provide access to a **
 * Access to arbitrary [user config](#user-config) values supplied via the CLI
 * An interface for recording [metrics](../metrics)
 
-## User config
+### User config
 
 When you run or update Pulsar Functions created using the [SDK](#apis), you can pass arbitrary key/values to them via the command line with the `--userConfig` flag. Key/values must be specified as JSON. Here's an example of a function creation command that passes a user config key/value to a function:
 
@@ -134,7 +134,7 @@ class WordFilter(Function):
             return input
 ```
 
-## Java
+## Pulsar Functions for Java {#java}
 
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
@@ -209,7 +209,7 @@ To get started developing Pulsar Functions using the Java SDK, you'll need to ad
 
 ### Java context object {#java-context}
 
-Context interface:
+The {% javadoc Context client org.apache.pulsar.functions.api.Context %} interface provides a number of methods that you can use to access the functions [context](#context). The various method signatures for the `Context` interface are listed below:
 
 ```java
 public interface Context {
@@ -273,7 +273,7 @@ public interface SerDe<T> {
 }
 ```
 
-#### SerDe example
+#### Java SerDe example
 
 Imagine that you're writing Pulsar Functions in Java that are processing tweet objects. Here's a simple example `Tweet` class:
 
@@ -396,10 +396,10 @@ public class UserConfigFunction implements Function<String, Void> {
 }
 ```
 
-The `UserConfigFunction` function will log the string `The word of the day is verdure` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value.
+The `UserConfigFunction` function will log the string `"The word of the day is verdure"` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value.
 
 {% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
 
-## Python
+## Pulsar Functions for Python {#python}
 
 Documentation for the Python SDK for Pulsar Functions is coming soon.
