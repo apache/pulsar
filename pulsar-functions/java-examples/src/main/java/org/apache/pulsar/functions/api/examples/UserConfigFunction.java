@@ -20,11 +20,24 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
+
+import java.util.Optional;
 
 public class UserConfigFunction implements Function<String, String> {
     @Override
     public String process(String input, Context context) {
-        context.getLogger().info("My Config is " + context.getUserConfigValue("MyOwnConfig"));
-        return input + context.getUserConfigValue("MyOwnConfig");
+        String key = "config-key";
+        Optional<String> maybeValue = context.getUserConfigValue(key);
+        Logger LOG = context.getLogger();
+
+        if (maybeValue.isPresent()) {
+            String value = maybeValue.get();
+            LOG.info("The config value is {}", value);
+            return value;
+        } else {
+            LOG.error("No value present for the key {}", key);
+            return null;
+        }
     }
 }
