@@ -18,10 +18,6 @@
  */
 package org.apache.pulsar.admin.cli;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static java.nio.charset.StandardCharsets.UTF_8;
-import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
-
 import com.beust.jcommander.Parameter;
 import com.beust.jcommander.Parameters;
 import com.beust.jcommander.converters.StringConverter;
@@ -30,10 +26,6 @@ import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonParser;
 import com.google.gson.reflect.TypeToken;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
-import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
-import java.net.MalformedURLException;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import net.jodah.typetools.TypeResolver;
@@ -47,24 +39,34 @@ import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.PulsarAdminWithFunctions;
 import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
-import org.apache.pulsar.functions.proto.Function.FunctionConfig;
-import org.apache.pulsar.functions.instance.InstanceConfig;
-import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.api.SerDe;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+import org.apache.pulsar.functions.instance.InstanceConfig;
+import org.apache.pulsar.functions.proto.Function.FunctionConfig;
+import org.apache.pulsar.functions.runtime.ProcessRuntimeFactory;
 import org.apache.pulsar.functions.runtime.RuntimeSpawner;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBuf;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.ByteBufUtil;
+import org.apache.pulsar.functions.shaded.io.netty.buffer.Unpooled;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
+import org.apache.pulsar.functions.utils.Utils;
 
 import java.io.File;
+import java.io.IOException;
 import java.lang.reflect.Type;
+import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import org.apache.pulsar.functions.utils.Utils;
+import java.util.zip.ZipFile;
+
+import static com.google.common.base.Preconditions.checkNotNull;
+import static java.nio.charset.StandardCharsets.UTF_8;
+import static org.apache.bookkeeper.common.concurrent.FutureUtils.result;
 
 @Slf4j
 @Parameters(commandDescription = "Operations about functions")
@@ -251,21 +253,29 @@ public class CmdFunctions extends CmdBase {
         }
 
         private void doJavaSubmitChecks(FunctionConfig.Builder functionConfigBuilder) {
+            // Check that the supplied path is a valid path
             if (!Files.exists(Paths.get(jarFilePath))) {
-                throw new IllegalArgumentException(String.format("There is no file at the path %s", jarFilePath));
+                throw new IllegalArgumentException(String.format("The path %s is empty", jarFilePath));
             }
 
+            // Check that the supplied path is for a file, not a directory
             if (Files.isDirectory(Paths.get(jarFilePath))) {
                 throw new IllegalArgumentException(String.format(
                         "The path %s is a directory, not a jar file", jarFilePath));
             }
 
-            if (!jarFilePath.endsWith(".jar")) {
-                throw new IllegalArgumentException(String.format(
-                        "The path you specify must be a jar (the file %s does not have a *.jar filename)", jarFilePath));
-            }
-
             File file = new File(jarFilePath);
+
+            // Check that the file is a valid jar by checking for the presence of a META-INF/MANIFEST.MF file
+            try {
+                ZipFile zip = new ZipFile(file);
+                if (null == zip.getEntry("META-INF/MANIFEST.MF")) {
+                    throw new IllegalArgumentException("The file %s is not a jar file");
+                }
+                zip.close();
+            } catch (IOException e) {
+                throw new IllegalArgumentException(String.format("The file %s is not a proper jar file", jarFilePath));
+            }
 
             // check if the function class exists in Jar and it implements Function class
             if (!Reflections.classExistsInJar(file, functionConfigBuilder.getClassName())) {
