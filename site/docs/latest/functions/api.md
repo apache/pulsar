@@ -91,7 +91,7 @@ In both languages, however, you can write your own custom SerDe logic for more c
 
 ## Context
 
-Both the [Java](#java-functions-with-context) and [Python](#python-functions-with-context) APIs provide optional access to a **context object** that can be used by the function. This context object provides a wide variety of information and functionality to the function:
+Both the [Java](#java-sdk) and [Python](#python-sdk) SDKs provide access to a **context object** that can be used by the function. This context object provides a wide variety of information and functionality to the function:
 
 * The name and ID of the Pulsar Function
 * The message ID of each message. Each Pulsar {% popover message %} is automatically assigned an ID.
@@ -103,7 +103,7 @@ Both the [Java](#java-functions-with-context) and [Python](#python-functions-wit
 * The version of the function
 * The [logger object](#logging) used by the function, which can be used to create function log messages
 * Access to arbitrary [user config](#user-config) values supplied via the CLI
-* An interface for recording [metrics](../metrics-and-stats)
+* An interface for recording [metrics](../metrics)
 
 ## User config
 
@@ -326,12 +326,11 @@ $ bin/pulsar-admin functions create \
 ```
 
 {% include admonition.html type="warning" title="Custom SerDe classes must be packaged with your function JARs" content="
-Pulsar does not store your custom SerDe classes separately from your Pulsar Functions. That means that you'll need to always include your SerDe classes in your function JARs. If not, Pulsar will return an error.
-" %}
+Pulsar does not store your custom SerDe classes separately from your Pulsar Functions. That means that you'll need to always include your SerDe classes in your function JARs. If not, Pulsar will return an error." %}
 
 ### Java logging
 
-Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html).
+Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to create logs. Here's a simple example function that logs either a warning- or info-level log based on whether the incoming string contains the word `danger`:
 
 ```java
 import org.apache.pulsar.functions.api.Context;
@@ -354,6 +353,18 @@ public class LoggingFunction implements Function<String, Void> {
     }
 }
 ```
+
+If you want your function to produce logs, you need to specify a log topic when creating or running the function. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --jar my-functions.jar \
+  --className my.package.LoggingFunction \
+  --logTopic persistent://sample/standalone/ns1/logging-function-logs \
+  # Other function configs
+```
+
+Now, all logs produced by the `LoggingFunction` above can be accessed via the `persistent://sample/standalone/ns1/logging-function-logs` topic.
 
 ### Java user config
 
@@ -383,11 +394,9 @@ public class UserConfigFunction implements Function<String, Void> {
 }
 ```
 
+The `UserConfigFunction` function will log the string `The word of the day is verdure` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value.
+
 {% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
-
-### Publishing
-
-{% include admonition.html type="info" content="Here is some content." %}
 
 ## Python
 

@@ -31,7 +31,6 @@ public class LoggingFunction implements Function<String, String> {
 
     private static final AtomicIntegerFieldUpdater<LoggingFunction> COUNTER_UPDATER =
         AtomicIntegerFieldUpdater.newUpdater(LoggingFunction.class, "counter");
-    private volatile int counter = 0;
 
     @Override
     public String process(String input, Context context) {

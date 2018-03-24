@@ -24,7 +24,6 @@ import org.apache.pulsar.functions.api.Function;
 public class PublishFunction implements Function<String, byte[]> {
     @Override
     public byte[] process(String input, Context context) {
-        context.getUserConfigValue()
         return "foo".getBytes();
     }
 }
