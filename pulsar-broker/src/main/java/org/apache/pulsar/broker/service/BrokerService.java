@@ -30,6 +30,7 @@ import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -1022,18 +1023,17 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     public List<Topic> getAllTopicsFromNamespaceBundle(String namespace, String bundle) {
-        if (multiLayerTopicsMap.get(namespace) == null) {
-            return Lists.newArrayList();
+        ConcurrentOpenHashMap<String, ConcurrentOpenHashMap<String, Topic>> map1 = multiLayerTopicsMap.get(namespace);
+        if (map1 == null) {
+            return Collections.emptyList();
         }
 
-        if (multiLayerTopicsMap.get(namespace).get(bundle) == null) {
-            return Lists.newArrayList();
+        ConcurrentOpenHashMap<String, Topic> map2 = map1.get(bundle);
+        if (map2 == null) {
+            return Collections.emptyList();
         }
 
-        return multiLayerTopicsMap
-            .get(namespace)
-            .get(bundle)
-            .values();
+        return map2.values();
     }
 
     public ZooKeeperDataCache<Map<String, String>> getDynamicConfigurationCache() {

@@ -81,35 +81,6 @@ public class LocalZooKeeperCacheService {
             }
 
             @Override
-            public CompletableFuture<Optional<LocalPolicies>> getAsync(String path) {
-                CompletableFuture<Optional<LocalPolicies>> future = new CompletableFuture<>();
-
-                // First check in local-zk cache
-                super.getAsync(path).thenAccept(localPolicies -> {
-                    if (localPolicies.isPresent()) {
-                        future.complete(localPolicies);
-                    } else {
-                        // create new policies node under Local ZK by coping it from Global ZK
-                        createPolicies(path, true).thenAccept(p -> {
-                            LOG.info("Successfully created local policies for {} -- {}", path, p);
-                            // local-policies have been created but it's not part of policiesCache. so, call
-                            // super.getAsync() which will load it and set the watch on local-policies path
-                            super.getAsync(path);
-                            future.complete(p);
-                        }).exceptionally(ex -> {
-                            future.completeExceptionally(ex);
-                            return null;
-                        });
-                    }
-                }).exceptionally(ex -> {
-                    future.completeExceptionally(ex);
-                    return null;
-                });
-
-                return future;
-            }
-
-            @Override
             public CompletableFuture<Optional<Entry<LocalPolicies, Stat>>> getWithStatAsync(String path) {
                 CompletableFuture<Optional<Entry<LocalPolicies, Stat>>> future = new CompletableFuture<>();
 

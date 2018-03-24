@@ -74,16 +74,11 @@ public abstract class ZooKeeperDataCache<T> implements Deserializer<T>, CacheUpd
     }
 
     public CompletableFuture<Optional<Entry<T, Stat>>> getWithStatAsync(String path) {
-        CompletableFuture<Optional<Entry<T, Stat>>> future = new CompletableFuture<>();
-        cache.getDataAsync(path, this, this).thenAccept(entry -> {
-            future.complete(entry);
-        }).exceptionally(ex -> {
-            cache.asyncInvalidate(path);
-            future.completeExceptionally(ex);
-            return null;
+        return cache.getDataAsync(path, this, this).whenComplete((entry, ex) -> {
+            if (ex != null) {
+                cache.asyncInvalidate(path);
+            }
         });
-
-        return future;
     }
 
     /**

@@ -51,6 +51,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -110,6 +111,8 @@ public class NamespaceService {
     private int uncountedNamespaces;
 
     private final String host;
+
+    private static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
 
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
@@ -558,8 +561,7 @@ public class NamespaceService {
         throws Exception {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
-        final int retryTimes = 7;
-        final AtomicInteger counter = new AtomicInteger(retryTimes);
+        final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
 
         splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture);
 
@@ -600,11 +602,18 @@ public class NamespaceService {
                             bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
 
                             updateFuture.complete(splittedBundles.getLeft());
-                        } else {
+                        } else if (rc == Code.BADVERSION.intValue()) {
+                            KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
                             String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
                                     "due to %s, counter: %d",
                                 nsname.toString(), bundle.getBundleRange(),
-                                KeeperException.create(KeeperException.Code.get(rc)).getMessage(), counter.get());
+                                keeperException.getMessage(), counter.get());
+                            LOG.warn(msg);
+                            updateFuture.completeExceptionally(new ServerMetadataException(keeperException));
+                        } else {
+                            String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s due to %s",
+                                nsname.toString(), bundle.getBundleRange(),
+                                KeeperException.create(KeeperException.Code.get(rc)).getMessage());
                             LOG.warn(msg);
                             updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
                         }
@@ -625,14 +634,14 @@ public class NamespaceService {
         // Else retry splitAndOwnBundleOnceAndRetry.
         updateFuture.whenCompleteAsync((r, t)-> {
             if (t != null) {
-                // retry several times
-                if (counter.decrementAndGet() >= 0) {
+                // retry several times on BadVersion
+                if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
                     pulsar.getOrderedExecutor().submit(
                         () -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture));
                 } else {
-                    // Retry enough, fail this.
-                    String msg2 = format("Finish retry, %s not success update nsBundles, reason %S",
-                        bundle.toString(), t.getMessage());
+                    // Retry enough, or meet other exception
+                    String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
+                        bundle.toString(), counter.get(), t.getMessage());
                     LOG.warn(msg2);
                     unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
                 }
