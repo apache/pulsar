@@ -20,9 +20,7 @@
 
 
 bin/pulsar-functions functions create \
-    --function-config conf/example.yml \
-    --output-topic persistent://sample/standalone/ns1/test_result \
-    --input-topics persistent://sample/standalone/ns1/test_src \
-    --output-serde-classname pulsarfunction.serde.IdentitySerDe \
+    --output persistent://sample/standalone/ns1/test_result \
+    --inputs persistent://sample/standalone/ns1/test_src \
     --py python-examples/exclamation.py \
-    --function-classname exclamation.Exclamation
+    --className exclamation.Exclamation
