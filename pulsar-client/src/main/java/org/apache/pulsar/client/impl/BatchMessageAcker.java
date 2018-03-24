@@ -31,6 +31,7 @@ class BatchMessageAcker {
 
     // bitset shared across messages in the same batch.
     private final BitSet bitSet;
+    private boolean prevBatchCumulativelyAcked = false;
 
     BatchMessageAcker(BitSet bitSet) {
         this.bitSet = bitSet;
@@ -59,6 +60,14 @@ class BatchMessageAcker {
     // debug purpose
     public synchronized int getOutstandingAcks() {
         return bitSet.cardinality();
+    }
+
+    public void setPrevBatchCumulativelyAcked(boolean acked) {
+        this.prevBatchCumulativelyAcked = acked;
+    }
+
+    public boolean isPrevBatchCumulativelyAcked() {
+        return prevBatchCumulativelyAcked;
     }
 
 }

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -433,7 +434,7 @@ public class BatchMessageTest extends BrokerTestBase {
         Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
-            LOG.info("received message {}", String.valueOf(msg.getData()));
+            LOG.info("received message {}", new String(msg.getData(), UTF_8));
             assertNotNull(msg);
             if (i == 8) {
                 consumer.acknowledgeCumulative(msg);

@@ -127,4 +127,8 @@ public class BatchMessageIdImpl extends MessageIdImpl {
             ledgerId, entryId - 1, partitionIndex);
     }
 
+    public BatchMessageAcker getAcker() {
+        return acker;
+    }
+
 }
