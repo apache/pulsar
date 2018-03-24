@@ -24,9 +24,9 @@ import org.slf4j.Logger;
 
 import java.util.Optional;
 
-public class UserConfigFunction implements Function<String, String> {
+public class UserConfigFunction implements Function<String, Void> {
     @Override
-    public String process(String input, Context context) {
+    public Void process(String input, Context context) {
         String key = "config-key";
         Optional<String> maybeValue = context.getUserConfigValue(key);
         Logger LOG = context.getLogger();
@@ -34,10 +34,8 @@ public class UserConfigFunction implements Function<String, String> {
         if (maybeValue.isPresent()) {
             String value = maybeValue.get();
             LOG.info("The config value is {}", value);
-            return value;
         } else {
             LOG.error("No value present for the key {}", key);
-            return null;
         }
     }
 }
