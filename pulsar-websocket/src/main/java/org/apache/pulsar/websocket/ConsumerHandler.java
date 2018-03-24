@@ -35,10 +35,9 @@ import javax.servlet.http.HttpServletResponse;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.ConsumerConfiguration;
-import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException.ConsumerBusyException;
+import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.websocket.data.ConsumerAck;
@@ -91,7 +90,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
                 return;
             }
 
-            this.consumer = service.getPulsarClient().subscribe(topic, subscription, conf);
+            this.consumer = service.getPulsarClient().subscribe(topic.toString(), subscription, conf);
             if (!this.service.addConsumer(this)) {
                 log.warn("[{}:{}] Failed to add consumer handler for topic {}", request.getRemoteAddr(),
                         request.getRemotePort(), topic);
@@ -298,7 +297,7 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
 
     @Override
     protected Boolean isAuthorized(String authRole, AuthenticationDataSource authenticationData) throws Exception {
-        return service.getAuthorizationService().canConsume(TopicName.get(topic), authRole, authenticationData,
+        return service.getAuthorizationService().canConsume(topic, authRole, authenticationData,
                 this.subscription);
     }
 
@@ -306,11 +305,18 @@ public class ConsumerHandler extends AbstractWebSocketHandler {
         String uri = request.getRequestURI();
         List<String> parts = Splitter.on("/").splitToList(uri);
 
-        // Format must be like :
+        // v1 Format must be like :
         // /ws/consumer/persistent/my-property/my-cluster/my-ns/my-topic/my-subscription
+
+        // v2 Format must be like :
+        // /ws/v2/consumer/persistent/my-property/my-ns/my-topic/my-subscription
         checkArgument(parts.size() == 9, "Invalid topic name format");
         checkArgument(parts.get(1).equals("ws"));
-        checkArgument(parts.get(3).equals("persistent")|| parts.get(3).equals("non-persistent"));
+
+        final boolean isV2Format = parts.get(2).equals("v2");
+        final int domainIndex = isV2Format ? 4 : 3;
+        checkArgument(parts.get(domainIndex).equals("persistent") ||
+                parts.get(domainIndex).equals("non-persistent"));
         checkArgument(parts.get(8).length() > 0, "Empty subscription name");
 
         return parts.get(8);
