@@ -261,28 +261,28 @@ public class CmdFunctions extends CmdBase {
             // Check that the supplied path is for a file, not a directory
             if (Files.isDirectory(Paths.get(jarFilePath))) {
                 throw new IllegalArgumentException(String.format(
-                        "The path %s is a directory, not a jar file", jarFilePath));
+                        "The path %s is a directory, not a file", jarFilePath));
             }
 
-            File file = new File(jarFilePath);
+            File jarFile = new File(jarFilePath);
 
             // Check that the file is a valid jar by checking for the presence of a META-INF/MANIFEST.MF file
             try {
-                ZipFile zip = new ZipFile(file);
+                ZipFile zip = new ZipFile(jarFile);
                 if (null == zip.getEntry("META-INF/MANIFEST.MF")) {
-                    throw new IllegalArgumentException("The file %s is not a jar file");
+                    throw new IllegalArgumentException(String.format("The file %s is not properly formatted jar", jarFilePath));
                 }
                 zip.close();
             } catch (IOException e) {
-                throw new IllegalArgumentException(String.format("The file %s is not a proper jar file", jarFilePath));
+                throw new IllegalArgumentException(String.format("The file %s is not a properly formatted jar", jarFilePath));
             }
 
             // check if the function class exists in Jar and it implements Function class
-            if (!Reflections.classExistsInJar(file, functionConfigBuilder.getClassName())) {
+            if (!Reflections.classExistsInJar(jarFile, functionConfigBuilder.getClassName())) {
                 throw new IllegalArgumentException(String.format("Pulsar function class %s does not exist in jar %s",
                         functionConfigBuilder.getClassName(), jarFilePath));
-            } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)
-                    && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), java.util.function.Function.class)) {
+            } else if (!Reflections.classInJarImplementsIface(jarFile, functionConfigBuilder.getClassName(), Function.class)
+                    && !Reflections.classInJarImplementsIface(jarFile, functionConfigBuilder.getClassName(), java.util.function.Function.class)) {
                 throw new IllegalArgumentException(String.format(
                         "Pulsar function class %s in jar %s implements neither Function nor java.util.function.Function",
                         functionConfigBuilder.getClassName(), jarFilePath));
@@ -290,12 +290,12 @@ public class CmdFunctions extends CmdBase {
 
             ClassLoader userJarLoader;
             try {
-                userJarLoader = Reflections.loadJar(file);
+                userJarLoader = Reflections.loadJar(jarFile);
             } catch (MalformedURLException e) {
-                throw new RuntimeException("Failed to load user jar " + file, e);
+                throw new RuntimeException("Failed to load user jar " + jarFile, e);
             }
 
-            Object userClass = Reflections.createInstance(functionConfigBuilder.getClassName(), file);
+            Object userClass = Reflections.createInstance(functionConfigBuilder.getClassName(), jarFile);
             Class<?>[] typeArgs;
             if (userClass instanceof Function) {
                 Function pulsarFunction = (Function) userClass;
@@ -337,7 +337,7 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Default Serializer does not support type " + typeArgs[0]);
                     }
                 } else {
-                    SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, file);
+                    SerDe serDe = (SerDe) Reflections.createInstance(inputSerializer, jarFile);
                     if (serDe == null) {
                         throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
                                 inputSerializer, jarFilePath));
@@ -373,7 +373,7 @@ public class CmdFunctions extends CmdBase {
                         throw new RuntimeException("Default Serializer does not support type " + typeArgs[1]);
                     }
                 } else {
-                    SerDe serDe = (SerDe) Reflections.createInstance(functionConfigBuilder.getOutputSerdeClassName(), file);
+                    SerDe serDe = (SerDe) Reflections.createInstance(functionConfigBuilder.getOutputSerdeClassName(), jarFile);
                     if (serDe == null) {
                         throw new IllegalArgumentException(String.format("SerDe class %s does not exist in jar %s",
                                 functionConfigBuilder.getOutputSerdeClassName(), jarFilePath));
