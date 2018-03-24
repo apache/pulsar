@@ -107,7 +107,7 @@ Both the [Java](#java-sdk) and [Python](#python-sdk) SDKs provide access to a **
 
 ## User config
 
-When you run or update Pulsar Functions created using the [SDK](#apis), you can pass arbitrary key/values to them via the command line with the `--userConfig` flag. Key/values must be specified as JSON. Here's an example:
+When you run or update Pulsar Functions created using the [SDK](#apis), you can pass arbitrary key/values to them via the command line with the `--userConfig` flag. Key/values must be specified as JSON. Here's an example of a function creation command that passes a user config key/value to a function:
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -115,6 +115,8 @@ $ bin/pulsar-admin functions create \
   # Other function configs
   --userConfig '{"forbidden-word":"rosebud"}'
 ```
+
+If the function were a Python function, that config value could be accessed like this:
 
 ```python
 from pulsar import Function
