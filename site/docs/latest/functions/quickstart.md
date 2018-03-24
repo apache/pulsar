@@ -222,7 +222,7 @@ In that file, add the following:
 
 ```python
 def process(input):
-  return input[::-1]
+    return input[::-1]
 ```
 
 Here, the `process` method defines the processing logic of the Pulsar Function. It simply uses some Python slice magic to reverse each incoming string. Now, we can deploy the function using `create`:
@@ -230,9 +230,9 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --className reverse.Reverse \
-  --inputs persistent://sample/standalone/ns1/forwards \
-  --output persistent://sample/standalone/ns1/backwards \
+  --className reverse \
+  --inputs persistent://sample/standalone/ns1/backwards \
+  --output persistent://sample/standalone/ns1/forwards \
   --tenant sample \
   --namespace ns1 \
   --name reverse
@@ -246,7 +246,9 @@ $ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
   --num-messages 0
 ```
 
-Setting the `--num-messages` flag to 0 means that the consumer will listen on the topic indefinitely. At the moment, no messages are arriving on the topic, so let's produce some, also using [`pulsar-client produce`](../../CliTools#pulsar-client-produce) command:
+{% include admonition.html type="info" content="Setting the `--num-messages` flag to 0 means that the consumer will listen on the topic indefinitely." %}
+
+At the moment, no messages are arriving on the topic, so let's produce some, also using [`pulsar-client produce`](../../CliTools#pulsar-client-produce) command:
 
 ```bash
 $ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
