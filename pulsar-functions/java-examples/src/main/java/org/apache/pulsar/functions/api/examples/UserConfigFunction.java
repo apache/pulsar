@@ -37,5 +37,7 @@ public class UserConfigFunction implements Function<String, Void> {
         } else {
             LOG.error("No value present for the key {}", key);
         }
+
+        return null;
     }
 }
