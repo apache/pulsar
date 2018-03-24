@@ -8,9 +8,9 @@ Pulsar Functions provides three different messaging semantics that you can apply
 
 Delivery semantics | Description
 :------------------|:-------
-**At-most-once** delivery |
-**At-least-once** delivery |
-**Effectively-once** delivery |
+**At-most-once** delivery | Each message that is sent to the function will most likely be processed but also may not be (hence the "at most")
+**At-least-once** delivery | Each message that is sent to the function could be processed more than once (hence the "at least")
+**Effectively-once** delivery | Each message that is sent to the function will have one output associated with it. The function may be invoked more than once, perhaps due to some kind of system failure, but the function will produce one effect for each incoming message.
 
 ## Applying processing guarantees to a function
 
@@ -28,4 +28,8 @@ The available options are:
 * `ATLEAST_ONCE`
 * `EFFECTIVELY_ONCE`
 
-{% include admonition.html type="info" content="By default, Pulsar Functions provide at-most-once delivery guarantees. So if you create a function without supplying a value for the `--processingGuarantees`flag, then the Function will provide at-most-once guarantees. You can " %}
+{% include admonition.html type="info" content="By default, Pulsar Functions provide at-most-once delivery guarantees. So if you create a function without supplying a value for the `--processingGuarantees` flag, then the function will provide at-most-once guarantees." %}
+
+## Updating the processing guarantees of a function
+
+You can change the processing guarantees applied to a function once it's already been created using the [`update`](../../reference/CliTools#pulsar-admin-functions-update) command.

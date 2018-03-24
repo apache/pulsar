@@ -233,6 +233,36 @@ public interface Context {
 }
 ```
 
+Here's an example function that uses several methods available via the `Context` object:
+
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
+
+import java.util.stream.Collectors;
+
+public class ContextFunction implements Function<String, Void> {
+    @Override
+    public Void process(String input, Context context) {
+        Logger LOG = context.getLogger();
+        String inputTopics = context.getInputTopics().stream().collect(Collectors.joining(", "));
+        String functionName = context.getFunctionName();
+
+        String logMessage = String.format("A message with a value of \"%s\" has arrived on one of the following topics: %s\n",
+                input,
+                inputTopics);
+
+        LOG.info(logMessage);
+
+        String metricName = String.format("function-%s-messages-received", functionName);
+        context.recordMetric(metricName, 1);
+
+        return null;
+    }
+}
+```
+
 ### Void functions
 
 Pulsar Functions can publish results to an output {% popover topic %}, but this isn't required. You can also have functions that simply produce a log, write results to a database, etc. Here's a function that writes a simple log every time a message is received:
@@ -332,7 +362,7 @@ Pulsar does not store your custom SerDe classes separately from your Pulsar Func
 
 ### Java logging
 
-Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to create logs. Here's a simple example function that logs either a warning- or info-level log based on whether the incoming string contains the word `danger`:
+Pulsar Functions that use the [Java SDK](#java-sdk) have access to an [SLF4j](https://www.slf4j.org/) [`Logger`](https://www.slf4j.org/api/org/apache/log4j/Logger.html) object that can be used to create logs. Here's a simple example function that logs either a `WARNING`- or `INFO`-level log based on whether the incoming string contains the word `danger`:
 
 ```java
 import org.apache.pulsar.functions.api.Context;
