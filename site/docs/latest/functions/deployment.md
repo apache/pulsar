@@ -105,3 +105,57 @@ And here's the corresponding update command:
 $ bin/pulsar-admin functions update \
   --functionConfigFile function-config.yaml
 ```
+
+## Triggering functions
+
+Whether a Pulsar Function is running in [local run](#local-run) or [cluster](#cluster-mode), you can **trigger** the function at any time using the command line. Triggering a function means that you send a message with a specific value to the function.
+
+{% include admonition.html type="info" content="Triggering a function is ultimately no different from invoking a function by producing a message on one of the function's input topics. The [`pulsar-admin functions trigger`](../../CliTools#pulsar-admin-functions-trigger) command is essentially a convenient mechanism for sending messages to functions without needing to use the [`pulsar-client`](../../CliTools#pulsar-client) tool or a language-specific client library." %}
+
+To show an example of function triggering, let's start with a simple [Python function](../api#python) that returns a simple string based on the input:
+
+```python
+# myfunc.py
+def process(input):
+    return "This function has been triggered with a value of {0}".format(input)
+```
+
+Let's run that function in [local run mode](../deployment#local-run):
+
+```bash
+$ bin/pulsar-admin functions create \
+  --tenant sample \
+  --namespace ns1 \
+  --name myfunc \
+  --py myfunc.py \
+  --className myfunc \
+  --inputs persistent://sample/standalone/ns1/in \
+  --output persistent://sample/standalone/ns1/out
+```
+
+Now let's make a consumer listen on the output topic for messages coming from the `myfunc` function using the [`pulsar-client consume`](../../CliTools#pulsar-client-consume) command:
+
+```bash
+$ bin/pulsar-client consume persistent://sample/standalone/ns1/out \
+  --subscription-name my-subscription
+  --num-messages 0 # Listen indefinitely
+```
+
+Now let's trigger that function:
+
+```bash
+$ bin/pulsar-admin functions trigger \
+  --tenant sample \
+  --namespace ns1 \
+  --name myfunc \
+  --triggerValue "hello world"
+```
+
+The consumer listening on the output topic should then produce this in its logs:
+
+```
+----- got message -----
+This function has been triggered with a value of hello world
+```
+
+{% include admonition.html type="success" title="Topic info not required" content="In the `trigger` command above, you may have noticed that you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you didn't need to know the function's input topic(s)." %}

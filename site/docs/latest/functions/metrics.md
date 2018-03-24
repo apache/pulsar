@@ -9,7 +9,7 @@ Pulsar Functions can publish arbitrary metrics to the metrics interface which ca
 
 ## Accessing metrics
 
-For a guide to accessing metrics created by Pulsar Functions
+For a guide to accessing metrics created by Pulsar Functions, see the guide to [Monitoring](../../deployment/Monitoring) in Pulsar.
 
 ## Java SDK
 
