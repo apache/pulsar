@@ -36,7 +36,7 @@ class ReaderImpl : public boost::enable_shared_from_this<ReaderImpl> {
     ReaderImpl(const ClientImplPtr client, const std::string& topic, const ReaderConfiguration& conf,
                const ExecutorServicePtr listenerExecutor, ReaderCallback readerCreatedCallback);
 
-    void start(const BatchMessageId& startMessageId);
+    void start(const MessageId& startMessageId);
 
     const std::string& getTopic() const;
 
