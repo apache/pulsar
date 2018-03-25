@@ -130,7 +130,6 @@ void PartitionedProducerImpl::sendAsync(const Message& msg, SendCallback callbac
     }
     // find a producer for that partition, index should start from 0
     ProducerImplPtr& producer = producers_[partition];
-    msg.impl_->messageId.partition_ = partition;
     // send message on that partition
     producer->sendAsync(msg, callback);
 }
