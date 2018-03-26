@@ -238,13 +238,13 @@ ConsumerBuilder bldr = pulsarClient.newConsumer()
         .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.");
 Consumer allTopicsConsumer = bldr
         .topicsPattern(allTopicsInNamespace)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo*");
+Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.");
 Consumer allTopicsConsumer = bldr
         .topicsPattern(someTopicsInNamespace)
         .subscribe();
@@ -276,7 +276,7 @@ Consumer multiTopicConsumer = bldr
 You can also subscribe to multiple topics asynchronously using the `subscribeAsync` method rather than the synchronous `subscribe` method. Here's an example:
 
 ```java
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.");
 CompletableFuture<Consumer> consumer = bldr
         .topics(topics)
         .subscribeAsync();
