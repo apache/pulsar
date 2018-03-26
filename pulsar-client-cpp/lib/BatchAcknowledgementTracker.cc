@@ -108,11 +108,12 @@ bool BatchAcknowledgementTracker::isBatchReady(const MessageId& msgID,
                                                const proto::CommandAck_AckType ackType) {
     Lock lock(mutex_);
     // Remove batch index
-    MessageId batchMessageId = MessageId(msgID.partition(), msgID.ledgerId(), msgID.entryId(),
-                                         -1 /* Batch index */);
+    MessageId batchMessageId =
+        MessageId(msgID.partition(), msgID.ledgerId(), msgID.entryId(), -1 /* Batch index */);
 
     TrackerMap::iterator pos = trackerMap_.find(batchMessageId);
-    if (pos == trackerMap_.end() || std::find(sendList_.begin(), sendList_.end(), batchMessageId) != sendList_.end()) {
+    if (pos == trackerMap_.end() ||
+        std::find(sendList_.begin(), sendList_.end(), batchMessageId) != sendList_.end()) {
         LOG_DEBUG(
             "Batch is ready since message present in sendList_ or not present in trackerMap_ [message ID = "
             << batchMessageId << "]");
@@ -146,8 +147,8 @@ const MessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(const
     Lock lock(mutex_);
 
     // Remove batch index
-    MessageId batchMessageId = MessageId(messageId.partition(), messageId.ledgerId(),
-                                         messageId.entryId(), -1 /* Batch index */);
+    MessageId batchMessageId =
+        MessageId(messageId.partition(), messageId.ledgerId(), messageId.entryId(), -1 /* Batch index */);
     TrackerMap::iterator pos = trackerMap_.find(batchMessageId);
 
     // element not found
