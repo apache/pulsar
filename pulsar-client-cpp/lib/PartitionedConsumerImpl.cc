@@ -150,7 +150,7 @@ void PartitionedConsumerImpl::handleUnsubscribeAsync(Result result, unsigned int
 }
 
 void PartitionedConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
-    int partition = msgId.partition_;
+    int32_t partition = msgId.partition();
     assert(partition < numPartitions_ && partition >= 0 && consumers_.size() > partition);
     unAckedMessageTrackerPtr_->remove(msgId);
     consumers_[partition]->acknowledgeAsync(msgId, callback);
@@ -313,7 +313,7 @@ bool PartitionedConsumerImpl::isOpen() {
 }
 
 void PartitionedConsumerImpl::messageReceived(Consumer consumer, const Message& msg) {
-    LOG_DEBUG("Received Message from one of the partition - " << msg.impl_->messageId.partition_);
+    LOG_DEBUG("Received Message from one of the partition - " << msg.impl_->messageId.partition());
     messages_.push(msg);
     if (messageListener_) {
         listenerExecutor_->postWork(
