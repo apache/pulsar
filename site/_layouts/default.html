@@ -62,7 +62,6 @@
 
     <script type="text/javascript">
       var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
-      console.log(navbarOffset);
       var shiftWindow = function() { scrollBy(0, navbarOffset) };
       window.addEventListener("hashchange", shiftWindow);
       window.addEventListener("pageshow", shiftWindow);
