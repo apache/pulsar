@@ -222,58 +222,54 @@ Async receive operations return a {% javadoc Message client org.apache.pulsar.cl
 
 ### Multi-topic subscriptions
 
-In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](../../getting-started/ConceptsAndArchitecture#multi-topic-subscriptions). To use multi-topic subscriptions:
-
-* All topics must be within the same Pulsar {% popover namespace %}
-* You must supply a regular expression (regex)
+In addition to subscribing a consumer to a single Pulsar topic, you can also subscribe to multiple topics simultaneously using [multi-topic subscriptions](../../getting-started/ConceptsAndArchitecture#multi-topic-subscriptions). To use multi-topic subscriptions you can supply either a regular expression (regex) or a `List` of topics. If you select topics via regex, all topics must be within the same Pulsar {% popover namespace %}.
 
 Here are some examples:
 
 ```java
-import java.util.regex.Pattern;
-
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.PulsarClient;
 
-ConsumerBuilder bldr = pulsarClient.newConsumer();
+import java.util.Arrays;
+import java.util.List;
+import java.util.regex.Pattern;
+
+ConsumerBuilder bldr = pulsarClient.newConsumer()
+        .subscriptionName(subscription);
 
 // Subscribe to all topics in a namespace
 Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
 Consumer allTopicsConsumer = bldr
         .topicsPattern(allTopicsInNamespace)
-        .subscriptionName(subscription)
         .subscribe();
 
 // Subscribe to a subsets of topics in a namespace, based on regex
 Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo*");
 Consumer allTopicsConsumer = bldr
         .topicsPattern(someTopicsInNamespace)
-        .subscriptionName(subscription)
         .subscribe();
 ```
 
-You can also subscribe to any number of topics within the same namespace simultaneously:
+You can also subscribe to an explicit list of topics (across namespaces if you wish):
 
 ```java
 List<String> topics = Arrays.asList(
         "persistent://sample/standalone/ns1/topic-1",
-        "persistent://sample/standalone/ns1/topic-2",
-        "persistent://sample/standalone/ns1/topic-3"
+        "persistent://sample/standalone/ns2/topic-2",
+        "persistent://sample/standalone/ns3/topic-3"
 );
 
 Consumer multiTopicConsumer = bldr
         .topics(topics)
-        .subscriptionName(subscription)
         .subscribe();
 
 // Alternatively:
 Consumer multiTopicConsumer = bldr
         .topics(
             "persistent://sample/standalone/ns1/topic-1",
-            "persistent://sample/standalone/ns1/topic-2",
-            "persistent://sample/standalone/ns1/topic-3"
+            "persistent://sample/standalone/ns2/topic-2",
+            "persistent://sample/standalone/ns3/topic-3"
         )
-        .subscriptionName(subscription)
         .subscribe();
 ```
 
@@ -283,7 +279,6 @@ You can also subscribe to multiple topics asynchronously using the `subscribeAsy
 Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
 CompletableFuture<Consumer> consumer = bldr
         .topics(topics)
-        .subscriptionName(subscription)
         .subscribeAsync();
 ```
 

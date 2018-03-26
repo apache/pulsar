@@ -148,13 +148,14 @@ In the diagram above, Consumer-C-1 is the master consumer while Consumer-C-2 wou
 
 ### Multi-topic subscriptions
 
-When a {% popover consumer %} subscribes to a Pulsar {% popover topic %}, by default it subscribes to one specific topic, such as `persistent://sample/ns1/standalone/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics if those names satisfy a provided [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex).
+When a {% popover consumer %} subscribes to a Pulsar {% popover topic %}, by default it subscribes to one specific topic, such as `persistent://sample/ns1/standalone/my-topic`. As of Pulsar version 1.23.0-incubating, however, Pulsar consumers can simultaneously subscribe to multiple topics. You can define a list of topics in two ways:
 
-{% include admonition.html type="info" content="When subscribing to multiple topics, all topics must be in the same [namespace](#namespaces)." %}
+* On the basis of a [**reg**ular **ex**pression](https://en.wikipedia.org/wiki/Regular_expression) (regex), for example `persistent://sample/standalone/ns1/finance-*`
+* By explicitly defining a list of topics
 
-When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the pattern and then subscribe to all of them.
+{% include admonition.html type="info" content="When subscribing to multiple topics by regex, all topics must be in the same [namespace](#namespaces)." %}
 
-To subscribe to multiple topics, all desired topics must be in the same Pulsar [namespace](#namespaces).
+When subscribing to multiple topics, the Pulsar client will automatically make a call to the Pulsar API to discover the topics that match the regex pattern/list and then subscribe to all of them. If any of the topics don't currently exist, the consumer will auto-subscribe to them once the topics are created.
 
 {% include admonition.html type="danger" title="No ordering guarantees"
    content="When a consumer subscribes to multiple topics, all ordering guarantees normally provided by Pulsar on single topics do not hold. If your use case for Pulsar involves any strict ordering requirements, we would strongly recommend against using this feature." %}
