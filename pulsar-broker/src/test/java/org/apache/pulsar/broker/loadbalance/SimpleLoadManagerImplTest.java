@@ -234,7 +234,7 @@ public class SimpleLoadManagerImplTest {
 
     }
 
-    private void setObjectField(Class objClass, Object objInstance, String fieldName, Object newValue)
+    private void setObjectField(Class<?> objClass, Object objInstance, String fieldName, Object newValue)
             throws Exception {
         Field field = objClass.getDeclaredField(fieldName);
         field.setAccessible(true);

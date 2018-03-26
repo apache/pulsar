@@ -18,44 +18,41 @@
  */
 package org.apache.pulsar.compaction;
 
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
-import java.util.stream.IntStream;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
+import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
-import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.impl.RawMessageImpl;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import lombok.Cleanup;
+
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(CompactedTopicTest.class);
-    private static final ByteBuf emptyBuffer = Unpooled.buffer(0);
+    private final Random r = new Random(0);
 
     @BeforeMethod
     @Override
@@ -80,9 +77,8 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
      * entries in the ledger, and a list of gaps, and the entry which should be returned after the gap.
      */
     private Triple<Long, List<Pair<MessageIdData,Long>>, List<Pair<MessageIdData,Long>>>
-        buildCompactedLedger(BookKeeper bk, int seed, int count)
+        buildCompactedLedger(BookKeeper bk, int count)
             throws Exception {
-        Random r = new Random(seed);
         LedgerHandle lh = bk.createLedger(1, 1,
                                           Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                                           Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
@@ -113,10 +109,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                         MessageIdData id = MessageIdData.newBuilder()
                             .setLedgerId(ledgerIds.get())
                             .setEntryId(entryIds.addAndGet(delta + 1)).build();
-                        RawMessage m = new RawMessageImpl(id, emptyBuffer);
+
+                        @Cleanup
+                        RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);
 
                         CompletableFuture<Void> f = new CompletableFuture<>();
-                        lh.asyncAddEntry(m.serialize(),
+                        ByteBuf buffer = m.serialize();
+
+                        lh.asyncAddEntry(buffer,
                                 (rc, ledger, eid, ctx) -> {
                                      if (rc != BKException.Code.OK) {
                                          f.completeExceptionally(BKException.create(rc));
@@ -126,6 +126,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                                          f.complete(null);
                                      }
                                 }, null);
+                        buffer.release();
                         return f;
                     }).toArray(CompletableFuture[]::new)).get();
         lh.close();
@@ -139,7 +140,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 this.conf, null);
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
-            = buildCompactedLedger(bk, 0, 500);
+            = buildCompactedLedger(bk, 500);
 
         List<Pair<MessageIdData, Long>> positions = compactedLedgerData.getMiddle();
         List<Pair<MessageIdData, Long>> idsInGaps = compactedLedgerData.getRight();
@@ -171,19 +172,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // shuffle to make cache work hard
-        Collections.shuffle(positions);
-        Collections.shuffle(idsInGaps);
+        Collections.shuffle(positions, r);
+        Collections.shuffle(idsInGaps, r);
 
         // Check ids we know are in compacted ledger
         for (Pair<MessageIdData, Long> p : positions) {
             PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
-            if (p.equals(lastPosition)) {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                                    Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
-            } else {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                            Long.valueOf(p.getRight() + 1));
-            }
+            Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
+            Assert.assertEquals(got, Long.valueOf(p.getRight()));
         }
 
         // Check ids we know are in the gaps of the compacted ledger

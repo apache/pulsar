@@ -55,6 +55,24 @@
     </dependency>
 
     <dependency>
+      <groupId>com.google.protobuf</groupId>
+      <artifactId>protobuf-java</artifactId>
+      <version>${protobuf2.version}</version>
+    </dependency>
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-common</artifactId>
+      <version>${project.version}</version>
+      <exclusions>
+        <exclusion>
+          <groupId>org.apache.bookkeeper</groupId>
+          <artifactId>circe-checksum</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+
+    <dependency>
       <groupId>${project.groupId}</groupId>
       <artifactId>pulsar-client-original</artifactId>
       <version>${project.version}</version>
@@ -118,6 +136,16 @@
       <type>test-jar</type>
       <scope>test</scope>
     </dependency>
+
+    <!-- functions related dependencies (begin) -->
+
+    <dependency>
+      <groupId>${project.groupId}</groupId>
+      <artifactId>pulsar-functions-worker</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+
+    <!-- functions related dependencies (end) -->
 
     <dependency>
       <groupId>org.eclipse.jetty</groupId>

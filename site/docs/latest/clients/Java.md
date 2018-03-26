@@ -30,10 +30,10 @@ The current version of the Java client is **{{ site.current_version }}**.
 
 Javadoc for the Pulsar client is divided up into two domains, by package:
 
-Package | Description
-:-------|:-----------
-[`org.apache.pulsar.client.api`](/api/client) | The {% popover producer %} and {% popover consumer %} API
-[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin-api/overview)
+Package | Description | Maven Artifact
+:-------|:------------|:--------------
+[`org.apache.pulsar.client.api`](/api/client) | The {% popover producer %} and {% popover consumer %} API | [org.apache.pulsar:pulsar-client:{{ site.current_version }}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client%7C{{ site.current_version }}%7Cjar)
+[`org.apache.pulsar.client.admin`](/api/admin) | The Java [admin API](../../admin-api/overview) | [org.apache.pulsar:pulsar-client-admin:{{ site.current_version }}](http://search.maven.org/#artifactdetails%7Corg.apache.pulsar%7Cpulsar-client-admin%7C{{ site.current_version }}%7Cjar)
 
 This document will focus only on the client API for producing and consuming messages on Pulsar {% popover topics %}. For a guide to using the Java admin client, see [The Pulsar admin interface](../../admin-api/overview).
 

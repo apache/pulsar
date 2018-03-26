@@ -21,6 +21,8 @@ package org.apache.pulsar.common.util;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 
+import com.fasterxml.jackson.databind.util.EnumResolver;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.ParameterizedType;
@@ -90,6 +92,17 @@ public final class FieldParser {
         // Lookup the suitable converter.
         String converterId = from.getClass().getName() + "_" + to.getName();
         Method converter = CONVERTERS.get(converterId);
+
+        if (to.isEnum()) {
+            // Converting string to enum
+            EnumResolver r = EnumResolver.constructUsingToString((Class<Enum<?>>) to, null);
+            T value = (T) r.findEnum((String) from);
+            if (value == null) {
+                throw new RuntimeException("Invalid value '" + from + "' for enum " + to);
+            }
+            return value;
+        }
+
         if (converter == null) {
             throw new UnsupportedOperationException("Cannot convert from " + from.getClass().getName() + " to "
                     + to.getName() + ". Requested converter does not exist.");

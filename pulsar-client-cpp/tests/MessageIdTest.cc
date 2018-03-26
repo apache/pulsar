@@ -16,7 +16,8 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/BatchMessageId.h>
+#include <pulsar/MessageId.h>
+#include "PulsarFriend.h"
 
 #include <gtest/gtest.h>
 
@@ -25,12 +26,12 @@
 using namespace pulsar;
 
 TEST(MessageIdTest, testSerialization) {
-    BatchMessageId msgId(1, 2, 3);
+    MessageId msgId = PulsarFriend::getMessageId(-1, 1, 2, 3);
 
     std::string serialized;
     msgId.serialize(serialized);
 
-    boost::shared_ptr<MessageId> deserialized = MessageId::deserialize(serialized);
+    MessageId deserialized = MessageId::deserialize(serialized);
 
-    ASSERT_EQ(msgId, static_cast<const BatchMessageId&>(*deserialized));
+    ASSERT_EQ(msgId, deserialized);
 }

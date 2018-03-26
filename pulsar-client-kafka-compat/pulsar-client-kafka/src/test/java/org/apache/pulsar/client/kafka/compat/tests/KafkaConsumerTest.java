@@ -39,8 +39,6 @@ import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -75,11 +73,11 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
@@ -113,14 +111,13 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
-
 
         AtomicInteger received = new AtomicInteger();
         while (received.get() < 10) {
@@ -157,11 +154,11 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
@@ -207,9 +204,8 @@ public class KafkaConsumerTest extends BrokerTestBase {
         props.put("key.deserializer", StringDeserializer.class.getName());
         props.put("value.deserializer", StringDeserializer.class.getName());
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic)
+                .messageRoutingMode(org.apache.pulsar.client.api.MessageRoutingMode.RoundRobinPartition).create();
 
         // Create 2 Kakfa consumer and verify each gets half of the messages
         List<Consumer<String, String>> consumers = new ArrayList<>();
@@ -222,8 +218,8 @@ public class KafkaConsumerTest extends BrokerTestBase {
         int N = 8 * 3;
 
         for (int i = 0; i < N; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
@@ -257,11 +253,11 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 
@@ -313,11 +309,11 @@ public class KafkaConsumerTest extends BrokerTestBase {
         Consumer<String, String> consumer = new PulsarKafkaConsumer<>(props);
         consumer.subscribe(Arrays.asList(topic));
 
-        Producer pulsarProducer = pulsarClient.createProducer(topic);
+        Producer<byte[]> pulsarProducer = pulsarClient.newProducer().topic(topic).create();
 
         for (int i = 0; i < 10; i++) {
-            Message msg = MessageBuilder.create().setKey(Integer.toString(i)).setContent(("hello-" + i).getBytes())
-                    .build();
+            Message<byte[]> msg = MessageBuilder.create().setKey(Integer.toString(i))
+                    .setContent(("hello-" + i).getBytes()).build();
             pulsarProducer.send(msg);
         }
 

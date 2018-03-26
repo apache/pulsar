@@ -104,6 +104,24 @@
       <artifactId>pulsar-zookeeper</artifactId>
       <version>${project.version}</version>
     </dependency>
+
+    <!-- function examples -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-api-examples</artifactId>
+      <version>${project.version}</version>
+      <!-- make sure the api examples are compiled before assembly -->
+      <scope>provided</scope>
+    </dependency>
+
+    <!-- runtime-all -->
+    <dependency>
+      <groupId>org.apache.pulsar</groupId>
+      <artifactId>pulsar-functions-runtime-all</artifactId>
+      <version>${project.version}</version>
+      <!-- make sure the api examples are compiled before assembly -->
+      <scope>provided</scope>
+    </dependency>
   </dependencies>
 
   <build>
@@ -128,13 +146,6 @@
             </configuration>
           </execution>
         </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-deploy-plugin</artifactId>
-        <configuration>
-          <skip>true</skip>
-        </configuration>
       </plugin>
     </plugins>
   </build>

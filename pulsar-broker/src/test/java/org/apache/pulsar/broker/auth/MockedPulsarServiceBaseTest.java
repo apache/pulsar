@@ -136,15 +136,26 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected final void internalCleanup() throws Exception {
         try {
-            admin.close();
-            // There are some test cases where pulsarClient is not initialized.
+            // if init fails, some of these could be null, and if so would throw
+            // an NPE in shutdown, obscuring the real error
+            if (admin != null) {
+                admin.close();
+            }
             if (pulsarClient != null) {
                 pulsarClient.close();
             }
-            pulsar.close();
-            mockBookKeeper.reallyShutdow();
-            mockZookKeeper.shutdown();
-            sameThreadOrderedSafeExecutor.shutdown();
+            if (pulsar != null) {
+                pulsar.close();
+            }
+            if (mockBookKeeper != null) {
+                mockBookKeeper.reallyShutdow();
+            }
+            if (mockZookKeeper != null) {
+                mockZookKeeper.shutdown();
+            }
+            if (sameThreadOrderedSafeExecutor != null) {
+                sameThreadOrderedSafeExecutor.shutdown();
+            }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
             throw e;

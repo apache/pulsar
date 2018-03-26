@@ -35,6 +35,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -73,6 +74,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private boolean readCompacted = false;
 
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
+
     private int patternAutoDiscoveryPeriod = 1;
 
     @JsonIgnore
@@ -83,7 +86,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     public ConsumerConfigurationData<T> clone() {
         try {
-            ConsumerConfigurationData c = (ConsumerConfigurationData) super.clone();
+            @SuppressWarnings("unchecked")
+            ConsumerConfigurationData<T> c = (ConsumerConfigurationData<T>) super.clone();
             c.topicNames = Sets.newTreeSet(this.topicNames);
             c.properties = Maps.newTreeMap(this.properties);
             return c;

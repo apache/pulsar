@@ -20,10 +20,14 @@ package org.apache.pulsar.broker;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import io.netty.util.concurrent.DefaultThreadFactory;
 import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -33,7 +37,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Supplier;
-
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
@@ -51,6 +54,7 @@ import org.apache.pulsar.broker.loadbalance.impl.LoadManagerShared;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.Topic;
+import org.apache.pulsar.broker.service.schema.SchemaRegistryService;
 import org.apache.pulsar.broker.stats.MetricsGenerator;
 import org.apache.pulsar.broker.stats.prometheus.PrometheusMetricsServlet;
 import org.apache.pulsar.broker.web.WebService;
@@ -62,6 +66,7 @@ import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.util.FutureUtil;
+import org.apache.pulsar.functions.worker.WorkerService;
 import org.apache.pulsar.utils.PulsarBrokerVersionStringUtils;
 import org.apache.pulsar.websocket.WebSocketConsumerServlet;
 import org.apache.pulsar.websocket.WebSocketProducerServlet;
@@ -75,13 +80,9 @@ import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperBkClientFactoryImpl;
 import org.apache.zookeeper.ZooKeeper;
 import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.websocket.servlet.WebSocketServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-
-import io.netty.util.concurrent.DefaultThreadFactory;
 
 /**
  * Main class for Pulsar broker service
@@ -121,6 +122,8 @@ public class PulsarService implements AutoCloseable {
     private final String brokerServiceUrl;
     private final String brokerServiceUrlTls;
     private final String brokerVersion;
+    private SchemaRegistryService schemaRegistryService = null;
+    private final Optional<WorkerService> functionWorkerService;
 
     private final MessagingServiceShutdownHook shutdownService;
 
@@ -136,6 +139,10 @@ public class PulsarService implements AutoCloseable {
     private final Condition isClosedCondition = mutex.newCondition();
 
     public PulsarService(ServiceConfiguration config) {
+        this(config, Optional.empty());
+    }
+
+    public PulsarService(ServiceConfiguration config, Optional<WorkerService> functionWorkerService) {
         // Validate correctness of configuration
         PulsarConfigurationLoader.isComplete(config);
 
@@ -151,6 +158,7 @@ public class PulsarService implements AutoCloseable {
         this.shutdownService = new MessagingServiceShutdownHook(this);
         this.loadManagerExecutor = Executors
                 .newSingleThreadScheduledExecutor(new DefaultThreadFactory("pulsar-load-manager"));
+        this.functionWorkerService = functionWorkerService;
     }
 
     /**
@@ -223,6 +231,10 @@ public class PulsarService implements AutoCloseable {
             LoadManager loadManager = this.loadManager.get();
             if (loadManager != null) {
                 loadManager.stop();
+            }
+
+            if (schemaRegistryService != null) {
+                schemaRegistryService.close();
             }
 
             state = State.Closed;
@@ -299,12 +311,24 @@ public class PulsarService implements AutoCloseable {
                         new ClusterData(webServiceAddress, webServiceAddressTls, brokerServiceUrl, brokerServiceUrlTls),
                         config);
                 this.webSocketService.start();
+
+                final WebSocketServlet producerWebSocketServlet = new WebSocketProducerServlet(webSocketService);
                 this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketProducerServlet(webSocketService)), true, attributeMap);
+                        new ServletHolder(producerWebSocketServlet), true, attributeMap);
+                this.webService.addServlet(WebSocketProducerServlet.SERVLET_PATH_V2,
+                        new ServletHolder(producerWebSocketServlet), true, attributeMap);
+
+                final WebSocketServlet consumerWebSocketServlet = new WebSocketConsumerServlet(webSocketService);
                 this.webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketConsumerServlet(webSocketService)), true, attributeMap);
+                        new ServletHolder(consumerWebSocketServlet), true, attributeMap);
+                this.webService.addServlet(WebSocketConsumerServlet.SERVLET_PATH_V2,
+                        new ServletHolder(consumerWebSocketServlet), true, attributeMap);
+
+                final WebSocketServlet readerWebSocketServlet = new WebSocketReaderServlet(webSocketService);
                 this.webService.addServlet(WebSocketReaderServlet.SERVLET_PATH,
-                        new ServletHolder(new WebSocketReaderServlet(webSocketService)), true, attributeMap);
+                        new ServletHolder(readerWebSocketServlet), true, attributeMap);
+                this.webService.addServlet(WebSocketReaderServlet.SERVLET_PATH_V2,
+                        new ServletHolder(readerWebSocketServlet), true, attributeMap);
             }
 
             if (LOG.isDebugEnabled()) {
@@ -350,6 +374,8 @@ public class PulsarService implements AutoCloseable {
             webService.start();
 
             this.metricsGenerator = new MetricsGenerator(this);
+
+            schemaRegistryService = SchemaRegistryService.create(this);
 
             state = State.Started;
 
@@ -543,6 +569,10 @@ public class PulsarService implements AutoCloseable {
         return this.nsservice;
     }
 
+    public WorkerService getWorkerService() {
+        return functionWorkerService.orElse(null);
+    }
+
     /**
      * Get a reference of the current <code>BrokerService</code> instance associated with the current
      * <code>PulsarService</code> instance.
@@ -688,5 +718,9 @@ public class PulsarService implements AutoCloseable {
 
     public String getBrokerVersion() {
         return brokerVersion;
+    }
+
+    public SchemaRegistryService getSchemaRegistryService() {
+        return schemaRegistryService;
     }
 }

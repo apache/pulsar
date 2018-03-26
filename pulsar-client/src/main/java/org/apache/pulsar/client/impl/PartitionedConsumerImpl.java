@@ -63,7 +63,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
 
     private final int numPartitions;
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
-    private final ConsumerStats stats;
+    private final ConsumerStatsRecorderImpl stats;
     private final UnAckedMessageTracker unAckedMessageTracker;
 
     PartitionedConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, int numPartitions,
@@ -81,7 +81,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
             this.unAckedMessageTracker = UnAckedMessageTracker.UNACKED_MESSAGE_TRACKER_DISABLED;
         }
 
-        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStats() : null;
+        stats = client.getConfiguration().getStatsIntervalSeconds() > 0 ? new ConsumerStatsRecorderImpl() : null;
         checkArgument(conf.getReceiverQueueSize() > 0,
                 "Receiver queue size needs to be greater than 0 for Partitioned Topics");
         start();
@@ -130,7 +130,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
 
     private void starReceivingMessages() throws PulsarClientException {
         for (ConsumerImpl<T> consumer : consumers) {
-            consumer.sendFlowPermitsToBroker(consumer.cnx(), conf.getReceiverQueueSize());
+            consumer.sendFlowPermitsToBroker(consumer.getConnectionHandler().cnx(), conf.getReceiverQueueSize());
             receiveMessageFromConsumer(consumer);
         }
     }
@@ -365,18 +365,6 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         return consumers.stream().allMatch(ConsumerImpl::isConnected);
     }
 
-    @Override
-    void connectionFailed(PulsarClientException exception) {
-        // noop
-
-    }
-
-    @Override
-    void connectionOpened(ClientCnx cnx) {
-        // noop
-
-    }
-
     void messageReceived(Message<T> message) {
         lock.writeLock().lock();
         try {
@@ -530,7 +518,7 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
     }
 
     @Override
-    public synchronized ConsumerStats getStats() {
+    public synchronized ConsumerStatsRecorderImpl getStats() {
         if (stats == null) {
             return null;
         }

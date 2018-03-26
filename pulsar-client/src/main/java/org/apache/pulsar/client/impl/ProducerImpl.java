@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -69,7 +70,7 @@ import io.netty.util.Timeout;
 import io.netty.util.TimerTask;
 import io.netty.util.concurrent.ScheduledFuture;
 
-public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
+public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, ConnectionHandler.Connection {
 
     // Producer id, used to identify a producer within a single connection
     private final long producerId;
@@ -82,6 +83,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     private final BlockingQueue<OpSendMsg> pendingCallbacks;
     private final Semaphore semaphore;
     private volatile Timeout sendTimeout = null;
+    private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
@@ -93,7 +95,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     private String connectedSince;
     private final int partitionIndex;
 
-    private final ProducerStats stats;
+    private final ProducerStatsRecorder stats;
 
     private final CompressionCodec compressor;
 
@@ -103,6 +105,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     private ScheduledFuture<?> keyGeneratorTask = null;
 
     private final Map<String, String> metadata;
+
+    private final ConnectionHandler connectionHandler;
 
     @SuppressWarnings("rawtypes")
     private static final AtomicLongFieldUpdater<ProducerImpl> msgIdGeneratorUpdater = AtomicLongFieldUpdater
@@ -161,9 +165,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             this.batchMessageContainer = null;
         }
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
-            stats = new ProducerStats(client, conf, this);
+            stats = new ProducerStatsRecorderImpl(client, conf, this);
         } else {
-            stats = ProducerStats.PRODUCER_STATS_DISABLED;
+            stats = ProducerStatsDisabled.INSTANCE;
         }
 
         if (conf.getProperties().isEmpty()) {
@@ -172,7 +176,14 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             metadata = Collections.unmodifiableMap(new HashMap<>(conf.getProperties()));
         }
 
+        this.connectionHandler = new ConnectionHandler(this,
+            new Backoff(100, TimeUnit.MILLISECONDS, 60, TimeUnit.SECONDS, Math.max(100, conf.getSendTimeoutMs() - 100), TimeUnit.MILLISECONDS),
+            this);
         grabCnx();
+    }
+
+    public ConnectionHandler getConnectionHandler() {
+        return connectionHandler;
     }
 
     private boolean isBatchMessagingEnabled() {
@@ -379,8 +390,8 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             ByteBuf compressedPayload) throws IOException {
         ChecksumType checksumType;
 
-        if (getClientCnx() == null
-                || getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
+        if (connectionHandler.getClientCnx() == null
+                || connectionHandler.getClientCnx().getRemoteEndpointProtocolVersion() >= brokerChecksumSupportedVersion()) {
             checksumType = ChecksumType.Crc32c;
         } else {
             checksumType = ChecksumType.None;
@@ -510,6 +521,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             sendTimeout = null;
         }
 
+        Timeout batchTimeout = batchMessageAndSendTimeout;
+        if (batchTimeout != null) {
+            batchTimeout.cancel();
+            batchMessageAndSendTimeout = null;
+        }
+
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
             keyGeneratorTask.cancel(false);
         }
@@ -568,11 +585,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
 
     @Override
     public boolean isConnected() {
-        return getClientCnx() != null && (getState() == State.Ready);
+        return connectionHandler.getClientCnx() != null && (getState() == State.Ready);
     }
 
     public boolean isWritable() {
-        ClientCnx cnx = getClientCnx();
+        ClientCnx cnx = connectionHandler.getClientCnx();
         return cnx != null && cnx.channel().isWritable();
     }
 
@@ -808,10 +825,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     @Override
-    void connectionOpened(final ClientCnx cnx) {
+    public void connectionOpened(final ClientCnx cnx) {
         // we set the cnx reference before registering the producer on the cnx, so if the cnx breaks before creating the
         // producer, it will try to grab a new cnx
-        setClientCnx(cnx);
+        connectionHandler.setClientCnx(cnx);
         cnx.registerProducer(producerId, this);
 
         log.info("[{}] [{}] Creating producer on cnx {}", topic, producerName, cnx.ctx().channel());
@@ -892,7 +909,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
                         producerCreatedFuture.completeExceptionally(cause);
                         client.cleanupProducer(this);
                     } else if (producerCreatedFuture.isDone() || //
-                    (cause instanceof PulsarClientException && isRetriableError((PulsarClientException) cause)
+                    (cause instanceof PulsarClientException && connectionHandler.isRetriableError((PulsarClientException) cause)
                             && System.currentTimeMillis() < createProducerTimeout)) {
                         // Either we had already created the producer once (producerCreatedFuture.isDone()) or we are
                         // still within the initial timeout budget and we are dealing with a retriable error
@@ -908,7 +925,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     @Override
-    void connectionFailed(PulsarClientException exception) {
+    public void connectionFailed(PulsarClientException exception) {
         if (System.currentTimeMillis() > createProducerTimeout
                 && producerCreatedFuture.completeExceptionally(exception)) {
             log.info("[{}] Producer creation failed for producer {}", topic, producerId);
@@ -1036,6 +1053,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
         long timeToWaitMs;
 
         synchronized (this) {
+            // If it's closing/closed we need to ignore this timeout and not schedule next timeout.
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return;
+            }
+
             OpSendMsg firstMsg = pendingMessages.peek();
             if (firstMsg == null) {
                 // If there are no pending messages, reset the timeout to the configured value.
@@ -1061,9 +1083,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
                     timeToWaitMs = diff;
                 }
             }
-        }
 
-        sendTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            sendTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+        }
     }
 
     /**
@@ -1137,12 +1159,51 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
             }
             // semaphore acquired when message was enqueued to container
             synchronized (ProducerImpl.this) {
+                // If it's closing/closed we need to ignore the send batch timer and not schedule next timeout.
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    return;
+                }
+
                 batchMessageAndSend();
+                // schedule the next batch message task
+                batchMessageAndSendTimeout = client.timer()
+                    .newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
             }
-            // schedule the next batch message task
-            client.timer().newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
         }
     };
+
+    @Override
+    public MessageId send(Message<T> message) throws PulsarClientException {
+        try {
+            // enqueue the message to the buffer
+            CompletableFuture<MessageId> sendFuture = sendAsync(message);
+
+            if (!sendFuture.isDone()) {
+                // the send request wasn't completed yet (e.g. not failing at enqueuing), then attempt to flush it out
+                flush();
+            }
+
+            return sendFuture.get();
+        } catch (ExecutionException e) {
+            Throwable t = e.getCause();
+            if (t instanceof PulsarClientException) {
+                throw (PulsarClientException) t;
+            } else {
+                throw new PulsarClientException(t);
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new PulsarClientException(e);
+        }
+    }
+
+    private void flush() {
+        if (isBatchMessagingEnabled()) {
+            synchronized (ProducerImpl.this) {
+                batchMessageAndSend();
+            }
+        }
+    }
 
     // must acquire semaphore before enqueuing
     private void batchMessageAndSend() {
@@ -1240,15 +1301,41 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask {
     }
 
     @Override
-    public ProducerStats getStats() {
-        if (stats instanceof ProducerStatsDisabled) {
-            return null;
-        }
+    public ProducerStatsRecorder getStats() {
         return stats;
     }
 
     public String getProducerName() {
         return producerName;
+    }
+
+    // wrapper for connection methods
+    ClientCnx cnx() {
+        return this.connectionHandler.cnx();
+    }
+
+    void resetBackoff() {
+        this.connectionHandler.resetBackoff();
+    }
+
+    void connectionClosed(ClientCnx cnx) {
+        this.connectionHandler.connectionClosed(cnx);
+    }
+
+    ClientCnx getClientCnx() {
+        return this.connectionHandler.getClientCnx();
+    }
+
+    void setClientCnx(ClientCnx clientCnx) {
+        this.connectionHandler.setClientCnx(clientCnx);
+    }
+
+    void reconnectLater(Throwable exception) {
+        this.connectionHandler.reconnectLater(exception);
+    }
+
+    void grabCnx() {
+        this.connectionHandler.grabCnx();
     }
 
     private static final Logger log = LoggerFactory.getLogger(ProducerImpl.class);

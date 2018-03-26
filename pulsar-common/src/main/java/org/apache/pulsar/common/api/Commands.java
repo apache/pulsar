@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.api;
 
+import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
 
@@ -37,11 +38,11 @@ import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand.Type;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseConsumer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandCloseProducer;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnect;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConnected;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandActiveConsumerChange;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandConsumerStatsResponse;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandFlow;
@@ -65,6 +66,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
@@ -72,6 +74,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
+import org.apache.pulsar.common.schema.SchemaVersion;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -115,7 +118,7 @@ public class Commands {
         }
 
         if (authData != null) {
-            connectBuilder.setAuthData(ByteString.copyFromUtf8(authData));
+            connectBuilder.setAuthData(copyFromUtf8(authData));
         }
 
         if (originalPrincipal != null) {
@@ -165,15 +168,16 @@ public class Commands {
         return res;
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName) {
-        return newProducerSuccess(requestId, producerName, -1);
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, SchemaVersion schemaVersion) {
+        return newProducerSuccess(requestId, producerName, -1, schemaVersion);
     }
 
-    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId) {
+    public static ByteBuf newProducerSuccess(long requestId, String producerName, long lastSequenceId, SchemaVersion schemaVersion) {
         CommandProducerSuccess.Builder producerSuccessBuilder = CommandProducerSuccess.newBuilder();
         producerSuccessBuilder.setRequestId(requestId);
         producerSuccessBuilder.setProducerName(producerName);
         producerSuccessBuilder.setLastSequenceId(lastSequenceId);
+        producerSuccessBuilder.setSchemaVersion(ByteString.copyFrom(schemaVersion.bytes()));
         CommandProducerSuccess producerSuccess = producerSuccessBuilder.build();
         ByteBuf res = serializeWithSize(
                 BaseCommand.newBuilder().setType(Type.PRODUCER_SUCCESS).setProducerSuccess(producerSuccess));
@@ -298,12 +302,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -314,6 +318,7 @@ public class Commands {
         subscribeBuilder.setPriorityLevel(priorityLevel);
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
+        subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
@@ -830,6 +835,26 @@ public class Commands {
         return builder.getSequenceId();
     }
 
+    public static ByteBuf serializeSingleMessageInBatchWithPayload(
+            PulsarApi.SingleMessageMetadata.Builder singleMessageMetadataBuilder,
+            ByteBuf payload, ByteBuf batchBuffer) {
+        int payLoadSize = payload.readableBytes();
+        PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.setPayloadSize(payLoadSize)
+                .build();
+        // serialize meta-data size, meta-data and payload for single message in batch
+        int singleMsgMetadataSize = singleMessageMetadata.getSerializedSize();
+        try {
+            batchBuffer.writeInt(singleMsgMetadataSize);
+            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(batchBuffer);
+            singleMessageMetadata.writeTo(outStream);
+            singleMessageMetadata.recycle();
+            outStream.recycle();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        return batchBuffer.writeBytes(payload);
+    }
+
     public static ByteBuf serializeSingleMessageInBatchWithPayload(PulsarApi.MessageMetadata.Builder msgBuilder,
             ByteBuf payload, ByteBuf batchBuffer) {
 
@@ -843,23 +868,11 @@ public class Commands {
             singleMessageMetadataBuilder = singleMessageMetadataBuilder
                     .addAllProperties(msgBuilder.getPropertiesList());
         }
-        int payLoadSize = payload.readableBytes();
-        PulsarApi.SingleMessageMetadata singleMessageMetadata = singleMessageMetadataBuilder.setPayloadSize(payLoadSize)
-                .build();
-        singleMessageMetadataBuilder.recycle();
-
-        // serialize meta-data size, meta-data and payload for single message in batch
-        int singleMsgMetadataSize = singleMessageMetadata.getSerializedSize();
         try {
-            batchBuffer.writeInt(singleMsgMetadataSize);
-            ByteBufCodedOutputStream outStream = ByteBufCodedOutputStream.get(batchBuffer);
-            singleMessageMetadata.writeTo(outStream);
-            singleMessageMetadata.recycle();
-            outStream.recycle();
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+            return serializeSingleMessageInBatchWithPayload(singleMessageMetadataBuilder, payload, batchBuffer);
+        } finally {
+            singleMessageMetadataBuilder.recycle();
         }
-        return batchBuffer.writeBytes(payload);
     }
 
     public static ByteBuf deSerializeSingleMessageInBatch(ByteBuf uncompressedPayload,
@@ -980,4 +993,5 @@ public class Commands {
     public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
+
 }
