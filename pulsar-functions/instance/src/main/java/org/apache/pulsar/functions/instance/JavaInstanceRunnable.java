@@ -66,7 +66,6 @@ import org.apache.pulsar.functions.instance.state.StateContextImpl;
 import org.apache.pulsar.functions.utils.FunctionConfigUtils;
 import org.apache.pulsar.functions.utils.Reflections;
 import org.apache.pulsar.functions.utils.Utils;
-import org.apache.pulsar.log4j2.appender.PulsarAppender;
 
 /**
  * A function container implemented using java thread.
@@ -89,7 +88,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     @Getter(AccessLevel.PACKAGE)
     private final Map<String, Consumer> inputConsumers;
     private LinkedList<String> inputTopicsToResubscribe = null;
-    private PulsarAppender logAppender;
+    private LogAppender logAppender;
 
     // provide tables for storing states
     private final String stateStorageServiceUrl;
@@ -770,25 +769,9 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
     private void setupLogHandler() {
         if (instanceConfig.getFunctionConfig().getLogTopic() != null &&
                 !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
-            log.info("D1");
-            // We need to setup logger
-            PulsarAppender.Builder b = PulsarAppender.newBuilder();
-            log.info("D2");
-
-            b.setTopic(instanceConfig.getFunctionConfig().getLogTopic())
-                    .setPulsarClient(client);
-            log.info("D3");
-
-            logAppender = b.build();
-            log.info("D4");
-
-            /*
-            logAppender = PulsarAppender.newBuilder()
-                    .setTopic(instanceConfig.getFunctionConfig().getLogTopic())
-                    .setPulsarClient(client).build();
-                    */
+            logAppender = new LogAppender(client, instanceConfig.getFunctionConfig().getLogTopic(),
+                    FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
         }
-        log.info("WTF");
     }
 
     private void addLogTopicHandler() {
