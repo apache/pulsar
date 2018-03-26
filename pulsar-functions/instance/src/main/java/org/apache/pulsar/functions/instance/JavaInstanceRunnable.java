@@ -771,6 +771,7 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
                 !instanceConfig.getFunctionConfig().getLogTopic().isEmpty()) {
             logAppender = new LogAppender(client, instanceConfig.getFunctionConfig().getLogTopic(),
                     FunctionConfigUtils.getFullyQualifiedName(instanceConfig.getFunctionConfig()));
+            logAppender.start();
         }
     }
 
