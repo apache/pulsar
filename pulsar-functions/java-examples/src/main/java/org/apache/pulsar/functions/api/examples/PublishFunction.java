@@ -21,9 +21,12 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
-public class PublishFunction implements Function<String, byte[]> {
+public class PublishFunction implements Function<String, Void> {
     @Override
-    public byte[] process(String input, Context context) {
-        return "foo".getBytes();
+    public Void process(String input, Context context) {
+        String publishTopic = context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
+        String output = String.format("%s!", input);
+        context.publish(publishTopic, output, DefaultSerDe.class.getName());
+        return null;
     }
 }

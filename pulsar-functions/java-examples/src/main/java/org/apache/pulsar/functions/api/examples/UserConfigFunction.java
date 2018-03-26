@@ -22,12 +22,22 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
 
-public class UserConfigFunction implements Function<String, String> {
+import java.util.Optional;
+
+public class UserConfigFunction implements Function<String, Void> {
     @Override
-    public String process(String input, Context context) {
+    public Void process(String input, Context context) {
+        String key = "config-key";
+        Optional<String> maybeValue = context.getUserConfigValue(key);
         Logger LOG = context.getLogger();
-        String config = context.getUserConfigValue("MyOwnConfig");
-        context.getLogger().info("My config is {}", config);
-        return String.format("Input: %s\nConfig: %s", input, config);
+
+        if (maybeValue.isPresent()) {
+            String value = maybeValue.get();
+            LOG.info("The config value is {}", value);
+        } else {
+            LOG.error("No value present for the key {}", key);
+        }
+
+        return null;
     }
 }
