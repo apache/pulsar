@@ -54,7 +54,7 @@ $ bin/pulsar-admin functions create \
   --output persistent://sample/standalone/ns1/output-1
 ```
 
-### Updating cluster mode functions
+### Updating cluster mode functions {#updating}
 
 You can use the [`update`](../../CliTools#pulsar-admin-functions-update) command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section [above](#cluster-mode):
 
@@ -159,3 +159,15 @@ This function has been triggered with a value of hello world
 ```
 
 {% include admonition.html type="success" title="Topic info not required" content="In the `trigger` command above, you may have noticed that you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you didn't need to know the function's input topic(s)." %}
+
+<!--
+## Subscription types
+
+Pulsar supports three different [subscription types](../../getting-started/ConceptsAndArchitecture#subscription-modes) (or subscription modes) for Pulsar clients:
+
+* With [exclusive](../../getting-started/ConceptsAndArchitecture#exclusive) subscriptions, only a single {% popover consumer %} is allowed to attach to the subscription.
+* With [shared](../../getting-started/ConceptsAndArchitecture#shared) . Please note that strict message ordering is *not* guaranteed with shared subscriptions.
+* With [failover](../../getting-started/ConceptsAndArchitecture#failover) subscriptions
+
+Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
+-->
