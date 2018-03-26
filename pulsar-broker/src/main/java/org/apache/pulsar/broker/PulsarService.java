@@ -666,7 +666,7 @@ public class PulsarService implements AutoCloseable {
 
     public static String brokerUrl(ServiceConfiguration config) {
         if (config.getBrokerServicePort().isPresent()) {
-        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort();
+        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort().get();
         } else {
             return "";
         }
@@ -682,7 +682,7 @@ public class PulsarService implements AutoCloseable {
 
     public static String webAddress(ServiceConfiguration config) {
         if (config.getWebServicePort().isPresent()) {
-            return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort());
+            return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort().get());
         } else {
             return "";
         }

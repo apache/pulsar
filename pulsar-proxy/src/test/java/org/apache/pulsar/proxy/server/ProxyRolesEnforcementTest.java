@@ -252,7 +252,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(proxyServiceUrl).authentication(BasicAuthentication.class.getName(),
-                authParams).build();
+        return PulsarClient.builder().serviceUrl(proxyServiceUrl)
+                .authentication(BasicAuthentication.class.getName(), authParams).build();
     }
 }

@@ -159,7 +159,12 @@ public class DiscoveryService implements Closeable {
     }
 
     public String serviceUrl() {
-        return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort()).toString();
+        if (config.getServicePort().isPresent()) {
+            return new StringBuilder("pulsar://").append(host()).append(":").append(config.getServicePort().get())
+                    .toString();
+        } else {
+            return "";
+        }
     }
 
     public String serviceUrlTls() {

@@ -31,6 +31,7 @@ import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
@@ -82,7 +83,7 @@ public class WebSocketService implements Closeable {
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ConsumerHandler>> topicConsumerMap;
     private final ConcurrentOpenHashMap<String, ConcurrentOpenHashSet<ReaderHandler>> topicReaderMap;
     private final ProxyStats proxyStats;
-
+    
     public WebSocketService(WebSocketProxyConfiguration config) {
         this(createClusterData(config), PulsarConfigurationLoader.convertFrom(config));
     }
@@ -178,7 +179,8 @@ public class WebSocketService implements Closeable {
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
         ClientBuilder clientBuilder = PulsarClient.builder() //
                 .statsInterval(0, TimeUnit.SECONDS) //
-                .enableTls(config.getBrokerServicePortTls().isPresent() || config.getWebServicePortTls().isPresent()) //
+                .enableTls(StringUtils.isNotBlank(clusterData.getBrokerServiceUrlTls())
+                        || StringUtils.isNotBlank(clusterData.getServiceUrlTls())) //
                 .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
                 .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
                 .ioThreads(config.getWebSocketNumIoThreads()) //
@@ -190,9 +192,9 @@ public class WebSocketService implements Closeable {
                     config.getBrokerClientAuthenticationParameters());
         }
 
-        if (config.getBrokerServicePortTls().isPresent()) {
+        if (StringUtils.isNotBlank(clusterData.getBrokerServiceUrlTls())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
-        } else if (config.getWebServicePortTls().isPresent()) {
+        } else if (StringUtils.isNotBlank(clusterData.getServiceUrlTls())) {
             clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
             clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
