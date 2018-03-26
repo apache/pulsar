@@ -49,7 +49,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.ManagedLedger;
@@ -57,6 +56,7 @@ import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
 import org.apache.bookkeeper.mledger.ManagedLedgerFactory;
 import org.apache.bookkeeper.util.ZkUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.apache.pulsar.broker.PulsarService;
@@ -131,8 +131,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private final PulsarService pulsar;
     private final ManagedLedgerFactory managedLedgerFactory;
-    private final int port;
-    private final int tlsPort;
 
     private final ConcurrentOpenHashMap<String, CompletableFuture<Topic>> topics;
 
@@ -187,8 +185,6 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public BrokerService(PulsarService pulsar) throws Exception {
         this.pulsar = pulsar;
         this.managedLedgerFactory = pulsar.getManagedLedgerFactory();
-        this.port = new URI(pulsar.getBrokerServiceUrl()).getPort();
-        this.tlsPort = new URI(pulsar.getBrokerServiceUrlTls()).getPort();
         this.topics = new ConcurrentOpenHashMap<>();
         this.replicationClients = new ConcurrentOpenHashMap<>();
         this.keepAliveIntervalSeconds = pulsar.getConfiguration().getKeepAliveIntervalSeconds();
@@ -284,11 +280,15 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
         bootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, false));
-        // Bind and start to accept incoming connections.
-        bootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), port)).sync();
-        log.info("Started Pulsar Broker service on port {}", port);
-
-        if (serviceConfig.isTlsEnabled()) {
+        if (StringUtils.isNotBlank(pulsar.getBrokerServiceUrl())) {
+            final int port = new URI(pulsar.getBrokerServiceUrl()).getPort();
+            // Bind and start to accept incoming connections.
+            bootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), port)).sync();
+            log.info("Started Pulsar Broker service on port {}", port);
+        }
+        
+        if (StringUtils.isNotBlank(pulsar.getBrokerServiceUrlTls())) {
+            final int tlsPort = new URI(pulsar.getBrokerServiceUrlTls()).getPort();
             ServerBootstrap tlsBootstrap = bootstrap.clone();
             tlsBootstrap.childHandler(new PulsarChannelInitializer(this, serviceConfig, true));
             tlsBootstrap.bind(new InetSocketAddress(pulsar.getBindAddress(), tlsPort)).sync();

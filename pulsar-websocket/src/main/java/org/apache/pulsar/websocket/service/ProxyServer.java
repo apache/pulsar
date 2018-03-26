@@ -74,11 +74,12 @@ public class ProxyServer {
 
         ServerConnector connector = new ServerConnector(server);
 
-        connector.setPort(config.getWebServicePort());
-        connectors.add(connector);
-
+        if (config.getWebServicePort().isPresent()) {
+            connector.setPort(config.getWebServicePort().get());
+            connectors.add(connector);
+        }
         // TLS enabled connector
-        if (config.isTlsEnabled()) {
+        if (config.getWebServicePortTls().isPresent()) {
             SslContextFactory sslCtxFactory = new SslContextFactory(true);
             try {
                 SSLContext sslCtx = SecurityUtility.createSslContext(false, config.getTlsTrustCertsFilePath(), config.getTlsCertificateFilePath(),
@@ -91,7 +92,7 @@ public class ProxyServer {
 
             sslCtxFactory.setWantClientAuth(true);
             ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
-            tlsConnector.setPort(config.getWebServicePortTls());
+            tlsConnector.setPort(config.getWebServicePortTls().get());
             connectors.add(tlsConnector);
         }
 

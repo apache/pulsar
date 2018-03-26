@@ -250,7 +250,6 @@ public class WebServiceTest {
         config.setAuthenticationProviders(providers);
         config.setAuthorizationEnabled(false);
         config.setSuperUserRoles(roles);
-        config.setTlsEnabled(enableTls);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsAllowInsecureConnection(allowInsecure);

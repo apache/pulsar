@@ -665,24 +665,32 @@ public class PulsarService implements AutoCloseable {
     }
 
     public static String brokerUrl(ServiceConfiguration config) {
-        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort();
+        if (config.getBrokerServicePort().isPresent()) {
+        return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePort().get();
+        } else {
+            return "";
+        }
     }
 
     public static String brokerUrlTls(ServiceConfiguration config) {
-        if (config.isTlsEnabled()) {
-            return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls();
+        if (config.getBrokerServicePortTls().isPresent()) {
+            return "pulsar://" + advertisedAddress(config) + ":" + config.getBrokerServicePortTls().get();
         } else {
             return "";
         }
     }
 
     public static String webAddress(ServiceConfiguration config) {
-        return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort());
+        if (config.getWebServicePort().isPresent()) {
+            return String.format("http://%s:%d", advertisedAddress(config), config.getWebServicePort().get());
+        } else {
+            return "";
+        }
     }
 
     public static String webAddressTls(ServiceConfiguration config) {
-        if (config.isTlsEnabled()) {
-            return String.format("https://%s:%d", advertisedAddress(config), config.getWebServicePortTls());
+        if (config.getWebServicePortTls().isPresent()) {
+            return String.format("https://%s:%d", advertisedAddress(config), config.getWebServicePortTls().get());
         } else {
             return "";
         }

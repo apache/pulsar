@@ -776,11 +776,31 @@ public class NamespaceService {
     }
 
     public static String getHeartbeatNamespace(String host, ServiceConfiguration config) {
-        return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, config.getWebServicePort());
+        Integer port;
+        if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
+        } else if (config.getWebServicePortTls().isPresent()) {
+            port = config.getWebServicePortTls().get();
+        } else if (config.getBrokerServicePort().isPresent()) {
+            port = config.getBrokerServicePort().get();
+        } else {
+            port = config.getBrokerServicePortTls().get();
+        }
+        return String.format(HEARTBEAT_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
 
     public static String getSLAMonitorNamespace(String host, ServiceConfiguration config) {
-        return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, config.getWebServicePort());
+        Integer port;
+        if (config.getWebServicePort().isPresent()) {
+            port = config.getWebServicePort().get();
+        } else if (config.getWebServicePortTls().isPresent()) {
+            port = config.getWebServicePortTls().get();
+        } else if (config.getBrokerServicePort().isPresent()) {
+            port = config.getBrokerServicePort().get();
+        } else {
+            port = config.getBrokerServicePortTls().get();
+        }
+        return String.format(SLA_NAMESPACE_FMT, config.getClusterName(), host, port);
     }
 
     public static String checkHeartbeatNamespace(ServiceUnitId ns) {

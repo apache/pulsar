@@ -64,7 +64,6 @@ public class ProxyPublishConsumeTlsTest extends TlsProducerConsumerBase {
         WebSocketProxyConfiguration config = new WebSocketProxyConfiguration();
         config.setWebServicePort(port);
         config.setWebServicePortTls(tlsPort);
-        config.setTlsEnabled(true);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);

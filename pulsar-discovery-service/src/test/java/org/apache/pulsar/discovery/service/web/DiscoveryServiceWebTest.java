@@ -194,7 +194,6 @@ public class DiscoveryServiceWebTest extends BaseZKStarterTest{
         ServiceConfig config = new ServiceConfig();
         config.setWebServicePort(port);
         config.setWebServicePortTls(tlsPort);
-        config.setTlsEnabled(true);
         config.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         config.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
         ServerManager server = new ServerManager(config);

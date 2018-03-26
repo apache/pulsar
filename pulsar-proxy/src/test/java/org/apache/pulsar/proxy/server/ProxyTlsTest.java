@@ -55,7 +55,6 @@ public class ProxyTlsTest extends MockedPulsarServiceBaseTest {
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
         proxyConfig.setWebServicePortTls(PortManager.nextFreePort());
-        proxyConfig.setTlsEnabledInProxy(true);
         proxyConfig.setTlsEnabledWithBroker(false);
         proxyConfig.setTlsCertificateFilePath(TLS_PROXY_CERT_FILE_PATH);
         proxyConfig.setTlsKeyFilePath(TLS_PROXY_KEY_FILE_PATH);

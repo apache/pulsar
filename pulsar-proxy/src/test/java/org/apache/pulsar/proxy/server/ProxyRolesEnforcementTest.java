@@ -152,7 +152,6 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
         servicePort = PortManager.nextFreePort();
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
-        conf.setTlsEnabled(false);
         conf.setBrokerClientAuthenticationPlugin(BasicAuthentication.class.getName());
         conf.setBrokerClientAuthenticationParameters("authParam:broker");
 
@@ -253,7 +252,7 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {
-        return PulsarClient.builder().serviceUrl(proxyServiceUrl).authentication(BasicAuthentication.class.getName(),
-                authParams).build();
+        return PulsarClient.builder().serviceUrl(proxyServiceUrl)
+                .authentication(BasicAuthentication.class.getName(), authParams).build();
     }
 }
