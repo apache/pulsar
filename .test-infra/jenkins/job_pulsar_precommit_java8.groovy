@@ -34,7 +34,7 @@ freeStyleJob('pulsar_precommit_java8') {
             // Set Maven parameters.
             common_job_properties.setMavenConfig(delegate)
 
-            goals('-B clean install')
+            goals('-B clean license:check install')
             properties(skipTests: false, interactiveMode: false)
         }
     }
