@@ -19,38 +19,35 @@
 import common_job_properties
 
 // This is the Java precommit which runs a maven install, and the current set of precommit tests.
-freeStyleJob('pulsar_precommit_integrationtests') {
-    description('precommit integration test verification for pull requests of <a href="http://pulsar.apache.org">Apache Pulsar</a>.')
-
-    // Set common parameters.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+freeStyleJob('pulsar_precommit_cpp') {
+    description('precommit CPP/Python client tests verification for pull requests of <a href="http://pulsar.apache.org">Apache Pulsar</a>.')
 
     // Execute concurrent builds if necessary.
     concurrentBuild()
 
+    // Set common parameters.
+    common_job_properties.setTopLevelMainJobProperties(delegate)
+
     // Sets that this is a PreCommit job.
-    common_job_properties.setPreCommit(delegate, 'Integration Tests')
+    common_job_properties.setPreCommit(delegate, 'C++ / Python Tests')
 
     steps {
-        shell('tests/scripts/pre-integ-tests.sh')
-
-        // Build everything
+        // Build Java Code
         maven {
             // Set Maven parameters.
             common_job_properties.setMavenConfig(delegate)
 
-            goals('-B clean install -Pdocker')
+            goals('-B clean package')
             properties(skipTests: true, interactiveMode: false)
         }
 
-        maven {
-            // Set Maven parameters.
-            common_job_properties.setMavenConfig(delegate)
-            rootPOM('tests/pom.xml')
-            goals('-B test -DintegrationTests')
-        }
+        shell('''
+        echo "Build C++ client library"
+        export CMAKE_ARGS="-DCMAKE_BUILD_TYPE=Debug -DBUILD_DYNAMIC_LIB=OFF"
 
-        shell('tests/scripts/post-integ-tests.sh')
+        pulsar-client-cpp/docker-build.sh
+        pulsar-client-cpp/docker-tests.sh
+        ''')
     }
 
     publishers {

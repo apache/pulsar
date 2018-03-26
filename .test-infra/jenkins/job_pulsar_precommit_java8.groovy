@@ -19,44 +19,32 @@
 import common_job_properties
 
 // This is the Java precommit which runs a maven install, and the current set of precommit tests.
-freeStyleJob('pulsar_precommit_integrationtests') {
-    description('precommit integration test verification for pull requests of <a href="http://pulsar.apache.org">Apache Pulsar</a>.')
-
-    // Set common parameters.
-    common_job_properties.setTopLevelMainJobProperties(delegate)
+freeStyleJob('pulsar_precommit_java8') {
+    description('precommit Java 8 test verification for pull requests of <a href="http://pulsar.apache.org">Apache Pulsar</a>.')
 
     // Execute concurrent builds if necessary.
     concurrentBuild()
 
+    // Set common parameters.
+    common_job_properties.setTopLevelMainJobProperties(delegate)
+
     // Sets that this is a PreCommit job.
-    common_job_properties.setPreCommit(delegate, 'Integration Tests')
+    common_job_properties.setPreCommit(delegate, 'Java 8 - Unit Tests')
 
     steps {
-        shell('tests/scripts/pre-integ-tests.sh')
-
         // Build everything
         maven {
             // Set Maven parameters.
             common_job_properties.setMavenConfig(delegate)
 
-            goals('-B clean install -Pdocker')
-            properties(skipTests: true, interactiveMode: false)
+            goals('-B clean license:check install')
+            properties(skipTests: false, interactiveMode: false)
         }
-
-        maven {
-            // Set Maven parameters.
-            common_job_properties.setMavenConfig(delegate)
-            rootPOM('tests/pom.xml')
-            goals('-B test -DintegrationTests')
-        }
-
-        shell('tests/scripts/post-integ-tests.sh')
     }
 
     publishers {
         archiveArtifacts {
             allowEmpty(true)
-            pattern('**/target/container-logs/**')
              // archiveJunit doesn't capture everything, so copy these files
             pattern('**/surefire-reports/TEST-*.xml')
             pattern('**/surefire-reports/*.txt')
