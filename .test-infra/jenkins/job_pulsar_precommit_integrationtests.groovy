@@ -25,6 +25,9 @@ freeStyleJob('pulsar_precommit_integrationtests') {
     // Set common parameters.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
+    // Execute concurrent builds if necessary.
+    concurrentBuild()
+
     // Sets that this is a PreCommit job.
     common_job_properties.setPreCommit(delegate, 'Integration Tests')
 
