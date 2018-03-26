@@ -279,9 +279,14 @@ public class TopicLookup extends PulsarWebResource {
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 newAuthoritative, LookupType.Redirect, requestId, false));
                             } else {
+                                // When running in standalone mode we want to redirect the client through the service
+                                // url, so that the advertised address configuration is not relevant anymore.
+                                boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
+                                        .isRunningStandalone();
+
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                true /* authoritative */, LookupType.Connect, requestId, false));
+                                                true /* authoritative */, LookupType.Connect, requestId, redirectThroughServiceUrl));
                             }
                         }).exceptionally(ex -> {
                             if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {
