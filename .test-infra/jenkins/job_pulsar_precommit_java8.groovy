@@ -22,6 +22,9 @@ import common_job_properties
 freeStyleJob('pulsar_precommit_java8') {
     description('precommit Java 8 test verification for pull requests of <a href="http://pulsar.apache.org">Apache Pulsar</a>.')
 
+    // Execute concurrent builds if necessary.
+    concurrentBuild()
+
     // Set common parameters.
     common_job_properties.setTopLevelMainJobProperties(delegate)
 
