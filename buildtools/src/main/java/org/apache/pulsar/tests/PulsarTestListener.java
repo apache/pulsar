@@ -20,8 +20,6 @@ package org.apache.pulsar.tests;
 
 import java.util.Arrays;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.ITestContext;
 import org.testng.ITestListener;
 import org.testng.ITestResult;
@@ -31,31 +29,30 @@ public class PulsarTestListener implements ITestListener {
 
     @Override
     public void onTestStart(ITestResult result) {
-        log.info("------- Starting test {}.{}({})-------", result.getTestClass(), result.getTestName(),
+        System.out.format("------- Starting test %s.%s(%s)-------\n", result.getTestClass(), result.getTestName(),
                 Arrays.toString(result.getParameters()));
     }
 
     @Override
     public void onTestSuccess(ITestResult result) {
-        log.info("------- SUCCESS -- {}.{}({})-------", result.getTestClass(), result.getTestName(),
+        System.out.format("------- SUCCESS -- %s.%s(%s)-------", result.getTestClass(), result.getTestName(),
                 Arrays.toString(result.getParameters()));
     }
 
     @Override
     public void onTestFailure(ITestResult result) {
-        log.info("!!!!!!!!! FAILURE-- {}.{}({})-------", result.getTestClass(), result.getTestName(),
+        System.out.format("!!!!!!!!! FAILURE-- %s.%s(%s)-------\n", result.getTestClass(), result.getTestName(),
                 Arrays.toString(result.getParameters()));
-        log.info("!!!!!!!!! FAILURE -- ", result.getThrowable());
 
         if (result.getThrowable() instanceof ThreadTimeoutException) {
-            log.info("====== THREAD DUMPS ======");
+            System.out.println("====== THREAD DUMPS ======");
             System.out.println(ThreadDumpUtil.buildThreadDiagnosticString());
         }
     }
 
     @Override
     public void onTestSkipped(ITestResult result) {
-        log.info("~~~~~~~~~ SKIPPED -- {}.{}({})-------", result.getTestClass(), result.getTestName(),
+        System.out.format("~~~~~~~~~ SKIPPED -- %s.%s(%s)-------", result.getTestClass(), result.getTestName(),
                 Arrays.toString(result.getParameters()));
     }
 
@@ -73,6 +70,4 @@ public class PulsarTestListener implements ITestListener {
     public void onFinish(ITestContext context) {
 
     }
-
-    private static final Logger log = LoggerFactory.getLogger(PulsarTestListener.class);
 }
