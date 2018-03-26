@@ -192,10 +192,8 @@ public class JavaInstanceRunnable implements AutoCloseable, Runnable, ConsumerEv
         startOutputProducer();
         // start the input consumer
         startInputConsumer();
-        // start any logging handler
-        log.info("About to setup log appender");
+        // start any log topic handler
         setupLogHandler();
-        log.info("Setup log appender");
 
         return new JavaInstance(instanceConfig, object, clsLoader, client, inputConsumers);
     }
