@@ -120,7 +120,7 @@ public class CmdFunctionsTest {
 
     @Test
     public void testLocalRunnerCmdNoArguments() throws Exception {
-        cmd.run(new String[] { "run" });
+        cmd.run(new String[] { "localrun" });
 
         LocalRunner runner = cmd.getLocalRunner();
         assertNull(runner.getFunctionName());
