@@ -16,18 +16,21 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
-import org.apache.pulsar.functions.api.utils.DefaultSerDe;
+#pragma once
 
-public class PublishFunction implements Function<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        String publishTopic = context.getUserConfigValueOrDefault("publish-topic", "persistent://sample/standalone/ns1/publish");
-        String output = String.format("%s!", input);
-        context.publish(publishTopic, output, DefaultSerDe.class.getName());
-        return null;
-    }
-}
+#include <cstdint>
+
+namespace pulsar {
+
+class MessageIdImpl {
+   public:
+    MessageIdImpl() : ledgerId_(-1), entryId_(-1), partition_(-1), batchIndex_(-1) {}
+    MessageIdImpl(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex)
+        : ledgerId_(ledgerId), entryId_(entryId), partition_(partition), batchIndex_(batchIndex) {}
+    const int64_t ledgerId_;
+    const int64_t entryId_;
+    const int32_t partition_;
+    const int32_t batchIndex_;
+};
+}  // namespace pulsar
