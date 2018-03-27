@@ -42,6 +42,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -60,6 +62,7 @@ import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCursorCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteLedgerCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenCursorCallback;
+import org.apache.bookkeeper.mledger.AsyncCallbacks.OffloadCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.TerminateCallback;
 import org.apache.bookkeeper.mledger.Entry;
@@ -1803,6 +1806,39 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 callback.deleteLedgerFailed(e, ctx);
             }
         });
+    }
+
+    @Override
+    public Position offloadPrefix(Position pos) throws InterruptedException, ManagedLedgerException {
+        CompletableFuture<Position> promise = new CompletableFuture<>();
+
+        asyncOffloadPrefix(pos, new OffloadCallback() {
+                @Override
+                public void offloadComplete(Position offloadedTo, Object ctx) {
+                    promise.complete(offloadedTo);
+                }
+
+                @Override
+                public void offloadFailed(ManagedLedgerException e, Object ctx) {
+                    promise.completeExceptionally(e);
+                }
+            }, null);
+
+        try {
+            return promise.get(AsyncOperationTimeoutSeconds, TimeUnit.SECONDS);
+        } catch (TimeoutException te) {
+            throw new ManagedLedgerException("Timeout during managed ledger offload operation");
+        } catch (ExecutionException e) {
+            log.error("[{}] Error offloading. pos = {}", name, pos, e.getCause());
+            throw ManagedLedgerException.getManagedLedgerException(e.getCause());
+        }
+    }
+
+
+
+    @Override
+    public void asyncOffloadPrefix(Position pos, OffloadCallback callback, Object ctx) {
+        callback.offloadFailed(new ManagedLedgerException("Not implemented"), ctx);
     }
 
     /**
