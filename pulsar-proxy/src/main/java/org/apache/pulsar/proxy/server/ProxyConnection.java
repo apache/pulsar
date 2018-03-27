@@ -95,6 +95,11 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
         activeConnections.inc();
+        if (activeConnections.get() >= service.getConfiguration().getMaxConcurrentInboundConnections()) {
+            LOG.warn("[{}] Too many connection opened {}", remoteAddress, activeConnections.get());
+            this.ctx().close();
+            return;
+        }
         newConnections.inc();
         LOG.info("[{}] New connection opened", remoteAddress);
     }
@@ -164,7 +169,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             close();
             return;
         }
-        
+
         if (connect.hasProxyToBrokerUrl()) {
             // Client already knows which broker to connect. Let's open a connection
             // there and just pass bytes in both directions
@@ -226,8 +231,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
             authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
-            clientAuthRole = service.getAuthenticationService()
-                    .authenticate(authenticationData, authMethod);
+            clientAuthRole = service.getAuthenticationService().authenticate(authenticationData, authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
             return true;
