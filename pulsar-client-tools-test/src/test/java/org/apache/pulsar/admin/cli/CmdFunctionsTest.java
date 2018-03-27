@@ -84,6 +84,7 @@ public class CmdFunctionsTest {
     private PulsarAdminWithFunctions admin;
     private Functions functions;
     private CmdFunctions cmd;
+    private final String testJar = "pulsar-functions-api-examples.jar";
 
     public class DummyFunction implements Function<String, String> {
         @Override
@@ -177,7 +178,7 @@ public class CmdFunctionsTest {
             "--name", fnName,
             "--inputs", inputTopicName,
             "--output", outputTopicName,
-            "--jar", "SomeJar.jar",
+            "--jar", testJar,
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -202,7 +203,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", testJar,
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
         });
@@ -222,7 +223,7 @@ public class CmdFunctionsTest {
                 "--name", fnName,
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", testJar,
                 "--className", DummyFunction.class.getName(),
         });
 
@@ -240,7 +241,7 @@ public class CmdFunctionsTest {
                 "create",
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", testJar,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -257,7 +258,7 @@ public class CmdFunctionsTest {
         cmd.run(new String[] {
                 "create",
                 "--inputs", inputTopicName,
-                "--jar", "SomeJar.jar",
+                "--jar", testJar,
                 "--tenant", "sample",
                 "--namespace", "ns1",
                 "--className", DummyFunction.class.getName(),
@@ -323,7 +324,7 @@ public class CmdFunctionsTest {
             "--name", fnName,
             "--inputs", inputTopicName,
             "--output", outputTopicName,
-            "--jar", "SomeJar.jar",
+            "--jar", testJar,
             "--tenant", "sample",
             "--namespace", "ns1",
             "--className", DummyFunction.class.getName(),
@@ -353,6 +354,26 @@ public class CmdFunctionsTest {
         assertEquals(namespace, lister.getNamespace());
 
         verify(functions, times(1)).getFunctions(eq(tenant), eq(namespace));
+    }
+
+    @Test
+    public void testNonExistentJarFails() throws IllegalArgumentException {
+        String fnName = TEST_NAME + "-function";
+        String tenant = TEST_NAME + "-tenant";
+        String namespace = TEST_NAME + "-namespace";
+        String inputTopicName = TEST_NAME + "-input-topic";
+        String outputTopicName = TEST_NAME + "-output-topic";
+
+        cmd.run(new String[] {
+                "create",
+                "--tenant", tenant,
+                "--namespace", namespace,
+                "--name", fnName,
+                "--inputs", inputTopicName,
+                "--output", outputTopicName,
+                "--jar", "non-existent-jar.jar",
+                "--className", DummyFunction.class.getName()
+        });
     }
 
     @Test
