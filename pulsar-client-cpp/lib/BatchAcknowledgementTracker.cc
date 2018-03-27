@@ -24,7 +24,7 @@ DECLARE_LOG_OBJECT()
 BatchAcknowledgementTracker::BatchAcknowledgementTracker(const std::string topic,
                                                          const std::string subscription,
                                                          const long consumerId)
-    : greatestCumulativeAckSent_(BatchMessageId()) {
+    : greatestCumulativeAckSent_() {
     std::stringstream consumerStrStream;
     consumerStrStream << "BatchAcknowledgementTracker for [" << topic << ", " << subscription << ", "
                       << consumerId << "] ";
@@ -43,7 +43,7 @@ void BatchAcknowledgementTracker::receivedMessage(const Message& message) {
         return;
     }
     Lock lock(mutex_);
-    BatchMessageId msgID = message.impl_->messageId;
+    MessageId msgID = message.impl_->messageId;
 
     // ignore message if it is less than the last cumulative ack sent or messageID is already being tracked
     TrackerMap::iterator pos = trackerMap_.find(msgID);
@@ -60,10 +60,10 @@ void BatchAcknowledgementTracker::receivedMessage(const Message& message) {
         TrackerPair(msgID, boost::dynamic_bitset<>(message.impl_->metadata.num_messages_in_batch()).set()));
 }
 
-void BatchAcknowledgementTracker::deleteAckedMessage(const BatchMessageId& messageId,
+void BatchAcknowledgementTracker::deleteAckedMessage(const MessageId& messageId,
                                                      proto::CommandAck_AckType ackType) {
     // Not a batch message and a individual ack
-    if (messageId.batchIndex_ == -1 && ackType == proto::CommandAck_AckType_Individual) {
+    if (messageId.batchIndex() == -1 && ackType == proto::CommandAck_AckType_Individual) {
         return;
     }
 
@@ -104,18 +104,23 @@ void BatchAcknowledgementTracker::deleteAckedMessage(const BatchMessageId& messa
     }
 }
 
-bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID,
+bool BatchAcknowledgementTracker::isBatchReady(const MessageId& msgID,
                                                const proto::CommandAck_AckType ackType) {
     Lock lock(mutex_);
-    TrackerMap::iterator pos = trackerMap_.find(msgID);
-    if (pos == trackerMap_.end() || std::find(sendList_.begin(), sendList_.end(), msgID) != sendList_.end()) {
+    // Remove batch index
+    MessageId batchMessageId =
+        MessageId(msgID.partition(), msgID.ledgerId(), msgID.entryId(), -1 /* Batch index */);
+
+    TrackerMap::iterator pos = trackerMap_.find(batchMessageId);
+    if (pos == trackerMap_.end() ||
+        std::find(sendList_.begin(), sendList_.end(), batchMessageId) != sendList_.end()) {
         LOG_DEBUG(
             "Batch is ready since message present in sendList_ or not present in trackerMap_ [message ID = "
-            << msgID << "]");
+            << batchMessageId << "]");
         return true;
     }
 
-    int batchIndex = msgID.batchIndex_;
+    int batchIndex = msgID.batchIndex();
     assert(batchIndex < pos->second.size());
     pos->second.set(batchIndex, false);
 
@@ -128,7 +133,7 @@ bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID,
     if (pos->second.any()) {
         return false;
     }
-    sendList_.push_back(msgID);
+    sendList_.push_back(batchMessageId);
     trackerMap_.erase(pos);
     LOG_DEBUG("Batch is ready since message all bits are reset in trackerMap_ [message ID = " << msgID
                                                                                               << "]");
@@ -138,22 +143,24 @@ bool BatchAcknowledgementTracker::isBatchReady(const BatchMessageId& msgID,
 // returns
 // - a batch message id < messageId
 // - same messageId if it is the last message in the batch
-const BatchMessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(
-    const BatchMessageId& messageId) {
+const MessageId BatchAcknowledgementTracker::getGreatestCumulativeAckReady(const MessageId& messageId) {
     Lock lock(mutex_);
-    BatchMessageId messageReadyForCumulativeAck = BatchMessageId();
-    TrackerMap::iterator pos = trackerMap_.find(messageId);
+
+    // Remove batch index
+    MessageId batchMessageId =
+        MessageId(messageId.partition(), messageId.ledgerId(), messageId.entryId(), -1 /* Batch index */);
+    TrackerMap::iterator pos = trackerMap_.find(batchMessageId);
 
     // element not found
     if (pos == trackerMap_.end()) {
-        return BatchMessageId();
+        return MessageId();
     }
 
-    if (pos->second.size() - 1 != messageId.batchIndex_) {
+    if (pos->second.size() - 1 != messageId.batchIndex()) {
         // Can't cumulatively ack this batch message
         if (pos == trackerMap_.begin()) {
             // This was the first message hence we can't decrement the iterator
-            return BatchMessageId();
+            return MessageId();
         }
         pos--;
     }

@@ -25,6 +25,7 @@ public class WebSocketConsumerServlet extends WebSocketServlet {
     private static final long serialVersionUID = 1L;
 
     public static final String SERVLET_PATH = "/ws/consumer";
+    public static final String SERVLET_PATH_V2 = "/ws/v2/consumer";
 
     WebSocketService service;
 
