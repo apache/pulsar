@@ -84,7 +84,7 @@ public class CmdFunctionsTest {
     private PulsarAdminWithFunctions admin;
     private Functions functions;
     private CmdFunctions cmd;
-    private final String testJar = "pulsar-functions-api-examples.jar";
+    private final String testJar = "src/test/resources/pulsar-functions-api-examples.jar";
     private final String testClassName = "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
     public class DummyFunction implements Function<String, String> {
