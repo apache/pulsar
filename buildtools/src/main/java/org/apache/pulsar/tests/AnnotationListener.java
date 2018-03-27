@@ -27,9 +27,19 @@ import org.testng.annotations.ITestAnnotation;
 @SuppressWarnings("rawtypes")
 public class AnnotationListener implements IAnnotationTransformer {
 
+    private static final int DEFAULT_TEST_TIMEOUT_MILLIS = 120000;
+
+    public AnnotationListener() {
+        System.out.println("Created annotation listener");
+    }
+
     @Override
     public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
         annotation.setRetryAnalyzer(RetryAnalyzer.class);
-    }
 
+        // Enforce default test timeout
+        if (annotation.getTimeOut() == 0) {
+            annotation.setTimeOut(DEFAULT_TEST_TIMEOUT_MILLIS);
+        }
+    }
 }
