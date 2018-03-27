@@ -415,3 +415,11 @@ byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 ```
+
+## Schema registry
+
+System for storing and serving schema data
+Versioned history (all schemas have versioned; version must be specified when fetching)
+Supported schema formats: Thrift, Avro, JSON, Protobuf
+Each schema has an: ID, user, type, content (as a byte array), timestamp, key/value properties
+By default, schemas are stored in BookKeeper
