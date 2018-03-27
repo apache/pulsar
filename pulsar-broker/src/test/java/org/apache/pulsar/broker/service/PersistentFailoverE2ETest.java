@@ -135,12 +135,12 @@ public class PersistentFailoverE2ETest extends BrokerTestBase {
         TestConsumerStateEventListener listener1 = new TestConsumerStateEventListener();
         TestConsumerStateEventListener listener2 = new TestConsumerStateEventListener();
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Failover);
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionType(SubscriptionType.Failover);
 
 
         // 1. two consumers on the same subscription
         ConsumerBuilder<byte[]> consumerBulder1 = consumerBuilder.clone().consumerName("1")
-                .consumerEventListener(listener1);
+                .consumerEventListener(listener1).acknowledmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBulder1.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.clone().consumerName("2").consumerEventListener(listener2)
                 .subscribe();

@@ -105,7 +105,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
         final String topicName = "persistent://my-property/use/my-ns/my-topic1";
         final String subscriptionName = "my-subscriber-name";
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
-                .subscribe();
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         final int numberOfMsgs = 1000;
         for (int i = 0; i < numberOfMsgs; i++) {
