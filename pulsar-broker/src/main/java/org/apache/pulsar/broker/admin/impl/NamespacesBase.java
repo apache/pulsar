@@ -39,6 +39,7 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -145,9 +146,9 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    if (!config().isTlsEnabled()) {
+                    if (!config().isTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
-                    } else if (!replClusterData.getServiceUrlTls().isEmpty()) {
+                    } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
                     } else {
                         throw new RestException(Status.PRECONDITION_FAILED,
@@ -246,9 +247,9 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluser " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    if (!config().isTlsEnabled()) {
+                    if (!config().isTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
-                    } else if (!replClusterData.getServiceUrlTls().isEmpty()) {
+                    } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
                     } else {
                         throw new RestException(Status.PRECONDITION_FAILED,

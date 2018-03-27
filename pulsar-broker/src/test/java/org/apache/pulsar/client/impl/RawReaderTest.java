@@ -28,9 +28,9 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 
 import org.apache.bookkeeper.mledger.ManagedLedger;
+import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.MessageBuilder;
@@ -74,12 +74,10 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
         super.internalCleanup();
     }
 
-    private Set<String> publishMessagesBase(String topic, int count, boolean batching) throws Exception {
+    private Set<String> publishMessages(String topic, int count) throws Exception {
         Set<String> keys = new HashSet<>();
 
-        try (Producer<byte[]> producer = pulsarClient.newProducer().topic(topic).maxPendingMessages(count)
-                .enableBatching(batching).batchingMaxMessages(BATCH_MAX_MESSAGES)
-                .batchingMaxPublishDelay(Long.MAX_VALUE, TimeUnit.DAYS).create()) {
+        try (Producer<byte[]> producer = pulsarClient.newProducer().maxPendingMessages(count).topic(topic).create()) {
             Future<?> lastFuture = null;
             for (int i = 0; i < count; i++) {
                 String key = "key"+i;
@@ -92,14 +90,6 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
             lastFuture.get();
         }
         return keys;
-    }
-
-    private Set<String> publishMessages(String topic, int count) throws Exception {
-        return publishMessagesBase(topic, count, false);
-    }
-
-    private Set<String> publishMessagesInBatches(String topic, int count) throws Exception {
-        return publishMessagesBase(topic, count, true);
     }
 
     public static String extractKey(RawMessage m) throws Exception {
@@ -239,45 +229,63 @@ public class RawReaderTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testBatching() throws Exception {
-        int numMessages = BATCH_MAX_MESSAGES * 5;
+    public void testBatchingExtractKeysAndIds() throws Exception {
         String topic = "persistent://my-property/use/my-ns/my-raw-topic";
 
-        Set<String> keys = publishMessagesInBatches(topic, numMessages);
+        try (Producer producer = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
+                .enableBatching(true).batchingMaxMessages(3).batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key1").setContent("my-content-1".getBytes()).build());
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key2").setContent("my-content-2".getBytes()).build());
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key3").setContent("my-content-3".getBytes()).build()).get();
+        }
 
         RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        try (RawMessage m = reader.readNextAsync().get()) {
+            List<ImmutablePair<MessageId,String>> idsAndKeys = RawBatchConverter.extractIdsAndKeys(m);
 
-        Consumer<RawMessage> consumer = new Consumer<RawMessage>() {
-                BatchMessageIdImpl lastId = new BatchMessageIdImpl(-1, -1, -1, -1);
+            Assert.assertEquals(idsAndKeys.size(), 3);
 
-                @Override
-                public void accept(RawMessage m) {
-                    try {
-                        Assert.assertTrue(keys.remove(extractKey(m)));
-                        Assert.assertTrue(m.getMessageId() instanceof BatchMessageIdImpl);
-                        BatchMessageIdImpl id = (BatchMessageIdImpl)m.getMessageId();
+            // assert message ids are in correct order
+            Assert.assertTrue(idsAndKeys.get(0).getLeft().compareTo(idsAndKeys.get(1).getLeft()) < 0);
+            Assert.assertTrue(idsAndKeys.get(1).getLeft().compareTo(idsAndKeys.get(2).getLeft()) < 0);
 
-                        // id should be greater than lastId
-                        Assert.assertEquals(id.compareTo(lastId), 1);
-                    } catch (Exception e) {
-                        Assert.fail("Error checking message", e);
-                    }
-                }
-            };
-        MessageId lastMessageId = reader.getLastMessageIdAsync().get();
-        while (true) {
-            try (RawMessage m = reader.readNextAsync().get()) {
-                if (RawBatchConverter.isBatch(m)) {
-                    RawBatchConverter.explodeBatch(m).forEach(consumer);
-                } else {
-                    consumer.accept(m);
-                }
-                if (lastMessageId.compareTo(m.getMessageId()) == 0) {
-                    break;
-                }
-            }
+            // assert keys are as expected
+            Assert.assertEquals(idsAndKeys.get(0).getRight(), "key1");
+            Assert.assertEquals(idsAndKeys.get(1).getRight(), "key2");
+            Assert.assertEquals(idsAndKeys.get(2).getRight(), "key3");
+        } finally {
+            reader.closeAsync().get();
         }
-        Assert.assertTrue(keys.isEmpty());
+    }
+
+    @Test
+    public void testBatchingRebatch() throws Exception {
+        String topic = "persistent://my-property/use/my-ns/my-raw-topic";
+
+        try (Producer producer = pulsarClient.newProducer().topic(topic).maxPendingMessages(3)
+                .enableBatching(true).batchingMaxMessages(3).batchingMaxPublishDelay(1, TimeUnit.HOURS).create()) {
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key1").setContent("my-content-1".getBytes()).build());
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key2").setContent("my-content-2".getBytes()).build());
+            producer.sendAsync(MessageBuilder.create()
+                               .setKey("key3").setContent("my-content-3".getBytes()).build()).get();
+        }
+
+        RawReader reader = RawReader.create(pulsarClient, topic, subscription).get();
+        try {
+            RawMessage m1 = reader.readNextAsync().get();
+            RawMessage m2 = RawBatchConverter.rebatchMessage(m1, (key, id) -> key.equals("key2")).get();
+            List<ImmutablePair<MessageId,String>> idsAndKeys = RawBatchConverter.extractIdsAndKeys(m2);
+            Assert.assertEquals(idsAndKeys.size(), 1);
+            Assert.assertEquals(idsAndKeys.get(0).getRight(), "key2");
+            m2.close();
+        } finally {
+            reader.closeAsync().get();
+        }
     }
 
     @Test

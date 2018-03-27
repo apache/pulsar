@@ -21,7 +21,6 @@
 
 #include <pulsar/Message.h>
 #include <pulsar/MessageId.h>
-#include "pulsar/BatchMessageId.h"
 #include "SharedBuffer.h"
 #include "PulsarApi.pb.h"
 
@@ -42,7 +41,7 @@ class MessageImpl {
 
     proto::MessageMetadata metadata;
     SharedBuffer payload;
-    BatchMessageId messageId;
+    MessageId messageId;
     ClientConnection* cnx_;
 
     const std::string& getPartitionKey() const;
