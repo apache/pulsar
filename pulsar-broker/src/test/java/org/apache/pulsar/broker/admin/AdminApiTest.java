@@ -27,18 +27,23 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import javax.ws.rs.client.InvocationCallback;
 import javax.ws.rs.client.WebTarget;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -106,6 +111,7 @@ import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
+@Slf4j
 public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
     private static final Logger LOG = LoggerFactory.getLogger(AdminApiTest.class);
@@ -908,6 +914,115 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         String[] splitRange = { namespace + "/0x00000000_0x7fffffff", namespace + "/0x7fffffff_0xffffffff" };
         for (int i = 0; i < bundles.getBundles().size(); i++) {
             assertEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
+        }
+
+        producer.close();
+    }
+
+    @Test
+    public void testNamespaceSplitBundleConcurrent() throws Exception {
+        // Force to create a topic
+        final String namespace = "prop-xyz/use/ns1";
+        final String topicName = (new StringBuilder("persistent://")).append(namespace).append("/ds2").toString();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        producer.send("message".getBytes());
+        publishMessagesOnPersistentTopic(topicName, 0);
+        assertEquals(admin.persistentTopics().getList(namespace), Lists.newArrayList(topicName));
+
+        try {
+            admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0xffffffff", false);
+        } catch (Exception e) {
+            fail("split bundle shouldn't have thrown exception");
+        }
+
+        // bundle-factory cache must have updated split bundles
+        NamespaceBundles bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        String[] splitRange = {namespace + "/0x00000000_0x7fffffff", namespace + "/0x7fffffff_0xffffffff"};
+        for (int i = 0; i < bundles.getBundles().size(); i++) {
+            assertEquals(bundles.getBundles().get(i).toString(), splitRange[i]);
+        }
+
+        ExecutorService executorService = Executors.newCachedThreadPool();
+
+
+        try {
+            executorService.invokeAll(
+                Arrays.asList(
+                    () ->
+                    {
+                        log.info("split 2 bundles at the same time. spilt: 0x00000000_0x7fffffff ");
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x7fffffff", false);
+                        return null;
+                    },
+                    () ->
+                    {
+                        log.info("split 2 bundles at the same time. spilt: 0x7fffffff_0xffffffff ");
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xffffffff", false);
+                        return null;
+                    }
+                )
+            );
+        } catch (Exception e) {
+            fail("split bundle shouldn't have thrown exception");
+        }
+
+        String[] splitRange4 = {
+            namespace + "/0x00000000_0x3fffffff",
+            namespace + "/0x3fffffff_0x7fffffff",
+            namespace + "/0x7fffffff_0xbfffffff",
+            namespace + "/0xbfffffff_0xffffffff"};
+        bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        assertEquals(bundles.getBundles().size(), 4);
+        for (int i = 0; i < bundles.getBundles().size(); i++) {
+            assertEquals(bundles.getBundles().get(i).toString(), splitRange4[i]);
+        }
+
+        try {
+            executorService.invokeAll(
+                Arrays.asList(
+                    () ->
+                    {
+                        log.info("split 4 bundles at the same time. spilt: 0x00000000_0x3fffffff ");
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x00000000_0x3fffffff", false);
+                        return null;
+                    },
+                    () ->
+                    {
+                        log.info("split 4 bundles at the same time. spilt: 0x3fffffff_0x7fffffff ");
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x3fffffff_0x7fffffff", false);
+                        return null;
+                    },
+                    () ->
+                    {
+                        log.info("split 4 bundles at the same time. spilt: 0x7fffffff_0xbfffffff ");
+                        admin.namespaces().splitNamespaceBundle(namespace, "0x7fffffff_0xbfffffff", false);
+                        return null;
+                    },
+                    () ->
+                    {
+                        log.info("split 4 bundles at the same time. spilt: 0xbfffffff_0xffffffff ");
+                        admin.namespaces().splitNamespaceBundle(namespace, "0xbfffffff_0xffffffff", false);
+                        return null;
+                    }
+                )
+            );
+        } catch (Exception e) {
+            fail("split bundle shouldn't have thrown exception");
+        }
+
+        String[] splitRange8 = {
+            namespace + "/0x00000000_0x1fffffff",
+            namespace + "/0x1fffffff_0x3fffffff",
+            namespace + "/0x3fffffff_0x5fffffff",
+            namespace + "/0x5fffffff_0x7fffffff",
+            namespace + "/0x7fffffff_0x9fffffff",
+            namespace + "/0x9fffffff_0xbfffffff",
+            namespace + "/0xbfffffff_0xdfffffff",
+            namespace + "/0xdfffffff_0xffffffff"};
+        bundles = bundleFactory.getBundles(NamespaceName.get(namespace));
+        assertEquals(bundles.getBundles().size(), 8);
+        for (int i = 0; i < bundles.getBundles().size(); i++) {
+            assertEquals(bundles.getBundles().get(i).toString(), splitRange8[i]);
         }
 
         producer.close();
