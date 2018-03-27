@@ -74,6 +74,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.collect.Sets.SetView;
 
+import dlshade.org.apache.commons.lang3.StringUtils;
+
 public abstract class NamespacesBase extends AdminResource {
 
     private static final long MAX_BUNDLES = ((long) 1) << 32;
@@ -145,9 +147,9 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluster " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    if (!config().isTlsEnabled()) {
+                    if (!config().isTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
-                    } else if (!replClusterData.getServiceUrlTls().isEmpty()) {
+                    } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
                     } else {
                         throw new RestException(Status.PRECONDITION_FAILED,
@@ -246,9 +248,9 @@ public abstract class NamespacesBase extends AdminResource {
                             .orElseThrow(() -> new RestException(Status.NOT_FOUND,
                                     "Cluser " + replCluster + " does not exist"));
                     URL replClusterUrl;
-                    if (!config().isTlsEnabled()) {
+                    if (!config().isTlsEnabled() || !isRequestHttps()) {
                         replClusterUrl = new URL(replClusterData.getServiceUrl());
-                    } else if (!replClusterData.getServiceUrlTls().isEmpty()) {
+                    } else if (StringUtils.isNotBlank(replClusterData.getServiceUrlTls())) {
                         replClusterUrl = new URL(replClusterData.getServiceUrlTls());
                     } else {
                         throw new RestException(Status.PRECONDITION_FAILED,
