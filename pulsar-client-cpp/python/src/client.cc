@@ -44,7 +44,7 @@ Consumer Client_subscribe(Client& client, const std::string& topic, const std::s
 }
 
 Reader Client_createReader(Client& client, const std::string& topic,
-                           const BatchMessageId& startMessageId,
+                           const MessageId& startMessageId,
                            const ReaderConfiguration& conf) {
     Reader reader;
     Result res;

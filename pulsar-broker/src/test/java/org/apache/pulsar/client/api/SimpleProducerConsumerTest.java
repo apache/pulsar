@@ -2333,4 +2333,45 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
+    @Test
+    public void testConsumerSubscriptionInitialize() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/use/my-ns/test-subscription-initialize-topic";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .create();
+
+        // 1, produce 5 messages
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // 2, create consumer
+        Consumer<byte[]> defaultConsumer = pulsarClient.newConsumer().topic(topicName)
+            .subscriptionName("test-subscription-default").subscribe();
+        Consumer<byte[]> latestConsumer = pulsarClient.newConsumer().topic(topicName)
+            .subscriptionName("test-subscription-latest").subscriptionInitialPosition(SubscriptionInitialPosition.Latest).subscribe();
+        Consumer<byte[]> earliestConsumer = pulsarClient.newConsumer().topic(topicName)
+            .subscriptionName("test-subscription-earliest").subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+
+        // 3, produce 5 messages more
+        for (int i = 5; i < 10; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // 4, verify consumer get right message.
+        assertEquals(defaultConsumer.receive().getData(), "my-message-5".getBytes());
+        assertEquals(latestConsumer.receive().getData(), "my-message-5".getBytes());
+        assertEquals(earliestConsumer.receive().getData(), "my-message-0".getBytes());
+
+        defaultConsumer.close();
+        latestConsumer.close();
+        earliestConsumer.close();
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
 }
