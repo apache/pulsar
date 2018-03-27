@@ -104,7 +104,10 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     private Set<String> tlsCiphers = Sets.newTreeSet();
-
+    // Specify whether Client certificates are required for TLS
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
+    
     private Properties properties = new Properties();
 
     public boolean forwardAuthorizationCredentials() {
@@ -353,5 +356,13 @@ public class ProxyConfiguration implements PulsarConfiguration {
 
     public void setMaxConcurrentLookupRequests(int maxConcurrentLookupRequests) {
         this.maxConcurrentLookupRequests = maxConcurrentLookupRequests;
+    }
+
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
     }
 }
