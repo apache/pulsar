@@ -20,7 +20,7 @@ import common_job_properties
 
 // Defines the seed job, which creates or updates all other Jenkins projects.
 job('pulsar-seed') {
-  description('Automatically configures all Apache BookKeeper Jenkins projects based' +
+  description('Automatically configures all Apache Pulsar Jenkins projects based' +
               ' on Jenkins DSL groovy files checked into the code repository.')
 
   // Set common parameters.

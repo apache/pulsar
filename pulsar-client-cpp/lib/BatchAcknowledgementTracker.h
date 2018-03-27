@@ -19,7 +19,6 @@
 #ifndef LIB_BATCHACKNOWLEDGEMENTTRACKER_H_
 #define LIB_BATCHACKNOWLEDGEMENTTRACKER_H_
 
-#include "pulsar/BatchMessageId.h"
 #include "MessageImpl.h"
 #include <map>
 #include <boost/thread/mutex.hpp>
@@ -36,8 +35,8 @@ class ConsumerImpl;
 class BatchAcknowledgementTracker {
    private:
     typedef boost::unique_lock<boost::mutex> Lock;
-    typedef std::pair<BatchMessageId, boost::dynamic_bitset<> > TrackerPair;
-    typedef std::map<BatchMessageId, boost::dynamic_bitset<> > TrackerMap;
+    typedef std::pair<MessageId, boost::dynamic_bitset<> > TrackerPair;
+    typedef std::map<MessageId, boost::dynamic_bitset<> > TrackerMap;
     boost::mutex mutex_;
 
     TrackerMap trackerMap_;
@@ -48,20 +47,20 @@ class BatchAcknowledgementTracker {
     // batch index
     // is acked again, we just check the sendList to verify that the batch is acked w/o iterating over the
     // dynamic_bitset.
-    std::vector<BatchMessageId> sendList_;
+    std::vector<MessageId> sendList_;
 
     // we don't need to track MessageId < greatestCumulativeAckReceived
-    BatchMessageId greatestCumulativeAckSent_;
+    MessageId greatestCumulativeAckSent_;
     std::string name_;
 
    public:
     BatchAcknowledgementTracker(const std::string topic, const std::string subscription,
                                 const long consumerId);
 
-    bool isBatchReady(const BatchMessageId& msgID, const proto::CommandAck_AckType ackType);
-    const BatchMessageId getGreatestCumulativeAckReady(const BatchMessageId& messageId);
+    bool isBatchReady(const MessageId& msgID, const proto::CommandAck_AckType ackType);
+    const MessageId getGreatestCumulativeAckReady(const MessageId& messageId);
 
-    void deleteAckedMessage(const BatchMessageId& messageId, proto::CommandAck_AckType ackType);
+    void deleteAckedMessage(const MessageId& messageId, proto::CommandAck_AckType ackType);
     void receivedMessage(const Message& message);
 
     void clear();
@@ -72,23 +71,23 @@ class BatchAcknowledgementTracker {
     // Used for Cumulative acks only
     struct SendRemoveCriteria {
        private:
-        const BatchMessageId& messageId_;
+        const MessageId& messageId_;
 
        public:
-        SendRemoveCriteria(const BatchMessageId& messageId) : messageId_(messageId) {}
+        SendRemoveCriteria(const MessageId& messageId) : messageId_(messageId) {}
 
-        bool operator()(const BatchMessageId& element) const { return (element <= messageId_); }
+        bool operator()(const MessageId& element) const { return (element <= messageId_); }
     };
 
     // Used for Cumulative acks only
     struct TrackerMapRemoveCriteria {
        private:
-        const BatchMessageId& messageId_;
+        const MessageId& messageId_;
 
        public:
-        TrackerMapRemoveCriteria(const BatchMessageId& messageId) : messageId_(messageId) {}
+        TrackerMapRemoveCriteria(const MessageId& messageId) : messageId_(messageId) {}
 
-        bool operator()(std::pair<const pulsar::BatchMessageId, boost::dynamic_bitset<> >& element) const {
+        bool operator()(std::pair<const MessageId, boost::dynamic_bitset<> >& element) const {
             return (element.first <= messageId_);
         }
     };
