@@ -85,6 +85,7 @@ public class CmdFunctionsTest {
     private Functions functions;
     private CmdFunctions cmd;
     private final String testJar = "pulsar-functions-api-examples.jar";
+    private final String testClassName = "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
     public class DummyFunction implements Function<String, String> {
         @Override
@@ -181,7 +182,7 @@ public class CmdFunctionsTest {
             "--jar", testJar,
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--className", DummyFunction.class.getName(),
+            "--className", testClassName,
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -205,7 +206,7 @@ public class CmdFunctionsTest {
                 "--output", outputTopicName,
                 "--jar", testJar,
                 "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
+                "--className", testClassName,
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -224,7 +225,7 @@ public class CmdFunctionsTest {
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
                 "--jar", testJar,
-                "--className", DummyFunction.class.getName(),
+                "--className", testClassName,
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -244,7 +245,7 @@ public class CmdFunctionsTest {
                 "--jar", testJar,
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
+                "--className", testClassName,
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -261,7 +262,7 @@ public class CmdFunctionsTest {
                 "--jar", testJar,
                 "--tenant", "sample",
                 "--namespace", "ns1",
-                "--className", DummyFunction.class.getName(),
+                "--className", testClassName,
         });
 
         CreateFunction creater = cmd.getCreater();
@@ -327,7 +328,7 @@ public class CmdFunctionsTest {
             "--jar", testJar,
             "--tenant", "sample",
             "--namespace", "ns1",
-            "--className", DummyFunction.class.getName(),
+            "--className", testClassName,
         });
 
         UpdateFunction updater = cmd.getUpdater();
