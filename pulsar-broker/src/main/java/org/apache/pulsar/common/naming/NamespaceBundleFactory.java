@@ -122,6 +122,7 @@ public class NamespaceBundleFactory implements ZooKeeperCacheListener<LocalPolic
         final NamespaceName namespace = NamespaceName.get(getNamespaceFromPoliciesPath(path));
 
         try {
+            LOG.info("Policy updated for namespace {}, refreshing the bundle cache.", namespace);
             // invalidate the bundle cache to fetch new bundle data from the policies
             bundlesCache.synchronous().invalidate(namespace);
         } catch (Exception e) {
