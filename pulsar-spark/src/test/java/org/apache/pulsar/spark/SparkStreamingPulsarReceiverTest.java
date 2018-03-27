@@ -22,11 +22,12 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.doNothing;
 
 import org.apache.pulsar.client.api.*;
+import org.apache.spark.storage.StorageLevel;
 import org.mockito.ArgumentCaptor;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
-import org.apache.pulsar.spark.SparkStreamingPulsarReceiver;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -34,6 +35,11 @@ import org.testng.annotations.Test;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 
 public class SparkStreamingPulsarReceiverTest extends MockedPulsarServiceBaseTest {
+
+    private final String URL = "pulsar://127.0.0.1:" + BROKER_PORT + "/";
+    private static final String TOPIC = "persistent://p1/c1/ns1/topic1";
+    private static final String SUBS = "sub1";
+    private static final String EXPECTED_MESSAGE = "pulsar-spark test message";
 
     @BeforeClass
     @Override
@@ -51,12 +57,9 @@ public class SparkStreamingPulsarReceiverTest extends MockedPulsarServiceBaseTes
     public void testReceivedMessage() throws Exception {
         ClientConfiguration clientConf = new ClientConfiguration();
         ConsumerConfiguration consConf = new ConsumerConfiguration();
-        String url = "pulsar://127.0.0.1:" + BROKER_PORT + "/";
-        String topic = "persistent://p1/c1/ns1/topic1";
-        String subs = "sub1";
 
         SparkStreamingPulsarReceiver receiver = spy(
-                new SparkStreamingPulsarReceiver(clientConf, consConf, url, topic, subs));
+                new SparkStreamingPulsarReceiver(clientConf, consConf, URL, TOPIC, SUBS));
         MessageListener msgListener = spy(new MessageListener() {
             @Override
             public void received(Consumer consumer, Message msg) {
@@ -70,17 +73,40 @@ public class SparkStreamingPulsarReceiverTest extends MockedPulsarServiceBaseTes
 
         receiver.onStart();
         waitForTransmission();
-        PulsarClient pulsarClient = PulsarClient.create(url, clientConf);
-        Producer producer = pulsarClient.createProducer(topic, new ProducerConfiguration());
-        producer.send("pulsar-spark test message".getBytes());
+        PulsarClient pulsarClient = PulsarClient.create(URL, clientConf);
+        Producer producer = pulsarClient.createProducer(TOPIC, new ProducerConfiguration());
+        producer.send(EXPECTED_MESSAGE.getBytes());
         waitForTransmission();
         receiver.onStop();
-        assertEquals(new String(msgCaptor.getValue().getData()), "pulsar-spark test message");
+        assertEquals(new String(msgCaptor.getValue().getData()), EXPECTED_MESSAGE);
+    }
+
+    @Test
+    public void testDefaultSettingsOfReceiver() {
+        ClientConfiguration clientConf = new ClientConfiguration();
+        ConsumerConfiguration consConf = new ConsumerConfiguration();
+        SparkStreamingPulsarReceiver receiver =
+                new SparkStreamingPulsarReceiver(clientConf, consConf, URL, TOPIC, SUBS);
+        assertEquals(receiver.storageLevel(), StorageLevel.MEMORY_AND_DISK_2());
+        assertEquals(consConf.getAckTimeoutMillis(), 60_000);
+        assertNotNull(consConf.getMessageListener());
+    }
+
+    @Test(expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "ClientConfiguration must not be null")
+    public void testReceiverWhenClientConfigurationIsNull() {
+        new SparkStreamingPulsarReceiver(null, new ConsumerConfiguration(), URL, TOPIC, SUBS);
+    }
+
+    @Test(expectedExceptions = NullPointerException.class,
+            expectedExceptionsMessageRegExp = "ConsumerConfiguration must not be null")
+    public void testReceiverWhenConsumerConfigurationIsNull() {
+        new SparkStreamingPulsarReceiver(new ClientConfiguration(), null, URL, TOPIC, SUBS);
     }
 
     private static void waitForTransmission() {
         try {
-            Thread.sleep(1000);
+            Thread.sleep(1_000);
         } catch (InterruptedException e) {
         }
     }
