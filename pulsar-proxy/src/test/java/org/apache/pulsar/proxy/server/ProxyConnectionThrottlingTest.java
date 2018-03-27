@@ -31,11 +31,11 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-public class ProxyThrottlingTest extends MockedPulsarServiceBaseTest {
+public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
     private final String DUMMY_VALUE = "DUMMY_VALUE";
     private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 5;
+    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 1;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -63,38 +63,11 @@ public class ProxyThrottlingTest extends MockedPulsarServiceBaseTest {
     }
 
     @Test
-    public void testLookup() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
-                .connectionsPerBroker(5).ioThreads(5).build();
-        assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
-        assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
-        Producer<byte[]> producer1 = client.newProducer().topic("persistent://sample/test/local/producer-topic")
-                .create();
-        assertTrue(proxyService.getLookupRequestSemaphore().tryAcquire());
-        try {
-            Producer<byte[]> producer2 = client.newProducer().topic("persistent://sample/test/local/producer-topic")
-                    .create();
-            Assert.fail("Should have failed since can't acquire LookupRequestSemaphore");
-        } catch (Exception ex) {
-            // Ignore
-        }
-
-        proxyService.getLookupRequestSemaphore().release();
-        try {
-            Producer<byte[]> producer3 = client.newProducer().topic("persistent://sample/test/local/producer-topic")
-                    .create();
-        } catch (Exception ex) {
-            Assert.fail("Should not have failed since can acquire LookupRequestSemaphore");
-        }
-        client.close();
-    }
-
-    @Test
     public void testInboundConnection() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort()).build();
+        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+                .build();
         Producer<byte[]> producer1;
-        
-        proxyService.getConfiguration().setMaxConcurrentInboundConnections(1);
+
         try {
             producer1 = client.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
             producer1.send("Message 1".getBytes());
@@ -102,8 +75,7 @@ public class ProxyThrottlingTest extends MockedPulsarServiceBaseTest {
         } catch (Exception ex) {
             // OK
         }
-        proxyService.getConfiguration().setMaxConcurrentInboundConnections(NUM_CONCURRENT_INBOUND_CONNECTION);
- 
+
         client.close();
     }
 
