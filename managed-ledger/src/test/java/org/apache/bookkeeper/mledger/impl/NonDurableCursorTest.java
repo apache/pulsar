@@ -252,12 +252,8 @@ public class NonDurableCursorTest extends MockedBookKeeperTestCase {
         stopBookKeeper();
         assertEquals(entries.size(), 1);
 
-        try {
-            cursor.markDelete(entries.get(0).getPosition());
-            fail("call should have failed");
-        } catch (ManagedLedgerException e) {
-            // ok
-        }
+        // Mark-delete should succeed if BK is down
+        cursor.markDelete(entries.get(0).getPosition());
 
         entries.forEach(e -> e.release());
     }
