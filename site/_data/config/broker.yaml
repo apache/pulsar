@@ -59,7 +59,7 @@ configs:
   description: The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed).
 - name: brokerDeduplicationProducerInactivityTimeoutMinutes
   default: '360'
-  description: The time of inactivity (in minutes) after which the broker will discard deduplication information relative to a disconnected producer.
+  description: The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer.
 - name: zooKeeperSessionTimeoutMillis
   default: '30000'
   description: Zookeeper session timeout in milliseconds
@@ -302,7 +302,6 @@ configs:
 - name: brokerServicePurgeInactiveFrequencyInSeconds
   default: '60'
   description: How often broker checks for inactive topics to be deleted (topics with no subscriptions and no one connected)
-- 
 - name: loadManagerClassName
   default: org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl
   description: Name of load manager to use
