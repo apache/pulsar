@@ -27,17 +27,27 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     private final static int NO_BATCH = -1;
     private final int batchIndex;
 
+    private final BatchMessageAcker acker;
+
     public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex) {
+        this(ledgerId, entryId, partitionIndex, batchIndex, BatchMessageAckerDisabled.INSTANCE);
+    }
+
+    public BatchMessageIdImpl(long ledgerId, long entryId, int partitionIndex, int batchIndex, BatchMessageAcker acker) {
         super(ledgerId, entryId, partitionIndex);
         this.batchIndex = batchIndex;
+        this.acker = acker;
     }
 
     public BatchMessageIdImpl(MessageIdImpl other) {
         super(other.ledgerId, other.entryId, other.partitionIndex);
         if (other instanceof BatchMessageIdImpl) {
-            this.batchIndex = ((BatchMessageIdImpl) other).batchIndex;
+            BatchMessageIdImpl otherId = (BatchMessageIdImpl) other;
+            this.batchIndex = otherId.batchIndex;
+            this.acker = otherId.acker;
         } else {
             this.batchIndex = NO_BATCH;
+            this.acker = BatchMessageAckerDisabled.INSTANCE;
         }
     }
 
@@ -95,4 +105,30 @@ public class BatchMessageIdImpl extends MessageIdImpl {
     public byte[] toByteArray() {
         return toByteArray(batchIndex);
     }
+
+    public boolean ackIndividual() {
+        return acker.ackIndividual(batchIndex);
+    }
+
+    public boolean ackCumulative() {
+        return acker.ackCumulative(batchIndex);
+    }
+
+    public int getOutstandingAcksInSameBatch() {
+        return acker.getOutstandingAcks();
+    }
+
+    public int getBatchSize() {
+        return acker.getBatchSize();
+    }
+
+    public MessageIdImpl prevBatchMessageId() {
+        return new MessageIdImpl(
+            ledgerId, entryId - 1, partitionIndex);
+    }
+
+    public BatchMessageAcker getAcker() {
+        return acker;
+    }
+
 }
