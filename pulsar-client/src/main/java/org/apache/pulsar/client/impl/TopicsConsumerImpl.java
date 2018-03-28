@@ -536,16 +536,6 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on topics consumer"));
     }
 
-    /**
-     * helper method that returns current state of data structure used to track acks for batch messages
-     *
-     * @return true if all batch messages have been acknowledged
-     */
-    public boolean isBatchingAckTrackerEmpty() {
-        return consumers.values().stream().allMatch(consumer -> consumer.isBatchingAckTrackerEmpty());
-    }
-
-
     @Override
     public int getAvailablePermits() {
         return consumers.values().stream().mapToInt(ConsumerImpl::getAvailablePermits).sum();
