@@ -105,7 +105,10 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
     private String tlsTrustCertsFilePath = "";
     // Accept untrusted TLS certificate from client
     private boolean tlsAllowInsecureConnection = false;
-
+    // Specify whether Client certificates are required for TLS
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
+    
     private Properties properties = new Properties();
 
     public String getClusterName() {
@@ -340,4 +343,11 @@ public class WebSocketProxyConfiguration implements PulsarConfiguration {
         this.properties = properties;
     }
 
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
+    }
+
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
 }

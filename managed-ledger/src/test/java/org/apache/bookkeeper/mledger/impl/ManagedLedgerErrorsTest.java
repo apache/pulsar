@@ -486,6 +486,7 @@ public class ManagedLedgerErrorsTest extends MockedBookKeeperTestCase {
         Position position = ledger.addEntry("entry".getBytes());
 
         bkc.failNow(BKException.Code.BookieHandleNotAvailableException);
+        zkc.failNow(Code.CONNECTIONLOSS);
 
         try {
             cursor.markDelete(position);

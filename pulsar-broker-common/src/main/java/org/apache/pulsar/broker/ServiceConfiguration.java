@@ -59,6 +59,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
 
+    // Flag to control features that are meant to be used when running in standalone mode
+    private boolean isRunningStandalone = false;
+
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;
@@ -202,6 +205,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Specify the tls cipher the broker will use to negotiate during TLS Handshake.
     // Example:- [TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256]
     private Set<String> tlsCiphers = Sets.newTreeSet();
+    // Specify whether Client certificates are required for TLS
+    // Reject the Connection if the Client Certificate is not trusted.
+    private boolean tlsRequireTrustedClientCertOnConnect = false;
 
     /***** --- Authentication --- ****/
     // Enable authentication
@@ -1497,7 +1503,14 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
+    
+    public boolean getTlsRequireTrustedClientCertOnConnect() {
+        return tlsRequireTrustedClientCertOnConnect;
+    }
 
+    public void setTlsRequireTrustedClientCertOnConnect(boolean tlsRequireTrustedClientCertOnConnect) {
+        this.tlsRequireTrustedClientCertOnConnect = tlsRequireTrustedClientCertOnConnect;
+    }
     /**** --- Function ---- ****/
 
     public void setFunctionsWorkerEnabled(boolean enabled) {
@@ -1506,5 +1519,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isFunctionsWorkerEnabled() {
         return functionsWorkerEnabled;
+    }
+
+    public boolean isRunningStandalone() {
+        return isRunningStandalone;
+    }
+
+    public void setRunningStandalone(boolean isRunningStandalone) {
+        this.isRunningStandalone = isRunningStandalone;
     }
 }

@@ -16,30 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests;
+package org.apache.pulsar.client.impl;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
-import org.testng.IAnnotationTransformer;
-import org.testng.annotations.ITestAnnotation;
+import org.testng.annotations.Test;
 
-@SuppressWarnings("rawtypes")
-public class AnnotationListener implements IAnnotationTransformer {
+public class BatchMessageAckerDisabledTest {
 
-    private static final int DEFAULT_TEST_TIMEOUT_MILLIS = 120000;
-
-    public AnnotationListener() {
-        System.out.println("Created annotation listener");
-    }
-
-    @Override
-    public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
-        annotation.setRetryAnalyzer(RetryAnalyzer.class);
-
-        // Enforce default test timeout
-        if (annotation.getTimeOut() == 0) {
-            annotation.setTimeOut(DEFAULT_TEST_TIMEOUT_MILLIS);
+    @Test
+    public void testAckIndividual() {
+        for (int i = 0; i < 10; i++) {
+            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
         }
     }
+
+    @Test
+    public void testAckCumulative() {
+        for (int i = 0; i < 10; i++) {
+            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
+        }
+    }
+
+    @Test
+    public void testGetOutstandingAcks() {
+        assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
+    }
+
 }

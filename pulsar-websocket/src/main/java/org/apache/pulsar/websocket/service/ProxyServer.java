@@ -79,20 +79,20 @@ public class ProxyServer {
 
         // TLS enabled connector
         if (config.isTlsEnabled()) {
-            SslContextFactory sslCtxFactory = new SslContextFactory(true);
             try {
-                SSLContext sslCtx = SecurityUtility.createSslContext(false, config.getTlsTrustCertsFilePath(), config.getTlsCertificateFilePath(),
-                        config.getTlsKeyFilePath());
-                sslCtxFactory.setSslContext(sslCtx);
-
+                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
+                        config.isTlsAllowInsecureConnection(),
+                        config.getTlsTrustCertsFilePath(),
+                        config.getTlsCertificateFilePath(),
+                        config.getTlsKeyFilePath(),
+                        config.getTlsRequireTrustedClientCertOnConnect());
+                ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
+                tlsConnector.setPort(config.getWebServicePortTls());
+                connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new PulsarServerException(e);
             }
 
-            sslCtxFactory.setWantClientAuth(true);
-            ServerConnector tlsConnector = new ServerConnector(server, -1, -1, sslCtxFactory);
-            tlsConnector.setPort(config.getWebServicePortTls());
-            connectors.add(tlsConnector);
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of

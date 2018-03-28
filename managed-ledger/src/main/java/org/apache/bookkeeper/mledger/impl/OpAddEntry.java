@@ -99,7 +99,6 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
         if (cb != null) {
             cb.addFailed(e, ctx);
             ml.mbean.recordAddEntryError();
-            this.recycle();
         }
     }
 
@@ -167,7 +166,7 @@ class OpAddEntry extends SafeRunnable implements AddCallback, CloseCallback {
             updateLatency();
             AddEntryCallback cb = callbackUpdater.getAndSet(this, null);
             if (cb != null) {
-                cb.addComplete(PositionImpl.get(ledger.getId(), entryId), ctx);
+                cb.addComplete(lastEntry, ctx);
                 ml.notifyCursors();
                 this.recycle();
             }

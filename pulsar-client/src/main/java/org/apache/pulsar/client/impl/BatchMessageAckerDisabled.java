@@ -16,30 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.tests;
+package org.apache.pulsar.client.impl;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
+class BatchMessageAckerDisabled extends BatchMessageAcker {
 
-import org.testng.IAnnotationTransformer;
-import org.testng.annotations.ITestAnnotation;
+    static final BatchMessageAckerDisabled INSTANCE = new BatchMessageAckerDisabled();
 
-@SuppressWarnings("rawtypes")
-public class AnnotationListener implements IAnnotationTransformer {
-
-    private static final int DEFAULT_TEST_TIMEOUT_MILLIS = 120000;
-
-    public AnnotationListener() {
-        System.out.println("Created annotation listener");
+    private BatchMessageAckerDisabled() {
+        super(null, 0);
     }
 
     @Override
-    public void transform(ITestAnnotation annotation, Class testClass, Constructor testConstructor, Method testMethod) {
-        annotation.setRetryAnalyzer(RetryAnalyzer.class);
+    public synchronized int getBatchSize() {
+        return 0;
+    }
 
-        // Enforce default test timeout
-        if (annotation.getTimeOut() == 0) {
-            annotation.setTimeOut(DEFAULT_TEST_TIMEOUT_MILLIS);
-        }
+    @Override
+    public boolean ackIndividual(int batchIndex) {
+        return true;
+    }
+
+    @Override
+    public boolean ackCumulative(int batchIndex) {
+        return true;
+    }
+
+    @Override
+    public int getOutstandingAcks() {
+        return 0;
     }
 }
