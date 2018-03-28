@@ -71,7 +71,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
         try {
             producer1 = client.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
             producer1.send("Message 1".getBytes());
-            Assert.fail("Should have failed");
+            Assert.fail("Should have failed since max num of connections is 1 and the lookup connection pool is a persistent connection.");
         } catch (Exception ex) {
             // OK
         }
