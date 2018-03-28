@@ -131,6 +131,8 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
+  - title: Topic compaction
+    endpoint: compaction
   - title: Managing message deduplication
     endpoint: message-deduplication
   - title: Partitioned topics

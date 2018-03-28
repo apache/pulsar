@@ -440,3 +440,42 @@ byte[] msgIdBytes = // Some byte array
 MessageId id = MessageId.fromByteArray(msgIdBytes);
 Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 ```
+
+## Compaction
+
+[cookbook](../../cookbookes/compaction)
+
+* Large message logs can take a long time to retrieve (a long history may be needed to construct an "image" of the log); that may include reading a lot of useless messages
+* Compaction is the process of going through a topic's backlog and removing messages that would be obscured by a later message (useless here means a message with the same key)
+* Only applies to persistent topics, i.e. `persistent://...`
+* Command-line interface (`pulsar-admin topics compact`)
+* Separate process from retention/expiry
+
+Benefits:
+
+* Save disk space
+* Make it more efficient to construct snapshots of logs
+
+Mechanism:
+
+* Iterate over the topic from the beginning; for each key it will keep a record of the latest occurrence of the key
+* When it finishes, it will create a BK ledger to store the compacted topic
+* During a second iteration, each message's key will be checked
+  * If the key matches the latest occurrence, then the key's data payload, message ID, and metadata will be written to the open BK ledger
+  * If not, then the message will be skipped
+  * If a message has an empty payload, it will be skipped and considered deleted ("tombstones")
+* When the second iteration reaches the end point of the first iteration, compaction is complete
+* The ledger is closed and the following is written to the topic's metadata:
+  * The ID of the ledger
+  * Message ID of the last message compacted (**compaction horizon**)
+
+Brokers watch each topic's metadata for changes in topic the ledger ID. Upon change:
+
+* Clients with compacted reads enabled will attempt to read messages from a topic and either:
+  * Read from the topic like normal (if the message ID is higher than or equal to the compaction horizon)
+  * Read from the compaction horizon (if the message ID is lower than the compaction horizon)
+
+Configuration:
+
+* Reads and writes have throttling options
+

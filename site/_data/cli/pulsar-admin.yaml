@@ -509,3 +509,9 @@ commands:
       description: A bundle of the form `{start-boundary}_{end_boundary}`.
     - flags: -n, --namespace
       description: The namespace as `property/cluster/namespace`, for example `my-prop/my-cluster/my-ns`.
+- name: topics
+  description: Operations related to Pulsar topics of all kinds (both persistent and non-persistent)
+  subcommands:
+  - name: compact
+    description: Runs a compaction operation on the specified topic
+    argument: topic-name
