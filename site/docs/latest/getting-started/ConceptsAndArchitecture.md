@@ -171,11 +171,11 @@ import org.apache.pulsar.client.api.PulsarClient;
 PulsarClient pulsarClient = // Instantiate Pulsar client object
 
 // Subscribe to all topics in a namespace
-Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/*");
+Pattern allTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/.*");
 Consumer allTopicsConsumer = pulsarClient.subscribe(allTopicsInNamespace, "subscription-1");
 
 // Subscribe to a subsets of topics in a namespace, based on regex
-Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo*");
+Pattern someTopicsInNamespace = Pattern.compile("persistent://sample/standalone/ns1/foo.*");
 Consumer someTopicsConsumer = pulsarClient.subscribe(someTopicsInNamespace, "subscription-1");
 ```
 
