@@ -739,10 +739,10 @@ public class NonPersistentTopic implements Topic {
 
                     // Populate consumer specific stats here
                     topicStatsStream.startObject();
-                    topicStatsStream.writePair("address", consumerStats.address);
+                    topicStatsStream.writePair("address", consumerStats.getAddress());
                     topicStatsStream.writePair("consumerName", consumerStats.consumerName);
                     topicStatsStream.writePair("availablePermits", consumerStats.availablePermits);
-                    topicStatsStream.writePair("connectedSince", consumerStats.connectedSince);
+                    topicStatsStream.writePair("connectedSince", consumerStats.getConnectedSince());
                     topicStatsStream.writePair("msgRateOut", consumerStats.msgRateOut);
                     topicStatsStream.writePair("msgThroughputOut", consumerStats.msgThroughputOut);
                     topicStatsStream.writePair("msgRateRedeliver", consumerStats.msgRateRedeliver);
@@ -752,8 +752,8 @@ public class NonPersistentTopic implements Topic {
                         topicStatsStream.writePair("blockedConsumerOnUnackedMsgs",
                                 consumerStats.blockedConsumerOnUnackedMsgs);
                     }
-                    if (consumerStats.clientVersion != null) {
-                        topicStatsStream.writePair("clientVersion", consumerStats.clientVersion);
+                    if (consumerStats.getClientVersion() != null) {
+                        topicStatsStream.writePair("clientVersion", consumerStats.getClientVersion());
                     }
                     topicStatsStream.endObject();
                 }
@@ -848,8 +848,8 @@ public class NonPersistentTopic implements Topic {
             if (pubStats != null) {
                 ReplicatorStats.msgRateIn = pubStats.msgRateIn;
                 ReplicatorStats.msgThroughputIn = pubStats.msgThroughputIn;
-                ReplicatorStats.inboundConnection = pubStats.address;
-                ReplicatorStats.inboundConnectedSince = pubStats.connectedSince;
+                ReplicatorStats.inboundConnection = pubStats.getAddress();
+                ReplicatorStats.inboundConnectedSince = pubStats.getConnectedSince();
             }
 
             stats.msgRateOut += ReplicatorStats.msgRateOut;

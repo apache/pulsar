@@ -130,10 +130,10 @@ public class Consumer {
         this.metadata = metadata != null ? metadata : Collections.emptyMap();
 
         stats = new ConsumerStats();
-        stats.address = cnx.clientAddress().toString();
+        stats.setAddress(cnx.clientAddress().toString());
         stats.consumerName = consumerName;
-        stats.connectedSince = DateFormatter.now();
-        stats.clientVersion = cnx.getClientVersion();
+        stats.setConnectedSince(DateFormatter.now());
+        stats.setClientVersion(cnx.getClientVersion());
         stats.metadata = this.metadata;
 
         if (subType == SubType.Shared) {
