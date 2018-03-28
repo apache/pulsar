@@ -158,20 +158,11 @@ public class BrokerStatsBase extends AdminResource {
         }
     }
 
-    @GET
-    @Path("/broker-resource-availability/{property}/{cluster}/{namespace}")
-    @ApiOperation(value = "Broker availability report", notes = "This API gives the current broker availability in percent, each resource percentage usage is calculated and then"
-            + "sum of all of the resource usage percent is called broker-resource-availability"
-            + "<br/><br/>THIS API IS ONLY FOR USE BY TESTING FOR CONFIRMING NAMESPACE ALLOCATION ALGORITHM", response = ResourceUnit.class, responseContainer = "Map")
-    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
-            @ApiResponse(code = 409, message = "Load-manager doesn't support operation") })
-    public Map<Long, Collection<ResourceUnit>> getBrokerResourceAvailability(@PathParam("property") String property,
-            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace) throws Exception {
+    protected Map<Long, Collection<ResourceUnit>> internalBrokerResourceAvailability(NamespaceName namespace) {
         try {
-            NamespaceName ns = NamespaceName.get(property, cluster, namespace);
             LoadManager lm = pulsar().getLoadManager().get();
             if (lm instanceof SimpleLoadManagerImpl) {
-                return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(ns).asMap();
+                return ((SimpleLoadManagerImpl) lm).getResourceAvailabilityFor(namespace).asMap();
             } else {
                 throw new RestException(Status.CONFLICT, lm.getClass().getName() + " does not support this operation");
             }
