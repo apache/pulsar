@@ -2064,7 +2064,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                         if (log.isDebugEnabled()) {
                             log.debug(
                                     "[{}][{}] Updated cursor in meta store after previous failure in ledger at position {}",
-                                    position);
+                                    ledger.getName(), name, position);
                         }
                         callback.operationComplete();
                     }
@@ -2072,7 +2072,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                     @Override
                     public void operationFailed(MetaStoreException e) {
                         log.warn("[{}][{}] Failed to update cursor in meta store after previous failure in ledger: {}",
-                                e.getMessage());
+                                ledger.getName(), name, e.getMessage());
                         callback.operationFailed(createManagedLedgerException(rc));
                     }
                 }, true);
