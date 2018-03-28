@@ -59,6 +59,9 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Enable the WebSocket API service
     private boolean webSocketServiceEnabled = false;
 
+    // Flag to control features that are meant to be used when running in standalone mode
+    private boolean isRunningStandalone = false;
+
     // Name of the cluster to which this broker belongs to
     @FieldContext(required = true)
     private String clusterName;
@@ -1516,5 +1519,13 @@ public class ServiceConfiguration implements PulsarConfiguration {
 
     public boolean isFunctionsWorkerEnabled() {
         return functionsWorkerEnabled;
+    }
+
+    public boolean isRunningStandalone() {
+        return isRunningStandalone;
+    }
+
+    public void setRunningStandalone(boolean isRunningStandalone) {
+        this.isRunningStandalone = isRunningStandalone;
     }
 }

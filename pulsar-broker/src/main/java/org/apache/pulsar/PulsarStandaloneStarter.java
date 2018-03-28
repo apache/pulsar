@@ -134,6 +134,7 @@ public class PulsarStandaloneStarter {
         // Set ZK server's host to localhost
         config.setZookeeperServers(zkServers + ":" + zkPort);
         config.setGlobalZookeeperServers(zkServers + ":" + zkPort);
+        config.setRunningStandalone(true);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
