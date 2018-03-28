@@ -272,11 +272,19 @@ Pulsar enables messages to be produced and consumed in different geo-locations. 
 
 ## Message deduplication
 
-The following diagram illustrates what happens when message deduplication is enabled vs. disabled:
+Message **duplication** occurs when a message is processed by Pulsar more than once. Message **deduplication** is an optional Pulsar feature that prevents unnecessary message duplication by processing each message only once, *even if the message is received more than once*.
+
+The following diagram illustrates what happens when message deduplication is disabled vs. enabled:
 
 {% img /img/message-deduplication.png 75 %}
 
-The other available approach is to ensure that each message is only produced on a topic once. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the {% popover broker %} level, which means that you don't need to modify your Pulsar client code. You just need to pull a simply administrative lever.
+Message deduplication is disabled in the scenario shown at the top. Here, a producer publishes message 1 on a topic; the message reaches a Pulsar {% popover broker %} and is [persisted](#persistent-storage) to BookKeeper. The producer then sends message 1 again (in this case due to some retry logic), and the message is received by the broker and stored in BookKeeper again, which means that duplication has occurred.
+
+In the second scenario at the bottom, the producer publishes message 1, which is received by the broker and persisted, as in the first scenario. When the producer attempts to publish the message again, however, the broker knows that it has already seen message 1 and thus does not persist the message.
+
+### Producer idempotency
+
+The other available approach to message deduplication is to ensure that each message is *only produced once*. This approach is typically called **producer idempotency**. The drawback of this approach is that it defers the work of message deduplication to the application. In Pulsar, this is handled at the {% popover broker %} level, which means that you don't need to modify your Pulsar client code. Instead, you only need to pull a simple administrative lever.
 
 ### Message deduplication and effectively-once semantics
 
