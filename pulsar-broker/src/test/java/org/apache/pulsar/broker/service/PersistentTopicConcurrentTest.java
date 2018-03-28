@@ -49,7 +49,8 @@ import org.apache.pulsar.broker.service.ServerCnx;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.util.collections.ConcurrentOpenHashMap;
 import org.apache.zookeeper.ZooKeeper;
@@ -65,7 +66,9 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
     private BrokerService brokerService;
     private ManagedLedgerFactory mlFactoryMock;
     private ServerCnx serverCnx;
+    @SuppressWarnings("unused")
     private ManagedLedger ledgerMock;
+    @SuppressWarnings("unused")
     private ManagedCursor cursorMock;
 
     final String successTopicName = "persistent://prop/use/ns-abc/successTopic";
@@ -101,7 +104,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
         NamespaceService nsSvc = mock(NamespaceService.class);
         doReturn(nsSvc).when(pulsar).getNamespaceService();
         doReturn(true).when(nsSvc).isServiceUnitOwned(any(NamespaceBundle.class));
-        doReturn(true).when(nsSvc).isServiceUnitActive(any(DestinationName.class));
+        doReturn(true).when(nsSvc).isServiceUnitActive(any(TopicName.class));
 
         final List<Position> addedEntries = Lists.newArrayList();
 
@@ -120,7 +123,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -178,7 +181,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -240,7 +243,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);
@@ -298,7 +301,7 @@ public class PersistentTopicConcurrentTest extends MockedBookKeeperTestCase {
                 .setSubType(PulsarApi.CommandSubscribe.SubType.Exclusive).build();
 
         Future<Consumer> f1 = topic.subscribe(serverCnx, cmd.getSubscription(), cmd.getConsumerId(), cmd.getSubType(),
-                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted());
+                0, cmd.getConsumerName(), cmd.getDurable(), null, Collections.emptyMap(), cmd.getReadCompacted(), InitialPosition.Latest);
         f1.get();
 
         final CyclicBarrier barrier = new CyclicBarrier(2);

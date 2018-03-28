@@ -127,6 +127,19 @@ public class CmdClusters extends CmdBase {
         }
     }
 
+    @Parameters(commandDescription = "Get list of peer-clusters")
+    private class GetPeerClusters extends CliCommand {
+        
+        @Parameter(description = "cluster-name\n", required = true)
+        private java.util.List<String> params;
+        
+        void run() throws PulsarAdminException {
+            String cluster = getOneArgument(params);
+            print(admin.clusters().getPeerClusterNames(cluster));
+        }
+    }
+    
+    
     @Parameters(commandDescription = "Create a new failure-domain for a cluster. updates it if already created.")
     private class CreateFailureDomain extends CliCommand {
         @Parameter(description = "cluster-name\n", required = true)
@@ -213,6 +226,7 @@ public class CmdClusters extends CmdBase {
         jcommander.addCommand("delete", new Delete());
         jcommander.addCommand("list", new List());
         jcommander.addCommand("update-peer-clusters", new UpdatePeerClusters());
+        jcommander.addCommand("get-peer-clusters", new GetPeerClusters());
         jcommander.addCommand("get-failure-domain", new GetFailureDomain());
         jcommander.addCommand("create-failure-domain", new CreateFailureDomain());
         jcommander.addCommand("update-failure-domain", new UpdateFailureDomain());

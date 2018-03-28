@@ -27,7 +27,7 @@ import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.BacklogQuota;
 import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.policies.data.BacklogQuota.BacklogQuotaType;
@@ -82,8 +82,8 @@ public class BacklogQuotaManager {
      *            Topic on which backlog has been exceeded
      */
     public void handleExceededBacklogQuota(PersistentTopic persistentTopic) {
-        DestinationName destination = DestinationName.get(persistentTopic.getName());
-        String namespace = destination.getNamespace();
+        TopicName topicName = TopicName.get(persistentTopic.getName());
+        String namespace = topicName.getNamespace();
         String policyPath = AdminResource.path(POLICIES, namespace);
 
         BacklogQuota quota = getBacklogQuota(namespace, policyPath);

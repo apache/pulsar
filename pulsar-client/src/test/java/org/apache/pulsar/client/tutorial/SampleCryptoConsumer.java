@@ -24,13 +24,15 @@ import java.nio.file.Paths;
 import java.util.Map;
 
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 public class SampleCryptoConsumer {
     public static void main(String[] args) throws PulsarClientException, InterruptedException {
 
@@ -52,8 +54,7 @@ public class SampleCryptoConsumer {
                 try {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(publicKeyFile)));
                 } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read public key from file " + publicKeyFile);
-                    e.printStackTrace();
+                    log.error("Failed to read public key from file {}", publicKeyFile, e);
                 }
                 return keyInfo;
             }
@@ -66,29 +67,24 @@ public class SampleCryptoConsumer {
                 try {
                     keyInfo.setKey(Files.readAllBytes(Paths.get(privateKeyFile)));
                 } catch (IOException e) {
-                    System.out.println("ERROR: Failed to read private key from file " + privateKeyFile);
-                    e.printStackTrace();
+                    log.error("Failed to read private key from file {}", privateKeyFile, e);
                 }
                 return keyInfo;
             }
         }
 
         // Create pulsar client
-        PulsarClient pulsarClient = PulsarClient.create("http://localhost:8080");
-        ConsumerConfiguration consConf = new ConsumerConfiguration();
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl("http://127.0.0.1:8080").build();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic")
+                .subscriptionName("my-subscription-name")
+                .cryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem")).subscribe();
 
-        // Setup the CryptoKeyReader with the file name where public/private key is kept
-        consConf.setCryptoKeyReader(new RawFileKeyReader("test_ecdsa_pubkey.pem", "test_ecdsa_privkey.pem"));
-
-        Consumer consumer = pulsarClient.subscribe("persistent://my-property/use/my-ns/my-topic", "my-subscriber-name",
-                consConf);
-
-        Message msg = null;
+        Message<byte[]> msg = null;
 
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive();
             // process the messsage
-            System.out.println("Received: " + new String(msg.getData()));
+            log.info("Received: {}", new String(msg.getData()));
         }
 
         // Acknowledge the consumption of all messages at once

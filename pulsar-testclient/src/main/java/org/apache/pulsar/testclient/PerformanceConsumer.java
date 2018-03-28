@@ -18,8 +18,6 @@
  */
 package org.apache.pulsar.testclient;
 
-import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static java.util.concurrent.TimeUnit.NANOSECONDS;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.commons.lang3.StringUtils.isNotBlank;
 
@@ -36,17 +34,15 @@ import java.util.concurrent.atomic.LongAdder;
 
 import org.HdrHistogram.Histogram;
 import org.HdrHistogram.Recorder;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.EncryptionKeyInfo;
-import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.PulsarClientImpl;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,14 +75,14 @@ public class PerformanceConsumer {
         public List<String> topic;
 
         @Parameter(names = { "-t", "--num-topics" }, description = "Number of topics")
-        public int numDestinations = 1;
+        public int numTopics = 1;
 
         @Parameter(names = { "-n", "--num-consumers" }, description = "Number of consumers (per topic)")
         public int numConsumers = 1;
 
         @Parameter(names = { "-s", "--subscriber-name" }, description = "Subscriber name prefix")
         public String subscriberName = "sub";
-        
+
         @Parameter(names = { "-st", "--subscription-type" }, description = "Subscriber name prefix")
         public SubscriptionType subscriptionType = SubscriptionType.Exclusive;
 
@@ -149,7 +145,7 @@ public class PerformanceConsumer {
         }
 
         if (arguments.topic.size() != 1) {
-            System.out.println("Only one destination name is allowed");
+            System.out.println("Only one topic name is allowed");
             jc.usage();
             System.exit(-1);
         }
@@ -193,37 +189,39 @@ public class PerformanceConsumer {
         ObjectWriter w = m.writerWithDefaultPrettyPrinter();
         log.info("Starting Pulsar performance consumer with config: {}", w.writeValueAsString(arguments));
 
-        final DestinationName prefixDestinationName = DestinationName.get(arguments.topic.get(0));
+        final TopicName prefixTopicName = TopicName.get(arguments.topic.get(0));
 
         final RateLimiter limiter = arguments.rate > 0 ? RateLimiter.create(arguments.rate) : null;
 
-        MessageListener listener = new MessageListener() {
-            public void received(Consumer consumer, Message msg) {
-                messagesReceived.increment();
-                bytesReceived.add(msg.getData().length);
+        MessageListener<byte[]> listener = (consumer, msg) -> {
+            messagesReceived.increment();
+            bytesReceived.add(msg.getData().length);
 
-                if (limiter != null) {
-                    limiter.acquire();
-                }
+            if (limiter != null) {
+                limiter.acquire();
+            }
 
-                long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+            long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
+            if (latencyMillis >= 0) {
                 recorder.recordValue(latencyMillis);
                 cumulativeRecorder.recordValue(latencyMillis);
-
-                consumer.acknowledgeAsync(msg);
             }
+
+            consumer.acknowledgeAsync(msg);
         };
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setConnectionsPerBroker(arguments.maxConnections);
-        clientConf.setStatsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS);
-        clientConf.setIoThreads(Runtime.getRuntime().availableProcessors());
+        ClientBuilder clientBuilder = PulsarClient.builder() //
+                .serviceUrl(arguments.serviceURL) //
+                .connectionsPerBroker(arguments.maxConnections) //
+                .statsInterval(arguments.statsIntervalSeconds, TimeUnit.SECONDS) //
+                .ioThreads(Runtime.getRuntime().availableProcessors()) //
+                .enableTls(arguments.useTls) //
+                .tlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
         if (isNotBlank(arguments.authPluginClassName)) {
-            clientConf.setAuthentication(arguments.authPluginClassName, arguments.authParams);
+            clientBuilder.authentication(arguments.authPluginClassName, arguments.authParams);
         }
-        clientConf.setUseTls(arguments.useTls);
-        clientConf.setTlsTrustCertsFilePath(arguments.tlsTrustCertsFilePath);
-        PulsarClient pulsarClient = new PulsarClientImpl(arguments.serviceURL, clientConf);
+
+        PulsarClient pulsarClient = clientBuilder.build();
 
         class EncKeyReader implements CryptoKeyReader {
 
@@ -246,22 +244,23 @@ public class PerformanceConsumer {
                 return null;
             }
         }
-        List<Future<Consumer>> futures = Lists.newArrayList();
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setMessageListener(listener);
-        consumerConfig.setReceiverQueueSize(arguments.receiverQueueSize);
-        consumerConfig.setSubscriptionType(arguments.subscriptionType);
+
+        List<Future<Consumer<byte[]>>> futures = Lists.newArrayList();
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer() //
+                .messageListener(listener) //
+                .receiverQueueSize(arguments.receiverQueueSize) //
+                .subscriptionType(arguments.subscriptionType);
 
         if (arguments.encKeyName != null) {
             byte[] pKey = Files.readAllBytes(Paths.get(arguments.encKeyFile));
             EncKeyReader keyReader = new EncKeyReader(pKey);
-            consumerConfig.setCryptoKeyReader(keyReader);
+            consumerBuilder.cryptoKeyReader(keyReader);
         }
 
-        for (int i = 0; i < arguments.numDestinations; i++) {
-            final DestinationName destinationName = (arguments.numDestinations == 1) ? prefixDestinationName
-                    : DestinationName.get(String.format("%s-%d", prefixDestinationName, i));
-            log.info("Adding {} consumers on destination {}", arguments.numConsumers, destinationName);
+        for (int i = 0; i < arguments.numTopics; i++) {
+            final TopicName topicName = (arguments.numTopics == 1) ? prefixTopicName
+                    : TopicName.get(String.format("%s-%d", prefixTopicName, i));
+            log.info("Adding {} consumers on topic {}", arguments.numConsumers, topicName);
 
             for (int j = 0; j < arguments.numConsumers; j++) {
                 String subscriberName;
@@ -271,16 +270,17 @@ public class PerformanceConsumer {
                     subscriberName = arguments.subscriberName;
                 }
 
-                futures.add(pulsarClient.subscribeAsync(destinationName.toString(), subscriberName, consumerConfig));
+                futures.add(consumerBuilder.clone().topic(topicName.toString()).subscriptionName(subscriberName)
+                        .subscribeAsync());
             }
         }
 
-        for (Future<Consumer> future : futures) {
+        for (Future<Consumer<byte[]>> future : futures) {
             future.get();
         }
 
-        log.info("Start receiving from {} consumers on {} destinations", arguments.numConsumers,
-                arguments.numDestinations);
+        log.info("Start receiving from {} consumers on {} topics", arguments.numConsumers,
+                arguments.numTopics);
 
         Runtime.getRuntime().addShutdownHook(new Thread() {
             public void run() {
@@ -306,20 +306,14 @@ public class PerformanceConsumer {
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
-            log.info("Throughput received: {}  msg/s -- {} Mbit/s", dec.format(rate), dec.format(throughput));
-
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
                     "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    dec.format(rate), dec.format(throughput),
-                    dec.format(reportHistogram.getMean()),
-                    dec.format(reportHistogram.getValueAtPercentile(50)),
-                    dec.format(reportHistogram.getValueAtPercentile(95)),
-                    dec.format(reportHistogram.getValueAtPercentile(99)),
-                    dec.format(reportHistogram.getValueAtPercentile(99.9)),
-                    dec.format(reportHistogram.getValueAtPercentile(99.99)),
-                    dec.format(reportHistogram.getMaxValue()));
+                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
+                    (long) reportHistogram.getValueAtPercentile(50), (long) reportHistogram.getValueAtPercentile(95),
+                    (long) reportHistogram.getValueAtPercentile(99), (long) reportHistogram.getValueAtPercentile(99.9),
+                    (long) reportHistogram.getValueAtPercentile(99.99), (long) reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -327,19 +321,16 @@ public class PerformanceConsumer {
 
         pulsarClient.close();
     }
+
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean() / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(50)),
-                dec.format(reportHistogram.getValueAtPercentile(95)),
-                dec.format(reportHistogram.getValueAtPercentile(99)),
-                dec.format(reportHistogram.getValueAtPercentile(99.9)),
-                dec.format(reportHistogram.getValueAtPercentile(99.99)),
-                dec.format(reportHistogram.getValueAtPercentile(99.999)),
-                dec.format(reportHistogram.getMaxValue()));
+                dec.format(reportHistogram.getMean()), (long) reportHistogram.getValueAtPercentile(50),
+                (long) reportHistogram.getValueAtPercentile(95), (long) reportHistogram.getValueAtPercentile(99),
+                (long) reportHistogram.getValueAtPercentile(99.9), (long) reportHistogram.getValueAtPercentile(99.99),
+                (long) reportHistogram.getValueAtPercentile(99.999), (long) reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);

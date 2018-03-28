@@ -25,16 +25,12 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.BrokerTestBase;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
+import org.apache.pulsar.client.api.MessageRoutingMode;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.api.ProducerConfiguration.MessageRoutingMode;
-import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,13 +65,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final int totalMessages = 10;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(7);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages / 2; i++) {
@@ -85,12 +79,12 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
 
         // 4. Receiver receives the message
-        Message message = consumer.receive();
+        Message<byte[]> message = consumer.receive();
         while (message != null) {
             log.info("Consumer received : " + new String(message.getData()));
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, totalMessages / 2);
 
@@ -111,7 +105,7 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         } while (message != null);
 
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         log.info(key + " Unacked Message Tracker size is " + size);
         assertEquals(size, 0);
         assertEquals(hSet.size(), totalMessages);
@@ -126,13 +120,11 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final int totalMessages = 10;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(7);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        Consumer consumer = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(7).ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -142,8 +134,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
         // 4. Receiver receives the message
         HashSet<String> hSet = new HashSet<>();
-        Message message = consumer.receive();
-        Message lastMessage = message;
+        Message<byte[]> message = consumer.receive();
+        Message<byte[]> lastMessage = message;
         while (message != null) {
             lastMessage = message;
             hSet.add(new String(message.getData()));
@@ -151,12 +143,12 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
             log.info("Message ID details " + ((MessageIdImpl) message.getMessageId()).toString());
             message = consumer.receive(500, TimeUnit.MILLISECONDS);
         }
-        long size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        long size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, totalMessages);
         log.info("Comulative Ack sent for " + new String(lastMessage.getData()));
         log.info("Message ID details " + ((MessageIdImpl) lastMessage.getMessageId()).toString());
         consumer.acknowledgeCumulative(lastMessage);
-        size = ((ConsumerImpl) consumer).getUnAckedMessageTracker().size();
+        size = ((ConsumerImpl<?>) consumer).getUnAckedMessageTracker().size();
         assertEquals(size, 0);
         message = consumer.receive((int) (2 * ackTimeOutMillis), TimeUnit.MILLISECONDS);
         assertEquals(message, null);
@@ -175,19 +167,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         // Special step to create partitioned topic
 
         // 1. producer connect
-        ProducerConfiguration prodConfig = new ProducerConfiguration();
-        prodConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer producer = pulsarClient.createProducer(topicName, prodConfig);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // 2. Create consumer
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setReceiverQueueSize(100);
-        consumerConfig.setSubscriptionType(SubscriptionType.Shared);
-        consumerConfig.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        consumerConfig.setConsumerName("Consumer-1");
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subscriptionName, consumerConfig);
-        consumerConfig.setConsumerName("Consumer-2");
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, consumerConfig);
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-1").subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(100).subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-2").subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -235,9 +224,9 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(ackCount1 + ackCount2, totalMessages);
     }
 
-    private static int receiveAllMessage(Consumer consumer, boolean ackMessages) throws Exception {
+    private static int receiveAllMessage(Consumer<?> consumer, boolean ackMessages) throws Exception {
         int messagesReceived = 0;
-        Message msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<?> msg = consumer.receive(1, TimeUnit.SECONDS);
         while (msg != null) {
             ++messagesReceived;
             log.info("Consumer received {}", new String(msg.getData()));
@@ -265,19 +254,16 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         // Special step to create partitioned topic
 
         // 1. producer connect
-        ProducerConfiguration prodConfig = new ProducerConfiguration();
-        prodConfig.setMessageRoutingMode(MessageRoutingMode.RoundRobinPartition);
-        Producer producer = pulsarClient.createProducer(topicName, prodConfig);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName)
+                .messageRoutingMode(MessageRoutingMode.RoundRobinPartition).create();
 
         // 2. Create consumer
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setReceiverQueueSize(7);
-        consumerConfig.setSubscriptionType(SubscriptionType.Failover);
-        consumerConfig.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        consumerConfig.setConsumerName("Consumer-1");
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subscriptionName, consumerConfig);
-        consumerConfig.setConsumerName("Consumer-2");
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, consumerConfig);
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-1").subscribe();
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriptionName)
+                .receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).consumerName("Consumer-2").subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -287,8 +273,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         }
 
         // 4. Receive messages
-        Message message1 = consumer1.receive();
-        Message message2 = consumer2.receive();
+        Message<byte[]> message1 = consumer1.receive();
+        Message<byte[]> message2 = consumer2.receive();
         int messageCount1 = 0;
         int messageCount2 = 0;
         int ackCount1 = 0;
@@ -341,11 +327,8 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
 
     @Test
     public void testAckTimeoutMinValue() throws PulsarClientException {
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setReceiverQueueSize(7);
-        consumerConfig.setSubscriptionType(SubscriptionType.Failover);
         try {
-            consumerConfig.setAckTimeout(999, TimeUnit.MILLISECONDS);
+            pulsarClient.newConsumer().ackTimeout(999, TimeUnit.MILLISECONDS);
             Assert.fail("Exception should have been thrown since the set timeout is less than min timeout.");
         } catch (Exception ex) {
             // Ok
@@ -361,13 +344,12 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         final int totalMessages = 3;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(7);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, subscriptionName, conf);
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(7).subscriptionType(SubscriptionType.Shared)
+                .ackTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS).subscribe();
 
         // 3. producer publish messages
         for (int i = 0; i < totalMessages; i++) {
@@ -379,13 +361,13 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         Thread.sleep((long) (ackTimeOutMillis * 1.1));
 
         for (int i = 0; i < totalMessages - 1; i++) {
-            Message msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive();
             consumer.acknowledge(msg);
         }
 
         assertEquals(consumer.getUnAckedMessageTracker().size(), 1);
 
-        Message msg = consumer.receive();
+        Message<byte[]> msg = consumer.receive();
         consumer.acknowledge(msg);
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
 
@@ -394,18 +376,4 @@ public class UnAcknowledgedMessagesTimeoutTest extends BrokerTestBase {
         assertEquals(consumer.getUnAckedMessageTracker().size(), 0);
     }
 
-    @Test()
-    public void testConfiguration() {
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setAckTimeout(10, TimeUnit.MINUTES);
-        assertEquals(conf.getAckTimeoutMillis(), 10 * 60 * 1000);
-        conf.setAckTimeout(11, TimeUnit.SECONDS);
-        assertEquals(conf.getAckTimeoutMillis(), 11 * 1000);
-        conf.setAckTimeout(15000000, TimeUnit.MICROSECONDS);
-        assertEquals(conf.getAckTimeoutMillis(), 15000);
-        conf.setAckTimeout(17000, TimeUnit.MILLISECONDS);
-        assertEquals(conf.getAckTimeoutMillis(), 17000);
-        conf.setAckTimeout(ackTimeOutMillis, TimeUnit.MILLISECONDS);
-        assertEquals(conf.getAckTimeoutMillis(), ackTimeOutMillis);
-    }
 }

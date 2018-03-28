@@ -6,7 +6,7 @@ dependency-reduced-pom.xml
 logs
 /data
 pulsar-broker/tmp.*
-pulsar-broker/src/test/resources/log4j.properties
+pulsar-broker/src/test/resources/log4j2.yaml
 *.log
 
 *.versionsBackup
@@ -44,6 +44,7 @@ generated-site/
 
 # Ansible and Terraform artifacts
 deployment/terraform-ansible/deploy-pulsar.retry
-deployment/terraform-ansible/aws/terraform*
 deployment/terraform-ansible/aws/.terraform/
 deployment/terraform-ansible/aws/.terraform.tfstate.lock.info
+deployment/terraform-ansible/aws/terraform.tfstate
+deployment/terraform-ansible/aws/terraform.tfstate.backup

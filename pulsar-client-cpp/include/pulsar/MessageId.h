@@ -27,15 +27,12 @@
 
 namespace pulsar {
 
-class ConsumerImpl;
-class UnAckedMessageTrackerEnabled;
-class PulsarWrapper;
+class MessageIdImpl;
 
 class MessageId {
    public:
     MessageId& operator=(const MessageId&);
     MessageId();
-    virtual ~MessageId() {}
 
     /**
      * MessageId representing the "earliest" or "oldest available" message stored in the topic
@@ -50,34 +47,44 @@ class MessageId {
     /**
      * Serialize the message id into a binary string for storing
      */
-    virtual void serialize(std::string& result) const;
+    void serialize(std::string& result) const;
 
     /**
      * Deserialize a message id from a binary string
      */
-    static boost::shared_ptr<MessageId> deserialize(const std::string& serializedMessageId);
+    static MessageId deserialize(const std::string& serializedMessageId);
 
     // These functions compare the message order as stored in bookkeeper
     bool operator<(const MessageId& other) const;
+    bool operator<=(const MessageId& other) const;
+    bool operator>(const MessageId& other) const;
+    bool operator>=(const MessageId& other) const;
     bool operator==(const MessageId& other) const;
+    bool operator!=(const MessageId& other) const;
 
-   protected:
-    virtual int64_t getBatchIndex() const;
+   private:
     friend class ConsumerImpl;
+    friend class ReaderImpl;
     friend class Message;
     friend class MessageImpl;
     friend class Commands;
-    friend class BatchMessageId;
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;
     friend class UnAckedMessageTrackerEnabled;
     friend class BatchAcknowledgementTracker;
     friend class PulsarWrapper;
-    MessageId(int64_t, int64_t);
+    friend class PulsarFriend;
+
+    explicit MessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex);
     friend std::ostream& operator<<(std::ostream& s, const MessageId& messageId);
-    int64_t ledgerId_;
-    int64_t entryId_ : 48;
-    short partition_ : 16;
+
+    int64_t ledgerId() const;
+    int64_t entryId() const;
+    int32_t batchIndex() const;
+    int32_t partition() const;
+
+    typedef boost::shared_ptr<MessageIdImpl> MessageIdImplPtr;
+    MessageIdImplPtr impl_;
 };
 }  // namespace pulsar
 

@@ -953,15 +953,14 @@ Future<Result, BrokerConsumerStatsImpl> ClientConnection::newConsumerStats(uint6
     return promise.getFuture();
 }
 
-void ClientConnection::newTopicLookup(const std::string& destinationName, bool authoritative,
+void ClientConnection::newTopicLookup(const std::string& topicName, bool authoritative,
                                       const uint64_t requestId, LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newLookup(destinationName, authoritative, requestId), requestId, promise);
+    newLookup(Commands::newLookup(topicName, authoritative, requestId), requestId, promise);
 }
 
-void ClientConnection::newPartitionedMetadataLookup(const std::string& destinationName,
-                                                    const uint64_t requestId,
+void ClientConnection::newPartitionedMetadataLookup(const std::string& topicName, const uint64_t requestId,
                                                     LookupDataResultPromisePtr promise) {
-    newLookup(Commands::newPartitionMetadataRequest(destinationName, requestId), requestId, promise);
+    newLookup(Commands::newPartitionMetadataRequest(topicName, requestId), requestId, promise);
 }
 
 void ClientConnection::newLookup(const SharedBuffer& cmd, const uint64_t requestId,

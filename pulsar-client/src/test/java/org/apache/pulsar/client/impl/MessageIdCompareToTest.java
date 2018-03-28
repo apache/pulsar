@@ -19,7 +19,6 @@
 package org.apache.pulsar.client.impl;
 
 import static org.testng.Assert.assertTrue;
-import static org.testng.Assert.fail;
 
 import org.testng.annotations.Test;
 
@@ -106,18 +105,16 @@ public class MessageIdCompareToTest  {
 
     @Test
     public void testCompareDifferentType() {
-        // Expected throw IllegalArgumentException
         MessageIdImpl messageIdImpl = new MessageIdImpl(123L, 345L, 567);
-        BatchMessageIdImpl batchMessageId = new BatchMessageIdImpl(123L, 345L, 567, 789);
-
-        assertTrue( messageIdImpl.compareTo(batchMessageId) == 0, "Expected to be equal");
-
-        try {
-            batchMessageId.compareTo(messageIdImpl);
-            fail("Should throw IllegalArgumentException when compare different type");
-        } catch (IllegalArgumentException e) {
-            // expected
-        }
+        BatchMessageIdImpl batchMessageId1 = new BatchMessageIdImpl(123L, 345L, 566, 789);
+        BatchMessageIdImpl batchMessageId2 = new BatchMessageIdImpl(123L, 345L, 567, 789);
+        BatchMessageIdImpl batchMessageId3 = new BatchMessageIdImpl(messageIdImpl);
+        assertTrue(messageIdImpl.compareTo(batchMessageId1) > 0, "Expected to be greater than");
+        assertTrue(messageIdImpl.compareTo(batchMessageId2) == 0, "Expected to be equal");
+        assertTrue(messageIdImpl.compareTo(batchMessageId3) == 0, "Expected to be equal");
+        assertTrue(batchMessageId1.compareTo(messageIdImpl) < 0, "Expected to be less than");
+        assertTrue(batchMessageId2.compareTo(messageIdImpl) > 0, "Expected to be greater than");
+        assertTrue(batchMessageId3.compareTo(messageIdImpl) == 0, "Expected to be equal");
     }
 
 }

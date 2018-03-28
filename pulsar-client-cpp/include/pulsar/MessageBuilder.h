@@ -65,7 +65,7 @@ class MessageBuilder {
 
     /*
      * set partition key for the message routing
-     * @param hash of this key is used to determine message's destination partition
+     * @param hash of this key is used to determine message's topic partition
      */
     MessageBuilder& setPartitionKey(const std::string& partitionKey);
 
@@ -95,7 +95,7 @@ class MessageBuilder {
     /**
      * override namespace replication clusters.  note that it is the
      * caller's responsibility to provide valid cluster names, and that
-     * all clusters have been previously configured as destinations.
+     * all clusters have been previously configured as topics.
      *
      * given an empty list, the message will replicate per the namespace
      * configuration.

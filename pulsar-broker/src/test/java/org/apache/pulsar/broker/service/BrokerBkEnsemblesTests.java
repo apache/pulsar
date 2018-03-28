@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.impl.EntryCache;
 import org.apache.bookkeeper.mledger.impl.ManagedCursorImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
@@ -41,13 +40,10 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.impl.MessageImpl;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.apache.pulsar.zookeeper.LocalBookkeeperEnsemble;
@@ -126,7 +122,7 @@ public class BrokerBkEnsemblesTests {
 
     /**
      * It verifies that broker deletes cursor-ledger when broker-crashes without closing topic gracefully
-     * 
+     *
      * <pre>
      * 1. Create topic : publish/consume-ack msgs to update new cursor-ledger
      * 2. Verify cursor-ledger is created and ledger-znode present
@@ -135,38 +131,38 @@ public class BrokerBkEnsemblesTests {
      * 5. Topic is recovered from old-ledger and broker deletes the old ledger
      * 6. verify znode of old-ledger is deleted
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
     public void testCrashBrokerWithoutCursorLedgerLeak() throws Exception {
 
         ZooKeeper zk = bkEnsemble.getZkClient();
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         final String ns1 = "prop/usc/crash-broker";
 
         admin.namespaces().createNamespace(ns1);
 
-        final String dn1 = "persistent://" + ns1 + "/my-topic";
+        final String topic1 = "persistent://" + ns1 + "/my-topic";
 
         // (1) create topic
         // publish and ack messages so, cursor can create cursor-ledger and update metadata
-        Consumer consumer = client.subscribe(dn1, "my-subscriber-name");
-        Producer producer = client.createProducer(dn1);
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
+                .subscribe();
+        Producer<byte[]> producer = client.newProducer().topic(topic1).create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
-        Message msg = null;
+        Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive(1, TimeUnit.SECONDS);
             consumer.acknowledge(msg);
         }
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(dn1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic1).get();
         ManagedCursorImpl cursor = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor.getState().equals("Open"), 5, 100);
 
@@ -178,7 +174,7 @@ public class BrokerBkEnsemblesTests {
         // (3) remove topic and managed-ledger from broker which means topic is not closed gracefully
         consumer.close();
         producer.close();
-        pulsar.getBrokerService().removeTopicFromCache(dn1);
+        pulsar.getBrokerService().removeTopicFromCache(topic1);
         ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
@@ -189,8 +185,8 @@ public class BrokerBkEnsemblesTests {
 
         // (4) Recreate topic
         // publish and ack messages so, cursor can create cursor-ledger and update metadata
-        consumer = client.subscribe(dn1, "my-subscriber-name");
-        producer = client.createProducer(dn1);
+        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
+        producer = client.newProducer().topic(topic1).create();
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -201,7 +197,7 @@ public class BrokerBkEnsemblesTests {
         }
 
         // (5) Broker should create new cursor-ledger and remove old cursor-ledger
-        topic = (PersistentTopic) pulsar.getBrokerService().getTopic(dn1).get();
+        topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic1).get();
         final ManagedCursorImpl cursor1 = (ManagedCursorImpl) topic.getManagedLedger().getCursors().iterator().next();
         retryStrategically((test) -> cursor1.getState().equals("Open"), 5, 100);
         long newCursorLedgerId = cursor1.getCursorLedger();
@@ -219,23 +215,22 @@ public class BrokerBkEnsemblesTests {
 
     /**
      * It verifies broker-configuration using which broker can skip non-recoverable data-ledgers.
-     * 
+     *
      * <pre>
      * 1. publish messages in 5 data-ledgers each with 20 entries under managed-ledger
      * 2. delete first 4 data-ledgers
      * 3. consumer will fail to consume any message as first data-ledger is non-recoverable
      * 4. enable dynamic config to skip non-recoverable data-ledgers
      * 5. consumer will be able to consume 20 messages from last non-deleted ledger
-     * 
+     *
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 6000)
     public void testSkipCorruptDataLedger() throws Exception {
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        PulsarClient client = PulsarClient.create(adminUrl.toString(), clientConf);
+        PulsarClient client = PulsarClient.builder().serviceUrl(adminUrl.toString()).statsInterval(0, TimeUnit.SECONDS)
+                .build();
 
         final String ns1 = "prop/usc/crash-broker";
         final int totalMessages = 100;
@@ -244,14 +239,13 @@ public class BrokerBkEnsemblesTests {
 
         admin.namespaces().createNamespace(ns1);
 
-        final String dn1 = "persistent://" + ns1 + "/my-topic";
+        final String topic1 = "persistent://" + ns1 + "/my-topic";
 
         // Create subscription
-        ConsumerConfiguration consumerConfig = new ConsumerConfiguration();
-        consumerConfig.setReceiverQueueSize(5);
-        Consumer consumer = client.subscribe(dn1, "my-subscriber-name", consumerConfig);
+        Consumer<byte[]> consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name")
+                .receiverQueueSize(5).subscribe();
 
-        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(dn1).get();
+        PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topic1).get();
         ManagedLedgerImpl ml = (ManagedLedgerImpl) topic.getManagedLedger();
         ManagedCursorImpl cursor = (ManagedCursorImpl) ml.getCursors().iterator().next();
         Field configField = ManagedCursorImpl.class.getDeclaredField("config");
@@ -267,7 +261,7 @@ public class BrokerBkEnsemblesTests {
         BookKeeper bookKeeper = (BookKeeper) bookKeeperField.get(ml);
 
         // (1) publish messages in 5 data-ledgers each with 20 entries under managed-ledger
-        Producer producer = client.createProducer(dn1);
+        Producer<byte[]> producer = client.newProducer().topic(topic1).create();
         for (int i = 0; i < totalMessages; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -294,7 +288,7 @@ public class BrokerBkEnsemblesTests {
 
         // clean managed-ledger and recreate topic to clean any data from the cache
         producer.close();
-        pulsar.getBrokerService().removeTopicFromCache(dn1);
+        pulsar.getBrokerService().removeTopicFromCache(topic1);
         ManagedLedgerFactoryImpl factory = (ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory();
         Field field = ManagedLedgerFactoryImpl.class.getDeclaredField("ledgers");
         field.setAccessible(true);
@@ -304,9 +298,9 @@ public class BrokerBkEnsemblesTests {
         ledgers.clear();
 
         // (3) consumer will fail to consume any message as first data-ledger is non-recoverable
-        Message msg = null;
+        Message<byte[]> msg = null;
         // start consuming message
-        consumer = client.subscribe(dn1, "my-subscriber-name");
+        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
         msg = consumer.receive(1, TimeUnit.SECONDS);
         Assert.assertNull(msg);
         consumer.close();
@@ -317,7 +311,7 @@ public class BrokerBkEnsemblesTests {
         retryStrategically((test) -> config.isAutoSkipNonRecoverableData(), 5, 100);
 
         // (5) consumer will be able to consume 20 messages from last non-deleted ledger
-        consumer = client.subscribe(dn1, "my-subscriber-name");
+        consumer = client.newConsumer().topic(topic1).subscriptionName("my-subscriber-name").subscribe();
         for (int i = 0; i < entriesPerLedger; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
             System.out.println(i);
@@ -329,6 +323,6 @@ public class BrokerBkEnsemblesTests {
         client.close();
 
     }
-    
+
     private static final Logger LOG = LoggerFactory.getLogger(BrokerBkEnsemblesTests.class);
 }

@@ -23,13 +23,14 @@
   <modelVersion>4.0.0</modelVersion>
 
   <parent>
-    <groupId>org.apache.pulsar</groupId>
-    <artifactId>pulsar</artifactId>
-    <version>2.0.0-incubating-SNAPSHOT</version>
-    <relativePath>..</relativePath>
+    <groupId>org.apache</groupId>
+    <artifactId>apache</artifactId>
+    <version>18</version>
   </parent>
 
+  <groupId>org.apache.pulsar</groupId>
   <artifactId>buildtools</artifactId>
+  <version>2.0.0-incubating-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Pulsar Build Tools</name>
 
@@ -37,7 +38,35 @@
     <dependency>
       <groupId>org.testng</groupId>
       <artifactId>testng</artifactId>
+      <version>6.13.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-api</artifactId>
+      <version>2.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-core</artifactId>
+      <version>2.10.0</version>
+    </dependency>
+    <dependency>
+      <groupId>org.apache.logging.log4j</groupId>
+      <artifactId>log4j-slf4j-impl</artifactId>
+      <version>2.10.0</version>
     </dependency>
   </dependencies>
 
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>com.mycila</groupId>
+        <artifactId>license-maven-plugin</artifactId>
+        <version>3.0.rc1</version>
+        <configuration>
+          <header>../src/license-header.txt</header>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
 </project>

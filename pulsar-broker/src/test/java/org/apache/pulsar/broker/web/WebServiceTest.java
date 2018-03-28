@@ -40,6 +40,7 @@ import javax.net.ssl.SSLContext;
 import javax.net.ssl.TrustManager;
 
 import org.apache.bookkeeper.test.PortManager;
+import org.apache.pulsar.broker.MockedBookKeeperClientFactory;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.client.admin.PulsarAdmin;
@@ -259,6 +260,7 @@ public class WebServiceTest {
         config.setZookeeperServers("localhost:2181");
         pulsar = spy(new PulsarService(config));
         doReturn(new MockedZooKeeperClientFactoryImpl()).when(pulsar).getZooKeeperClientFactory();
+        doReturn(new MockedBookKeeperClientFactory()).when(pulsar).getBookKeeperClientFactory();
         pulsar.start();
 
         try {

@@ -30,19 +30,16 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
-import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,8 +47,6 @@ import org.testng.collections.Maps;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-
-import org.testng.Assert;
 
 public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(ProxyWithoutServiceDiscoveryTest.class);
@@ -68,8 +63,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        
-        // enable tls and auth&auth at broker 
+
+        // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(false);
 
@@ -100,7 +95,7 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setAuthorizationEnabled(false);
         proxyConfig.setBrokerServiceURL("pulsar://localhost:" + BROKER_PORT);
         proxyConfig.setBrokerServiceURLTLS("pulsar://localhost:" + BROKER_PORT_TLS);
-        
+
         proxyConfig.setServicePort(PortManager.nextFreePort());
         proxyConfig.setServicePortTls(PortManager.nextFreePort());
         proxyConfig.setWebServicePort(PortManager.nextFreePort());
@@ -116,8 +111,10 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+        proxyConfig.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
+
         proxyConfig.setAuthenticationProviders(providers);
- 
+
         proxyService = Mockito.spy(new ProxyService(proxyConfig));
 
         proxyService.start();
@@ -133,15 +130,15 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     /**
      * <pre>
      * It verifies e2e tls + Authentication + Authorization (client -> proxy -> broker>
-     * 
+     *
      * 1. client connects to proxy over tls and pass auth-data
-     * 2. proxy authenticate client and retrieve client-role 
+     * 2. proxy authenticate client and retrieve client-role
      *    and send it to broker as originalPrincipal over tls
      * 3. client creates producer/consumer via proxy
      * 4. broker authorize producer/consumer create request using originalPrincipal
-     * 
+     *
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -157,25 +154,22 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         // create a client which connects to proxy over tls and pass authData
         PulsarClient proxyClient = createPulsarClient(authTls, proxyServiceUrl);
 
-        admin.properties().createProperty("my-property",
-                new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("without-service-discovery")));
+        admin.properties().createProperty("my-property", new PropertyAdmin(Lists.newArrayList("appid1", "appid2"),
+                Sets.newHashSet("without-service-discovery")));
         admin.namespaces().createNamespace("my-property/without-service-discovery/my-ns");
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = proxyClient.subscribe("persistent://my-property/without-service-discovery/my-ns/my-topic1", "my-subscriber-name",
-                conf);
-
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = proxyClient.createProducer("persistent://my-property/without-service-discovery/my-ns/my-topic1", producerConf);
+        Consumer<byte[]> consumer = proxyClient.newConsumer()
+                .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name").subscribe();
+        Producer<byte[]> producer = proxyClient.newProducer()
+                .topic("persistent://my-property/without-service-discovery/my-ns/my-topic1").create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         int count = 0;
         for (int i = 0; i < 10; i++) {
@@ -202,7 +196,9 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
         clientConf.setUseTls(true);
 
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        return PulsarClient.create(lookupUrl, clientConf);
+        return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
+                .enableTls(true).build();
     }
 
 }

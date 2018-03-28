@@ -30,13 +30,13 @@ import java.util.concurrent.TimeUnit;
 import javax.servlet.ServletException;
 import javax.websocket.DeploymentException;
 
-import org.apache.bookkeeper.util.OrderedSafeExecutor;
+import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationService;
 import org.apache.pulsar.broker.authorization.AuthorizationService;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.api.ClientBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.configuration.PulsarConfigurationLoader;
@@ -70,8 +70,8 @@ public class WebSocketService implements Closeable {
     private final ScheduledExecutorService executor = Executors
             .newScheduledThreadPool(WebSocketProxyConfiguration.WEBSOCKET_SERVICE_THREADS,
                     new DefaultThreadFactory("pulsar-websocket"));
-    private final OrderedSafeExecutor orderedExecutor = new OrderedSafeExecutor(
-            WebSocketProxyConfiguration.GLOBAL_ZK_THREADS, "pulsar-websocket-ordered");
+    private final OrderedScheduler orderedExecutor = OrderedScheduler.newSchedulerBuilder()
+            .numThreads(WebSocketProxyConfiguration.GLOBAL_ZK_THREADS).name("pulsar-websocket-ordered").build();
     private GlobalZooKeeperCache globalZkCache;
     private ZooKeeperClientFactory zkClientFactory;
     private ServiceConfiguration config;
@@ -176,30 +176,33 @@ public class WebSocketService implements Closeable {
     }
 
     private PulsarClient createClientInstance(ClusterData clusterData) throws IOException {
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setUseTls(config.isTlsEnabled());
-        clientConf.setTlsAllowInsecureConnection(config.isTlsAllowInsecureConnection());
-        clientConf.setTlsTrustCertsFilePath(config.getTlsTrustCertsFilePath());
-        clientConf.setIoThreads(config.getWebSocketNumIoThreads());
-        clientConf.setConnectionsPerBroker(config.getWebSocketConnectionsPerBroker());
+        ClientBuilder clientBuilder = PulsarClient.builder() //
+                .statsInterval(0, TimeUnit.SECONDS) //
+                .enableTls(config.isTlsEnabled()) //
+                .allowTlsInsecureConnection(config.isTlsAllowInsecureConnection()) //
+                .tlsTrustCertsFilePath(config.getBrokerClientTrustCertsFilePath()) //
+                .ioThreads(config.getWebSocketNumIoThreads()) //
+                .connectionsPerBroker(config.getWebSocketConnectionsPerBroker());
 
         if (isNotBlank(config.getBrokerClientAuthenticationPlugin())
                 && isNotBlank(config.getBrokerClientAuthenticationParameters())) {
-            clientConf.setAuthentication(config.getBrokerClientAuthenticationPlugin(),
+            clientBuilder.authentication(config.getBrokerClientAuthenticationPlugin(),
                     config.getBrokerClientAuthenticationParameters());
         }
 
         if (config.isTlsEnabled()) {
             if (isNotBlank(clusterData.getBrokerServiceUrlTls())) {
-                return PulsarClient.create(clusterData.getBrokerServiceUrlTls(), clientConf);
+                clientBuilder.serviceUrl(clusterData.getBrokerServiceUrlTls());
             } else if (isNotBlank(clusterData.getServiceUrlTls())) {
-                return PulsarClient.create(clusterData.getServiceUrlTls(), clientConf);
+                clientBuilder.serviceUrl(clusterData.getServiceUrlTls());
             }
         } else if (isNotBlank(clusterData.getBrokerServiceUrl())) {
-            return PulsarClient.create(clusterData.getBrokerServiceUrl(), clientConf);
+            clientBuilder.serviceUrl(clusterData.getBrokerServiceUrl());
+        } else {
+            clientBuilder.serviceUrl(clusterData.getServiceUrl());
         }
-        return PulsarClient.create(clusterData.getServiceUrl(), clientConf);
+
+        return clientBuilder.build();
     }
 
     private static ClusterData createClusterData(WebSocketProxyConfiguration config) {

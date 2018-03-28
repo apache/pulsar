@@ -43,30 +43,31 @@ HTTPLookupService::HTTPLookupService(const std::string &lookupUrl,
     }
 }
 
-Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &destinationName) {
+Future<Result, LookupDataResultPtr> HTTPLookupService::lookupAsync(const std::string &topic) {
     LookupPromise promise;
-    boost::shared_ptr<DestinationName> dn = DestinationName::get(destinationName);
-    if (!dn) {
-        LOG_ERROR("Unable to parse destination - " << destinationName);
+    boost::shared_ptr<TopicName> topicName = TopicName::get(topic);
+    if (!topicName) {
+        LOG_ERROR("Unable to parse topic - " << topic);
         promise.setFailed(ResultInvalidTopicName);
         return promise.getFuture();
     }
 
     std::stringstream completeUrlStream;
-    completeUrlStream << adminUrl_ << V2_PATH << "persistent/" << dn->getProperty() << '/' << dn->getCluster()
-                      << '/' << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName();
+    completeUrlStream << adminUrl_ << V2_PATH << "persistent/" << topicName->getProperty() << '/'
+                      << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
+                      << topicName->getEncodedLocalName();
     executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
                                                    promise, completeUrlStream.str(), Lookup));
     return promise.getFuture();
 }
 
 Future<Result, LookupDataResultPtr> HTTPLookupService::getPartitionMetadataAsync(
-    const DestinationNamePtr &dn) {
+    const TopicNamePtr &topicName) {
     LookupPromise promise;
     std::stringstream completeUrlStream;
-    completeUrlStream << adminUrl_ << PARTITION_PATH << dn->getProperty() << '/' << dn->getCluster() << '/'
-                      << dn->getNamespacePortion() << '/' << dn->getEncodedLocalName() << '/'
-                      << PARTITION_METHOD_NAME;
+    completeUrlStream << adminUrl_ << PARTITION_PATH << topicName->getProperty() << '/'
+                      << topicName->getCluster() << '/' << topicName->getNamespacePortion() << '/'
+                      << topicName->getEncodedLocalName() << '/' << PARTITION_METHOD_NAME;
     executorProvider_->get()->postWork(boost::bind(&HTTPLookupService::sendHTTPRequest, shared_from_this(),
                                                    promise, completeUrlStream.str(), PartitionMetaData));
     return promise.getFuture();

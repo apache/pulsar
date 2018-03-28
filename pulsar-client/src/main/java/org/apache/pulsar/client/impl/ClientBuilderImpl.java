@@ -22,41 +22,44 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.AuthenticationFactory;
 import org.apache.pulsar.client.api.ClientBuilder;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.UnsupportedAuthenticationException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
-@SuppressWarnings("deprecation")
 public class ClientBuilderImpl implements ClientBuilder {
 
     private static final long serialVersionUID = 1L;
 
-    String serviceUrl;
-    final ClientConfiguration conf = new ClientConfiguration();
+    final ClientConfigurationData conf;
+
+    public ClientBuilderImpl() {
+        this(new ClientConfigurationData());
+    }
+
+    private ClientBuilderImpl(ClientConfigurationData conf) {
+        this.conf = conf;
+    }
 
     @Override
     public PulsarClient build() throws PulsarClientException {
-        if (serviceUrl == null) {
+        if (conf.getServiceUrl() == null) {
             throw new IllegalArgumentException("service URL needs to be specified on the ClientBuilder object");
         }
 
-        return new PulsarClientImpl(serviceUrl, conf);
+        return new PulsarClientImpl(conf);
     }
 
     @Override
     public ClientBuilder clone() {
-        try {
-            return (ClientBuilder) super.clone();
-        } catch (CloneNotSupportedException e) {
-            throw new RuntimeException("Failed to clone ClientBuilderImpl");
-        }
+        return new ClientBuilderImpl(conf.clone());
     }
 
     @Override
     public ClientBuilder serviceUrl(String serviceUrl) {
-        this.serviceUrl = serviceUrl;
+        conf.setServiceUrl(serviceUrl);
         return this;
     }
 
@@ -69,32 +72,32 @@ public class ClientBuilderImpl implements ClientBuilder {
     @Override
     public ClientBuilder authentication(String authPluginClassName, String authParamsString)
             throws UnsupportedAuthenticationException {
-        conf.setAuthentication(authPluginClassName, authParamsString);
+        conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParamsString));
         return this;
     }
 
     @Override
     public ClientBuilder authentication(String authPluginClassName, Map<String, String> authParams)
             throws UnsupportedAuthenticationException {
-        conf.setAuthentication(authPluginClassName, authParams);
+        conf.setAuthentication(AuthenticationFactory.create(authPluginClassName, authParams));
         return this;
     }
 
     @Override
     public ClientBuilder operationTimeout(int operationTimeout, TimeUnit unit) {
-        conf.setOperationTimeout(operationTimeout, unit);
+        conf.setOperationTimeoutMs(unit.toMillis(operationTimeout));
         return this;
     }
 
     @Override
     public ClientBuilder ioThreads(int numIoThreads) {
-        conf.setIoThreads(numIoThreads);
+        conf.setNumIoThreads(numIoThreads);
         return this;
     }
 
     @Override
     public ClientBuilder listenerThreads(int numListenerThreads) {
-        conf.setListenerThreads(numListenerThreads);
+        conf.setNumListenerThreads(numListenerThreads);
         return this;
     }
 
@@ -136,7 +139,7 @@ public class ClientBuilderImpl implements ClientBuilder {
 
     @Override
     public ClientBuilder statsInterval(long statsInterval, TimeUnit unit) {
-        conf.setStatsInterval(statsInterval, unit);
+        conf.setStatsIntervalSeconds(unit.toSeconds(statsInterval));
         return this;
     }
 
@@ -150,5 +153,9 @@ public class ClientBuilderImpl implements ClientBuilder {
     public ClientBuilder maxNumberOfRejectedRequestPerConnection(int maxNumberOfRejectedRequestPerConnection) {
         conf.setMaxNumberOfRejectedRequestPerConnection(maxNumberOfRejectedRequestPerConnection);
         return this;
+    }
+
+    public ClientConfigurationData getClientConfigurationData() {
+        return conf;
     }
 }

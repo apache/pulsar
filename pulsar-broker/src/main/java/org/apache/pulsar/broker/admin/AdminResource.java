@@ -20,11 +20,11 @@ package org.apache.pulsar.broker.admin;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
-import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 
@@ -39,7 +39,7 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.cache.LocalZooKeeperCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
 import org.apache.pulsar.broker.web.RestException;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceBundleFactory;
 import org.apache.pulsar.common.naming.NamespaceBundles;
@@ -103,7 +103,7 @@ public abstract class AdminResource extends PulsarWebResource {
     }
 
     /**
-     * Get the domain of the destination (whether it's queue or topic)
+     * Get the domain of the topic (whether it's persistent or non-persistent)
      */
     protected String domain() {
         if (uri.getPath().startsWith("persistent/")) {
@@ -237,28 +237,28 @@ public abstract class AdminResource extends PulsarWebResource {
         }
     }
 
-    protected DestinationName destinationName;
+    protected TopicName topicName;
 
-    protected void validateDestinationName(String property, String namespace, String encodedTopic) {
+    protected void validateTopicName(String property, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
             this.namespaceName = NamespaceName.get(property, namespace);
-            this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+            this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}", clientAppId(), domain(), property, namespace,
                     topic, e);
             throw new RestException(Status.PRECONDITION_FAILED, "Topic name is not valid");
         }
 
-        this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+        this.topicName = TopicName.get(domain(), namespaceName, topic);
     }
 
     @Deprecated
-    protected void validateDestinationName(String property, String cluster, String namespace, String encodedTopic) {
+    protected void validateTopicName(String property, String cluster, String namespace, String encodedTopic) {
         String topic = Codec.decode(encodedTopic);
         try {
             this.namespaceName = NamespaceName.get(property, cluster, namespace);
-            this.destinationName = DestinationName.get(domain(), namespaceName, topic);
+            this.topicName = TopicName.get(domain(), namespaceName, topic);
         } catch (IllegalArgumentException e) {
             log.warn("[{}] Failed to validate topic name {}://{}/{}/{}/{}", clientAppId(), domain(), property, cluster,
                     namespace, topic, e);
@@ -276,7 +276,9 @@ public abstract class AdminResource extends PulsarWebResource {
      */
     protected void validateBrokerName(String broker) throws MalformedURLException {
         String brokerUrl = String.format("http://%s", broker);
-        if (!pulsar().getWebServiceAddress().equals(brokerUrl)) {
+        String brokerUrlTls = String.format("https://%s", broker);
+        if (!pulsar().getWebServiceAddress().equals(brokerUrl)
+                && !pulsar().getWebServiceAddressTls().equals(brokerUrlTls)) {
             String[] parts = broker.split(":");
             checkArgument(parts.length == 2, "Invalid broker url %s", broker);
             String host = parts[0];
@@ -358,30 +360,30 @@ public abstract class AdminResource extends PulsarWebResource {
         return pulsar().getConfigurationCache().failureDomainListCache();
     }
 
-    protected PartitionedTopicMetadata getPartitionedTopicMetadata(DestinationName destinationName,
+    protected PartitionedTopicMetadata getPartitionedTopicMetadata(TopicName topicName,
             boolean authoritative) {
-        validateClusterOwnership(destinationName.getCluster());
+        validateClusterOwnership(topicName.getCluster());
         // validates global-namespace contains local/peer cluster: if peer/local cluster present then lookup can
         // serve/redirect request else fail partitioned-metadata-request so, client fails while creating
         // producer/consumer
-        validateGlobalNamespaceOwnership(destinationName.getNamespaceObject());
+        validateGlobalNamespaceOwnership(topicName.getNamespaceObject());
 
         try {
-            checkConnect(destinationName);
+            checkConnect(topicName);
         } catch (WebApplicationException e) {
-            validateAdminAccessOnProperty(destinationName.getProperty());
+            validateAdminAccessOnProperty(topicName.getProperty());
         } catch (Exception e) {
             // unknown error marked as internal server error
-            log.warn("Unexpected error while authorizing lookup. destination={}, role={}. Error: {}", destinationName,
+            log.warn("Unexpected error while authorizing lookup. topic={}, role={}. Error: {}", topicName,
                     clientAppId(), e.getMessage(), e);
             throw new RestException(e);
         }
 
-        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), destinationName.getEncodedLocalName());
+        String path = path(PARTITIONED_TOPIC_PATH_ZNODE, namespaceName.toString(), domain(), topicName.getEncodedLocalName());
         PartitionedTopicMetadata partitionMetadata = fetchPartitionedTopicMetadata(pulsar(), path);
 
         if (log.isDebugEnabled()) {
-            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), destinationName,
+            log.debug("[{}] Total number of partitions for topic {} is {}", clientAppId(), topicName,
                     partitionMetadata.partitions);
         }
         return partitionMetadata;
@@ -449,6 +451,19 @@ public abstract class AdminResource extends PulsarWebResource {
             throw re;
         } catch (Exception e) {
             log.error("[{}] Failed to get namespace policies {}/{}/{}", clientAppId(), property, cluster, namespace, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected boolean isNamespaceReplicated(NamespaceName namespaceName) {
+        try {
+            final Policies policies = policiesCache().get(ZkAdminPaths.namespacePoliciesPath(namespaceName))
+                    .orElseThrow(() -> new RestException(Status.NOT_FOUND, "Namespace does not exist"));
+            return policies.replication_clusters.size() > 1;
+        } catch (RestException re) {
+            throw re;
+        } catch (Exception e) {
+            log.error("[{}] Failed to get namespace policies {}", clientAppId(), namespaceName, e);
             throw new RestException(e);
         }
     }

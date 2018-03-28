@@ -87,11 +87,11 @@ public class DirectProxyHandler {
                     AuthenticationDataProvider authData = authentication.getAuthData();
                     if (authData.hasDataForTls()) {
                         sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getTlsTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
+                                config.getBrokerClientTrustCertsFilePath(), (X509Certificate[]) authData.getTlsCertificates(),
                                 authData.getTlsPrivateKey());
                     } else {
                         sslCtx = SecurityUtility.createNettySslContextForClient(config.isTlsAllowInsecureConnection(),
-                                config.getTlsTrustCertsFilePath());
+                                config.getBrokerClientTrustCertsFilePath());
                     }
                     ch.pipeline().addLast(TLS_HANDLER, sslCtx.newHandler(ch.alloc()));
                 }

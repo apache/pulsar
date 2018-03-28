@@ -23,7 +23,8 @@
 #include <string>
 
 #include <boost/shared_ptr.hpp>
-#include "BatchMessageId.h"
+
+#include "MessageId.h"
 
 #pragma GCC visibility push(default)
 
@@ -39,8 +40,6 @@ class MessageBuilder;
 class MessageImpl;
 class PulsarWrapper;
 
-// TODO: When releasing 2.0.0, make all methods virtual and create the virtual destructor for Google Mock
-// tests
 class Message {
    public:
     typedef std::map<std::string, std::string> StringMap;
@@ -107,7 +106,7 @@ class Message {
 
     /**
      * Get the partition key for this message
-     * @return key string that is hashed to determine message's destination partition
+     * @return key string that is hashed to determine message's topic partition
      */
     const std::string& getPartitionKey() const;
     bool hasPartitionKey() const;
@@ -128,9 +127,10 @@ class Message {
     MessageImplPtr impl_;
 
     Message(MessageImplPtr& impl);
-    Message(const proto::CommandMessage& msg, proto::MessageMetadata& data, SharedBuffer& payload);
+    Message(const proto::CommandMessage& msg, proto::MessageMetadata& data, SharedBuffer& payload,
+            int32_t partition);
     /// Used for Batch Messages
-    Message(const BatchMessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
+    Message(const MessageId& messageID, proto::MessageMetadata& metadata, SharedBuffer& payload,
             proto::SingleMessageMetadata& singleMetadata);
     friend class PartitionedProducerImpl;
     friend class PartitionedConsumerImpl;

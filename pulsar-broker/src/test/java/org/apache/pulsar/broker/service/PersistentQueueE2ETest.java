@@ -36,15 +36,13 @@ import org.apache.commons.collections.CollectionUtils;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
+import org.apache.pulsar.client.api.ConsumerBuilder;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.ConsumerImpl;
-import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
@@ -83,12 +81,12 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 100;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared);
 
         // 1. two consumers on the same subscription
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subName, conf);
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
@@ -101,7 +99,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         assertEquals(subRef.getDispatcher().getType(), SubType.Shared);
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs * 2; i++) {
             String message = "my-message-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
@@ -114,14 +112,15 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         // both consumers will together consumer all messages
-        Message msg;
-        Consumer c = consumer1;
+        Message<byte[]> msg;
+        Consumer<byte[]> c = consumer1;
         while (true) {
             try {
                 msg = c.receive(1, TimeUnit.SECONDS);
                 c.acknowledge(msg);
             } catch (PulsarClientException e) {
                 if (c.equals(consumer1)) {
+                    consumer1.close();
                     c = consumer2;
                 } else {
                     break;
@@ -181,34 +180,24 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final List<String> messagesProduced = Lists.newArrayListWithCapacity(numMsgs);
         final List<String> messagesConsumed = new BlockingArrayQueue<>(numMsgs);
 
-        ConsumerConfiguration conf1 = new ConsumerConfiguration();
-        conf1.setSubscriptionType(SubscriptionType.Shared);
-        conf1.setMessageListener((consumer, msg) -> {
-            try {
-                consumer.acknowledge(msg);
-                messagesConsumed.add(new String(msg.getData()));
-            } catch (Exception e) {
-                fail("Should not fail");
-            }
-        });
-
-        ConsumerConfiguration conf2 = new ConsumerConfiguration();
-        conf2.setSubscriptionType(SubscriptionType.Shared);
-        conf2.setMessageListener((consumer, msg) -> {
-            try {
-                // do nothing
-            } catch (Exception e) {
-                fail("Should not fail");
-            }
-        });
-
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subName, conf1);
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
+                    try {
+                        consumer.acknowledge(msg);
+                        messagesConsumed.add(new String(msg.getData()));
+                    } catch (Exception e) {
+                        fail("Should not fail");
+                    }
+                }).subscribe();
 
         // consumer2 does not ack messages
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf2);
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).messageListener((consumer, msg) -> {
+                    // do notthing
+                }).subscribe();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs * 2);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "msg-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
@@ -241,40 +230,34 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final CountDownLatch latch = new CountDownLatch(numMsgs);
 
         int recvQ1 = 10;
-        ConsumerConfiguration conf1 = new ConsumerConfiguration();
-        conf1.setSubscriptionType(SubscriptionType.Shared);
-        conf1.setReceiverQueueSize(recvQ1);
-        conf1.setMessageListener((consumer, msg) -> {
-            msgCountConsumer1.incrementAndGet();
-            try {
-                consumer.acknowledge(msg);
-                latch.countDown();
-            } catch (PulsarClientException e) {
-                fail("Should not fail");
-            }
-        });
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(recvQ1)
+                .messageListener((consumer, msg) -> {
+                    msgCountConsumer1.incrementAndGet();
+                    try {
+                        consumer.acknowledge(msg);
+                        latch.countDown();
+                    } catch (PulsarClientException e) {
+                        fail("Should not fail");
+                    }
+                }).subscribe();
 
         int recvQ2 = 1;
-        ConsumerConfiguration conf2 = new ConsumerConfiguration();
-        conf2.setSubscriptionType(SubscriptionType.Shared);
-        conf2.setReceiverQueueSize(recvQ2);
-        conf2.setMessageListener((consumer, msg) -> {
-            msgCountConsumer2.incrementAndGet();
-            try {
-                consumer.acknowledge(msg);
-                latch.countDown();
-            } catch (PulsarClientException e) {
-                fail("Should not fail");
-            }
-        });
-
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subName, conf1);
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf2);
+        Consumer<byte[]> consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(recvQ2)
+                .messageListener((consumer, msg) -> {
+                    msgCountConsumer2.incrementAndGet();
+                    try {
+                        consumer.acknowledge(msg);
+                        latch.countDown();
+                    } catch (PulsarClientException e) {
+                        fail("Should not fail");
+                    }
+                }).subscribe();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setMaxPendingMessages(numMsgs + 1);
-        Producer producer = pulsarClient.createProducer(topicName, conf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).maxPendingMessages(numMsgs + 1)
+                .create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "msg-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
@@ -307,10 +290,10 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         final CountDownLatch latch = new CountDownLatch(numMsgs * 3);
 
-        ConsumerConfiguration conf1 = new ConsumerConfiguration();
-        conf1.setSubscriptionType(SubscriptionType.Shared);
-        conf1.setReceiverQueueSize(10);
-        conf1.setMessageListener((consumer, msg) -> {
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(10).subscriptionType(SubscriptionType.Shared);
+
+        Consumer<byte[]> consumer1 = consumerBuilder.clone().messageListener((consumer, msg) -> {
             try {
                 counter1.incrementAndGet();
                 consumer.acknowledge(msg);
@@ -318,12 +301,9 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             } catch (Exception e) {
                 fail("Should not fail");
             }
-        });
+        }).subscribe();
 
-        ConsumerConfiguration conf2 = new ConsumerConfiguration();
-        conf2.setSubscriptionType(SubscriptionType.Shared);
-        conf2.setReceiverQueueSize(10);
-        conf2.setMessageListener((consumer, msg) -> {
+        Consumer<byte[]> consumer2 = consumerBuilder.clone().messageListener((consumer, msg) -> {
             try {
                 counter2.incrementAndGet();
                 consumer.acknowledge(msg);
@@ -331,29 +311,20 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
             } catch (Exception e) {
                 fail("Should not fail");
             }
-        });
+        }).subscribe();
 
-        ConsumerConfiguration conf3 = new ConsumerConfiguration();
-        conf3.setSubscriptionType(SubscriptionType.Shared);
-        conf3.setReceiverQueueSize(10);
-        conf3.setMessageListener((consumer, msg) -> {
+        Consumer<byte[]> consumer3 = consumerBuilder.clone().messageListener((consumer, msg) -> {
             try {
-                counter3.incrementAndGet();
+                counter1.incrementAndGet();
                 consumer.acknowledge(msg);
                 latch.countDown();
             } catch (Exception e) {
                 fail("Should not fail");
             }
-        });
-
-        // subscribe and close, so that distribution can be checked after
-        // all messages are published
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subName, conf1);
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf2);
-        Consumer consumer3 = pulsarClient.subscribe(topicName, subName, conf3);
+        }).subscribe();
 
         List<CompletableFuture<MessageId>> futures = Lists.newArrayListWithCapacity(numMsgs);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs * 3; i++) {
             String message = "msg-" + i;
             futures.add(producer.sendAsync(message.getBytes()));
@@ -386,17 +357,16 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final int totalMessages = 50;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(10);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subscriptionName, conf);
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(10).subscriptionType(SubscriptionType.Shared);
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
         // 3. Producer publishes messages
         for (int i = 0; i < totalMessages; i++) {
@@ -407,8 +377,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         // 4. Receive messages
         int receivedConsumer1 = 0, receivedConsumer2 = 0;
-        Message message1 = consumer1.receive();
-        Message message2 = consumer2.receive();
+        Message<byte[]> message1 = consumer1.receive();
+        Message<byte[]> message2 = consumer2.receive();
         do {
             if (message1 != null) {
                 log.info("Consumer 1 Received: " + new String(message1.getData()));
@@ -453,17 +423,16 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final int totalMessages = 10;
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
         assertEquals(topicRef.getProducers().size(), 1);
 
         // 2. Create consumer
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setReceiverQueueSize(1000);
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subscriptionName, conf);
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subscriptionName).receiverQueueSize(1000).subscriptionType(SubscriptionType.Shared);
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
         // 3. Producer publishes messages
         for (int i = 0; i < totalMessages; i++) {
@@ -474,8 +443,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
 
         // 4. Receive messages
         int receivedConsumer1 = 0, receivedConsumer2 = 0;
-        Message message1 = consumer1.receive();
-        Message message2 = consumer2.receive();
+        Message<byte[]> message1 = consumer1.receive();
+        Message<byte[]> message2 = consumer2.receive();
         do {
             if (message1 != null) {
                 log.info("Consumer 1 Received: " + new String(message1.getData()));
@@ -508,7 +477,7 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         }
 
         // 7. Consumer reconnects
-        consumer1 = pulsarClient.subscribe(topicName, subscriptionName, conf);
+        consumer1 = consumerBuilder.subscribe();
 
         // 8. Check number of messages received
         receivedConsumer1 = 0;
@@ -528,26 +497,25 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         final String subName = "sub3";
         final int numMsgs = 10;
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setReceiverQueueSize(0);
-        ConsumerImpl consumer1 = (ConsumerImpl) pulsarClient.subscribe(topicName, subName, conf);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(10).subscriptionType(SubscriptionType.Shared);
+        ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
         for (int i = 0; i < numMsgs; i++) {
             producer.send(("hello-" + i).getBytes());
         }
 
-        Set<MessageIdImpl> c1_receivedMessages = new HashSet<>();
+        Set<MessageId> c1_receivedMessages = new HashSet<>();
 
         // C-1 gets all messages but doesn't ack
         for (int i = 0; i < numMsgs; i++) {
-            c1_receivedMessages.add((MessageIdImpl) consumer1.receive().getMessageId());
+            c1_receivedMessages.add(consumer1.receive().getMessageId());
         }
 
         // C-2 will not get any message initially, since everything went to C-1 already
-        Consumer consumer2 = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
         // Trigger C-1 to redeliver everything, half will go C-1 again and the other half to C-2
         consumer1.redeliverUnacknowledgedMessages(c1_receivedMessages);

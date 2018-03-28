@@ -23,13 +23,14 @@ import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
 
-import org.apache.pulsar.checksum.utils.Crc32cChecksum;
+import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.Commands.ChecksumType;
-import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 import org.testng.annotations.Test;
+
+import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.PooledByteBufAllocator;
@@ -85,7 +86,7 @@ public class CommandsTest {
         msgMetadata.writeTo(outStream);
         ByteBuf payload = compressedPayload.copy();
         ByteBufPair metaPayloadBuf = ByteBufPair.get(metaPayloadFrame, payload);
-        int computedChecksum = Crc32cChecksum.computeChecksum(ByteBufPair.coalesce(metaPayloadBuf));
+        int computedChecksum = Crc32cIntChecksum.computeChecksum(ByteBufPair.coalesce(metaPayloadBuf));
         outStream.recycle();
         metaPayloadBuf.release();
         return computedChecksum;

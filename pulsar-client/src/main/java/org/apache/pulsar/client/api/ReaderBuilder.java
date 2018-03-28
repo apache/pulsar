@@ -28,7 +28,7 @@ import java.util.concurrent.CompletableFuture;
  *
  * @since 2.0.0
  */
-public interface ReaderBuilder extends Serializable, Cloneable {
+public interface ReaderBuilder<T> extends Serializable, Cloneable {
 
     /**
      * Finalize the creation of the {@link Reader} instance.
@@ -40,7 +40,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @throws PulsarClientException
      *             if the reader creation fails
      */
-    Reader create() throws PulsarClientException;
+    Reader<T> create() throws PulsarClientException;
 
     /**
      * Finalize the creation of the {@link Reader} instance in asynchronous mode.
@@ -52,7 +52,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @throws PulsarClientException
      *             if the reader creation fails
      */
-    CompletableFuture<Reader> createAsync();
+    CompletableFuture<Reader<T>> createAsync();
 
     /**
      * Create a copy of the current {@link ReaderBuilder}.
@@ -67,7 +67,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * Reader reader2 = builder.clone().topic(TOPIC_2).create();
      * </pre>
      */
-    ReaderBuilder clone();
+    ReaderBuilder<T> clone();
 
     /**
      * Specify the topic this consumer will subscribe on.
@@ -76,7 +76,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      *
      * @param topicName
      */
-    ReaderBuilder topic(String topicName);
+    ReaderBuilder<T> topic(String topicName);
 
     /**
      * The initial reader positioning is done by specifying a message id. The options are:
@@ -88,7 +88,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * specific position. The first message to be read will be the message next to the specified messageId.
      * </ul>
      */
-    ReaderBuilder startMessageId(MessageId startMessageId);
+    ReaderBuilder<T> startMessageId(MessageId startMessageId);
 
     /**
      * Sets a {@link ReaderListener} for the reader
@@ -99,7 +99,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @param readerListener
      *            the listener object
      */
-    ReaderBuilder readerListener(ReaderListener readerListener);
+    ReaderBuilder<T> readerListener(ReaderListener<T> readerListener);
 
     /**
      * Sets a {@link CryptoKeyReader}
@@ -107,7 +107,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
-    ReaderBuilder cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+    ReaderBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
      * Sets the ConsumerCryptoFailureAction to the value specified
@@ -115,7 +115,7 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @param action
      *            The action to take when the decoding fails
      */
-    ReaderBuilder cryptoFailureAction(ConsumerCryptoFailureAction action);
+    ReaderBuilder<T> cryptoFailureAction(ConsumerCryptoFailureAction action);
 
     /**
      * Sets the size of the consumer receive queue.
@@ -129,12 +129,19 @@ public interface ReaderBuilder extends Serializable, Cloneable {
      * @param receiverQueueSize
      *            the new receiver queue size value
      */
-    ReaderBuilder receiverQueueSize(int receiverQueueSize);
+    ReaderBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
      * Set the reader name.
      *
      * @param readerName
      */
-    ReaderBuilder readerName(String readerName);
+    ReaderBuilder<T> readerName(String readerName);
+
+    /**
+     * Set the subscription role prefix. The default prefix is "reader".
+     *
+     * @param subscriptionRolePrefix
+     */
+    ReaderBuilder<T> subscriptionRolePrefix(String subscriptionRolePrefix);
 }

@@ -53,7 +53,7 @@ public interface PersistentTopics {
      *
      * @param namespace
      *            Namespace name
-     * @return a list of destinations
+     * @return a list of topics
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -88,10 +88,10 @@ public interface PersistentTopics {
     List<String> getPartitionedTopicList(String namespace) throws PulsarAdminException;
 
     /**
-     * Get permissions on a destination.
+     * Get permissions on a topic.
      * <p>
-     * Retrieve the effective permissions for a destination. These permissions are defined by the permissions set at the
-     * namespace level combined (union) with any eventual specific permission set on the destination.
+     * Retrieve the effective permissions for a topic. These permissions are defined by the permissions set at the
+     * namespace level combined (union) with any eventual specific permission set on the topic.
      * <p>
      * Response Example:
      *
@@ -102,9 +102,9 @@ public interface PersistentTopics {
      * }</code>
      * </pre>
      *
-     * @param destination
-     *            Destination url
-     * @return a map of destinations an their permissions set
+     * @param topic
+     *            Topic url
+     * @return a map of topics an their permissions set
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -113,12 +113,12 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    Map<String, Set<AuthAction>> getPermissions(String destination) throws PulsarAdminException;
+    Map<String, Set<AuthAction>> getPermissions(String topic) throws PulsarAdminException;
 
     /**
-     * Grant permission on a destination.
+     * Grant permission on a topic.
      * <p>
-     * Grant a new permission to a client role on a single destination.
+     * Grant a new permission to a client role on a single topic.
      * <p>
      * Request parameter example:
      *
@@ -126,8 +126,8 @@ public interface PersistentTopics {
      * <code>["produce", "consume"]</code>
      * </pre>
      *
-     * @param destination
-     *            Destination url
+     * @param topic
+     *            Topic url
      * @param role
      *            Client role to which grant permission
      * @param actions
@@ -142,16 +142,16 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void grantPermission(String destination, String role, Set<AuthAction> actions) throws PulsarAdminException;
+    void grantPermission(String topic, String role, Set<AuthAction> actions) throws PulsarAdminException;
 
     /**
-     * Revoke permissions on a destination.
+     * Revoke permissions on a topic.
      * <p>
-     * Revoke permissions to a client role on a single destination. If the permission was not set at the destination
-     * level, but rather at the namespace level, this operation will return an error (HTTP status code 412).
+     * Revoke permissions to a client role on a single topic. If the permission was not set at the topic level, but
+     * rather at the namespace level, this operation will return an error (HTTP status code 412).
      *
-     * @param destination
-     *            Destination url
+     * @param topic
+     *            Topic url
      * @param role
      *            Client role to which remove permission
      * @throws UniformInterfaceException
@@ -162,11 +162,11 @@ public interface PersistentTopics {
      * @throws NotFound
      *             Namespace does not exist
      * @throws PreconditionFailedException
-     *             Permissions are not set at the destination level
+     *             Permissions are not set at the topic level
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void revokePermissions(String destination, String role) throws PulsarAdminException;
+    void revokePermissions(String topic, String role) throws PulsarAdminException;
 
     /**
      * Create a partitioned topic.
@@ -174,13 +174,13 @@ public interface PersistentTopics {
      * Create a partitioned topic. It needs to be called before creating a producer for a partitioned topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @param numPartitions
      *            Number of partitions to create of the topic
      * @throws PulsarAdminException
      */
-    void createPartitionedTopic(String destination, int numPartitions) throws PulsarAdminException;
+    void createPartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
      * Create a partitioned topic asynchronously.
@@ -189,13 +189,13 @@ public interface PersistentTopics {
      * topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @param numPartitions
      *            Number of partitions to create of the topic
      * @return a future that can be used to track when the partitioned topic is created
      */
-    CompletableFuture<Void> createPartitionedTopicAsync(String destination, int numPartitions);
+    CompletableFuture<Void> createPartitionedTopicAsync(String topic, int numPartitions);
 
     /**
      * Update number of partitions of a non-global partitioned topic.
@@ -204,14 +204,14 @@ public interface PersistentTopics {
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @param numPartitions
      *            Number of new partitions of already exist partitioned-topic
      *
      * @return a future that can be used to track when the partitioned topic is updated
      */
-    void updatePartitionedTopic(String destination, int numPartitions) throws PulsarAdminException;
+    void updatePartitionedTopic(String topic, int numPartitions) throws PulsarAdminException;
 
     /**
      * Update number of partitions of a non-global partitioned topic asynchronously.
@@ -220,14 +220,14 @@ public interface PersistentTopics {
      * number of partitions. Decrementing number of partitions requires deletion of topic which is not supported.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @param numPartitions
      *            Number of new partitions of already exist partitioned-topic
      *
      * @return a future that can be used to track when the partitioned topic is updated
      */
-    CompletableFuture<Void> updatePartitionedTopicAsync(String destination, int numPartitions);
+    CompletableFuture<Void> updatePartitionedTopicAsync(String topic, int numPartitions);
 
     /**
      * Get metadata of a partitioned topic.
@@ -235,12 +235,12 @@ public interface PersistentTopics {
      * Get metadata of a partitioned topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return Partitioned topic metadata
      * @throws PulsarAdminException
      */
-    PartitionedTopicMetadata getPartitionedTopicMetadata(String destination) throws PulsarAdminException;
+    PartitionedTopicMetadata getPartitionedTopicMetadata(String topic) throws PulsarAdminException;
 
     /**
      * Get metadata of a partitioned topic asynchronously.
@@ -248,11 +248,11 @@ public interface PersistentTopics {
      * Get metadata of a partitioned topic asynchronously.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return a future that can be used to track when the partitioned topic metadata is returned
      */
-    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String destination);
+    CompletableFuture<PartitionedTopicMetadata> getPartitionedTopicMetadataAsync(String topic);
 
     /**
      * Delete a partitioned topic.
@@ -260,11 +260,11 @@ public interface PersistentTopics {
      * It will also delete all the partitions of the topic if it exists.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @throws PulsarAdminException
      */
-    void deletePartitionedTopic(String destination) throws PulsarAdminException;
+    void deletePartitionedTopic(String topic) throws PulsarAdminException;
 
     /**
      * Delete a partitioned topic asynchronously.
@@ -272,11 +272,11 @@ public interface PersistentTopics {
      * It will also delete all the partitions of the topic if it exists.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      * @return a future that can be used to track when the partitioned topic is deleted
      */
-    CompletableFuture<Void> deletePartitionedTopicAsync(String destination);
+    CompletableFuture<Void> deletePartitionedTopicAsync(String topic);
 
     /**
      * Delete a topic.
@@ -284,19 +284,19 @@ public interface PersistentTopics {
      * Delete a topic. The topic cannot be deleted if there's any active subscription or producer connected to the it.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            Topic name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Destination does not exist
+     *             Topic does not exist
      * @throws PreconditionFailedException
      *             Topic has active subscriptions or producers
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void delete(String destination) throws PulsarAdminException;
+    void delete(String topic) throws PulsarAdminException;
 
     /**
      * Delete a topic asynchronously.
@@ -305,50 +305,50 @@ public interface PersistentTopics {
      * connected to the it.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      *
      * @return a future that can be used to track when the topic is deleted
      */
-    CompletableFuture<Void> deleteAsync(String destination);
+    CompletableFuture<Void> deleteAsync(String topic);
 
     /**
      * Unload a topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      *
      * @throws NotAuthorizedException
      *             Don't have admin permission
      * @throws NotFoundException
-     *             Destination does not exist
+     *             topic does not exist
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void unload(String destination) throws PulsarAdminException;
+    void unload(String topic) throws PulsarAdminException;
 
     /**
      * Unload a topic asynchronously.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      *
      * @return a future that can be used to track when the topic is unloaded
      */
-    CompletableFuture<Void> unloadAsync(String destination);
+    CompletableFuture<Void> unloadAsync(String topic);
 
     /**
      * Terminate the topic and prevent any more messages being published on it.
      * <p>
      * This
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return the message id of the last message that was published in the topic
      */
-    CompletableFuture<MessageId> terminateTopicAsync(String destination);
+    CompletableFuture<MessageId> terminateTopicAsync(String topic);
 
     /**
      * Get the list of subscriptions.
@@ -356,8 +356,8 @@ public interface PersistentTopics {
      * Get the list of persistent subscriptions for a given topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return the list of subscriptions
      *
      * @throws NotAuthorizedException
@@ -367,7 +367,7 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<String> getSubscriptions(String destination) throws PulsarAdminException;
+    List<String> getSubscriptions(String topic) throws PulsarAdminException;
 
     /**
      * Get the list of subscriptions asynchronously.
@@ -375,11 +375,11 @@ public interface PersistentTopics {
      * Get the list of persistent subscriptions for a given topic.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return a future that can be used to track when the list of subscriptions is returned
      */
-    CompletableFuture<List<String>> getSubscriptionsAsync(String destination);
+    CompletableFuture<List<String>> getSubscriptionsAsync(String topic);
 
     /**
      * Get the stats for the topic.
@@ -444,8 +444,8 @@ public interface PersistentTopics {
      *
      * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -455,27 +455,27 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    PersistentTopicStats getStats(String destination) throws PulsarAdminException;
+    PersistentTopicStats getStats(String topic) throws PulsarAdminException;
 
     /**
      * Get the stats for the topic asynchronously. All the rates are computed over a 1 minute window and are relative
      * the last completed 1 minute period.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      *
      * @return a future that can be used to track when the topic statistics are returned
      *
      */
-    CompletableFuture<PersistentTopicStats> getStatsAsync(String destination);
+    CompletableFuture<PersistentTopicStats> getStatsAsync(String topic);
 
     /**
      * Get the internal stats for the topic.
      * <p>
      * Access the internal state of the topic
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return the topic statistics
      *
      * @throws NotAuthorizedException
@@ -485,23 +485,23 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    PersistentTopicInternalStats getInternalStats(String destination) throws PulsarAdminException;
+    PersistentTopicInternalStats getInternalStats(String topic) throws PulsarAdminException;
 
     /**
      * Get the internal stats for the topic asynchronously.
      *
-     * @param destination
-     *            Destination Name
+     * @param topic
+     *            topic Name
      *
      * @return a future that can be used to track when the internal topic statistics are returned
      */
-    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String destination);
+    CompletableFuture<PersistentTopicInternalStats> getInternalStatsAsync(String topic);
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return the topic internal metadata
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -510,13 +510,13 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    JsonObject getInternalInfo(String destination) throws PulsarAdminException;
+    JsonObject getInternalInfo(String topic) throws PulsarAdminException;
 
     /**
      * Get a JSON representation of the topic metadata stored in ZooKeeper
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @return a future to receive the topic internal metadata
      * @throws NotAuthorizedException
      *             Don't have admin permission
@@ -525,7 +525,7 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    CompletableFuture<JsonObject> getInternalInfoAsync(String destination);
+    CompletableFuture<JsonObject> getInternalInfoAsync(String topic);
 
     /**
      * Get the stats for the partitioned topic
@@ -584,8 +584,8 @@ public interface PersistentTopics {
      *
      * All the rates are computed over a 1 minute window and are relative the last completed 1 minute period.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param perPartition
      *
      * @return the partitioned topic statistics
@@ -597,18 +597,18 @@ public interface PersistentTopics {
      *             Unexpected error
      *
      */
-    PartitionedTopicStats getPartitionedStats(String destination, boolean perPartition) throws PulsarAdminException;
+    PartitionedTopicStats getPartitionedStats(String topic, boolean perPartition) throws PulsarAdminException;
 
     /**
      * Get the stats for the partitioned topic asynchronously
      *
-     * @param destination
-     *            Destination Name
+     * @param topic
+     *            topic Name
      * @param perPartition
      *            flag to get stats per partition
      * @return a future that can be used to track when the partitioned topic statistics are returned
      */
-    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String destination, boolean perPartition);
+    CompletableFuture<PartitionedTopicStats> getPartitionedStatsAsync(String topic, boolean perPartition);
 
     /**
      * Delete a subscription.
@@ -616,8 +616,8 @@ public interface PersistentTopics {
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      *
@@ -630,7 +630,7 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void deleteSubscription(String destination, String subName) throws PulsarAdminException;
+    void deleteSubscription(String topic, String subName) throws PulsarAdminException;
 
     /**
      * Delete a subscription asynchronously.
@@ -638,22 +638,22 @@ public interface PersistentTopics {
      * Delete a persistent subscription from a topic. There should not be any active consumers on the subscription.
      * <p>
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      *
      * @return a future that can be used to track when the subscription is deleted
      */
-    CompletableFuture<Void> deleteSubscriptionAsync(String destination, String subName);
+    CompletableFuture<Void> deleteSubscriptionAsync(String topic, String subName);
 
     /**
      * Skip all messages on a topic subscription.
      * <p>
      * Completely clears the backlog on the subscription.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      *
@@ -664,27 +664,27 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void skipAllMessages(String destination, String subName) throws PulsarAdminException;
+    void skipAllMessages(String topic, String subName) throws PulsarAdminException;
 
     /**
      * Skip all messages on a topic subscription asynchronously.
      * <p>
      * Completely clears the backlog on the subscription.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      *
      * @return a future that can be used to track when all the messages are skipped
      */
-    CompletableFuture<Void> skipAllMessagesAsync(String destination, String subName);
+    CompletableFuture<Void> skipAllMessagesAsync(String topic, String subName);
 
     /**
      * Skip messages on a topic subscription.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param numMessages
@@ -697,13 +697,13 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void skipMessages(String destination, String subName, long numMessages) throws PulsarAdminException;
+    void skipMessages(String topic, String subName, long numMessages) throws PulsarAdminException;
 
     /**
      * Skip messages on a topic subscription asynchronously.
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param numMessages
@@ -711,13 +711,13 @@ public interface PersistentTopics {
      *
      * @return a future that can be used to track when the number of messages are skipped
      */
-    CompletableFuture<Void> skipMessagesAsync(String destination, String subName, long numMessages);
+    CompletableFuture<Void> skipMessagesAsync(String topic, String subName, long numMessages);
 
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param expireTimeInSeconds
@@ -725,51 +725,53 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void expireMessages(String destination, String subscriptionName, long expireTimeInSeconds) throws PulsarAdminException;
+    public void expireMessages(String topic, String subscriptionName, long expireTimeInSeconds)
+            throws PulsarAdminException;
 
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for a given subscription asynchronously
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
      * @return
      */
-    public CompletableFuture<Void> expireMessagesAsync(String destination, String subscriptionName, long expireTimeInSeconds);
+    public CompletableFuture<Void> expireMessagesAsync(String topic, String subscriptionName,
+            long expireTimeInSeconds);
 
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
      * persistent-topic
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    public void expireMessagesForAllSubscriptions(String destination, long expireTimeInSeconds) throws PulsarAdminException;
-
+    public void expireMessagesForAllSubscriptions(String topic, long expireTimeInSeconds)
+            throws PulsarAdminException;
 
     /**
      * Expire all messages older than given N (expireTimeInSeconds) seconds for all subscriptions of the
      * persistent-topic asynchronously
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param expireTimeInSeconds
      *            Expire messages older than time in seconds
      */
-    public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String destination, long expireTimeInSeconds);
+    public CompletableFuture<Void> expireMessagesForAllSubscriptionsAsync(String topic, long expireTimeInSeconds);
 
     /**
      * Peek messages from a topic subscription
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param numMessages
@@ -782,26 +784,26 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    List<Message> peekMessages(String destination, String subName, int numMessages) throws PulsarAdminException;
+    List<Message<byte[]>> peekMessages(String topic, String subName, int numMessages) throws PulsarAdminException;
 
     /**
      * Peek messages from a topic subscription asynchronously
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param numMessages
      *            Number of messages
      * @return a future that can be used to track when the messages are returned
      */
-    CompletableFuture<List<Message>> peekMessagesAsync(String destination, String subName, int numMessages);
+    CompletableFuture<List<Message<byte[]>>> peekMessagesAsync(String topic, String subName, int numMessages);
 
     /**
      * Create a new subscription on a topic
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subscriptionName
      *            Subscription name
      * @param messageId
@@ -817,27 +819,27 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void createSubscription(String destination, String subscriptionName, MessageId messageId)
+    void createSubscription(String topic, String subscriptionName, MessageId messageId)
             throws PulsarAdminException;
 
     /**
      * Create a new subscription on a topic
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subscriptionName
      *            Subscription name
      * @param messageId
      *            The {@link MessageId} on where to initialize the subscription. It could be {@link MessageId#latest},
      *            {@link MessageId#earliest} or a specific message id.
      */
-    CompletableFuture<Void> createSubscriptionAsync(String destination, String subscriptionName, MessageId messageId);
+    CompletableFuture<Void> createSubscriptionAsync(String topic, String subscriptionName, MessageId messageId);
 
     /**
      * Reset cursor position on a topic subscription
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param timestamp
@@ -852,25 +854,25 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void resetCursor(String destination, String subName, long timestamp) throws PulsarAdminException;
+    void resetCursor(String topic, String subName, long timestamp) throws PulsarAdminException;
 
     /**
      * Reset cursor position on a topic subscription
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param timestamp
      *            reset subscription to position closest to time in ms since epoch
      */
-    CompletableFuture<Void> resetCursorAsync(String destination, String subName, long timestamp);
+    CompletableFuture<Void> resetCursorAsync(String topic, String subName, long timestamp);
 
     /**
      * Reset cursor position on a topic subscription
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param messageId
@@ -885,17 +887,17 @@ public interface PersistentTopics {
      * @throws PulsarAdminException
      *             Unexpected error
      */
-    void resetCursor(String destination, String subName, MessageId messageId) throws PulsarAdminException;
+    void resetCursor(String topic, String subName, MessageId messageId) throws PulsarAdminException;
 
     /**
      * Reset cursor position on a topic subscription
      *
-     * @param destination
-     *            Destination name
+     * @param topic
+     *            topic name
      * @param subName
      *            Subscription name
      * @param MessageId
      *            reset subscription to messageId (or previous nearest messageId if given messageId is not valid)
      */
-    CompletableFuture<Void> resetCursorAsync(String destination, String subName, MessageId messageId);
+    CompletableFuture<Void> resetCursorAsync(String topic, String subName, MessageId messageId);
 }

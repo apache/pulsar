@@ -83,6 +83,9 @@ class ReaderConfiguration {
     void setReaderName(const std::string& readerName);
     const std::string& getReaderName() const;
 
+    void setSubscriptionRolePrefix(const std::string& subscriptionRolePrefix);
+    const std::string& getSubscriptionRolePrefix() const;
+
    private:
     boost::shared_ptr<ReaderConfigurationImpl> impl_;
 };

@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -53,10 +53,11 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testSingleIpAddress() throws Exception {
-        ClientConfiguration conf = new ClientConfiguration();
+        ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
         ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
-        PulsarClientImpl client = new PulsarClientImpl(serviceUrl, conf, eventLoop, pool);
+        conf.setServiceUrl(serviceUrl);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
         List<InetAddress> result = Lists.newArrayList();
         result.add(InetAddress.getByName("127.0.0.1"));
@@ -71,10 +72,11 @@ public class ConnectionPoolTest extends MockedPulsarServiceBaseTest {
     public void testDoubleIpAddress() throws Exception {
         String serviceUrl = "pulsar://non-existing-dns-name:" + BROKER_PORT;
 
-        ClientConfiguration conf = new ClientConfiguration();
+        ClientConfigurationData conf = new ClientConfigurationData();
         EventLoopGroup eventLoop = EventLoopUtil.newEventLoopGroup(1, new DefaultThreadFactory("test"));
         ConnectionPool pool = Mockito.spy(new ConnectionPool(conf, eventLoop));
-        PulsarClientImpl client = new PulsarClientImpl(serviceUrl, conf, eventLoop, pool);
+        conf.setServiceUrl(serviceUrl);
+        PulsarClientImpl client = new PulsarClientImpl(conf, eventLoop, pool);
 
         List<InetAddress> result = Lists.newArrayList();
 

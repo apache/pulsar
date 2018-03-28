@@ -20,7 +20,6 @@ package org.apache.pulsar.websocket.proxy;
 
 import static org.apache.pulsar.broker.admin.AdminResource.jsonMapper;
 
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.concurrent.CountDownLatch;
@@ -33,13 +32,13 @@ import org.eclipse.jetty.websocket.api.annotations.OnWebSocketClose;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketConnect;
 import org.eclipse.jetty.websocket.api.annotations.OnWebSocketMessage;
 import org.eclipse.jetty.websocket.api.annotations.WebSocket;
-import com.google.gson.Gson;
-import com.google.gson.JsonParseException;
-import com.google.gson.JsonObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.gson.Gson;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParseException;
 
 @WebSocket(maxTextMessageSize = 64 * 1024)
 public class SimpleProducerSocket {
@@ -77,7 +76,7 @@ public class SimpleProducerSocket {
         this.session = session;
         sendMessage(10);
     }
-    
+
     public void sendMessage(int totalMsgs) throws Exception {
         for (int i = 0; i < totalMsgs; i++) {
             this.session.getRemote().sendString(getTestJsonPayload(i));

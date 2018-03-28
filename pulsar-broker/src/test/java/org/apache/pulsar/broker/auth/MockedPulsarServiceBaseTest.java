@@ -43,6 +43,7 @@ import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.namespace.NamespaceService;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
+import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.zookeeper.ZooKeeperClientFactory;
 import org.apache.pulsar.zookeeper.ZookeeperClientFactoryImpl;
@@ -103,24 +104,20 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected final void internalSetup() throws Exception {
         init();
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
         lookupUrl = new URI(brokerUrl.toString());
         if (isTcpLookup) {
             lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT);
         }
-        pulsarClient = PulsarClient.create(lookupUrl.toString(), clientConf);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).statsInterval(0, TimeUnit.SECONDS).build();
     }
 
     protected final void internalSetupForStatsTest() throws Exception {
         init();
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(1, TimeUnit.SECONDS);
         String lookupUrl = brokerUrl.toString();
         if (isTcpLookup) {
             lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
         }
-        pulsarClient = PulsarClient.create(lookupUrl, clientConf);
+        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl.toString()).statsInterval(1, TimeUnit.SECONDS).build();
     }
 
     protected final void init() throws Exception {
@@ -139,15 +136,26 @@ public abstract class MockedPulsarServiceBaseTest {
 
     protected final void internalCleanup() throws Exception {
         try {
-            admin.close();
-            // There are some test cases where pulsarClient is not initialized.
+            // if init fails, some of these could be null, and if so would throw
+            // an NPE in shutdown, obscuring the real error
+            if (admin != null) {
+                admin.close();
+            }
             if (pulsarClient != null) {
                 pulsarClient.close();
             }
-            pulsar.close();
-            mockBookKeeper.reallyShutdow();
-            mockZookKeeper.shutdown();
-            sameThreadOrderedSafeExecutor.shutdown();
+            if (pulsar != null) {
+                pulsar.close();
+            }
+            if (mockBookKeeper != null) {
+                mockBookKeeper.reallyShutdow();
+            }
+            if (mockZookKeeper != null) {
+                mockZookKeeper.shutdown();
+            }
+            if (sameThreadOrderedSafeExecutor != null) {
+                sameThreadOrderedSafeExecutor.shutdown();
+            }
         } catch (Exception e) {
             log.warn("Failed to clean up mocked pulsar service:", e);
             throw e;
@@ -216,7 +224,7 @@ public abstract class MockedPulsarServiceBaseTest {
     private static class NonClosableMockBookKeeper extends MockBookKeeper {
 
         public NonClosableMockBookKeeper(ClientConfiguration conf, ZooKeeper zk) throws Exception {
-            super(conf, zk);
+            super(zk);
         }
 
         @Override

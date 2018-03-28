@@ -18,20 +18,20 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest.retryStrategically;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
+import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
-import org.apache.pulsar.client.api.ClientConfiguration;
+import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.PersistentTopicStats;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.DataProvider;
@@ -70,9 +70,9 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
      * 5. Try to create producer using broker in cluster r3
      * 6. Success : "r3" finds "r1" in peer cluster which owns n1 and redirects to "r1"
      * 7. call admin-api to "r3" which redirects request to "r1"
-     * 
+     *
      * </pre>
-     * 
+     *
      * @param protocol
      * @throws Exception
      */
@@ -96,14 +96,11 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         final String topic1 = "persistent://" + namespace1 + "/topic1";
         final String topic2 = "persistent://" + namespace2 + "/topic2";
-        ClientConfiguration conf = new ClientConfiguration();
-        conf.setStatsInterval(0, TimeUnit.SECONDS);
 
-        PulsarClient client3 = PulsarClient.create(serviceUrl, conf);
-        Producer producer;
+        PulsarClient client3 = PulsarClient.builder().serviceUrl(serviceUrl).statsInterval(0, TimeUnit.SECONDS).build();
         try {
             // try to create producer for topic1 (part of cluster: r1) by calling cluster: r3
-            producer = client3.createProducer(topic1);
+            client3.newProducer().topic(topic1).create();
             fail("should have failed as cluster:r3 doesn't own namespace");
         } catch (PulsarClientException e) {
             // Ok
@@ -111,7 +108,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         try {
             // try to create producer for topic2 (part of cluster: r2) by calling cluster: r3
-            producer = client3.createProducer(topic2);
+            client3.newProducer().topic(topic2).create();
             fail("should have failed as cluster:r3 doesn't own namespace");
         } catch (PulsarClientException e) {
             // Ok
@@ -119,7 +116,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         // set peer-clusters : r3->r1
         admin1.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r1")));
-        producer = client3.createProducer(topic1);
+        Producer<byte[]> producer = client3.newProducer().topic(topic1).create();
         PersistentTopic topic = (PersistentTopic) pulsar1.getBrokerService().getTopic(topic1).get();
         assertNotNull(topic);
         pulsar1.getBrokerService().updateRates();
@@ -134,7 +131,7 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
         // set peer-clusters : r3->r2
         admin2.clusters().updatePeerClusterNames("r3", Sets.newLinkedHashSet(Lists.newArrayList("r2")));
-        producer = client3.createProducer(topic2);
+        producer = client3.newProducer().topic(topic2).create();
         topic = (PersistentTopic) pulsar2.getBrokerService().getTopic(topic2).get();
         assertNotNull(topic);
         pulsar2.getBrokerService().updateRates();
@@ -151,6 +148,19 @@ public class PeerReplicatorTest extends ReplicatorTestBase {
 
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PeerReplicatorTest.class);
-
+	@Test
+	public void testGetPeerClusters() throws Exception {
+		final String mainClusterName = "r1";
+		assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), null);
+		LinkedHashSet<String> peerClusters = Sets.newLinkedHashSet(Lists.newArrayList("r2", "r3"));
+		admin1.clusters().updatePeerClusterNames(mainClusterName, peerClusters);
+		retryStrategically((test) -> {
+			try {
+				return admin1.clusters().getPeerClusterNames(mainClusterName).size() == 1;
+			} catch (PulsarAdminException e) {
+				return false;
+			}
+		}, 5, 100);
+		assertEquals(admin1.clusters().getPeerClusterNames(mainClusterName), peerClusters);
+	}
 }

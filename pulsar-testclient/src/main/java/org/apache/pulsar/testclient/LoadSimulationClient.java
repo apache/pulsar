@@ -91,7 +91,7 @@ public class LoadSimulationClient {
     // consumption as well as size may be changed at
     // any time, and the TradeUnit may also be stopped.
     private static class TradeUnit {
-        Future<Consumer> consumerFuture;
+        Future<Consumer<byte[]>> consumerFuture;
         final AtomicBoolean stop;
         final RateLimiter rateLimiter;
 
@@ -274,9 +274,9 @@ public class LoadSimulationClient {
             // See if a topic belongs to this tenant and group using this regex.
             final String groupRegex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String destination = entry.getKey();
+                final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (destination.matches(groupRegex)) {
+                if (topic.matches(groupRegex)) {
                     unit.change(tradeConf);
                 }
             }
@@ -287,9 +287,9 @@ public class LoadSimulationClient {
             // See if a topic belongs to this tenant and group using this regex.
             final String regex = ".*://" + tradeConf.tenant + "/.*/" + tradeConf.group + "-.*/.*";
             for (Map.Entry<String, TradeUnit> entry : topicsToTradeUnits.entrySet()) {
-                final String destination = entry.getKey();
+                final String topic = entry.getKey();
                 final TradeUnit unit = entry.getValue();
-                if (destination.matches(regex)) {
+                if (topic.matches(regex)) {
                     unit.stop.set(true);
                 }
             }

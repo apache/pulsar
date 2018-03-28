@@ -24,7 +24,6 @@ import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.testng.annotations.Test;
 
-@SuppressWarnings("deprecation")
 public class BuildersTest {
 
     @Test
@@ -33,15 +32,15 @@ public class BuildersTest {
                 .maxNumberOfRejectedRequestPerConnection(200).serviceUrl("pulsar://service:6650");
 
         assertEquals(clientBuilder.conf.isUseTls(), true);
-        assertEquals(clientBuilder.serviceUrl, "pulsar://service:6650");
+        assertEquals(clientBuilder.conf.getServiceUrl(), "pulsar://service:6650");
 
         ClientBuilderImpl b2 = (ClientBuilderImpl) clientBuilder.clone();
         assertTrue(b2 != clientBuilder);
 
         b2.serviceUrl("pulsar://other-broker:6650");
 
-        assertEquals(clientBuilder.serviceUrl, "pulsar://service:6650");
-        assertEquals(b2.serviceUrl, "pulsar://other-broker:6650");
+        assertEquals(clientBuilder.conf.getServiceUrl(), "pulsar://service:6650");
+        assertEquals(b2.conf.getServiceUrl(), "pulsar://other-broker:6650");
     }
 
 }

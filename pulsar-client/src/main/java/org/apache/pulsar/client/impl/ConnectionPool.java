@@ -31,8 +31,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
-import org.apache.pulsar.client.api.ClientConfiguration;
 import org.apache.pulsar.client.api.PulsarClientException;
+import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 import org.apache.pulsar.common.api.ByteBufPair;
 import org.apache.pulsar.common.util.SecurityUtility;
 import org.apache.pulsar.common.util.netty.EventLoopUtil;
@@ -68,7 +68,7 @@ public class ConnectionPool implements Closeable {
     private static final int MaxMessageSize = 5 * 1024 * 1024;
     public static final String TLS_HANDLER = "tls";
 
-    public ConnectionPool(ClientConfiguration conf, EventLoopGroup eventLoopGroup) {
+    public ConnectionPool(ClientConfigurationData conf, EventLoopGroup eventLoopGroup) {
         this.eventLoopGroup = eventLoopGroup;
         this.maxConnectionsPerHosts = conf.getConnectionsPerBroker();
 
@@ -197,9 +197,11 @@ public class ConnectionPool implements Closeable {
                 return null;
             });
         }).exceptionally(exception -> {
-            log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getClass().getSimpleName());
-            cnxFuture.completeExceptionally(new PulsarClientException(exception));
-            cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+            eventLoopGroup.execute(() -> {
+                log.warn("Failed to open connection to {} : {}", physicalAddress, exception.getMessage());
+                cleanupConnection(logicalAddress, connectionKey, cnxFuture);
+                cnxFuture.completeExceptionally(new PulsarClientException(exception));
+            });
             return null;
         });
 

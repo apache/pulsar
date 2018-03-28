@@ -30,7 +30,7 @@ public interface MessageRouter extends Serializable {
      * @deprecated since 1.22.0. Please use {@link #choosePartition(Message, TopicMetadata)} instead.
      */
     @Deprecated
-    default int choosePartition(Message msg) {
+    default int choosePartition(Message<?> msg) {
         throw new UnsupportedOperationException("Use #choosePartition(Message, TopicMetadata) instead");
     }
 
@@ -42,7 +42,7 @@ public interface MessageRouter extends Serializable {
      * @return the partition to route the message.
      * @since 1.22.0
      */
-    default int choosePartition(Message msg, TopicMetadata metadata) {
+    default int choosePartition(Message<?> msg, TopicMetadata metadata) {
         return choosePartition(msg);
     }
 

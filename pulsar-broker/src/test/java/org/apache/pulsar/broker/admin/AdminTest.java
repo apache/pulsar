@@ -584,8 +584,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertNotNull(allocatorStats);
         Map<String, Map<String, PendingBookieOpsStats>> bookieOpsStats = brokerStats.getPendingBookieOpsStats();
         assertTrue(bookieOpsStats.isEmpty());
-        StreamingOutput destination = brokerStats.getDestinations2();
-        assertNotNull(destination);
+        StreamingOutput topic = brokerStats.getTopics2();
+        assertNotNull(topic);
         try {
             brokerStats.getBrokerResourceAvailability("prop", "use", "ns2");
             fail("should have failed as ModularLoadManager doesn't support it");
@@ -600,7 +600,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         final String property = "prop-xyz";
         final String cluster = "use";
         final String namespace = "ns";
-        final String destination = "ds1";
+        final String topic = "ds1";
         Policies policies = new Policies();
         doReturn(policies).when(resourceQuotas).getNamespacePolicies(NamespaceName.get(property, cluster, namespace));
         doReturn("client-id").when(resourceQuotas).clientAppId();
@@ -613,11 +613,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
         List<String> list = persistentTopics.getList(property, cluster, namespace);
         assertTrue(list.isEmpty());
-        // create destination
+        // create topic
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists.newArrayList());
-        persistentTopics.createPartitionedTopic(property, cluster, namespace, destination, 5, false);
+        persistentTopics.createPartitionedTopic(property, cluster, namespace, topic, 5, false);
         assertEquals(persistentTopics.getPartitionedTopicList(property, cluster, namespace), Lists
-                .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, destination)));
+                .newArrayList(String.format("persistent://%s/%s/%s/%s", property, cluster, namespace, topic)));
 
         CountDownLatch notificationLatch = new CountDownLatch(2);
         configurationCache.policiesCache().registerListener((path, data, stat) -> {
@@ -627,19 +627,19 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // grant permission
         final Set<AuthAction> actions = Sets.newHashSet(AuthAction.produce);
         final String role = "test-role";
-        persistentTopics.grantPermissionsOnDestination(property, cluster, namespace, destination, role, actions);
+        persistentTopics.grantPermissionsOnTopic(property, cluster, namespace, topic, role, actions);
         // verify permission
-        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnDestination(property, cluster,
-                namespace, destination);
+        Map<String, Set<AuthAction>> permission = persistentTopics.getPermissionsOnTopic(property, cluster,
+                namespace, topic);
         assertEquals(permission.get(role), actions);
         // remove permission
-        persistentTopics.revokePermissionsOnDestination(property, cluster, namespace, destination, role);
+        persistentTopics.revokePermissionsOnTopic(property, cluster, namespace, topic, role);
 
         // Wait for cache to be updated
         notificationLatch.await();
 
         // verify removed permission
-        permission = persistentTopics.getPermissionsOnDestination(property, cluster, namespace, destination);
+        permission = persistentTopics.getPermissionsOnTopic(property, cluster, namespace, topic);
         assertTrue(permission.isEmpty());
     }
 

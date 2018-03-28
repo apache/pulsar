@@ -32,6 +32,7 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.util.Properties;
 
+import org.apache.bookkeeper.client.BookKeeper.DigestType;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.testng.annotations.Test;
 
@@ -100,6 +101,7 @@ public class PulsarConfigurationLoaderTest {
         printWriter.println("superUserRoles=appid1,appid2");
         printWriter.println("brokerServicePort=7777");
         printWriter.println("managedLedgerDefaultMarkDeleteRateLimit=5.0");
+        printWriter.println("managedLedgerDigestType=CRC32C");
         printWriter.close();
         testConfigFile.deleteOnExit();
         InputStream stream = new FileInputStream(testConfigFile);
@@ -111,6 +113,7 @@ public class PulsarConfigurationLoaderTest {
         assertEquals(serviceConfig.getClusterName(), "usc");
         assertEquals(serviceConfig.getBrokerClientAuthenticationParameters(), "role:my-role");
         assertEquals(serviceConfig.getBrokerServicePort(), 7777);
+        assertEquals(serviceConfig.getManagedLedgerDigestType(), DigestType.CRC32C);
     }
 
     @Test

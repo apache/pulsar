@@ -19,6 +19,7 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static java.util.stream.Collectors.toSet;
+import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.service.persistent.PersistentTopic.MESSAGE_RATE_BACKOFF_MS;
 
 import java.util.List;
@@ -36,14 +37,17 @@ import org.apache.bookkeeper.mledger.ManagedLedgerException.TooManyRequestsExcep
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.pulsar.broker.ServiceConfiguration;
+import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.service.AbstractDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.BrokerServiceException;
+import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.broker.service.Consumer;
 import org.apache.pulsar.broker.service.Consumer.SendMessageInfo;
 import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.BrokerServiceException.ConsumerBusyException;
 import org.apache.pulsar.client.impl.Backoff;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
+import org.apache.pulsar.common.naming.TopicName;
+import org.apache.pulsar.common.policies.data.Policies;
 import org.apache.pulsar.common.util.Codec;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.utils.CopyOnWriteArrayList;
@@ -132,7 +136,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     private boolean isConsumersExceededOnTopic() {
-        final int maxConsumersPerTopic = serviceConfig.getMaxConsumersPerTopic();
+        Policies policies;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxConsumersPerTopic = policies.max_consumers_per_topic > 0 ?
+                policies.max_consumers_per_topic :
+                serviceConfig.getMaxConsumersPerTopic();
         if (maxConsumersPerTopic > 0 && maxConsumersPerTopic <= topic.getNumberOfConsumers()) {
             return true;
         }
@@ -140,7 +154,17 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     private boolean isConsumersExceededOnSubscription() {
-        final int maxConsumersPerSubscription = serviceConfig.getMaxConsumersPerSubscription();
+        Policies policies;
+        try {
+            policies = topic.getBrokerService().pulsar().getConfigurationCache().policiesCache()
+                    .get(AdminResource.path(POLICIES, TopicName.get(topic.getName()).getNamespace()))
+                    .orElseGet(() -> new Policies());
+        } catch (Exception e) {
+            policies = new Policies();
+        }
+        final int maxConsumersPerSubscription = policies.max_consumers_per_subscription > 0 ?
+                policies.max_consumers_per_subscription :
+                serviceConfig.getMaxConsumersPerSubscription();
         if (maxConsumersPerSubscription > 0 && maxConsumersPerSubscription <= consumerList.size()) {
             return true;
         }

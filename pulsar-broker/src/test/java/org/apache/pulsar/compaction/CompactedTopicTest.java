@@ -18,61 +18,41 @@
  */
 package org.apache.pulsar.compaction;
 
-import static org.apache.pulsar.client.impl.RawReaderTest.extractKey;
-
-import org.apache.commons.lang3.tuple.Pair;
-import org.apache.commons.lang3.tuple.Triple;
-import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.ThreadFactoryBuilder;
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
-
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
-import java.util.NavigableMap;
-import java.util.TreeMap;
-import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.IntStream;
 
-
-import org.apache.bookkeeper.client.BookKeeper;
-import org.apache.bookkeeper.client.LedgerEntry;
-import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.client.BKException;
-import org.apache.bookkeeper.mledger.Position;
+import org.apache.bookkeeper.client.BookKeeper;
+import org.apache.bookkeeper.client.LedgerHandle;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
+import org.apache.commons.lang3.tuple.Pair;
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
-import org.apache.pulsar.common.api.Commands;
+import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.RawMessageImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
-import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
-import org.apache.pulsar.client.api.MessageBuilder;
-import org.apache.pulsar.client.api.RawMessage;
-import org.apache.pulsar.client.impl.RawMessageImpl;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.github.benmanes.caffeine.cache.AsyncLoadingCache;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+import lombok.Cleanup;
+
 public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
-    private static final Logger log = LoggerFactory.getLogger(CompactedTopicTest.class);
+    private final Random r = new Random(0);
 
     @BeforeMethod
     @Override
@@ -97,15 +77,13 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
      * entries in the ledger, and a list of gaps, and the entry which should be returned after the gap.
      */
     private Triple<Long, List<Pair<MessageIdData,Long>>, List<Pair<MessageIdData,Long>>>
-        buildCompactedLedger(BookKeeper bk, int seed, int count)
+        buildCompactedLedger(BookKeeper bk, int count)
             throws Exception {
-        Random r = new Random(seed);
         LedgerHandle lh = bk.createLedger(1, 1,
                                           Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
                                           Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
         List<Pair<MessageIdData,Long>> positions = new ArrayList<>();
         List<Pair<MessageIdData,Long>> idsInGaps = new ArrayList<>();
-        ByteBuf emptyBuffer = Unpooled.buffer(0);
 
         AtomicLong ledgerIds = new AtomicLong(10L);
         AtomicLong entryIds = new AtomicLong(0L);
@@ -131,10 +109,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                         MessageIdData id = MessageIdData.newBuilder()
                             .setLedgerId(ledgerIds.get())
                             .setEntryId(entryIds.addAndGet(delta + 1)).build();
-                        RawMessage m = new RawMessageImpl(id, emptyBuffer);
+
+                        @Cleanup
+                        RawMessage m = new RawMessageImpl(id, Unpooled.EMPTY_BUFFER);
 
                         CompletableFuture<Void> f = new CompletableFuture<>();
-                        lh.asyncAddEntry(m.serialize(),
+                        ByteBuf buffer = m.serialize();
+
+                        lh.asyncAddEntry(buffer,
                                 (rc, ledger, eid, ctx) -> {
                                      if (rc != BKException.Code.OK) {
                                          f.completeExceptionally(BKException.create(rc));
@@ -144,6 +126,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                                          f.complete(null);
                                      }
                                 }, null);
+                        buffer.release();
                         return f;
                     }).toArray(CompletableFuture[]::new)).get();
         lh.close();
@@ -157,7 +140,7 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                 this.conf, null);
 
         Triple<Long, List<Pair<MessageIdData, Long>>, List<Pair<MessageIdData, Long>>> compactedLedgerData
-            = buildCompactedLedger(bk, 0, 500);
+            = buildCompactedLedger(bk, 500);
 
         List<Pair<MessageIdData, Long>> positions = compactedLedgerData.getMiddle();
         List<Pair<MessageIdData, Long>> idsInGaps = compactedLedgerData.getRight();
@@ -189,19 +172,14 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
                             Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
 
         // shuffle to make cache work hard
-        Collections.shuffle(positions);
-        Collections.shuffle(idsInGaps);
+        Collections.shuffle(positions, r);
+        Collections.shuffle(idsInGaps, r);
 
         // Check ids we know are in compacted ledger
         for (Pair<MessageIdData, Long> p : positions) {
             PositionImpl pos = new PositionImpl(p.getLeft().getLedgerId(), p.getLeft().getEntryId());
-            if (p.equals(lastPosition)) {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                                    Long.valueOf(CompactedTopicImpl.NEWER_THAN_COMPACTED));
-            } else {
-                Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
-                            Long.valueOf(p.getRight() + 1));
-            }
+            Long got = CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get();
+            Assert.assertEquals(got, Long.valueOf(p.getRight()));
         }
 
         // Check ids we know are in the gaps of the compacted ledger
@@ -210,5 +188,48 @@ public class CompactedTopicTest extends MockedPulsarServiceBaseTest {
             Assert.assertEquals(CompactedTopicImpl.findStartPoint(pos, lastEntryId, cache).get(),
                                 Long.valueOf(gap.getRight()));
         }
+    }
+
+    @Test
+    public void testCleanupOldCompactedTopicLedger() throws Exception {
+        BookKeeper bk = pulsar.getBookKeeperClientFactory().create(
+                this.conf, null);
+
+        LedgerHandle oldCompactedLedger = bk.createLedger(1, 1,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        oldCompactedLedger.close();
+        LedgerHandle newCompactedLedger = bk.createLedger(1, 1,
+                Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD);
+        newCompactedLedger.close();
+
+        // set the compacted topic ledger
+        CompactedTopicImpl compactedTopic = new CompactedTopicImpl(bk);
+        compactedTopic.newCompactedLedger(new PositionImpl(1,2), oldCompactedLedger.getId()).get();
+
+        // ensure both ledgers still exist, can be opened
+        bk.openLedger(oldCompactedLedger.getId(),
+                      Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                      Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+        bk.openLedger(newCompactedLedger.getId(),
+                      Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                      Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+
+        // update the compacted topic ledger
+        compactedTopic.newCompactedLedger(new PositionImpl(1,2), newCompactedLedger.getId()).get();
+
+        // old ledger should be deleted, new still there
+        try {
+            bk.openLedger(oldCompactedLedger.getId(),
+                          Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                          Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
+            Assert.fail("Should have failed to open old ledger");
+        } catch (BKException.BKNoSuchLedgerExistsException e) {
+            // correct, expected behaviour
+        }
+        bk.openLedger(newCompactedLedger.getId(),
+                      Compactor.COMPACTED_TOPIC_LEDGER_DIGEST_TYPE,
+                      Compactor.COMPACTED_TOPIC_LEDGER_PASSWORD).close();
     }
 }

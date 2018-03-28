@@ -28,7 +28,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandLookupTopicResponse.LookupType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandPartitionedTopicMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -126,7 +126,7 @@ public class LookupProxyHandler {
                         String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
                         if (result.redirect) {
                             // Need to try the lookup again on a different broker
-                            performLookup(clientRequestId, topic, brokerUrl, authoritative, numberOfRetries - 1);
+                            performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
                         } else {
                             // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
                             // between proxy
@@ -157,19 +157,19 @@ public class LookupProxyHandler {
         }
 
         final long clientRequestId = partitionMetadata.getRequestId();
-        DestinationName dn = DestinationName.get(partitionMetadata.getTopic());
+        TopicName topicName = TopicName.get(partitionMetadata.getTopic());
         if (isBlank(brokerServiceURL)) {
-            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, dn, proxyConnection.clientAuthRole,
+            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topicName, proxyConnection.clientAuthRole,
                     proxyConnection.authenticationData)
                     .thenAccept(metadata -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Total number of partitions for topic {} is {}",
-                                    proxyConnection.clientAuthRole, dn, metadata.partitions);
+                                    proxyConnection.clientAuthRole, topicName, metadata.partitions);
                         }
                         proxyConnection.ctx().writeAndFlush(
                                 Commands.newPartitionMetadataResponse(metadata.partitions, clientRequestId));
                     }).exceptionally(ex -> {
-                        log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, dn,
+                        log.warn("[{}] Failed to get partitioned metadata for topic {} {}", clientAddress, topicName,
                                 ex.getMessage(), ex);
                         proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(
                                 ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
@@ -188,7 +188,7 @@ public class LookupProxyHandler {
 
             if (log.isDebugEnabled()) {
                 log.debug("Getting connections to '{}' for Looking up topic '{}' with clientReq Id '{}'", addr,
-                        dn.getPartitionedTopicName(), clientRequestId);
+                        topicName.getPartitionedTopicName(), clientRequestId);
             }
 
             service.getConnectionPool().getConnection(addr).thenAccept(clientCnx -> {
@@ -196,11 +196,11 @@ public class LookupProxyHandler {
                 long requestId = service.newRequestId();
                 ByteBuf command;
                 if (service.getConfiguration().isAuthenticationEnabled()) {
-                    command = Commands.newPartitionMetadataRequest(dn.toString(), requestId,
+                    command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId,
                             proxyConnection.clientAuthRole, proxyConnection.clientAuthData,
                             proxyConnection.clientAuthMethod);
                 } else {
-                    command = Commands.newPartitionMetadataRequest(dn.toString(), requestId);
+                    command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
                 }
                 clientCnx.newLookup(
                         command,
@@ -208,7 +208,7 @@ public class LookupProxyHandler {
                             proxyConnection.ctx().writeAndFlush(Commands
                                     .newPartitionMetadataResponse(lookupDataResult.partitions, clientRequestId));
                         }).exceptionally((ex) -> {
-                            log.warn("[{}] failed to get Partitioned metadata : {}", dn.toString(),
+                            log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
                                     ex.getCause().getMessage(), ex);
                             proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(
                                     ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));

@@ -50,6 +50,10 @@ public class Policies {
     public boolean encryption_required = false;
     public SubscriptionAuthMode subscription_auth_mode = SubscriptionAuthMode.None;
 
+    public int max_producers_per_topic = 0;
+    public int max_consumers_per_topic = 0;
+    public int max_consumers_per_subscription = 0;
+
     @Override
     public boolean equals(Object obj) {
         if (obj instanceof Policies) {
@@ -65,7 +69,10 @@ public class Policies {
                     && Objects.equals(retention_policies, other.retention_policies)
                     && Objects.equals(encryption_required, other.encryption_required)
                     && Objects.equals(subscription_auth_mode, other.subscription_auth_mode)
-                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup);
+                    && Objects.equals(antiAffinityGroup, other.antiAffinityGroup)
+                    && max_producers_per_topic == other.max_producers_per_topic
+                    && max_consumers_per_topic == other.max_consumers_per_topic
+                    && max_consumers_per_subscription == other.max_consumers_per_subscription;
         }
 
         return false;
@@ -92,6 +99,9 @@ public class Policies {
                 .add("message_ttl_in_seconds", message_ttl_in_seconds).add("retention_policies", retention_policies)
                 .add("deleted", deleted)
                 .add("encryption_required", encryption_required)
-                .add("subscription_auth_mode", subscription_auth_mode).toString();
+                .add("subscription_auth_mode", subscription_auth_mode)
+                .add("max_producers_per_topic", max_producers_per_topic)
+                .add("max_consumers_per_topic", max_consumers_per_topic)
+                .add("max_consumers_per_subscription", max_consumers_per_topic).toString();
     }
 }

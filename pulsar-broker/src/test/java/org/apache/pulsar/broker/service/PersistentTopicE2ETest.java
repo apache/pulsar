@@ -18,12 +18,6 @@
  */
 package org.apache.pulsar.broker.service;
 
-import static org.mockito.Matchers.any;
-import static org.mockito.Matchers.anyObject;
-import static org.mockito.Matchers.anyString;
-import static org.mockito.Mockito.doAnswer;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -32,10 +26,8 @@ import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 import java.lang.reflect.Field;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeSet;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -46,26 +38,20 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedLedger;
-import org.apache.bookkeeper.mledger.ManagedLedgerConfig;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.OpenLedgerCallback;
 import org.apache.bookkeeper.mledger.impl.EntryCacheImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerFactoryImpl;
 import org.apache.bookkeeper.mledger.impl.ManagedLedgerImpl;
-import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.BrokerService;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
 import org.apache.pulsar.broker.service.persistent.PersistentSubscription;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdminException;
 import org.apache.pulsar.client.api.CompressionType;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
+import org.apache.pulsar.client.api.ProducerBuilder;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.ProducerBusyException;
@@ -74,20 +60,16 @@ import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.client.impl.ProducerImpl;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.stats.Metrics;
 import org.apache.pulsar.common.util.collections.ConcurrentLongPairSet;
 import org.apache.pulsar.policies.data.loadbalancer.NamespaceBundleStats;
-import org.mockito.invocation.InvocationOnMock;
-import org.mockito.stubbing.Answer;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.Sets;
 
 /**
  */
@@ -110,7 +92,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic0";
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
@@ -138,11 +120,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 10;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
         // 1. client connect
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
@@ -154,7 +133,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertEquals(getAvailablePermits(subRef), 1000 /* default */);
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs * 2; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -168,7 +147,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertEquals(getAvailablePermits(subRef), 1000 - numMsgs * 2);
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         for (int i = 0; i < numMsgs; i++) {
             msg = consumer.receive();
             // 3. in-order message delivery
@@ -223,15 +202,12 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic2";
         final String subName = "sub2";
 
-        Message msg;
+        Message<byte[]> msg;
         int recvQueueSize = 4;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        conf.setReceiverQueueSize(recvQueueSize);
-
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(recvQueueSize).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
@@ -269,16 +245,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic2";
         final String subName = "sub2";
 
-        Message msg;
+        Message<byte[]> msg;
         int recvQueueSize = 4;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        conf.setReceiverQueueSize(recvQueueSize);
-
         // (1) Create subscription
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .receiverQueueSize(recvQueueSize).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // (2) Produce Messages
         for (int i = 0; i < recvQueueSize / 2; i++) {
@@ -329,10 +302,6 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final int recvQueueSize = 100;
         final int numConsumersThreads = 10;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        conf.setReceiverQueueSize(recvQueueSize);
-
         ExecutorService executor = Executors.newCachedThreadPool();
 
         final CyclicBarrier barrier = new CyclicBarrier(numConsumersThreads + 1);
@@ -342,9 +311,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
                 public Void call() throws Exception {
                     barrier.await();
 
-                    Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+                    Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                            .receiverQueueSize(recvQueueSize).subscribe();
                     for (int i = 0; i < recvQueueSize / numConsumersThreads; i++) {
-                        Message msg = consumer.receive();
+                        Message<byte[]> msg = consumer.receive();
                         consumer.acknowledge(msg);
                     }
                     return null;
@@ -352,7 +322,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             });
         }
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < recvQueueSize * numConsumersThreads; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -370,6 +340,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 2. flow control works the same as single consumer single thread
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertEquals(getAvailablePermits(subRef), recvQueueSize);
+        executor.shutdown();
     }
 
     @Test(enabled = false)
@@ -378,7 +349,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic4";
         final String subName = "sub4";
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
@@ -405,14 +376,12 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // wait for the spawned thread to complete
         latch.await();
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         PersistentSubscription subRef = topicRef.getSubscription(subName);
         assertNotNull(subRef);
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         for (int i = 0; i < 10; i++) {
             msg = consumer.receive();
         }
@@ -433,6 +402,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
         assertTrue(subRef.getDispatcher().isConsumerConnected());
+
+        executor.shutdown();
     }
 
     @Test
@@ -440,18 +411,15 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic5";
         final String subName = "sub5";
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
         assertNotNull(subRef);
 
-        Message msg;
+        Message<byte[]> msg;
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -471,13 +439,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic6";
         final String subName = "sub6";
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
-        pulsarClient.subscribe(topicName, subName, conf);
-        pulsarClient.createProducer(topicName);
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        pulsarClient.newProducer().topic(topicName).create();
         try {
-            pulsarClient.subscribe(topicName, subName, conf);
+            pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
             fail("Should have thrown an exception since one consumer is already connected");
         } catch (PulsarClientException cce) {
             Assert.assertTrue(cce.getMessage().contains("Exclusive consumer is already connected"));
@@ -489,19 +454,16 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic7";
         final String subName = "sub7";
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
-        PulsarClient client1 = PulsarClient.create(brokerUrl.toString());
-        PulsarClient client2 = PulsarClient.create(brokerUrl.toString());
+        PulsarClient client1 = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
+        PulsarClient client2 = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
 
         try {
-            client1.subscribe(topicName, subName, conf);
-            client1.createProducer(topicName);
+            client1.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+            client1.newProducer().topic(topicName).create();
 
-            client2.createProducer(topicName);
+            client2.newProducer().topic(topicName).create();
 
-            client2.subscribe(topicName, subName, conf);
+            client2.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
             fail("Should have thrown an exception since one consumer is already connected");
         } catch (PulsarClientException cce) {
             Assert.assertTrue(cce.getMessage().contains("Exclusive consumer is already connected"));
@@ -516,11 +478,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic8";
         final String subName = "sub1";
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
         // 1. client connect
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
@@ -548,20 +507,20 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
     @Test(enabled = false)
     public void testUnloadNamespace() throws Exception {
-        String topicName = "persistent://prop/use/ns-abc/topic-9";
-        DestinationName destinationName = DestinationName.get(topicName);
-        pulsarClient.createProducer(topicName);
+        String topic = "persistent://prop/use/ns-abc/topic-9";
+        TopicName topicName = TopicName.get(topic);
+        pulsarClient.newProducer().topic(topic).create();
         pulsarClient.close();
 
-        assertTrue(pulsar.getBrokerService().getTopicReference(topicName) != null);
+        assertTrue(pulsar.getBrokerService().getTopicReference(topic) != null);
         assertTrue(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
-                .containsKey(destinationName.getPersistenceNamingEncoding()));
+                .containsKey(topicName.getPersistenceNamingEncoding()));
 
         admin.namespaces().unload("prop/use/ns-abc");
 
         int i = 0;
         for (i = 0; i < 30; i++) {
-            if (pulsar.getBrokerService().getTopicReference(topicName) == null) {
+            if (pulsar.getBrokerService().getTopicReference(topic) == null) {
                 break;
             }
             Thread.sleep(1000);
@@ -572,14 +531,14 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // ML should have been closed as well
         assertFalse(((ManagedLedgerFactoryImpl) pulsar.getManagedLedgerFactory()).getManagedLedgers()
-                .containsKey(destinationName.getPersistenceNamingEncoding()));
+                .containsKey(topicName.getPersistenceNamingEncoding()));
     }
 
     @Test
     public void testGC() throws Exception {
         // 1. Simple successful GC
         String topicName = "persistent://prop/use/ns-abc/topic-10";
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
@@ -587,10 +546,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         assertNull(pulsar.getBrokerService().getTopicReference(topicName));
 
         // 2. Topic is not GCed with live connection
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
         String subName = "sub1";
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         runGC();
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
@@ -609,8 +566,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     /**
-     * A topic that has retention policy set to non-0, should not be GCed
-     * until it has been inactive for at least the retention time.
+     * A topic that has retention policy set to non-0, should not be GCed until it has been inactive for at least the
+     * retention time.
      */
     @Test
     public void testGcAndRetentionPolicy() throws Exception {
@@ -620,7 +577,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. Simple successful GC
         String topicName = "persistent://prop/use/ns-abc/topic-10";
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
@@ -628,16 +585,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // Should not have been deleted, since we have retention
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
-
         // Remove retention
         admin.namespaces().setRetention("prop/use/ns-abc", new RetentionPolicies(0, 10));
         Thread.sleep(300);
 
         // 2. Topic is not GCed with live connection
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
         String subName = "sub1";
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         runGC();
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
@@ -656,9 +610,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     /**
-     * A topic that has retention policy set to -1, should not be GCed
-     * until it has been inactive for at least the retention time and the data
-     * should never be deleted
+     * A topic that has retention policy set to -1, should not be GCed until it has been inactive for at least the
+     * retention time and the data should never be deleted
      */
     @Test
     public void testInfiniteRetentionPolicy() throws Exception {
@@ -667,7 +620,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 1. Simple successful GC
         String topicName = "persistent://prop/use/ns-abc/topic-10";
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         producer.close();
 
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
@@ -675,16 +628,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // Should not have been deleted, since we have retention
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
 
-
         // Remove retention
         admin.namespaces().setRetention("prop/use/ns-abc", new RetentionPolicies(0, 10));
         Thread.sleep(300);
 
         // 2. Topic is not GCed with live connection
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
         String subName = "sub1";
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         runGC();
         assertNotNull(pulsar.getBrokerService().getTopicReference(topicName));
@@ -714,10 +664,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 10;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
@@ -725,7 +672,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         consumer.close();
         assertFalse(subRef.getDispatcher().isConsumerConnected());
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -760,17 +707,14 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String subName = "sub1";
         final int numMsgs = 10;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-
-        pulsarClient.subscribe(topicName, subName, conf);
+        pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         assertTrue(subRef.getDispatcher().isConsumerConnected());
 
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         for (int i = 0; i < numMsgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
@@ -795,25 +739,18 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/shared-topic2";
         final String subName = "sub2";
 
-        ConsumerConfiguration conf1 = new ConsumerConfiguration();
-        conf1.setSubscriptionType(SubscriptionType.Exclusive);
-
-        ConsumerConfiguration conf2 = new ConsumerConfiguration();
-        conf2.setSubscriptionType(SubscriptionType.Shared);
-
-        ConsumerConfiguration conf3 = new ConsumerConfiguration();
-        conf3.setSubscriptionType(SubscriptionType.Failover);
-
-        Consumer consumer1 = pulsarClient.subscribe(topicName, subName, conf1);
-        Consumer consumer2 = null;
-        Consumer consumer3 = null;
+        Consumer<byte[]> consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Exclusive).subscribe();
+        Consumer<byte[]> consumer2 = null;
+        Consumer<byte[]> consumer3 = null;
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         PersistentSubscription subRef = topicRef.getSubscription(subName);
 
         // 1. shared consumer on an exclusive sub fails
         try {
-            consumer2 = pulsarClient.subscribe(topicName, subName, conf2);
+            consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Shared).subscribe();
             fail("should have failed");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Subscription is of different type"));
@@ -821,7 +758,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 2. failover consumer on an exclusive sub fails
         try {
-            consumer3 = pulsarClient.subscribe(topicName, subName, conf3);
+            consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Failover).subscribe();
             fail("should have failed");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Subscription is of different type"));
@@ -830,7 +768,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 3. disconnected sub can be converted in shared
         consumer1.close();
         try {
-            consumer2 = pulsarClient.subscribe(topicName, subName, conf2);
+            consumer2 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Shared).subscribe();
             assertEquals(subRef.getDispatcher().getType(), SubType.Shared);
         } catch (PulsarClientException e) {
             fail("should not fail");
@@ -838,7 +777,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         // 4. exclusive fails on shared sub
         try {
-            consumer1 = pulsarClient.subscribe(topicName, subName, conf1);
+            consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Exclusive).subscribe();
             fail("should have failed");
         } catch (PulsarClientException e) {
             assertTrue(e.getMessage().contains("Subscription is of different type"));
@@ -847,7 +787,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 5. disconnected sub can be converted in failover
         consumer2.close();
         try {
-            consumer3 = pulsarClient.subscribe(topicName, subName, conf3);
+            consumer3 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Failover).subscribe();
             assertEquals(subRef.getDispatcher().getType(), SubType.Failover);
         } catch (PulsarClientException e) {
             fail("should not fail");
@@ -856,7 +797,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // 5. exclusive consumer can connect after failover disconnects
         consumer3.close();
         try {
-            consumer1 = pulsarClient.subscribe(topicName, subName, conf1);
+            consumer1 = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                    .subscriptionType(SubscriptionType.Exclusive).subscribe();
             assertEquals(subRef.getDispatcher().getType(), SubType.Exclusive);
         } catch (PulsarClientException e) {
             fail("should not fail");
@@ -871,16 +813,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic-receive-timeout";
         final String subName = "sub";
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        conf.setReceiverQueueSize(1000);
-
-        ConsumerImpl consumer = (ConsumerImpl) pulsarClient.subscribe(topicName, subName, conf);
-        Producer producer = pulsarClient.createProducer(topicName);
+        ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName(subName).receiverQueueSize(1000).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         assertEquals(consumer.getAvailablePermits(), 0);
 
-        Message msg = consumer.receive(10, TimeUnit.MILLISECONDS);
+        Message<byte[]> msg = consumer.receive(10, TimeUnit.MILLISECONDS);
         assertNull(msg);
         assertEquals(consumer.getAvailablePermits(), 0);
 
@@ -903,7 +842,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic-xyz";
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
@@ -927,7 +866,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
 
         for (int i = SyncMessages; i < (SyncMessages + AsyncMessages); i++) {
             String content = "my-message-" + i;
-            Message msg = MessageBuilder.create().setContent(content.getBytes()).build();
+            Message<byte[]> msg = MessageBuilder.create().setContent(content.getBytes()).build();
             final int index = i;
 
             producer.sendAsync(msg).thenRun(() -> {
@@ -949,12 +888,11 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic-xyzx";
         final int messages = 10;
 
-        PulsarClient client = PulsarClient.create(brokerUrl.toString());
+        PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
 
         // 1. Producer connect
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration().setMaxPendingMessages(messages)
-                .setBlockIfQueueFull(true).setSendTimeout(1, TimeUnit.SECONDS);
-        ProducerImpl producer = (ProducerImpl) client.createProducer(topicName, producerConfiguration);
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer().topic(topicName)
+                .maxPendingMessages(messages).blockIfQueueFull(true).sendTimeout(1, TimeUnit.SECONDS).create();
 
         // 2. Stop broker
         cleanup();
@@ -993,10 +931,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final int messages = 10;
 
         // 1. Producer connect
-        PulsarClient client = PulsarClient.create(brokerUrl.toString());
-        ProducerConfiguration producerConfiguration = new ProducerConfiguration().setMaxPendingMessages(messages)
-                .setBlockIfQueueFull(false).setSendTimeout(1, TimeUnit.SECONDS);
-        ProducerImpl producer = (ProducerImpl) client.createProducer(topicName, producerConfiguration);
+        PulsarClient client = PulsarClient.builder().serviceUrl(brokerUrl.toString()).build();
+        ProducerImpl<byte[]> producer = (ProducerImpl<byte[]>) client.newProducer().topic(topicName)
+                .maxPendingMessages(messages).blockIfQueueFull(false).sendTimeout(1, TimeUnit.SECONDS).create();
 
         // 2. Stop broker
         cleanup();
@@ -1038,8 +975,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         BrokerService brokerService = pulsar.getBrokerService();
 
         // 1. producers connect
-        Producer producer1 = pulsarClient.createProducer("persistent://prop/use/ns-abc/topic-1");
-        Producer producer2 = pulsarClient.createProducer("persistent://prop/use/ns-abc/topic-2");
+        Producer<byte[]> producer1 = pulsarClient.newProducer().topic("persistent://prop/use/ns-abc/topic-1").create();
+        /* Producer<byte[]> producer2 = */ pulsarClient.newProducer().topic("persistent://prop/use/ns-abc/topic-2")
+                .create();
 
         brokerService.updateRates();
 
@@ -1078,11 +1016,9 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic0" + compressionType;
 
         // 1. producer connect
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        producerConf.setCompressionType(compressionType);
-        Producer producer = pulsarClient.createProducer(topicName, producerConf);
-
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).compressionType(compressionType)
+                .create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
@@ -1095,7 +1031,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         for (int i = 0; i < 10; i++) {
-            Message msg = consumer.receive(5, TimeUnit.SECONDS);
+            Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
             assertNotNull(msg);
             assertEquals(msg.getData(), ("my-message-" + i).getBytes());
         }
@@ -1116,8 +1052,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         statsUpdater.shutdown();
 
         final String namespace = "prop/use/ns-abc";
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-        Producer producer = pulsarClient.createProducer("persistent://" + namespace + "/topic0", producerConf);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + namespace + "/topic0").create();
         // 1. producer publish messages
         for (int i = 0; i < 10; i++) {
             String message = "my-message-" + i;
@@ -1128,7 +1063,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // sleep 1 sec to caclulate metrics per second
         Thread.sleep(1000);
         brokerService.updateRates();
-        List<Metrics> metrics = brokerService.getDestinationMetrics();
+        List<Metrics> metrics = brokerService.getTopicMetrics();
         for (int i = 0; i < metrics.size(); i++) {
             if (metrics.get(i).getDimension("namespace").equalsIgnoreCase(namespace)) {
                 metric = metrics.get(i);
@@ -1146,11 +1081,10 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic1";
 
         // 1. producer connect
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-sub").subscribe();
 
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-sub");
-
-        Message msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
+        Message<byte[]> msg1 = MessageBuilder.create().setContent("message-1".getBytes()).build();
         CompletableFuture<MessageId> future1 = producer.sendAsync(msg1);
 
         // Stop the broker, and publishes messages. Messages are accumulated in the producer queue and they're checksums
@@ -1158,8 +1092,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         // checksum validation error
         stopBroker();
 
-
-        Message msg2 = MessageBuilder.create().setContent("message-2".getBytes()).build();
+        Message<byte[]> msg2 = MessageBuilder.create().setContent("message-2".getBytes()).build();
         CompletableFuture<MessageId> future2 = producer.sendAsync(msg2);
 
         // Taint msg2
@@ -1178,7 +1111,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         }
 
         // We should only receive msg1
-        Message msg = consumer.receive(1, TimeUnit.SECONDS);
+        Message<byte[]> msg = consumer.receive(1, TimeUnit.SECONDS);
         assertEquals(new String(msg.getData()), "message-1");
 
         while ((msg = consumer.receive(1, TimeUnit.SECONDS)) != null) {
@@ -1187,25 +1120,23 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     /**
-     * Verify: Broker should not replay already acknowledged messages again and should clear them from messageReplay bucket
+     * Verify: Broker should not replay already acknowledged messages again and should clear them from messageReplay
+     * bucket
      *
-     * 1. produce messages
-     * 2. consume messages and ack all except 1 msg
-     * 3. Verification: should replay only 1 unacked message
+     * 1. produce messages 2. consume messages and ack all except 1 msg 3. Verification: should replay only 1 unacked
+     * message
      */
     @Test()
     public void testMessageRedelivery() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/topic2";
         final String subName = "sub2";
 
-        Message msg;
+        Message<byte[]> msg;
         int totalMessages = 10;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         // (1) Produce messages
         for (int i = 0; i < totalMessages; i++) {
@@ -1213,8 +1144,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
             producer.send(message.getBytes());
         }
 
-        //(2) Consume and ack messages except first message
-        Message unAckedMsg = null;
+        // (2) Consume and ack messages except first message
+        Message<byte[]> unAckedMsg = null;
         for (int i = 0; i < totalMessages; i++) {
             msg = consumer.receive();
             if (i == 0) {
@@ -1243,10 +1174,8 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     }
 
     /**
-     * Verify:
-     * 1. Broker should not replay already acknowledged messages
-     * 2. Dispatcher should not stuck while dispatching new messages due to previous-replay
-     * of invalid/already-acked messages
+     * Verify: 1. Broker should not replay already acknowledged messages 2. Dispatcher should not stuck while
+     * dispatching new messages due to previous-replay of invalid/already-acked messages
      *
      * @throws Exception
      */
@@ -1256,16 +1185,13 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         final String topicName = "persistent://prop/use/ns-abc/topic2";
         final String subName = "sub2";
 
-        Message msg;
+        Message<byte[]> msg;
         int totalMessages = 10;
         int replayIndex = totalMessages / 2;
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setReceiverQueueSize(1);
-
-        Consumer consumer = pulsarClient.subscribe(topicName, subName, conf);
-        Producer producer = pulsarClient.createProducer(topicName);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(1).subscribe();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
         assertNotNull(topicRef);
@@ -1327,13 +1253,12 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
     public void testCreateProducerWithSameName() throws Exception {
         String topic = "persistent://prop/use/ns-abc/testCreateProducerWithSameName";
 
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setProducerName("test-producer-a");
-
-        Producer p1 = pulsarClient.createProducer(topic, conf);
+        ProducerBuilder<byte[]> producerBuilder = pulsarClient.newProducer().topic(topic)
+                .producerName("test-producer-a");
+        Producer<byte[]> p1 = producerBuilder.create();
 
         try {
-            pulsarClient.createProducer(topic, conf);
+            producerBuilder.create();
             fail("Should have thrown ProducerBusyException");
         } catch (ProducerBusyException e) {
             // Expected
@@ -1342,7 +1267,7 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         p1.close();
 
         // Now p2 should succeed
-        Producer p2 = pulsarClient.createProducer(topic, conf);
+        Producer<byte[]> p2 = producerBuilder.create();
 
         p2.close();
     }

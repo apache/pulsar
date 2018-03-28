@@ -21,31 +21,24 @@ package org.apache.pulsar.broker.authorization;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.apache.pulsar.zookeeper.ZooKeeperCache.cacheTimeOutInSec;
 
-import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import javax.servlet.http.HttpServletRequest;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
-import org.apache.pulsar.common.naming.DestinationName;
 import org.apache.pulsar.common.naming.NamespaceName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Maps;
-
 /**
  * Authorization service that manages pluggable authorization provider and authorize requests accordingly.
- * 
+ *
  */
 public class AuthorizationService {
     private static final Logger log = LoggerFactory.getLogger(AuthorizationService.class);
@@ -60,16 +53,16 @@ public class AuthorizationService {
         if (this.conf.isAuthorizationEnabled()) {
             try {
                 final String providerClassname = conf.getAuthorizationProvider();
-                if(StringUtils.isNotBlank(providerClassname)) {
+                if (StringUtils.isNotBlank(providerClassname)) {
                     provider = (AuthorizationProvider) Class.forName(providerClassname).newInstance();
                     provider.initialize(conf, configCache);
-                    log.info("{} has been loaded.", providerClassname); 
+                    log.info("{} has been loaded.", providerClassname);
                 } else {
                     throw new PulsarServerException("No authorization providers are present.");
                 }
             } catch (PulsarServerException e) {
                 throw e;
-            }catch (Throwable e) {
+            } catch (Throwable e) {
                 throw new PulsarServerException("Failed to load an authorization provider.", e);
             }
         } else {
@@ -78,9 +71,9 @@ public class AuthorizationService {
     }
 
     /**
-     * 
+     *
      * Grant authorization-action permission on a namespace to the given client
-     * 
+     *
      * @param namespace
      * @param actions
      * @param role
@@ -103,7 +96,7 @@ public class AuthorizationService {
 
     /**
      * Grant authorization-action permission on a topic to the given client
-     * 
+     *
      * @param topicname
      * @param role
      * @param authDataJson
@@ -112,26 +105,25 @@ public class AuthorizationService {
      * @throws IllegalStateException
      *             when failed to grant permission
      */
-    public CompletableFuture<Void> grantPermissionAsync(DestinationName topicname, Set<AuthAction> actions, String role,
+    public CompletableFuture<Void> grantPermissionAsync(TopicName topicname, Set<AuthAction> actions, String role,
             String authDataJson) {
 
         if (provider != null) {
             return provider.grantPermissionAsync(topicname, actions, role, authDataJson);
         }
-        return FutureUtil
-                .failedFuture(new IllegalStateException("No authorization provider configured"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
 
     }
 
     /**
-     * Check if the specified role has permission to send messages to the specified fully qualified destination name.
+     * Check if the specified role has permission to send messages to the specified fully qualified topic name.
      *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
      * @param role
-     *            the app id used to send messages to the destination.
+     *            the app id used to send messages to the topic.
      */
-    public CompletableFuture<Boolean> canProduceAsync(DestinationName destination, String role,
+    public CompletableFuture<Boolean> canProduceAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
 
         if (!this.conf.isAuthorizationEnabled()) {
@@ -139,126 +131,121 @@ public class AuthorizationService {
         }
 
         if (provider != null) {
-            return provider.canProduceAsync(destination, role, authenticationData);
+            return provider.canProduceAsync(topicName, role, authenticationData);
         }
-        return FutureUtil
-                .failedFuture(new IllegalStateException("No authorization provider configured"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
     /**
-     * Check if the specified role has permission to receive messages from the specified fully qualified destination
-     * name.
+     * Check if the specified role has permission to receive messages from the specified fully qualified topic name.
      *
-     * @param destination
-     *            the fully qualified destination name associated with the destination.
+     * @param topicName
+     *            the fully qualified topic name associated with the topic.
      * @param role
-     *            the app id used to receive messages from the destination.
+     *            the app id used to receive messages from the topic.
      * @param subscription
      *            the subscription name defined by the client
      */
-    public CompletableFuture<Boolean> canConsumeAsync(DestinationName destination, String role,
+    public CompletableFuture<Boolean> canConsumeAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData, String subscription) {
         if (!this.conf.isAuthorizationEnabled()) {
             return CompletableFuture.completedFuture(true);
         }
         if (provider != null) {
-            return provider.canConsumeAsync(destination, role, authenticationData, subscription);
+            return provider.canConsumeAsync(topicName, role, authenticationData, subscription);
         }
-        return FutureUtil
-                .failedFuture(new IllegalStateException("No authorization provider configured"));
+        return FutureUtil.failedFuture(new IllegalStateException("No authorization provider configured"));
     }
 
-    public boolean canProduce(DestinationName destination, String role, AuthenticationDataSource authenticationData) throws Exception {
+    public boolean canProduce(TopicName topicName, String role, AuthenticationDataSource authenticationData)
+            throws Exception {
         try {
-            return canProduceAsync(destination, role, authenticationData).get(cacheTimeOutInSec,
-                    SECONDS);
+            return canProduceAsync(topicName, role, authenticationData).get(cacheTimeOutInSec, SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
+            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, topicName);
             throw e;
         } catch (Exception e) {
-            log.warn("Producer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
-                    destination, e.getMessage());
+            log.warn("Producer-client  with Role - {} failed to get permissions for topic - {}. {}", role, topicName,
+                    e.getMessage());
             throw e;
         }
     }
 
-    public boolean canConsume(DestinationName destination, String role, AuthenticationDataSource authenticationData,
+    public boolean canConsume(TopicName topicName, String role, AuthenticationDataSource authenticationData,
             String subscription) throws Exception {
         try {
-            return canConsumeAsync(destination, role, authenticationData, subscription)
-                    .get(cacheTimeOutInSec, SECONDS);
+            return canConsumeAsync(topicName, role, authenticationData, subscription).get(cacheTimeOutInSec, SECONDS);
         } catch (InterruptedException e) {
-            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, destination);
+            log.warn("Time-out {} sec while checking authorization on {} ", cacheTimeOutInSec, topicName);
             throw e;
         } catch (Exception e) {
-            log.warn("Consumer-client  with Role - {} failed to get permissions for destination - {}. {}", role,
-                    destination, e.getMessage());
+            log.warn("Consumer-client  with Role - {} failed to get permissions for topic - {}. {}", role,
+                    topicName, e.getMessage());
             throw e;
         }
     }
 
     /**
-     * Check whether the specified role can perform a lookup for the specified destination.
+     * Check whether the specified role can perform a lookup for the specified topic.
      *
      * For that the caller needs to have producer or consumer permission.
      *
-     * @param destination
+     * @param topicName
      * @param role
      * @return
      * @throws Exception
      */
-    public boolean canLookup(DestinationName destination, String role, AuthenticationDataSource authenticationData) throws Exception {
-        return canProduce(destination, role, authenticationData)
-                || canConsume(destination, role, authenticationData, null);
+    public boolean canLookup(TopicName topicName, String role, AuthenticationDataSource authenticationData)
+            throws Exception {
+        return canProduce(topicName, role, authenticationData)
+                || canConsume(topicName, role, authenticationData, null);
     }
 
     /**
-     * Check whether the specified role can perform a lookup for the specified destination.
+     * Check whether the specified role can perform a lookup for the specified topic.
      *
      * For that the caller needs to have producer or consumer permission.
      *
-     * @param destination
+     * @param topicName
      * @param role
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Boolean> canLookupAsync(DestinationName destination, String role,
+    public CompletableFuture<Boolean> canLookupAsync(TopicName topicName, String role,
             AuthenticationDataSource authenticationData) {
         CompletableFuture<Boolean> finalResult = new CompletableFuture<Boolean>();
-        canProduceAsync(destination, role, authenticationData)
-                .whenComplete((produceAuthorized, ex) -> {
-                    if (ex == null) {
-                        if (produceAuthorized) {
-                            finalResult.complete(produceAuthorized);
-                            return;
-                        }
-                    } else {
-                        if (log.isDebugEnabled()) {
-                            log.debug(
-                                    "Destination [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
-                                    destination.toString(), role, ex.getMessage());
-                        }
+        canProduceAsync(topicName, role, authenticationData).whenComplete((produceAuthorized, ex) -> {
+            if (ex == null) {
+                if (produceAuthorized) {
+                    finalResult.complete(produceAuthorized);
+                    return;
+                }
+            } else {
+                if (log.isDebugEnabled()) {
+                    log.debug(
+                            "Topic [{}] Role [{}] exception occured while trying to check Produce permissions. {}",
+                            topicName.toString(), role, ex.getMessage());
+                }
+            }
+            canConsumeAsync(topicName, role, null, null).whenComplete((consumeAuthorized, e) -> {
+                if (e == null) {
+                    if (consumeAuthorized) {
+                        finalResult.complete(consumeAuthorized);
+                        return;
                     }
-                    canConsumeAsync(destination, role, null, null)
-                            .whenComplete((consumeAuthorized, e) -> {
-                                if (e == null) {
-                                    if (consumeAuthorized) {
-                                        finalResult.complete(consumeAuthorized);
-                                        return;
-                                    }
-                                } else {
-                                    if (log.isDebugEnabled()) {
-                                        log.debug(
-                                                "Destination [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
-                                                destination.toString(), role, e.getMessage());
+                } else {
+                    if (log.isDebugEnabled()) {
+                        log.debug(
+                                "Topic [{}] Role [{}] exception occured while trying to check Consume permissions. {}",
+                                topicName.toString(), role, e.getMessage());
 
-                                    }
-                                    finalResult.completeExceptionally(e);
-                                    return;
-                                }
-                                finalResult.complete(false);
-                            });
-                });
+                    }
+                    finalResult.completeExceptionally(e);
+                    return;
+                }
+                finalResult.complete(false);
+            });
+        });
         return finalResult;
     }
 

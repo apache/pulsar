@@ -94,7 +94,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * verifies: message-rate change gets reflected immediately into topic at runtime
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -107,7 +107,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         // (1) verify message-rate is -1 initially
         Assert.assertEquals(topic.getDispatchRateLimiter().getDispatchRateOnMsg(), -1);
@@ -154,7 +154,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * verify: consumer should not receive all messages due to message-rate throttling
-     * 
+     *
      * @param subscription
      * @throws Exception
      */
@@ -177,7 +177,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
@@ -199,15 +199,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(subscription);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(subscription).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -226,7 +224,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * It verifies that dispatch-rate throttling with cluster-configuration
-     * 
+     *
      * @param subscription
      * @param dispatchRateType
      * @throws Exception
@@ -242,11 +240,12 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg", Integer.toString(messageRate));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(messageRate));
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInByte", Long.toString(byteRate));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() != initValue) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
@@ -254,21 +253,20 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         int numMessages = 500;
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
+
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -292,13 +290,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * verify rate-limiting should throttle message-dispatching based on message-rate
-     * 
+     *
      * <pre>
      *  1. dispatch-msg-rate = 10 msg/sec
-     *  2. send 20 msgs 
+     *  2. send 20 msgs
      *  3. it should take up to 2 second to receive all messages
      * </pre>
-     * 
+     *
      * @param subscription
      * @throws Exception
      */
@@ -315,7 +313,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
@@ -337,16 +335,14 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(subscription);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-            latch.countDown();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(subscription).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                    latch.countDown();
+                }).subscribe();
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -366,13 +362,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * verify rate-limiting should throttle message-dispatching based on byte-rate
-     * 
+     *
      * <pre>
      *  1. dispatch-byte-rate = 100 bytes/sec
      *  2. send 20 msgs : each with 10 byte
      *  3. it should take up to 2 second to receive all messages
      * </pre>
-     * 
+     *
      * @param subscription
      * @throws Exception
      */
@@ -388,7 +384,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
@@ -410,16 +406,14 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(subscription);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-            latch.countDown();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name-" + subscription, conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(subscription).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                    latch.countDown();
+                }).subscribe();
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -438,7 +432,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * verify message-rate on multiple consumers with shared-subscription
-     * 
+     *
      * @throws Exception
      */
     @Test(timeOut = 5000)
@@ -453,7 +447,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
@@ -474,19 +468,19 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer1 = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
-        Consumer consumer2 = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
-        Consumer consumer3 = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
-        Consumer consumer4 = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
-        Consumer consumer5 = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name").subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                });
+        Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer3 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer4 = consumerBuilder.subscribe();
+        Consumer<byte[]> consumer5 = consumerBuilder.subscribe();
+
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -521,10 +515,11 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg();
         // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg", Integer.toString(messageRate));
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerTopicInMsg",
+                Integer.toString(messageRate));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() != initValue) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
@@ -532,21 +527,19 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         int numMessages = 500;
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(subscription);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(subscription).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -570,7 +563,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * It verifies that that dispatch-throttling considers both msg/byte rate if both of them are configured together
-     * 
+     *
      * @param subscription
      * @throws Exception
      */
@@ -587,7 +580,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
@@ -609,15 +602,14 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(subscription);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscriber-name").subscriptionType(subscription).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                });
+        Consumer<byte[]> consumer = consumerBuilder.subscribe();
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
         consumer.close();
@@ -629,7 +621,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
             producer.send(data);
         }
 
-        consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        consumer = consumerBuilder.subscribe();
         final int totalReceivedBytes = dataSize * totalReceived.get();
         Assert.assertNotEquals(totalReceivedBytes, byteRate * 2);
 
@@ -644,8 +636,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
      * 1. It sets dispatch-rate for a local cluster into global-zk.policies
      * 2. Topic fetches dispatch-rate for the local cluster from policies
      * 3. applies dispatch rate
-     * 
+     *
      * </pre>
+     *
      * @throws Exception
      */
     @Test
@@ -654,7 +647,6 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final String namespace = "my-property/global/throttling_ns";
         final String topicName = "persistent://" + namespace + "/throttlingBlock";
-        
 
         final int messageRate = 5;
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 360);
@@ -663,9 +655,9 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("use"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
-        
+
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isMessageRateUpdate = false;
         int retry = 5;
@@ -687,15 +679,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Shared);
-        conf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", conf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
         // deactive cursors
         deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
@@ -717,7 +707,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
     /**
      * It verifies that broker throttles already caught-up consumer which doesn't have backlog if the flag is enabled
-     * 
+     *
      * @param subscription
      * @throws Exception
      */
@@ -736,7 +726,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         admin.brokers().updateDynamicConfiguration("dispatchThrottlingOnNonBacklogConsumerEnabled",
                 Boolean.TRUE.toString());
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
         boolean isUpdated = false;
         int retry = 5;
@@ -760,15 +750,13 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
-        ConsumerConfiguration consumerConf = new ConsumerConfiguration();
-        consumerConf.setSubscriptionType(subscription);
-        consumerConf.setMessageListener((consumer, msg) -> {
-            Assert.assertNotNull(msg, "Message cannot be null");
-            String receivedMessage = new String(msg.getData());
-            log.debug("Received message [{}] in the listener", receivedMessage);
-            totalReceived.incrementAndGet();
-        });
-        Consumer consumer = pulsarClient.subscribe(topicName, "my-subscriber-name", consumerConf);
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName("my-subscriber-name")
+                .subscriptionType(subscription).messageListener((c1, msg) -> {
+                    Assert.assertNotNull(msg, "Message cannot be null");
+                    String receivedMessage = new String(msg.getData());
+                    log.debug("Received message [{}] in the listener", receivedMessage);
+                    totalReceived.incrementAndGet();
+                }).subscribe();
 
         // Asynchronously produce messages
         for (int i = 0; i < numMessages; i++) {
@@ -785,17 +773,17 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         log.info("-- Exiting {} test --", methodName);
     }
 
-     /**   
+    /**
      * <pre>
      * It verifies that cluster-throttling value gets considered when namespace-policy throttling is disabled.
-     * 
+     *
      *  1. Update cluster-throttling-config: topic rate-limiter has cluster-config
      *  2. Update namespace-throttling-config: topic rate-limiter has namespace-config
      *  3. Disable namespace-throttling-config: topic rate-limiter has cluster-config
      *  4. Create new topic with disable namespace-config and enabled cluster-config: it takes cluster-config
-     * 
+     *
      * </pre>
-     * 
+     *
      * @throws Exception
      */
     @Test
@@ -813,7 +801,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
                 Integer.toString(clusterMessageRate));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() != initValue) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerTopicInMsg() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
@@ -821,7 +809,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
-        Producer producer = pulsarClient.createProducer(topicName1);
+        Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName1).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName1).get();
 
         // (1) Update dispatch rate on cluster-config update
@@ -849,7 +837,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
         Assert.assertEquals(clusterMessageRate, topic.getDispatchRateLimiter().getDispatchRateOnMsg());
 
         // (5) Namespace throttling is disabled so, new topic should take cluster throttling limit
-        Producer producer2 = pulsarClient.createProducer(topicName2);
+        Producer<byte[]> producer2 = pulsarClient.newProducer().topic(topicName2).create();
         PersistentTopic topic2 = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName2).get();
         Assert.assertEquals(clusterMessageRate, topic2.getDispatchRateLimiter().getDispatchRateOnMsg());
 
@@ -858,7 +846,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         log.info("-- Exiting {} test --", methodName);
     }
-    
+
     private void deactiveCursors(ManagedLedgerImpl ledger) throws Exception {
         Field statsUpdaterField = BrokerService.class.getDeclaredField("statsUpdater");
         statsUpdaterField.setAccessible(true);

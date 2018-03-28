@@ -26,11 +26,11 @@ public interface ConsumerEventListener {
     /**
      * Notified when the consumer group is changed, and the consumer becomes the active consumer.
      */
-    void becameActive(Consumer consumer, int partitionId);
+    void becameActive(Consumer<?> consumer, int partitionId);
 
     /**
      * Notified when the consumer group is changed, and the consumer is still inactive or becomes inactive.
      */
-    void becameInactive(Consumer consumer, int partitionId);
+    void becameInactive(Consumer<?> consumer, int partitionId);
 
 }

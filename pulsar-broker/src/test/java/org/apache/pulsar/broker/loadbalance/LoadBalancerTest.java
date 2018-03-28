@@ -57,7 +57,7 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.api.Authentication;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyType;
@@ -195,6 +195,7 @@ public class LoadBalancerTest {
      * those load reports can be deserialized and are in valid format tests if the rankings are populated from the load
      * reports are not, both broker will have zero rank
      */
+    @SuppressWarnings("unchecked")
     @Test
     public void testLoadReportsWrittenOnZK() throws Exception {
         ZooKeeper zkc = bkEnsemble.getZkClient();
@@ -223,9 +224,9 @@ public class LoadBalancerTest {
                     brokerCount += entry.getValue().size();
                 }
                 assertEquals(brokerCount, BROKER_COUNT);
-                DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns/test-topic");
+                TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns/test-topic");
                 ResourceUnit found = pulsarServices[i].getLoadManager().get()
-                        .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(fqdn)).get();
+                        .getLeastLoaded(pulsarServices[i].getNamespaceService().getBundle(topicName)).get();
                 assertTrue(found != null);
             }
         } catch (InterruptedException | KeeperException e) {
@@ -262,9 +263,9 @@ public class LoadBalancerTest {
         int totalNamespaces = 200;
         Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
-            DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
+            TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
             ResourceUnit found = pulsarServices[0].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn)).get();
+                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(topicName)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -289,6 +290,7 @@ public class LoadBalancerTest {
         Field ranking = ((SimpleLoadManagerImpl) pulsar.getLoadManager().get()).getClass()
                 .getDeclaredField("sortedRankings");
         ranking.setAccessible(true);
+        @SuppressWarnings("unchecked")
         AtomicReference<Map<Long, Set<ResourceUnit>>> sortedRanking = (AtomicReference<Map<Long, Set<ResourceUnit>>>) ranking
                 .get(pulsar.getLoadManager().get());
         return sortedRanking;
@@ -351,10 +353,10 @@ public class LoadBalancerTest {
     /*
      * Pre-publish load report to ZK, each broker has: - Difference memory capacity, for the first 3 brokers memory is
      * bottleneck, for the 4/5th brokers CPU become bottleneck since memory is big enough - already has some bundles
-     * assigned Check the distribution of new destinations is roughly consistent (with <10% variation) with the ranking
+     * assigned Check the distribution of new topics is roughly consistent (with <10% variation) with the ranking
      */
     @Test
-    public void testDestinationAssignmentWithExistingBundles() throws Exception {
+    public void testTopicAssignmentWithExistingBundles() throws Exception {
         for (int i = 0; i < BROKER_COUNT; i++) {
             ResourceQuota defaultQuota = new ResourceQuota();
             defaultQuota.setMsgRateIn(20);
@@ -402,9 +404,9 @@ public class LoadBalancerTest {
         int[] expectedAssignments = new int[] { 17, 34, 51, 68, 85 };
         Map<String, Integer> namespaceOwner = new HashMap<>();
         for (int i = 0; i < totalNamespaces; i++) {
-            DestinationName fqdn = DestinationName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
+            TopicName topicName = TopicName.get("persistent://pulsar/use/primary-ns-" + i + "/test-topic");
             ResourceUnit found = pulsarServices[0].getLoadManager().get()
-                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(fqdn)).get();
+                    .getLeastLoaded(pulsarServices[0].getNamespaceService().getBundle(topicName)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -422,7 +424,7 @@ public class LoadBalancerTest {
 
             long expectedValue = expectedAssignments[i];
             double variation = Math.abs(actualValue - expectedValue) * 100.0 / expectedValue;
-            log.info("Destination assignment - {}, actual: {}, expected baseline: {}, variation: {}/%",
+            log.info("Topic assignment - {}, actual: {}, expected baseline: {}, variation: {}/%",
                     lookupAddresses[i], actualValue, expectedValue, String.format("%.2f", variation));
             assertTrue(variation < expectedMaxVariation);
         }
@@ -951,7 +953,7 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
-                    .getLeastLoaded(DestinationName.get("persistent://pulsar/use/primary-ns/topic" + i)).get();
+                    .getLeastLoaded(TopicName.get("persistent://pulsar/use/primary-ns/topic" + i)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {
@@ -1012,7 +1014,7 @@ public class LoadBalancerTest {
         Map<String, Integer> namespaceOwner = new HashMap<String, Integer>();
         for (int i = 0; i < totalNamespaces; i++) {
             ResourceUnit found = loadManager
-                    .getLeastLoaded(DestinationName.get("persistent://pulsar/use/primary-ns/topic-" + i)).get();
+                    .getLeastLoaded(TopicName.get("persistent://pulsar/use/primary-ns/topic-" + i)).get();
             if (namespaceOwner.containsKey(found.getResourceId())) {
                 namespaceOwner.put(found.getResourceId(), namespaceOwner.get(found.getResourceId()) + 1);
             } else {

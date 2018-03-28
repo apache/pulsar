@@ -28,7 +28,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriInfo;
 
 import org.apache.pulsar.broker.authentication.AuthenticationDataHttps;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.websocket.WebSocketService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -113,7 +113,7 @@ public class WebSocketWebResource {
      * @param topic
      * @return
      */
-    protected boolean validateUserAccess(DestinationName topic) {
+    protected boolean validateUserAccess(TopicName topic) {
         try {
             validateSuperUserAccess();
             return true;
@@ -133,7 +133,7 @@ public class WebSocketWebResource {
      * @return
      * @throws Exception
      */
-    protected boolean isAuthorized(DestinationName topic) throws Exception {
+    protected boolean isAuthorized(TopicName topic) throws Exception {
         if (service().isAuthorizationEnabled()) {
             return service().getAuthorizationService().canLookup(topic, clientAppId(), authData());
         }

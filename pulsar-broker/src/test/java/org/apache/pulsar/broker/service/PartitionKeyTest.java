@@ -24,7 +24,6 @@ import static org.testng.Assert.assertTrue;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -49,15 +48,16 @@ public class PartitionKeyTest extends BrokerTestBase {
     public void testPartitionKey() throws Exception {
         final String topicName = "persistent://prop/use/ns-abc/testPartitionKey";
 
-        org.apache.pulsar.client.api.Consumer consumer = pulsarClient.subscribe(topicName, "my-subscription");
+        org.apache.pulsar.client.api.Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName)
+                .subscriptionName("my-subscription").subscribe();
 
         // 1. producer with batch enabled
-        ProducerConfiguration conf = new ProducerConfiguration();
-        conf.setBatchingEnabled(true);
-        Producer producerWithBatches = pulsarClient.createProducer(topicName, conf);
+        Producer<byte[]> producerWithBatches = pulsarClient.newProducer().topic(topicName).enableBatching(true)
+                .create();
+
 
         // 2. Producer without batches
-        Producer producerWithoutBatches = pulsarClient.createProducer(topicName);
+        Producer<byte[]> producerWithoutBatches = pulsarClient.newProducer().topic(topicName).create();
 
         producerWithBatches.sendAsync(MessageBuilder.create().setKey("key-1").setContent("msg-1".getBytes()).build());
         producerWithBatches.sendAsync(MessageBuilder.create().setKey("key-2").setContent("msg-2".getBytes()).build())
@@ -67,7 +67,7 @@ public class PartitionKeyTest extends BrokerTestBase {
                 .sendAsync(MessageBuilder.create().setKey("key-3").setContent("msg-3".getBytes()).build());
 
         for (int i = 1; i <= 3; i++) {
-            Message msg = consumer.receive();
+            Message<byte[]> msg = consumer.receive();
 
             assertTrue(msg.hasKey());
             assertEquals(msg.getKey(), "key-" + i);

@@ -65,7 +65,7 @@ class MessageCrypto {
      * @param keyName Unique name to identify the key
      * @return true if succeeded, false otherwise
      */
-    bool removeKeyCipher(std::string& keyName);
+    bool removeKeyCipher(const std::string& keyName);
 
     /*
      * Encrypt the payload using the data key and update message metadata with the keyname & encrypted data
@@ -136,6 +136,7 @@ class MessageCrypto {
     bool getKeyAndDecryptData(const proto::MessageMetadata& msgMetadata, SharedBuffer& payload,
                               SharedBuffer& decryptedPayload);
     std::string stringToHex(const std::string& inputStr, size_t len);
+    std::string stringToHex(const char* inputStr, size_t len);
 };
 
 } /* namespace pulsar */

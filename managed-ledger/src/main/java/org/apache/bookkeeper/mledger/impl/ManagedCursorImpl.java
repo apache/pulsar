@@ -269,7 +269,8 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             // Read the last entry in the ledger
-            lh.asyncReadLastEntry((rc1, lh1, seq, ctx1) -> {
+            long lastEntryInLedger = lh.getLastAddConfirmed();
+            lh.asyncReadEntries(lastEntryInLedger, lastEntryInLedger, (rc1, lh1, seq, ctx1) -> {
                 if (log.isDebugEnabled()) {
                     log.debug("[{}} readComplete rc={} entryId={}", ledger.getName(), rc1, lh1.getLastAddConfirmed());
                 }
@@ -1819,6 +1820,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                 new MetaStoreCallback<Void>() {
                     @Override
                     public void operationComplete(Void result, Stat stat) {
+                        cursorLedgerStat = stat;
                         callback.operationComplete(result, stat);
                     }
 
@@ -1913,6 +1915,7 @@ public class ManagedCursorImpl implements ManagedCursor {
 
     void createNewMetadataLedger(final VoidCallback callback) {
         ledger.mbean.startCursorLedgerCreateOp();
+
         bookkeeper.asyncCreateLedger(config.getMetadataEnsemblesize(), config.getMetadataWriteQuorumSize(),
                 config.getMetadataAckQuorumSize(), config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
                     ledger.getExecutor().submit(safeRun(() -> {
@@ -1974,7 +1977,7 @@ public class ManagedCursorImpl implements ManagedCursor {
                             }
                         });
                     }));
-                }, null);
+                }, null, Collections.emptyMap());
     }
 
     private List<LongProperty> buildPropertiesMap(Map<String, Long> properties) {
@@ -2053,7 +2056,26 @@ public class ManagedCursorImpl implements ManagedCursor {
                 // If we've had a write error, the ledger will be automatically closed, we need to create a new one,
                 // in the meantime the mark-delete will be queued.
                 STATE_UPDATER.compareAndSet(ManagedCursorImpl.this, State.Open, State.NoLedger);
-                callback.operationFailed(createManagedLedgerException(rc));
+
+                // Before giving up, try to persist the position in the metadata store
+                persistPositionMetaStore(-1, position, mdEntry.properties, new MetaStoreCallback<Void>() {
+                    @Override
+                    public void operationComplete(Void result, Stat stat) {
+                        if (log.isDebugEnabled()) {
+                            log.debug(
+                                    "[{}][{}] Updated cursor in meta store after previous failure in ledger at position {}",
+                                    ledger.getName(), name, position);
+                        }
+                        callback.operationComplete();
+                    }
+
+                    @Override
+                    public void operationFailed(MetaStoreException e) {
+                        log.warn("[{}][{}] Failed to update cursor in meta store after previous failure in ledger: {}",
+                                ledger.getName(), name, e.getMessage());
+                        callback.operationFailed(createManagedLedgerException(rc));
+                    }
+                }, true);
             }
         }, null);
     }

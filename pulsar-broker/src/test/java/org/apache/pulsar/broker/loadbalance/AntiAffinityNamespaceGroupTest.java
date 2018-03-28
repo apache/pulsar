@@ -24,7 +24,6 @@ import static org.testng.Assert.assertNotEquals;
 import static org.testng.Assert.assertTrue;
 
 import java.lang.reflect.Field;
-import java.net.InetAddress;
 import java.net.URL;
 import java.util.Map;
 import java.util.Set;
@@ -511,8 +510,9 @@ public class AntiAffinityNamespaceGroupTest {
             admin1.namespaces().setNamespaceAntiAffinityGroup(ns, namespaceAntiAffinityGroup);
         }
 
-        PulsarClient pulsarClient = PulsarClient.create(pulsar1.getWebServiceAddress());
-        Producer producer = pulsarClient.createProducer("persistent://" + namespace + "0/my-topic1");
+        PulsarClient pulsarClient = PulsarClient.builder().serviceUrl(pulsar1.getWebServiceAddress()).build();
+        Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://" + namespace + "0/my-topic1")
+                .create();
         ModularLoadManagerImpl loadManager = (ModularLoadManagerImpl) ((ModularLoadManagerWrapper) pulsar1
                 .getLoadManager().get()).getLoadManager();
 
@@ -527,6 +527,7 @@ public class AntiAffinityNamespaceGroupTest {
     private boolean isLoadManagerUpdatedDomainCache(ModularLoadManagerImpl loadManager) throws Exception {
         Field mapField = ModularLoadManagerImpl.class.getDeclaredField("brokerToFailureDomainMap");
         mapField.setAccessible(true);
+        @SuppressWarnings("unchecked")
         Map<String, String> map = (Map<String, String>) mapField.get(loadManager);
         return !map.isEmpty();
     }

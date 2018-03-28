@@ -25,6 +25,7 @@ public class WebSocketProducerServlet extends WebSocketServlet {
     private static final long serialVersionUID = 1L;
 
     public static final String SERVLET_PATH = "/ws/producer";
+    public static final String SERVLET_PATH_V2 = "/ws/v2/producer";
 
     private final WebSocketService service;
 

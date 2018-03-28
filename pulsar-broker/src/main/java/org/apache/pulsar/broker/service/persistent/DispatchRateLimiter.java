@@ -27,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import org.apache.pulsar.broker.service.BrokerService;
-import org.apache.pulsar.common.naming.DestinationName;
+import org.apache.pulsar.common.naming.TopicName;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.Policies;
@@ -114,7 +114,7 @@ public class DispatchRateLimiter {
      */
     private void registerLocalPoliciesListener() {
         brokerService.pulsar().getConfigurationCache().policiesCache().registerListener((path, data, stat) -> {
-            final NamespaceName namespace = DestinationName.get(this.topicName).getNamespaceObject();
+            final NamespaceName namespace = TopicName.get(this.topicName).getNamespaceObject();
             final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
             final String policiesPath = path(POLICIES, namespace.toString());
             if (policiesPath.equals(path)) {
@@ -141,7 +141,7 @@ public class DispatchRateLimiter {
      * @return
      */
     public DispatchRate getPoliciesDispatchRate() {
-        final NamespaceName namespace = DestinationName.get(this.topicName).getNamespaceObject();
+        final NamespaceName namespace = TopicName.get(this.topicName).getNamespaceObject();
         final String cluster = brokerService.pulsar().getConfiguration().getClusterName();
         final String path = path(POLICIES, namespace.toString());
         Optional<Policies> policies = Optional.empty();

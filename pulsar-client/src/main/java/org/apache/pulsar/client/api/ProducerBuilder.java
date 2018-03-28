@@ -30,7 +30,7 @@ import org.apache.pulsar.client.api.PulsarClientException.ProducerQueueIsFullErr
  *
  * @see PulsarClient#newProducer()
  */
-public interface ProducerBuilder extends Serializable, Cloneable {
+public interface ProducerBuilder<T> extends Serializable, Cloneable {
 
     /**
      * Finalize the creation of the {@link Producer} instance.
@@ -43,7 +43,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @throws PulsarClientException
      *             if the producer creation fails
      */
-    Producer create() throws PulsarClientException;
+    Producer<T> create() throws PulsarClientException;
 
     /**
      * Finalize the creation of the {@link Producer} instance in asynchronous mode.
@@ -56,7 +56,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @throws PulsarClientException
      *             if the producer creation fails
      */
-    CompletableFuture<Producer> createAsync();
+    CompletableFuture<Producer<T>> createAsync();
 
     /**
      * Create a copy of the current {@link ProducerBuilder}.
@@ -71,7 +71,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * Producer producer2 = builder.clone().topic(TOPIC_2).create();
      * </pre>
      */
-    ProducerBuilder clone();
+    ProducerBuilder<T> clone();
 
     /**
      * Specify the topic this producer will be publishing on.
@@ -80,7 +80,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *
      * @param topicName
      */
-    ProducerBuilder topic(String topicName);
+    ProducerBuilder<T> topic(String topicName);
 
     /**
      * Specify a name for the producer
@@ -95,7 +95,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param producerName
      *            the custom name to use for the producer
      */
-    ProducerBuilder producerName(String producerName);
+    ProducerBuilder<T> producerName(String producerName);
 
     /**
      * Set the send timeout <i>(default: 30 seconds)</i>
@@ -107,7 +107,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param unit
      *            the time unit of the {@code sendTimeout}
      */
-    ProducerBuilder sendTimeout(int sendTimeout, TimeUnit unit);
+    ProducerBuilder<T> sendTimeout(int sendTimeout, TimeUnit unit);
 
     /**
      * Set the max size of the queue holding the messages pending to receive an acknowledgment from the broker.
@@ -118,7 +118,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param maxPendingMessages
      * @return
      */
-    ProducerBuilder maxPendingMessages(int maxPendingMessages);
+    ProducerBuilder<T> maxPendingMessages(int maxPendingMessages);
 
     /**
      * Set the number of max pending messages across all the partitions
@@ -128,7 +128,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *
      * @param maxPendingMessagesAcrossPartitions
      */
-    ProducerBuilder maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
+    ProducerBuilder<T> maxPendingMessagesAcrossPartitions(int maxPendingMessagesAcrossPartitions);
 
     /**
      * Set whether the {@link Producer#send} and {@link Producer#sendAsync} operations should block when the outgoing
@@ -141,15 +141,37 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *            whether to block {@link Producer#send} and {@link Producer#sendAsync} operations on queue full
      * @return
      */
-    ProducerBuilder blockIfQueueFull(boolean blockIfQueueFull);
+    ProducerBuilder<T> blockIfQueueFull(boolean blockIfQueueFull);
 
     /**
-     * Set the message routing mode for the partitioned producer
+     * Set the message routing mode for the partitioned producer.
      *
-     * @param mode
-     * @return
+     * Default routing mode for messages to partition.
+     *
+     * This logic is applied when the application is not setting a key {@link MessageBuilder#setKey(String)} on a
+     * particular message.
+     *
+     * @param messageRoutingMode
+     *            the message routing mode
      */
-    ProducerBuilder messageRoutingMode(MessageRoutingMode messageRouteMode);
+    ProducerBuilder<T> messageRoutingMode(MessageRoutingMode messageRoutingMode);
+
+    /**
+     * Change the {@link HashingScheme} used to chose the partition on where to publish a particular message.
+     *
+     * Standard hashing functions available are:
+     * <ul>
+     * <li><code>JavaStringHash</code>: Java <code>String.hashCode()</code>
+     * <li><code>Murmur3_32Hash</code>: Use Murmur3 hashing function.
+     * <a href="https://en.wikipedia.org/wiki/MurmurHash">https://en.wikipedia.org/wiki/MurmurHash</a>
+     * </ul>
+     *
+     * Default is <code>JavaStringHash</code>.
+     *
+     * @param hashingScheme
+     *            the chosen {@link HashingScheme}
+     */
+    ProducerBuilder<T> hashingScheme(HashingScheme hashingScheme);
 
     /**
      * Set the compression type for the producer.
@@ -163,7 +185,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param compressionType
      * @return
      */
-    ProducerBuilder compressionType(CompressionType compressionType);
+    ProducerBuilder<T> compressionType(CompressionType compressionType);
 
     /**
      * Set a custom message routing policy by passing an implementation of MessageRouter
@@ -171,7 +193,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *
      * @param messageRouter
      */
-    ProducerBuilder messageRouter(MessageRouter messageRouter);
+    ProducerBuilder<T> messageRouter(MessageRouter messageRouter);
 
     /**
      * Control whether automatic batching of messages is enabled for the producer. <i>default: false [No batching]</i>
@@ -185,7 +207,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *
      * @see #batchingMaxPublishDelay(long, TimeUnit)
      */
-    ProducerBuilder enableBatching(boolean enableBatching);
+    ProducerBuilder<T> enableBatching(boolean enableBatching);
 
     /**
      * Sets a {@link CryptoKeyReader}
@@ -193,7 +215,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param cryptoKeyReader
      *            CryptoKeyReader object
      */
-    ProducerBuilder cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
+    ProducerBuilder<T> cryptoKeyReader(CryptoKeyReader cryptoKeyReader);
 
     /**
      * Add public encryption key, used by producer to encrypt the data key.
@@ -204,21 +226,21 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * after compression. If batch messaging is enabled, the batched message is encrypted.
      *
      */
-    ProducerBuilder addEncryptionKey(String key);
+    ProducerBuilder<T> addEncryptionKey(String key);
 
     /**
      * Sets the ProducerCryptoFailureAction to the value specified
      *
-     * @param The
+     * @param action
      *            producer action
      */
-    ProducerBuilder cryptoFailureAction(ProducerCryptoFailureAction action);
+    ProducerBuilder<T> cryptoFailureAction(ProducerCryptoFailureAction action);
 
     /**
      * Set the time period within which the messages sent will be batched <i>default: 10ms</i> if batch messages are
      * enabled. If set to a non zero value, messages will be queued until this time interval or until
      *
-     * @see ProducerConfiguration#batchingMaxMessages threshold is reached; all messages will be published as a single
+     * @see ProducerConfiguration#getBatchingMaxMessages()  threshold is reached; all messages will be published as a single
      *      batch message. The consumer will be delivered individual messages in the batch in the same order they were
      *      enqueued
      * @param batchDelay
@@ -227,7 +249,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *            the time unit of the {@code batchDelay}
      * @return
      */
-    ProducerBuilder batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
+    ProducerBuilder<T> batchingMaxPublishDelay(long batchDelay, TimeUnit timeUnit);
 
     /**
      * Set the maximum number of messages permitted in a batch. <i>default: 1000</i> If set to a value greater than 1,
@@ -240,7 +262,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      *            maximum number of messages in a batch
      * @return
      */
-    ProducerBuilder batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
+    ProducerBuilder<T> batchingMaxMessages(int batchMessagesMaxMessagesPerBatch);
 
     /**
      * Set the baseline for the sequence ids for messages published by the producer.
@@ -251,7 +273,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param initialSequenceId
      * @return
      */
-    ProducerBuilder initialSequenceId(long initialSequenceId);
+    ProducerBuilder<T> initialSequenceId(long initialSequenceId);
 
     /**
      * Set a name/value property with this producer.
@@ -260,7 +282,7 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param value
      * @return
      */
-    ProducerBuilder property(String key, String value);
+    ProducerBuilder<T> property(String key, String value);
 
     /**
      * Add all the properties in the provided map
@@ -268,5 +290,5 @@ public interface ProducerBuilder extends Serializable, Cloneable {
      * @param properties
      * @return
      */
-    ProducerBuilder properties(Map<String, String> properties);
+    ProducerBuilder<T> properties(Map<String, String> properties);
 }

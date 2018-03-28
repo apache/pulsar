@@ -31,13 +31,10 @@ import org.apache.pulsar.broker.authentication.AuthenticationProviderTls;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
-import org.apache.pulsar.client.api.ConsumerConfiguration;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
-import org.apache.pulsar.client.api.ProducerConfiguration;
 import org.apache.pulsar.client.api.ProducerConsumerBase;
 import org.apache.pulsar.client.api.PulsarClient;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.auth.AuthenticationTls;
 import org.apache.pulsar.common.policies.data.ClusterData;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
@@ -62,7 +59,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     private final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
     private final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     private final String DUMMY_VALUE = "DUMMY_VALUE";
-    
+
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
     private final String configClusterName = "use";
@@ -70,8 +67,8 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-        
-        // enable tls and auth&auth at broker 
+
+        // enable tls and auth&auth at broker
         conf.setAuthenticationEnabled(true);
         conf.setAuthorizationEnabled(true);
 
@@ -89,7 +86,7 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         conf.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         conf.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_SERVER_KEY_FILE_PATH);
-
+        conf.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         Set<String> providers = new HashSet<>();
         providers.add(AuthenticationProviderTls.class.getName());
         conf.setAuthenticationProviders(providers);
@@ -117,8 +114,9 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         proxyConfig.setBrokerClientAuthenticationPlugin(AuthenticationTls.class.getName());
         proxyConfig.setBrokerClientAuthenticationParameters(
                 "tlsCertFile:" + TLS_CLIENT_CERT_FILE_PATH + "," + "tlsKeyFile:" + TLS_CLIENT_KEY_FILE_PATH);
+        proxyConfig.setBrokerClientTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         proxyConfig.setAuthenticationProviders(providers);
-        
+
         proxyConfig.setZookeeperServers(DUMMY_VALUE);
         proxyConfig.setGlobalZookeeperServers(DUMMY_VALUE);
 
@@ -137,17 +135,18 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
     /**
      * <pre>
      * It verifies e2e tls + Authentication + Authorization (client -> proxy -> broker>
-     * 
+     *
      * 1. client connects to proxy over tls and pass auth-data
-     * 2. proxy authenticate client and retrieve client-role 
+     * 2. proxy authenticate client and retrieve client-role
      *    and send it to broker as originalPrincipal over tls
      * 3. client creates producer/consumer via proxy
      * 4. broker authorize producer/consumer create request using originalPrincipal
-     * 
+     *
      * </pre>
-     * 
+     *
      * @throws Exception
      */
+    @SuppressWarnings("deprecation")
     @Test
     public void testTlsSyncProducerAndConsumer() throws Exception {
         log.info("-- Starting {} test --", methodName);
@@ -167,21 +166,17 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));
         admin.namespaces().createNamespace("my-property/use/my-ns");
 
-        ConsumerConfiguration conf = new ConsumerConfiguration();
-        conf.setSubscriptionType(SubscriptionType.Exclusive);
-        Consumer consumer = proxyClient.subscribe("persistent://my-property/use/my-ns/my-topic1", "my-subscriber-name",
-                conf);
-
-        ProducerConfiguration producerConf = new ProducerConfiguration();
-
-        Producer producer = proxyClient.createProducer("persistent://my-property/use/my-ns/my-topic1", producerConf);
+        Consumer<byte[]> consumer = proxyClient.newConsumer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .subscriptionName("my-subscriber-name").subscribe();
+        Producer<byte[]> producer = proxyClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic1")
+                .create();
         final int msgs = 10;
         for (int i = 0; i < msgs; i++) {
             String message = "my-message-" + i;
             producer.send(message.getBytes());
         }
 
-        Message msg = null;
+        Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
         int count = 0;
         for (int i = 0; i < 10; i++) {
@@ -208,7 +203,10 @@ public class ProxyAuthenticatedProducerConsumerTest extends ProducerConsumerBase
         clientConf.setUseTls(true);
 
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        return PulsarClient.create(lookupUrl, clientConf);
+        return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
+                .enableTls(true).build();
+
     }
 
 }
