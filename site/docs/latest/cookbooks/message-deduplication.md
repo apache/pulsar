@@ -1,6 +1,7 @@
 ---
 title: Message deduplication
 tags: [admin, deduplication, cookbook]
+new: true
 ---
 
 **Message deduplication** is a feature of Pulsar that, when enabled, ensures that each message produced on Pulsar {% popover topics %} is persisted to disk *only once*, even if the message is produced more than once. Message deduplication essentially unburdens Pulsar applications of the responsibility of ensuring deduplication and handles it automatically on the server side instead.
