@@ -23,7 +23,7 @@ class BatchMessageAckerDisabled extends BatchMessageAcker {
     static final BatchMessageAckerDisabled INSTANCE = new BatchMessageAckerDisabled();
 
     private BatchMessageAckerDisabled() {
-        super(null);
+        super(null, 0);
     }
 
     @Override

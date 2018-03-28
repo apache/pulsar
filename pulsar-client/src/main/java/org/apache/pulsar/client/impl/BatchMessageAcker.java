@@ -26,15 +26,17 @@ class BatchMessageAcker {
     static BatchMessageAcker newAcker(int batchSize) {
         BitSet bitSet = new BitSet(batchSize);
         bitSet.set(0, batchSize);
-        return new BatchMessageAcker(bitSet);
+        return new BatchMessageAcker(bitSet, batchSize);
     }
 
     // bitset shared across messages in the same batch.
+    private final int batchSize;
     private final BitSet bitSet;
     private boolean prevBatchCumulativelyAcked = false;
 
-    BatchMessageAcker(BitSet bitSet) {
+    BatchMessageAcker(BitSet bitSet, int batchSize) {
         this.bitSet = bitSet;
+        this.batchSize = batchSize;
     }
 
     @VisibleForTesting
@@ -43,7 +45,7 @@ class BatchMessageAcker {
     }
 
     public synchronized int getBatchSize() {
-        return bitSet.length();
+        return batchSize;
     }
 
     public synchronized boolean ackIndividual(int batchIndex) {
