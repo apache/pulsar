@@ -81,7 +81,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             // Ok
         }
         try {
-            client.getBrokerResourceAvailability("prop", "cluster", "ns");
+            client.getBrokerResourceAvailability("prop/cluster/ns");
         } catch (PulsarAdminException e) {
             // Ok
         }
