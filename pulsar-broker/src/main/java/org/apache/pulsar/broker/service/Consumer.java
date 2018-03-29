@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -37,7 +36,7 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
-import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
@@ -225,7 +224,7 @@ public class Consumer {
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
-                    readChecksum(metadataAndPayload);
+                    Commands.skipChecksumIfPresent(metadataAndPayload);
                 }
 
                 if (log.isDebugEnabled()) {

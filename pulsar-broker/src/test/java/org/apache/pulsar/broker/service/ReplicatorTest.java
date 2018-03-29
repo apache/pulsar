@@ -861,7 +861,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ByteBuf b = msg.getHeadersAndPayload();
 
         assertTrue(Commands.hasChecksum(b));
-        int parsedChecksum = Commands.readChecksum(b).intValue();
+        int parsedChecksum = Commands.readChecksum(b);
         int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
 
         assertEquals(parsedChecksum, computedChecksum);
