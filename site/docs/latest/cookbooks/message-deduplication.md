@@ -98,7 +98,7 @@ producer = client.create_producer(
     send_timeout_millis=0)
 ```
 
-## C++ clients (#cpp)
+## C++ clients {#cpp}
 
 To enable message deduplication on a [C++ producer](../../clients/Cpp#producer), set the producer name using `producer_name` and the timeout to 0 using `send_timeout_millis`. Here's an example:
 
