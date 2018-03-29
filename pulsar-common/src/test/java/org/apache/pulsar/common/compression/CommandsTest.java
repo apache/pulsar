@@ -58,7 +58,7 @@ public class CommandsTest {
 
         /*** 1. verify checksum and metadataParsing ***/
         boolean hasChecksum = Commands.hasChecksum(receivedBuf);
-        int checksum = Commands.readChecksum(receivedBuf).intValue();
+        int checksum = Commands.readChecksum(receivedBuf);
 
 
         // verify checksum is present

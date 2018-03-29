@@ -1026,7 +1026,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private boolean verifyChecksum(ByteBuf headersAndPayload, MessageIdData messageId) {
 
         if (hasChecksum(headersAndPayload)) {
-            int checksum = readChecksum(headersAndPayload).intValue();
+            int checksum = readChecksum(headersAndPayload);
             int computedChecksum = computeChecksum(headersAndPayload);
             if (checksum != computedChecksum) {
                 log.error(
