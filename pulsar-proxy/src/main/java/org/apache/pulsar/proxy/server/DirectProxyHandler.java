@@ -58,7 +58,6 @@ public class DirectProxyHandler {
     private String originalPrincipal;
     private String clientAuthData;
     private String clientAuthMethod;
-    private boolean forwardAuthData;
     public static final String TLS_HANDLER = "tls";
 
     private final Authentication authentication;
@@ -70,7 +69,6 @@ public class DirectProxyHandler {
         this.clientAuthData = proxyConnection.clientAuthData;
         this.clientAuthMethod = proxyConnection.clientAuthMethod;
         ProxyConfiguration config = service.getConfiguration();
-        this.forwardAuthData = service.getConfiguration().forwardAuthorizationCredentials();
 
         // Start the connection attempt.
         Bootstrap b = new Bootstrap();
