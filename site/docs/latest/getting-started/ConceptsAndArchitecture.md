@@ -107,7 +107,7 @@ As in other pub-sub systems, topics in Pulsar are named channels for transmittin
 | `topic`              | The final part of the name. Topic names are freeform and have no special meaning in a Pulsar instance.                                                                                                                                       |
 
 {% include admonition.html type="success" title="No need to explicitly create new topics"
-content="Application does not explicitly create the topic but attempting to write or receive message on a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace)." %}
+content="You don't need to explicitly create topics in Pulsar. If a client attempts to write or receive messages to/from a topic that does not yet exist, Pulsar will automatically create that topic under the [namespace](#namespace) provided in the [topic name](#topics)." %}
 
 ### Namespace
 
@@ -214,11 +214,11 @@ When creating a [new cluster](../../admin/ClustersBrokers#initialize-cluster-met
 
 ## Persistent storage
 
-![Brokers and bookies](/img/broker-bookie.png)
-
 Pulsar provides guaranteed message delivery for applications. If a message successfully reaches a Pulsar {% popover broker %}, it will be delivered to its intended target.
 
 This guarantee requires that non-{% popover acknowledged %} messages are stored in a durable manner until they can be delivered to and acknowledged by {% popover consumers %}. This mode of messaging is commonly called *persistent messaging*. In Pulsar, N copies of all messages are stored and synced on disk, for example 4 copies across two servers with mirrored [RAID](https://en.wikipedia.org/wiki/RAID) volumes on each server.
+
+### Apache BookKeeper {#bookkeeper}
 
 Pulsar uses a system called [Apache BookKeeper](http://bookkeeper.apache.org/) for persistent message storage. BookKeeper is a distributed [write-ahead log](https://en.wikipedia.org/wiki/Write-ahead_logging) (WAL) system that provides a number of crucial advantages for Pulsar:
 
@@ -235,7 +235,11 @@ At the moment, Pulsar only supports persistent message storage. This accounts fo
 
 {% include topic.html p="my-property" c="global" n="my-namespace" t="my-topic" %}
 
-In the future, Pulsar will support ephemeral message storage.
+{% include admonition.html type="success" content='Pulsar also supports ephemeral ([non-persistent](#non-persistent-topics)) message storage.' %}
+
+You can see an illustration of how {% popover brokers %} and {% popover bookies %} interact in the diagram below:
+
+![Brokers and bookies](/img/broker-bookie.png)
 
 ### Ledgers
 
@@ -287,20 +291,6 @@ The diagram below illustrates both concepts:
 With message retention, shown at the top, a <span style="color: #89b557;">retention policy</span> applied to all topics in a {% popover namespace %} dicates that some messages are durably stored in Pulsar even though they've already been acknowledged. Acknowledged messages that are not covered by the retention policy are <span style="color: #bb3b3e;">deleted</span>. Without a retention policy, *all* of the <span style="color: #19967d;">acknowledged messages</span> would be deleted.
 
 With message expiry, shown at the bottom, some messages are <span style="color: #bb3b3e;">deleted</span>, even though they <span style="color: #337db6;">haven't been acknowledged</span>, because they've expired according to the <span style="color: #e39441;">TTL applied to the namespace</span> (for example because a TTL of 5 minutes has been applied and the messages haven't been acknowledged but are 10 minutes old).
-
-## Non-persistent topics
-
-By default, Pulsar persistently stores *all* {% popover unacknowledged %} messages in [BookKeeper](#persistent-storage). Pulsar also, however, supports **non-persistent topics**, which are topics on which messages are *never* persisted to disk and live only in memory.
-
-Non-persistent topics have names of this form:
-
-{% include topic.html type="non-persistent" p="property" c="cluster" n="namespace" t="topic" %}
-
-By default, non-persistent topics are enabled on Pulsar {% popover brokers %}. You can disable them in the broker's [configuration](../../reference/Configuration#broker-enableNonPersistentTopics).
-
-You can manage non-persistent topics using the [`pulsar-admin non-persistent`](../../reference/CliTools#pulsar-admin-non-persistent) interface.
-
-{% include admonition.html type="danger" content="With non-persistent topics, message data lives only in memory. If a message broker fails or message data can otherwise not be retrieved from memory, your message data may be lost. Use non-persistent topics only if you're certain that your use case demands and can sustain it." %}
 
 ## Pulsar Functions
 

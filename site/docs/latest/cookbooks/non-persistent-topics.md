@@ -22,3 +22,14 @@ title: Non-persistent topics
     under the License.
 
 -->
+
+**Non-persistent topics** are Pulsar {% popover topics %} in which message data is *never* [persistently stored](../../getting-started/ConceptsAndArchitecture#persistent-storage) and is kept only in memory.
+
+{% include admonition.html type="info" content='For high-level information about non-persistent topics, see the [Concepts and Architecture](../../getting-started/ConceptsAndArchitecture#non-persistent-topics) documentation.' %}
+
+Here's some info about [clients](#clients).
+
+## Non-persistent topics and Pulsar clients {#clients}
+
+You shouldn't need to make
+
