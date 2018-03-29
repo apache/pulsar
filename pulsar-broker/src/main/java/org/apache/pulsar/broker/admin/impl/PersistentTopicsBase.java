@@ -465,8 +465,8 @@ public class PersistentTopicsBase extends AdminResource {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
 
-        // v2 topics have a global name so check if the topic is replicated too.
-        if (topicName.isGlobal() && topic.isReplicated()) {
+        // v2 topics have a global name so check if the topic is replicated.
+        if (topic.isReplicated()) {
             // Delete is disallowed on global topic
             log.error("[{}] Delete topic is forbidden on global namespace {}", clientAppId(), topicName);
             throw new RestException(Status.FORBIDDEN, "Delete forbidden on global namespace");
