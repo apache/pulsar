@@ -132,7 +132,7 @@ groups:
 - title: Cookbooks
   dir: cookbooks
   docs:
-  - title: Managing message deduplication
+  - title: Message deduplication
     endpoint: message-deduplication
   - title: Partitioned topics
     endpoint: PartitionedTopics

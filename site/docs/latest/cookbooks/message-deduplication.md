@@ -12,7 +12,10 @@ Using message deduplication in Pulsar involves making some [configuration change
 
 ## How it works
 
+Message deduplication can be enabled and disabled on a per-{% popover namespace %} basis. By default, it is *disabled* on all namespaces and can enabled in the following ways:
 
+* Using the [`pulsar-admin namespaces`](#enabling) interface
+* As a {% popover broker %}-level [default](#default) for all namespaces
 
 ## Configuration for message deduplication {#configuration}
 
@@ -25,25 +28,33 @@ Parameter | Description | Default
 `brokerDeduplicationEntriesInterval` | The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). | `1000`
 `brokerDeduplicationProducerInactivityTimeoutMinutes` | The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. | `360` (6 hours)
 
+Any configuration changes you make won't take effect until you re-start the broker.
+
 ### Setting the broker-level default {#default}
 
-By default, 
+By default, message deduplication is *disabled* on all Pulsar namespaces. To enable it by default on all namespaces, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
 
-To enable message deduplication in a broker, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
+Regardless of the value of `brokerDeduplicationEnabled`, [enabling](#enabling) and [disabling](#disabling) via the CLI will override the broker-level default.
 
 ### Enabling message deduplication {#enabling}
 
-You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the 
+You can enable message deduplication on specific namespaces, regardless of the the [default](#default) for the broker, using the [`pulsar-admin namespace set-deduplication`](../../CliTools#pulsar-admin-namespace-set-deduplication) command. You can use the `--enable`/`-e` flag and specify the namespace. Here's an example:
 
 ```bash
-$ bin/pulsar-admin
+$ bin/pulsar-admin namespaces set-deduplication \
+  persistent://sample/standalone/ns1/topic-1 \
+  --enable # or just -e
 ```
 
 ### Disabling message deduplication {#disabling}
 
-If message deduplication is [enabled](#enabling) on a Pulsar broker, all {% popover namespaces %} will have deduplication enabled by default. You can override this, however, on a per-namespace basis. This
+You can disable message deduplication on a specific namespace using the same method shown [above](#enabling), except using the `--disable`/`-d` flag instead. Here's an example:
 
-[`set-deduplication`](../../CliTools#pulsar-admin-namespaces-set-deduplication)
+```bash
+$ bin/pulsar-admin namespaces set-deduplication \
+  persistent://sample/standalone/ns1/topic-1 \
+  --disable # or just -d
+```
 
 ## Message deduplication and Pulsar clients {#clients}
 
