@@ -959,6 +959,11 @@ public class NonPersistentTopic implements Topic {
     }
 
     @Override
+    public boolean isReplicated() {
+        return replicators.size() > 1;
+    }
+
+    @Override
     public CompletableFuture<Void> unsubscribe(String subName) {
         // No-op
         return CompletableFuture.completedFuture(null);
