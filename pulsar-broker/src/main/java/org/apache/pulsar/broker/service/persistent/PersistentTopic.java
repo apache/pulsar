@@ -1497,6 +1497,11 @@ public class PersistentTopic implements Topic, AddEntryCallback {
         return isEncryptionRequired;
     }
 
+    @Override
+    public boolean isReplicated() {
+        return replicators.size() > 1;
+    }
+
     public CompletableFuture<MessageId> terminate() {
         CompletableFuture<MessageId> future = new CompletableFuture<>();
         ledger.asyncTerminate(new TerminateCallback() {
