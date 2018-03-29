@@ -89,6 +89,9 @@ public class LookupProxyHandler {
             performLookup(clientRequestId, topic, serviceUrl, false, 10);
             this.service.getLookupRequestSemaphore().release();
         } else {
+            if (log.isDebugEnabled()) {
+                log.debug("Request ID {} from {} rejected - Too many concurrent lookup requests.", clientRequestId, clientAddress);
+            }
             proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
                     "Too many concurrent lookup requests", clientRequestId));
         }

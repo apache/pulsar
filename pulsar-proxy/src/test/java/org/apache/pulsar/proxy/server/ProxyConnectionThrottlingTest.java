@@ -19,13 +19,14 @@
 package org.apache.pulsar.proxy.server;
 
 import static org.mockito.Mockito.doReturn;
-import static org.testng.Assert.assertTrue;
 
 import org.apache.bookkeeper.test.PortManager;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.mockito.Mockito;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -35,7 +36,7 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
     private final String DUMMY_VALUE = "DUMMY_VALUE";
     private final int NUM_CONCURRENT_LOOKUP = 3;
-    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 1;
+    private final int NUM_CONCURRENT_INBOUND_CONNECTION = 2;
     private ProxyService proxyService;
     private ProxyConfiguration proxyConfig = new ProxyConfiguration();
 
@@ -64,19 +65,23 @@ public class ProxyConnectionThrottlingTest extends MockedPulsarServiceBaseTest {
 
     @Test
     public void testInboundConnection() throws Exception {
-        PulsarClient client = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+        LOG.info("Creating producer 1");
+        PulsarClient client1 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
                 .build();
-        Producer<byte[]> producer1;
-
+        Producer<byte[]> producer1 = client1.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
+        
+        LOG.info("Creating producer 2");
+        PulsarClient client2 = PulsarClient.builder().serviceUrl("pulsar://localhost:" + proxyConfig.getServicePort())
+                .build();
+        Producer<byte[]> producer2;
         try {
-            producer1 = client.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
-            producer1.send("Message 1".getBytes());
-            Assert.fail("Should have failed since max num of connections is 1 and the lookup connection pool is a persistent connection.");
+            producer2 = client2.newProducer().topic("persistent://sample/test/local/producer-topic-1").create();
+            producer2.send("Message 1".getBytes());
+            Assert.fail("Should have failed since max num of connections is 2 and the first producer used them all up - one for discovery and other for producing.");
         } catch (Exception ex) {
             // OK
         }
-
-        client.close();
     }
-
+    
+    private static final Logger LOG = LoggerFactory.getLogger(ProxyConnectionThrottlingTest.class);
 }

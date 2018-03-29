@@ -40,6 +40,8 @@ import org.slf4j.LoggerFactory;
 
 import io.netty.channel.ChannelHandler;
 import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelInboundHandler;
+import io.netty.channel.ChannelPipeline;
 import io.netty.handler.ssl.SslHandler;
 import io.netty.util.concurrent.Future;
 import io.netty.util.concurrent.FutureListener;
@@ -92,14 +94,27 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     @Override
-    public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        super.channelActive(ctx);
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelRegistered(ctx);
         activeConnections.inc();
-        if (activeConnections.get() >= service.getConfiguration().getMaxConcurrentInboundConnections()) {
-            LOG.warn("[{}] Too many connection opened {}", remoteAddress, activeConnections.get());
-            this.ctx().close();
+        if (activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("[{}] Too many connection opened {}", remoteAddress, activeConnections.get());
+            }
+            ctx.close();
             return;
         }
+    }
+
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelUnregistered(ctx);
+        activeConnections.dec();
+    }
+    
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        super.channelActive(ctx);
         newConnections.inc();
         LOG.info("[{}] New connection opened", remoteAddress);
     }
@@ -107,7 +122,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
-        activeConnections.dec();
 
         if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
             directProxyHandler.outboundChannel.close();
