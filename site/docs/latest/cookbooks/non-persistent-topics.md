@@ -1,3 +1,7 @@
+---
+title: Non-persistent topics
+---
+
 <!--
 
     Licensed to the Apache Software Foundation (ASF) under one
@@ -18,6 +22,3 @@
     under the License.
 
 -->
-<section class="topic">
-  {% if include.type %}{{ include.type }}{% else %}persistent{% endif %}://<span class="property">{{ include.p }}</span>/<span class="cluster">{{ include.c }}</span>/<span class="namespace">{{ include.n }}</span>/<span class="t">{{ include.t }}</span>
-</section>
