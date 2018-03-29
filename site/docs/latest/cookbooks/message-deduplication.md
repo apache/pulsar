@@ -4,11 +4,15 @@ tags: [admin, deduplication, cookbook]
 new: true
 ---
 
-**Message deduplication** is a feature of Pulsar that, when enabled, ensures that each message produced on Pulsar {% popover topics %} is persisted to disk *only once*, even if the message is produced more than once. Message deduplication essentially unburdens Pulsar applications of the responsibility of ensuring deduplication and handles it automatically on the server side instead.
+**Message deduplication** is a feature of Pulsar that, when enabled, ensures that each message produced on Pulsar {% popover topics %} is persisted to disk *only once*, even if the message is produced more than once. Message deduplication essentially unburdens Pulsar applications of the responsibility of ensuring deduplication and instead handles it automatically on the server side.
 
 Using message deduplication in Pulsar involves making some [configuration changes](#configuration) to your Pulsar brokers as well as some minor changes to the behavior of Pulsar [clients](#clients).
 
 {% include admonition.html type="info" content="For a more thorough theoretical explanation of message deduplication, see the [Concepts and Architecture](../../getting-started/ConceptsAndArchitecture#message-deduplication) document." %}
+
+## How it works
+
+
 
 ## Configuration for message deduplication {#configuration}
 
@@ -16,12 +20,14 @@ You can configure message deduplication in Pulsar using the [`broker.conf`](../.
 
 Parameter | Description | Default
 :---------|:------------|:-------
-`brokerDeduplicationEnabled` | Sets the default behavior for message deduplication in the broker. If enabled, the broker will reject messages that were already stored in the topic. This setting can be overridden on a per-namespace basis. | `false`
+`brokerDeduplicationEnabled` | Sets the default behavior for message deduplication in the Pulsar {% popover broker %}. If set to `true`, message deduplication will be enabled by default on all namespaces; if set to `false` (the default), deduplication will have to be [enabled](#enabling) and [disabled](#disabling) on a per-namespace basis. | `false`
 `brokerDeduplicationMaxNumberOfProducers` | The maximum number of producers for which information will be stored for deduplication purposes. | `10000`
 `brokerDeduplicationEntriesInterval` | The number of entries after which a deduplication informational snapshot is taken. A larger interval will lead to fewer snapshots being taken, though this would also lengthen the topic recovery time (the time required for entries published after the snapshot to be replayed). | `1000`
 `brokerDeduplicationProducerInactivityTimeoutMinutes` | The time of inactivity (in minutes) after which the broker will discard deduplication information related to a disconnected producer. | `360` (6 hours)
 
 ### Setting the broker-level default {#default}
+
+By default, 
 
 To enable message deduplication in a broker, set the `brokerDeduplicationEnabled` parameter to `true` and re-start the broker.
 
