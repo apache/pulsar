@@ -1522,7 +1522,7 @@ public class ManagedCursorImpl implements ManagedCursor {
             }
 
             for (Position pos : positions) {
-                PositionImpl position  = (PositionImpl) pos;
+                PositionImpl position  = (PositionImpl) checkNotNull(pos);
 
                 if (individualDeletedMessages.contains(position) || position.compareTo(markDeletePosition) <= 0) {
                     if (log.isDebugEnabled()) {
@@ -1553,7 +1553,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             // mark-delete to the upper bound of the first range segment
             Range<PositionImpl> range = individualDeletedMessages.asRanges().iterator().next();
 
-            // Bug:7062188 - markDeletePosition can sometimes be stuck at the beginning of an empty ledger.
             // If the lowerBound is ahead of MarkDelete, verify if there are any entries in-between
             if (range.lowerEndpoint().compareTo(markDeletePosition) <= 0 || ledger
                     .getNumberOfEntries(Range.openClosed(markDeletePosition, range.lowerEndpoint())) <= 0) {
