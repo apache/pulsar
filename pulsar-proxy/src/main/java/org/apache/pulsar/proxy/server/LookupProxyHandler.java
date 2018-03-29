@@ -65,28 +65,37 @@ public class LookupProxyHandler {
         if (log.isDebugEnabled()) {
             log.debug("Received Lookup from {}", clientAddress);
         }
-
-        lookupRequests.inc();
         long clientRequestId = lookup.getRequestId();
-        String topic = lookup.getTopic();
-        String serviceUrl;
-        if (isBlank(brokerServiceURL)) {
-            ServiceLookupData availableBroker = null;
-            try {
-                availableBroker = service.getDiscoveryProvider().nextBroker();
-            } catch (Exception e) {
-                log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
-                proxyConnection.ctx().writeAndFlush(
-                        Commands.newLookupErrorResponse(ServerError.ServiceNotReady, e.getMessage(), clientRequestId));
-                return;
+        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
+            lookupRequests.inc();
+            String topic = lookup.getTopic();
+            String serviceUrl;
+            if (isBlank(brokerServiceURL)) {
+                ServiceLookupData availableBroker = null;
+                try {
+                    availableBroker = service.getDiscoveryProvider().nextBroker();
+                } catch (Exception e) {
+                    log.warn("[{}] Failed to get next active broker {}", clientAddress, e.getMessage(), e);
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                            e.getMessage(), clientRequestId));
+                    return;
+                }
+                serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
+                        : availableBroker.getPulsarServiceUrl();
+            } else {
+                serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
+                        : service.getConfiguration().getBrokerServiceURL();
             }
-            serviceUrl = this.connectWithTLS ? availableBroker.getPulsarServiceUrlTls()
-                    : availableBroker.getPulsarServiceUrl();
+            performLookup(clientRequestId, topic, serviceUrl, false, 10);
+            this.service.getLookupRequestSemaphore().release();
         } else {
-            serviceUrl = this.connectWithTLS ? service.getConfiguration().getBrokerServiceURLTLS()
-                    : service.getConfiguration().getBrokerServiceURL();
+            if (log.isDebugEnabled()) {
+                log.debug("Request ID {} from {} rejected - Too many concurrent lookup requests.", clientRequestId, clientAddress);
+            }
+            proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                    "Too many concurrent lookup requests", clientRequestId));
         }
-        performLookup(clientRequestId, topic, serviceUrl, false, 10);
+
     }
 
     private void performLookup(long clientRequestId, String topic, String brokerServiceUrl, boolean authoritative,
@@ -121,27 +130,26 @@ public class LookupProxyHandler {
             } else {
                 command = Commands.newLookup(topic, authoritative, requestId);
             }
-            clientCnx.newLookup(command,
-                    requestId).thenAccept(result -> {
-                        String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
-                        if (result.redirect) {
-                            // Need to try the lookup again on a different broker
-                            performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
-                        } else {
-                            // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
-                            // between proxy
-                            // and broker is independent of whether the client itself uses TLS, but we need to force the
-                            // client
-                            // to use the appropriate target broker (and port) when it will connect back.
-                            proxyConnection.ctx().writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
-                                    LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
-                        }
-                    }).exceptionally(ex -> {
-                        log.warn("[{}] Failed to lookup topic {}: {}", clientAddress, topic, ex.getMessage());
-                        proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
-                                ex.getMessage(), clientRequestId));
-                        return null;
-                    });
+            clientCnx.newLookup(command, requestId).thenAccept(result -> {
+                String brokerUrl = connectWithTLS ? result.brokerUrlTls : result.brokerUrl;
+                if (result.redirect) {
+                    // Need to try the lookup again on a different broker
+                    performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
+                } else {
+                    // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
+                    // between proxy
+                    // and broker is independent of whether the client itself uses TLS, but we need to force the
+                    // client
+                    // to use the appropriate target broker (and port) when it will connect back.
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupResponse(brokerUrl, brokerUrl, true,
+                            LookupType.Connect, clientRequestId, true /* this is coming from proxy */));
+                }
+            }).exceptionally(ex -> {
+                log.warn("[{}] Failed to lookup topic {}: {}", clientAddress, topic, ex.getMessage());
+                proxyConnection.ctx().writeAndFlush(
+                        Commands.newLookupErrorResponse(ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
+                return null;
+            });
         }).exceptionally(ex -> {
             // Failed to connect to backend broker
             proxyConnection.ctx().writeAndFlush(
@@ -155,13 +163,22 @@ public class LookupProxyHandler {
         if (log.isDebugEnabled()) {
             log.debug("[{}] Received PartitionMetadataLookup", clientAddress);
         }
-
         final long clientRequestId = partitionMetadata.getRequestId();
+        if (this.service.getLookupRequestSemaphore().tryAcquire()) {
+            handlePartitionMetadataResponse(partitionMetadata, clientRequestId);
+            this.service.getLookupRequestSemaphore().release();
+        } else {
+            proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
+                    "Too many concurrent lookup requests", clientRequestId));
+        }
+    }
+
+    private void handlePartitionMetadataResponse(CommandPartitionedTopicMetadata partitionMetadata,
+            long clientRequestId) {
         TopicName topicName = TopicName.get(partitionMetadata.getTopic());
         if (isBlank(brokerServiceURL)) {
-            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topicName, proxyConnection.clientAuthRole,
-                    proxyConnection.authenticationData)
-                    .thenAccept(metadata -> {
+            service.getDiscoveryProvider().getPartitionedTopicMetadata(service, topicName,
+                    proxyConnection.clientAuthRole, proxyConnection.authenticationData).thenAccept(metadata -> {
                         if (log.isDebugEnabled()) {
                             log.debug("[{}] Total number of partitions for topic {} is {}",
                                     proxyConnection.clientAuthRole, topicName, metadata.partitions);
@@ -202,18 +219,16 @@ public class LookupProxyHandler {
                 } else {
                     command = Commands.newPartitionMetadataRequest(topicName.toString(), requestId);
                 }
-                clientCnx.newLookup(
-                        command,
-                        requestId).thenAccept(lookupDataResult -> {
-                            proxyConnection.ctx().writeAndFlush(Commands
-                                    .newPartitionMetadataResponse(lookupDataResult.partitions, clientRequestId));
-                        }).exceptionally((ex) -> {
-                            log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
-                                    ex.getCause().getMessage(), ex);
-                            proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(
-                                    ServerError.ServiceNotReady, ex.getMessage(), clientRequestId));
-                            return null;
-                        });
+                clientCnx.newLookup(command, requestId).thenAccept(lookupDataResult -> {
+                    proxyConnection.ctx().writeAndFlush(
+                            Commands.newPartitionMetadataResponse(lookupDataResult.partitions, clientRequestId));
+                }).exceptionally((ex) -> {
+                    log.warn("[{}] failed to get Partitioned metadata : {}", topicName.toString(),
+                            ex.getCause().getMessage(), ex);
+                    proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
+                            ex.getMessage(), clientRequestId));
+                    return null;
+                });
             }).exceptionally(ex -> {
                 // Failed to connect to backend broker
                 proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
