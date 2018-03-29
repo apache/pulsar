@@ -20,6 +20,7 @@ package org.apache.pulsar.functions.api.examples;
 
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
+import org.apache.pulsar.functions.api.utils.DefaultSerDe;
 
 public class PublishFunction implements Function<String, Void> {
     @Override
