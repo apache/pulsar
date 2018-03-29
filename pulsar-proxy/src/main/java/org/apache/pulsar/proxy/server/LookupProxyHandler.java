@@ -38,6 +38,7 @@ import io.prometheus.client.Counter;
 import static org.apache.commons.lang3.StringUtils.isBlank;
 
 public class LookupProxyHandler {
+    private final String throttlingErrorMessage = "Too many concurrent lookup and partitionsMetadata requests";
     private final ProxyService service;
     private final ProxyConnection proxyConnection;
     private final boolean connectWithTLS;
@@ -51,6 +52,14 @@ public class LookupProxyHandler {
     private static final Counter partitionsMetadataRequests = Counter
             .build("pulsar_proxy_partitions_metadata_requests", "Counter of partitions metadata requests").create()
             .register();
+
+    static final Counter rejectedLookupRequests = Counter.build("pulsar_proxy_rejected_lookup_requests",
+            "Counter of topic lookup requests rejected due to throttling").create().register();
+
+    static final Counter rejectedPartitionsMetadataRequests = Counter
+            .build("pulsar_proxy_rejected_partitions_metadata_requests",
+                    "Counter of partitions metadata requests rejected due to throttling")
+            .create().register();
 
     public LookupProxyHandler(ProxyService proxy, ProxyConnection proxyConnection) {
         this.service = proxy;
@@ -89,11 +98,13 @@ public class LookupProxyHandler {
             performLookup(clientRequestId, topic, serviceUrl, false, 10);
             this.service.getLookupRequestSemaphore().release();
         } else {
+            rejectedLookupRequests.inc();
             if (log.isDebugEnabled()) {
-                log.debug("Request ID {} from {} rejected - Too many concurrent lookup requests.", clientRequestId, clientAddress);
+                log.debug("Lookup Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
+                        throttlingErrorMessage);
             }
             proxyConnection.ctx().writeAndFlush(Commands.newLookupErrorResponse(ServerError.ServiceNotReady,
-                    "Too many concurrent lookup requests", clientRequestId));
+                    throttlingErrorMessage, clientRequestId));
         }
 
     }
@@ -137,7 +148,6 @@ public class LookupProxyHandler {
                     performLookup(clientRequestId, topic, brokerUrl, result.authoritative, numberOfRetries - 1);
                 } else {
                     // Reply the same address for both TLS non-TLS. The reason is that whether we use TLS
-                    // between proxy
                     // and broker is independent of whether the client itself uses TLS, but we need to force the
                     // client
                     // to use the appropriate target broker (and port) when it will connect back.
@@ -168,8 +178,13 @@ public class LookupProxyHandler {
             handlePartitionMetadataResponse(partitionMetadata, clientRequestId);
             this.service.getLookupRequestSemaphore().release();
         } else {
+            rejectedPartitionsMetadataRequests.inc();
+            if (log.isDebugEnabled()) {
+                log.debug("PartitionMetaData Request ID {} from {} rejected - {}.", clientRequestId, clientAddress,
+                        throttlingErrorMessage);
+            }
             proxyConnection.ctx().writeAndFlush(Commands.newPartitionMetadataResponse(ServerError.ServiceNotReady,
-                    "Too many concurrent lookup requests", clientRequestId));
+                    throttlingErrorMessage, clientRequestId));
         }
     }
 
