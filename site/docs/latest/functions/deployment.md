@@ -66,8 +66,6 @@ $ bin/pulsar-admin functions update \
   --output persistent://sample/standalone/ns1/new-output-topic
 ```
 
-{% include admonition.html type="info" content="Something" %}
-
 ### Parallelism
 
 Pulsar Functions run as processes called **instances**. When you run a Pulsar Function, it runs as a single instance by default (and in [local run mode](#local-run) you can *only* run a single instance of a function).
