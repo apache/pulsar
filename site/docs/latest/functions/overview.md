@@ -34,15 +34,26 @@ Core goal: make Pulsar do real heavy lifting without needing to deploy a neighbo
   * "Serverless" philosophy
 * No need for a separate SPE
 
-### Inspirations
+## Inspirations
 
 * AWS Lambda, Google Cloud Functions, etc.
 * FaaS
 * Serverless/NoOps philosophy
 
-### Command-line interface
+## Configuration
 
-You can manage Pulsar Functions using the [`pulsar-functions`](../../reference/CliTools#pulsar-functions) CLI tool. Here's an example command that would
+Pulsar Functions can be configured in two ways:
+
+* Via [command-line arguments](#cli)
+* Via [YAML](http://yaml.org/) configuration files
+
+```yaml
+name: exclamation
+```
+
+## Command-line interface {#cli}
+
+Pulsar Functions are managed using the [`pulsar-functions`](../../reference/CliTools#pulsar-functions) CLI tool (in particular the [`functions`]() command). Here's an example command that would run a function in [local run mode](#local-run):
 
 ```bash
 $ bin/pulsar-functions localrun \
@@ -52,18 +63,21 @@ $ bin/pulsar-functions localrun \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
 
-### Supported languages
+## Supported languages
 
 Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
 
-### Runtime
+## Runtime
 
 ### Deployment modes
 
-* Local run
-* Cluster run
+#### Local run mode {#local-run}
 
-### Delivery semantics
+#### Cluster run mode {#cluster-run}
+
+### Logging
+
+## Delivery semantics
 
 * At most once
 * At least once
@@ -78,7 +92,7 @@ You can certainly use Pulsar Functions to perform stateless operations,
 
 By default, Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) for state storage.
 
-### Metrics
+## Metrics
 
 Here's an example function that publishes a value of 1 to the `my-metric` metric.
 
@@ -92,11 +106,9 @@ public class MetricsFunction implements PulsarFunction<String, Void> {
 }
 ```
 
-### Logging
+
 
 ### Data types
 
 * Strongly typed
-
-## YAML configuration {#yaml}
 
