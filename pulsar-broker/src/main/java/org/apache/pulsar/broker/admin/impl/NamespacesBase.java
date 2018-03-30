@@ -39,6 +39,8 @@ import javax.ws.rs.core.Response;
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 
+import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -1341,28 +1343,85 @@ public abstract class NamespacesBase extends AdminResource {
             byte[] content = globalZk().getData(path, null, nodeStat);
             Policies policies = jsonMapper().readValue(content, Policies.class);
             if (maxConsumersPerSubscription < 0) {
-                throw new RestException(Status.PRECONDITION_FAILED,
-                        "maxConsumersPerSubscription must be 0 or more");
+                throw new RestException(Status.PRECONDITION_FAILED, "maxConsumersPerSubscription must be 0 or more");
             }
             policies.max_consumers_per_subscription = maxConsumersPerSubscription;
             globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
             policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
-            log.info("[{}] Successfully updated maxConsumersPerSubscription configuration: namespace={}, value={}", clientAppId(),
-                    namespaceName, policies.max_consumers_per_subscription);
+            log.info("[{}] Successfully updated maxConsumersPerSubscription configuration: namespace={}, value={}",
+                    clientAppId(), namespaceName, policies.max_consumers_per_subscription);
 
         } catch (KeeperException.NoNodeException e) {
-            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: does not exist", clientAppId(),
-                    namespaceName);
+            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: does not exist",
+                    clientAppId(), namespaceName);
             throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
         } catch (KeeperException.BadVersionException e) {
-            log.warn("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: concurrent modification",
+            log.warn(
+                    "[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}: concurrent modification",
                     clientAppId(), namespaceName);
             throw new RestException(Status.CONFLICT, "Concurrent modification");
         } catch (RestException pfe) {
             throw pfe;
         } catch (Exception e) {
-            log.error("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}", clientAppId(), namespaceName,
-                    e);
+            log.error("[{}] Failed to update maxConsumersPerSubscription configuration for namespace {}", clientAppId(),
+                    namespaceName, e);
+            throw new RestException(e);
+        }
+    }
+
+    protected void internalSetPolicy(Policies.PolicyProperty policyProperty, String jsonPolicyValue) {
+        if (policyProperty.isOnlySuperUser()) {
+            validateSuperUserAccess();
+        }
+        validatePoliciesReadOnlyAccess();
+
+        try {
+            Stat nodeStat = new Stat();
+            final String path = path(POLICIES, namespaceName.toString());
+            byte[] content = globalZk().getData(path, null, nodeStat);
+            Policies policies = jsonMapper().readValue(content, Policies.class);
+
+            Gson gson = new Gson();
+            Object policyValue = gson.fromJson(jsonPolicyValue, policyProperty.getType());
+
+            // When policyValue is Map instance, update by Map.put
+            if (policyValue instanceof Map) {
+                Map<Object, Object> resources = (Map<Object, Object>) Policies.class.getDeclaredField(policyProperty
+                        .getPropertyName()).get(policies);
+                for (Map.Entry<Object, Object> entry: ((Map<Object, Object>) policyValue).entrySet()) {
+                    resources.put(entry.getKey(), entry.getValue());
+                }
+            } else {
+                if (policyValue instanceof Integer && (Integer) policyValue < 0) {
+                    throw new RestException(Status.PRECONDITION_FAILED,
+                            String.format("%s must be 0 or more", policyProperty.name()));
+                }
+                Policies.class.getDeclaredField(policyProperty.getPropertyName()).set(policies, policyValue);
+            }
+
+            globalZk().setData(path, jsonMapper().writeValueAsBytes(policies), nodeStat.getVersion());
+            policiesCache().invalidate(path(POLICIES, namespaceName.toString()));
+            log.info("[{}] Successfully updated {} configuration: namespace={}, value={}", clientAppId(),
+                    policyProperty.name(), namespaceName,
+                    Policies.class.getDeclaredField(policyProperty.getPropertyName()).get(policies));
+
+        } catch (KeeperException.NoNodeException e) {
+            log.warn("[{}] Failed to update {} configuration for namespace {}: does not exist", clientAppId(),
+                    policyProperty.name(), namespaceName);
+            throw new RestException(Status.NOT_FOUND, "Namespace does not exist");
+        } catch (KeeperException.BadVersionException e) {
+            log.warn("[{}] Failed to update {} configuration for namespace {}: concurrent modification",
+                    clientAppId(), policyProperty.name(), namespaceName);
+            throw new RestException(Status.CONFLICT, "Concurrent modification");
+        } catch (RestException pfe) {
+            throw pfe;
+        } catch (JsonSyntaxException e) {
+            log.warn("[{}] Failed to update {} configuration for namespace {}: Json syntax error {}",
+                    clientAppId(), policyProperty.name(), namespaceName, jsonPolicyValue);
+            throw new RestException(Status.BAD_REQUEST, "Json syntax error" + jsonPolicyValue);
+        } catch (Exception e) {
+            log.error("[{}] Failed to update {} configuration for namespace {}", clientAppId(), policyProperty.name(),
+                    namespaceName, e);
             throw new RestException(e);
         }
     }

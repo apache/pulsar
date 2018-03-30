@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.common.policies.data;
 
+import java.lang.reflect.Type;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -25,8 +26,44 @@ import java.util.Objects;
 import com.google.common.base.MoreObjects;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.reflect.TypeToken;
 
 public class Policies {
+    public enum PolicyProperty {
+        BacklogQuotaMap(new TypeToken<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>>(){}.getType(), "backlog_quota_map", false),
+        DeduplicationEnabled(new TypeToken<Boolean>(){}.getType(), "deduplicationEnabled", false),
+        MessageTtlInSeconds(new TypeToken<Integer>(){}.getType(), "message_ttl_in_seconds", false),
+        RetentionPolicies(new TypeToken<RetentionPolicies>(){}.getType(), "retention_policies", false),
+        AntiAffinityGroup(new TypeToken<String>(){}.getType(), "antiAffinityGroup", false),
+        EncryptionRequired(new TypeToken<Boolean>(){}.getType(), "encryption_required", false),
+        SubscriptionAuthMode(new TypeToken<SubscriptionAuthMode>(){}.getType(), "subscription_auth_mode", false),
+        MaxProducersPerTopic(new TypeToken<Integer>(){}.getType(), "max_producers_per_topic", true),
+        MaxConsumersPerTopic(new TypeToken<Integer>(){}.getType(), "max_consumers_per_topic", true),
+        MaxConsumersPerSubscription(new TypeToken<Integer>(){}.getType(), "max_consumers_per_subscription", true),
+        ;
+
+        private final Type type;
+        private final String propertyName;
+        private final boolean isOnlySuperUser;
+
+        PolicyProperty(final Type type, final String propertyName, boolean isOnlySuperUser) {
+            this.type = type;
+            this.propertyName = propertyName;
+            this.isOnlySuperUser = isOnlySuperUser;
+        }
+
+        public Type getType() {
+            return type;
+        }
+
+        public String getPropertyName() {
+            return propertyName;
+        }
+
+        public boolean isOnlySuperUser() {
+            return isOnlySuperUser;
+        }
+    }
 
     public final AuthPolicies auth_policies = new AuthPolicies();
     public List<String> replication_clusters = Lists.newArrayList();

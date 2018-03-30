@@ -22,10 +22,7 @@ import static org.apache.commons.lang3.StringUtils.isBlank;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES;
 import static org.apache.pulsar.broker.cache.ConfigurationCacheService.POLICIES_ROOT;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
@@ -40,6 +37,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response.Status;
 
+import com.google.gson.Gson;
 import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.admin.impl.NamespacesBase;
 import org.apache.pulsar.broker.web.RestException;
@@ -51,6 +49,7 @@ import org.apache.pulsar.common.policies.data.BundlesData;
 import org.apache.pulsar.common.policies.data.DispatchRate;
 import org.apache.pulsar.common.policies.data.PersistencePolicies;
 import org.apache.pulsar.common.policies.data.Policies;
+import org.apache.pulsar.common.policies.data.Policies.PolicyProperty;
 import org.apache.pulsar.common.policies.data.RetentionPolicies;
 import org.apache.pulsar.common.policies.data.SubscriptionAuthMode;
 import org.apache.zookeeper.KeeperException;
@@ -142,6 +141,40 @@ public class Namespaces extends NamespacesBase {
         validateAdminAccessOnProperty(property);
         validateNamespaceName(property, cluster, namespace);
         return getNamespacePolicies(namespaceName);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/policies/{policyProperty}")
+    @ApiOperation(value = "Get a policy for a namespace.", response = Policies.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public Object getPolicy(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("policyProperty") PolicyProperty policyProperty) {
+        validateAdminAccessOnProperty(property);
+        validateNamespaceName(property, cluster, namespace);
+        Policies policies = getNamespacePolicies(namespaceName);
+        Object result = null;
+        try {
+            result = Policies.class.getDeclaredField(policyProperty.getPropertyName()).get(policies);
+        } catch (Exception e) {
+            throw new RestException(Status.NOT_FOUND, "PolicyProperty does not exist");
+        }
+        if (result == null) throw new RestException(Status.NO_CONTENT, "Object does not exist");
+        return result;
+    }
+
+    @PUT
+    @Path("/{property}/{cluster}/{namespace}/policies/{policyProperty}")
+    @ApiOperation(value = "Set a policy for a namespace.", response = Policies.class)
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+            @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist") })
+    public void setPolicy(@PathParam("property") String property,
+            @PathParam("cluster") String cluster, @PathParam("namespace") String namespace,
+            @PathParam("policyProperty") Policies.PolicyProperty policyProperty, String jsonPolicyValue) {
+        validateAdminAccessOnProperty(property);
+        validateNamespaceName(property, cluster, namespace);
+        internalSetPolicy(policyProperty, jsonPolicyValue);
     }
 
     @SuppressWarnings("deprecation")

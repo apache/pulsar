@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.client.admin.internal;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -152,7 +153,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions");
-            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {});
+            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -186,7 +188,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "replication");
-            return request(path).get(new GenericType<List<String>>() {});
+            return request(path).get(new GenericType<List<String>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -207,8 +210,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public int getNamespaceMessageTTL(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "messageTTL");
-            return request(path).get(new GenericType<Integer>() {});
+            WebTarget path = namespacePath(ns, "policies/MessageTtlInSecond");
+            return request(path).get(new GenericType<Integer>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -218,8 +222,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setNamespaceMessageTTL(String namespace, int ttlInSeconds) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "messageTTL");
-            request(path).post(Entity.entity(ttlInSeconds, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/MessageTtlInSeconds");
+            request(path).put(Entity.entity(ttlInSeconds, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -230,8 +234,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "antiAffinity");
-            request(path).post(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/AntiAffinityGroup");
+            request(path).put(Entity.entity(namespaceAntiAffinityGroup, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -241,8 +245,9 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public String getNamespaceAntiAffinityGroup(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "antiAffinity");
-            return request(path).get(new GenericType<String>() {});
+            WebTarget path = namespacePath(ns, "policies/AntiAffinityGroup");
+            return request(path).get(new GenericType<String>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -253,7 +258,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             throws PulsarAdminException {
         try {
             WebTarget path = adminV2Namespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
-            return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {});
+            return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -274,8 +280,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setDeduplicationStatus(String namespace, boolean enableDeduplication) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "deduplication");
-            request(path).post(Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/DeduplicationEnabled");
+            request(path).put(Entity.entity(enableDeduplication, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -342,8 +348,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setRetention(String namespace, RetentionPolicies retention) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "retention");
-            request(path).post(Entity.entity(retention, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/RetentionPolicies");
+            request(path).put(Entity.entity(retention, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -354,7 +360,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public RetentionPolicies getRetention(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "retention");
+            WebTarget path = namespacePath(ns, "policies/RetentionPolicies");
             return request(path).get(RetentionPolicies.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -499,11 +505,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException {
+    public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode)
+            throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "subscriptionAuthMode");
-            request(path).post(Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/SubscriptionAuthMode");
+            request(path).put(Entity.entity(subscriptionAuthMode, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -513,8 +520,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setEncryptionRequiredStatus(String namespace, boolean encryptionRequired) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "encryptionRequired");
-            request(path).post(Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/EncryptionRequired");
+            request(path).put(Entity.entity(encryptionRequired, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -524,7 +531,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public int getMaxProducersPerTopic(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "maxProducersPerTopic");
+            WebTarget path = namespacePath(ns, "policies/MaxProducersPerTopic");
             return request(path).get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -535,8 +542,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setMaxProducersPerTopic(String namespace, int maxProducersPerTopic) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "maxProducersPerTopic");
-            request(path).post(Entity.entity(maxProducersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/MaxProducersPerTopic");
+            request(path).put(Entity.entity(maxProducersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -546,7 +553,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public int getMaxConsumersPerTopic(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "maxConsumersPerTopic");
+            WebTarget path = namespacePath(ns, "policies/MaxConsumersPerTopic");
             return request(path).get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -557,8 +564,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setMaxConsumersPerTopic(String namespace, int maxConsumersPerTopic) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "maxConsumersPerTopic");
-            request(path).post(Entity.entity(maxConsumersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/MaxConsumersPerTopic");
+            request(path).put(Entity.entity(maxConsumersPerTopic, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -568,7 +575,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public int getMaxConsumersPerSubscription(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
+            WebTarget path = namespacePath(ns, "policies/MaxConsumersPerSubscription");
             return request(path).get(Integer.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -576,11 +583,12 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException {
+    public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription)
+            throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "maxConsumersPerSubscription");
-            request(path).post(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "policies/MaxConsumersPerSubscription");
+            request(path).put(Entity.entity(maxConsumersPerSubscription, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
