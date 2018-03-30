@@ -85,6 +85,10 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             .build("pulsar_proxy_new_connections", "Counter of connections being opened in the proxy").create()
             .register();
 
+    static final Counter rejectedConnections = Counter
+            .build("pulsar_proxy_rejected_connections", "Counter for connections rejected due to throttling").create()
+            .register();
+    
     public ProxyConnection(ProxyService proxyService) {
         super(30, TimeUnit.SECONDS);
         this.service = proxyService;
@@ -92,9 +96,25 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     }
 
     @Override
+    public void channelRegistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelRegistered(ctx);
+        activeConnections.inc();
+        if (activeConnections.get() > service.getConfiguration().getMaxConcurrentInboundConnections()) {
+            ctx.close();
+            rejectedConnections.inc();
+            return;
+        }
+    }
+
+    @Override
+    public void channelUnregistered(ChannelHandlerContext ctx) throws Exception {
+        super.channelUnregistered(ctx);
+        activeConnections.dec();
+    }
+    
+    @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
         super.channelActive(ctx);
-        activeConnections.inc();
         newConnections.inc();
         LOG.info("[{}] New connection opened", remoteAddress);
     }
@@ -102,7 +122,6 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
-        activeConnections.dec();
 
         if (directProxyHandler != null && directProxyHandler.outboundChannel != null) {
             directProxyHandler.outboundChannel.close();
@@ -164,7 +183,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
             close();
             return;
         }
-        
+
         if (connect.hasProxyToBrokerUrl()) {
             // Client already knows which broker to connect. Let's open a connection
             // there and just pass bytes in both directions
@@ -226,8 +245,7 @@ public class ProxyConnection extends PulsarHandler implements FutureListener<Voi
                 sslSession = ((SslHandler) sslHandler).engine().getSession();
             }
             authenticationData = new AuthenticationDataCommand(authData, remoteAddress, sslSession);
-            clientAuthRole = service.getAuthenticationService()
-                    .authenticate(authenticationData, authMethod);
+            clientAuthRole = service.getAuthenticationService().authenticate(authenticationData, authMethod);
             LOG.info("[{}] Client successfully authenticated with {} role {}", remoteAddress, authMethod,
                     clientAuthRole);
             return true;

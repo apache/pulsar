@@ -36,8 +36,7 @@ ConsumerImpl::ConsumerImpl(const ClientImplPtr client, const std::string& topic,
                            const std::string& subscription, const ConsumerConfiguration& conf,
                            const ExecutorServicePtr listenerExecutor /* = NULL by default */,
                            const ConsumerTopicType consumerTopicType /* = NonPartitioned by default */,
-                           Commands::SubscriptionMode subscriptionMode,
-                           Optional<BatchMessageId> startMessageId)
+                           Commands::SubscriptionMode subscriptionMode, Optional<MessageId> startMessageId)
     : HandlerBase(client, topic, Backoff(milliseconds(100), seconds(60), milliseconds(0))),
       waitingForZeroQueueSizeMessage(false),
       config_(conf),
@@ -122,7 +121,7 @@ void ConsumerImpl::connectionOpened(const ClientConnectionPtr& cnx) {
         return;
     }
 
-    Optional<BatchMessageId> firstMessageInQueue = clearReceiveQueue();
+    Optional<MessageId> firstMessageInQueue = clearReceiveQueue();
     unAckedMessageTrackerPtr_->clear();
     batchAcknowledgementTracker_.clear();
 
@@ -271,8 +270,7 @@ void ConsumerImpl::messageReceived(const ClientConnectionPtr& cnx, const proto::
         return;
     }
 
-    Message m(msg, metadata, payload);
-    m.impl_->messageId.partition_ = partitionIndex_;
+    Message m(msg, metadata, payload, partitionIndex_);
     m.impl_->cnx_ = cnx.get();
 
     LOG_DEBUG(getName() << " metadata.num_messages_in_batch() = " << metadata.num_messages_in_batch());
@@ -320,18 +318,17 @@ uint32_t ConsumerImpl::receiveIndividualMessagesFromBatch(const ClientConnection
     int skippedMessages = 0;
 
     for (int i = 0; i < batchSize; i++) {
-        batchedMessage.impl_->messageId.batchIndex_ = i;
         // This is a cheap copy since message contains only one shared pointer (impl_)
-        Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage);
+        Message msg = Commands::deSerializeSingleMessageInBatch(batchedMessage, i);
 
         if (startMessageId_.is_present()) {
-            const BatchMessageId& msgId = static_cast<const BatchMessageId&>(msg.getMessageId());
+            const MessageId& msgId = msg.getMessageId();
 
             // If we are receiving a batch message, we need to discard messages that were prior
             // to the startMessageId
-            if (msgId.ledgerId_ == startMessageId_.value().ledgerId_ &&
-                msgId.entryId_ == startMessageId_.value().entryId_ &&
-                msgId.batchIndex_ <= startMessageId_.value().batchIndex_) {
+            if (msgId.ledgerId() == startMessageId_.value().ledgerId() &&
+                msgId.entryId() == startMessageId_.value().entryId() &&
+                msgId.batchIndex() <= startMessageId_.value().batchIndex()) {
                 LOG_DEBUG(getName() << "Ignoring message from before the startMessageId"
                                     << msg.getMessageId());
                 ++skippedMessages;
@@ -559,7 +556,7 @@ Result ConsumerImpl::receiveHelper(Message& msg, int timeout) {
 
 void ConsumerImpl::messageProcessed(Message& msg) {
     Lock lock(mutex_);
-    lastDequedMessage_ = Optional<BatchMessageId>::of(static_cast<const BatchMessageId&>(msg.getMessageId()));
+    lastDequedMessage_ = Optional<MessageId>::of(msg.getMessageId());
 
     ClientConnectionPtr currentCnx = getCnx().lock();
     if (currentCnx && msg.impl_->cnx_ != currentCnx.get()) {
@@ -575,23 +572,19 @@ void ConsumerImpl::messageProcessed(Message& msg) {
  * was
  * not seen by the application
  */
-Optional<BatchMessageId> ConsumerImpl::clearReceiveQueue() {
+Optional<MessageId> ConsumerImpl::clearReceiveQueue() {
     Message nextMessageInQueue;
     if (incomingMessages_.peekAndClear(nextMessageInQueue)) {
         // There was at least one message pending in the queue
-        // We can safely cast to 'BatchMessageId' since all the messages queued will have that type of message
-        // id,
-        // irrespective of whether they were part of a batch or not.
-        const BatchMessageId& nextMessageId =
-            static_cast<const BatchMessageId&>(nextMessageInQueue.getMessageId());
-        BatchMessageId previousMessageId;
-        if (nextMessageId.batchIndex_ >= 0) {
-            previousMessageId = BatchMessageId(nextMessageId.ledgerId_, nextMessageId.entryId_,
-                                               nextMessageId.batchIndex_ - 1);
+        const MessageId& nextMessageId = nextMessageInQueue.getMessageId();
+        MessageId previousMessageId;
+        if (nextMessageId.batchIndex() >= 0) {
+            previousMessageId = MessageId(-1, nextMessageId.ledgerId(), nextMessageId.entryId(),
+                                          nextMessageId.batchIndex() - 1);
         } else {
-            previousMessageId = BatchMessageId(nextMessageId.ledgerId_, nextMessageId.entryId_ - 1, -1);
+            previousMessageId = MessageId(-1, nextMessageId.ledgerId(), nextMessageId.entryId() - 1, -1);
         }
-        return Optional<BatchMessageId>::of(previousMessageId);
+        return Optional<MessageId>::of(previousMessageId);
     } else if (lastDequedMessage_.is_present()) {
         // If the queue was empty we need to restart from the message just after the last one that has been
         // dequeued
@@ -646,23 +639,21 @@ void ConsumerImpl::statsCallback(Result res, ResultCallback callback, proto::Com
 void ConsumerImpl::acknowledgeAsync(const MessageId& msgId, ResultCallback callback) {
     ResultCallback cb =
         boost::bind(&ConsumerImpl::statsCallback, this, _1, callback, proto::CommandAck_AckType_Individual);
-    const BatchMessageId& batchMsgId = (const BatchMessageId&)msgId;
-    if (batchMsgId.batchIndex_ != -1 &&
-        !batchAcknowledgementTracker_.isBatchReady(batchMsgId, proto::CommandAck_AckType_Individual)) {
+    if (msgId.batchIndex() != -1 &&
+        !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Individual)) {
         cb(ResultOk);
         return;
     }
-    doAcknowledge(batchMsgId, proto::CommandAck_AckType_Individual, cb);
+    doAcknowledge(msgId, proto::CommandAck_AckType_Individual, cb);
 }
 
-void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& mId, ResultCallback callback) {
+void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& msgId, ResultCallback callback) {
     ResultCallback cb =
         boost::bind(&ConsumerImpl::statsCallback, this, _1, callback, proto::CommandAck_AckType_Cumulative);
-    const BatchMessageId& msgId = (const BatchMessageId&)mId;
-    if (msgId.batchIndex_ != -1 &&
+    if (msgId.batchIndex() != -1 &&
         !batchAcknowledgementTracker_.isBatchReady(msgId, proto::CommandAck_AckType_Cumulative)) {
-        BatchMessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
-        if (messageId == BatchMessageId()) {
+        MessageId messageId = batchAcknowledgementTracker_.getGreatestCumulativeAckReady(msgId);
+        if (messageId == MessageId()) {
             // nothing to ack
             cb(ResultOk);
         } else {
@@ -673,11 +664,11 @@ void ConsumerImpl::acknowledgeCumulativeAsync(const MessageId& mId, ResultCallba
     }
 }
 
-void ConsumerImpl::doAcknowledge(const BatchMessageId& messageId, proto::CommandAck_AckType ackType,
+void ConsumerImpl::doAcknowledge(const MessageId& messageId, proto::CommandAck_AckType ackType,
                                  ResultCallback callback) {
     proto::MessageIdData messageIdData;
-    messageIdData.set_ledgerid(messageId.ledgerId_);
-    messageIdData.set_entryid(messageId.entryId_);
+    messageIdData.set_ledgerid(messageId.ledgerId());
+    messageIdData.set_entryid(messageId.entryId());
     ClientConnectionPtr cnx = getCnx().lock();
     if (cnx) {
         SharedBuffer cmd = Commands::newAck(consumerId_, messageIdData, ackType, -1);
@@ -687,7 +678,7 @@ void ConsumerImpl::doAcknowledge(const BatchMessageId& messageId, proto::Command
         } else {
             unAckedMessageTrackerPtr_->removeMessagesTill(messageId);
         }
-        batchAcknowledgementTracker_.deleteAckedMessage((BatchMessageId&)messageId, ackType);
+        batchAcknowledgementTracker_.deleteAckedMessage(messageId, ackType);
         callback(ResultOk);
         LOG_DEBUG(getName() << "ack request sent for message - [" << messageIdData.ledgerid() << ","
                             << messageIdData.entryid() << "]");

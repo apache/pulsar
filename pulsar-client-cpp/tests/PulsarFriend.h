@@ -16,7 +16,7 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-#include <pulsar/BatchMessageId.h>
+
 #include <lib/ProducerImpl.h>
 #include <lib/ConsumerImpl.h>
 #include <string>
@@ -26,7 +26,11 @@ using std::string;
 namespace pulsar {
 class PulsarFriend {
    public:
-    static int getBatchIndex(const BatchMessageId& mId) { return mId.batchIndex_; }
+    static MessageId getMessageId(int32_t partition, int64_t ledgerId, int64_t entryId, int32_t batchIndex) {
+        return MessageId(partition, ledgerId, entryId, batchIndex);
+    }
+
+    static int getBatchIndex(const MessageId& mId) { return mId.batchIndex(); }
 
     static ProducerStatsImplPtr getProducerStatsPtr(Producer producer) {
         ProducerImpl* producerImpl = static_cast<ProducerImpl*>(producer.impl_.get());

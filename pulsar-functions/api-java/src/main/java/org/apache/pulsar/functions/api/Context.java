@@ -21,6 +21,7 @@ package org.apache.pulsar.functions.api;
 import org.slf4j.Logger;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -112,11 +113,19 @@ public interface Context {
     void incrCounter(String key, long amount);
 
     /**
-     * Get Any user defined key/value
+     * Get any user-defined key/value
      * @param key The key
-     * @return The value specified by the user for that key. null if no such key
+     * @return The Optional value specified by the user for that key.
      */
-    String getUserConfigValue(String key);
+    Optional<String> getUserConfigValue(String key);
+
+    /**
+     * Get any user-defined key/value or a default value if none is present
+     * @param key
+     * @param defaultValue
+     * @return Either the user config value associated with a given key or a supplied default value
+     */
+    String getUserConfigValueOrDefault(String key, String defaultValue);
 
     /**
      * Record a user defined metric
