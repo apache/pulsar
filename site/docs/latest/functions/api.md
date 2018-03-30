@@ -139,7 +139,7 @@ class WordFilter(Function):
 Writing Pulsar Functions in Java involves implementing one of two interfaces:
 
 * The [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface
-* The {% javadoc Function client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` ihterface, but with the important difference that it provides a {% javadoc Context client org.apache.pulsar.functions.api.Context %} object that you can use in a [variety of ways](#context)
+* The {% javadoc Function client org.apache.pulsar.functions.api.Function %} interface. This interface works much like the `java.util.Function` interface, but with the important difference that it provides a {% javadoc Context client org.apache.pulsar.functions.api.Context %} object that you can use in a [variety of ways](#context)
 
 ### Getting started
 
@@ -149,8 +149,8 @@ In order to write Pulsar Functions in Java, you'll need to install the proper [d
 
 How you get started writing Pulsar Functions in Java depends on which API you're using:
 
-* If you're writing [Java native function](#java-native), you won't need any external dependencies.
-* If you're writing a [Java SDK](#java-sdk) function, you'll need to import the `pulsar-functions-api` library.
+* If you're writing a [Java native function](#java-native), you won't need any external dependencies.
+* If you're writing a [Java SDK function](#java-sdk), you'll need to import the `pulsar-functions-api` library.
 
   Here's an example for a Maven `pom.xml` configuration file:
 
@@ -178,7 +178,7 @@ Whether you're writing Java Pulsar Functions using the [native](#java-native) Ja
 
 ### Java native functions {#java-native}
 
-If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
+If your function doesn't require access to its [context](#java-context), you can create a Pulsar Function by implementing the [`java.util.Function`](https://docs.oracle.com/javase/8/docs/api/java/util/function/Function.html) interface, which has this very simple, single-method signature:
 
 ```java
 public interface Function<I, O> {
@@ -432,4 +432,50 @@ The `UserConfigFunction` function will log the string `"The word of the day is v
 
 ## Pulsar Functions for Python {#python}
 
-Documentation for the Python SDK for Pulsar Functions is coming soon.
+Writing Pulsar Functions in Python entails implementing one of two things:
+
+* A `process` function that takes an input (message data from the function's input topic(s)), applies some kind of logic to it, and either returns an object (to be published to the function's output topic) or `pass`es and thus doesn't produce a message
+* A `Function` class that has a `process` method that provides a message input to process and a [context](#python-context) object
+
+### Getting started
+
+The requirements for writing Pulsar Functions in Python depend on your [deployment mode](../deployment):
+
+* If you're writing a [Python native function](#python-native), you won't need to install any external dependencies
+* If you're writing a [Python SDK function](#python-sdk)
+
+In order to develop Pulsar Functions in Python, you'll need to install the [`pulsar-client`](/api/python) Python library.
+
+```bash
+$ pip install pulsar-client
+```
+
+In order to run Python Pulsar Functions in [local run](../deployment#local-run) mode, you'll also need to install the following libraries:
+
+* [`protobuf`](https://pypi.python.org/pypi/protobuf)
+
+To install them all at once:
+
+```bash
+$ pip install protobuf
+```
+
+### Packaging
+
+At the moment, the code for Pulsar Functions written in Python must be contained within a single Python file. In the future, Pulsar Functions may support other packaging formats, such as [Python EXecutables](https://github.com/pantsbuild/pex) (PEXes).
+
+### Python native functions {#python-native}
+
+If your function doesn't require access to its [context](#context), you can create a Pulsar Function by implementing a `process` function, which provides a single input object that you can process however you wish. Here's an example function that takes a string as its input, adds an exclamation point at the end of the string, and then publishes the resulting string:
+
+```python
+def process(input):
+    return "{0}!".format(input)
+```
+
+In general, you should use native functions when you don't need access to the function's [context](#context). If you *do* need access to the function's context, then we recommend using the [Pulsar Functions Python SDK](#python-sdk).
+
+### Python SDK functions {#python-sdk}
+
+### Python context object {#python-context}
+
