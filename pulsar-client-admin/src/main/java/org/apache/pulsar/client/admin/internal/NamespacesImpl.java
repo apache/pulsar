@@ -252,7 +252,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
         try {
-            WebTarget path = adminV2Namespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
+            WebTarget path = adminNamespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
             return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {});
         } catch (Exception e) {
             throw getApiException(e);
