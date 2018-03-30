@@ -43,12 +43,12 @@ ENV JAVA_HOME=/usr/lib/jvm/java-1.8.0-openjdk-amd64
 
 ## Website build dependencies
 
-# Install Ruby-2.3.1
+# Install Ruby-2.4.1
 RUN apt-get install -y
 RUN gpg2 --keyserver hkp://keys.gnupg.net --recv-keys 409B6B1796C275462A1703113804BB82D39DC0E3 7D2BAF1CF37B13E2069D6956105BD0E739499BDB && \
     (curl -sSL https://get.rvm.io | bash -s stable)
 ENV PATH "$PATH:/usr/local/rvm/bin"
-RUN rvm install 2.3.1
+RUN rvm install 2.4.1
 
 # Install PIP and PDoc
 RUN wget https://bootstrap.pypa.io/get-pip.py && python get-pip.py
