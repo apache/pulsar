@@ -16,14 +16,33 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+class BatchMessageAckerDisabled extends BatchMessageAcker {
 
-public class ExclamationFunction implements Function<String, String> {
+    static final BatchMessageAckerDisabled INSTANCE = new BatchMessageAckerDisabled();
+
+    private BatchMessageAckerDisabled() {
+        super(null, 0);
+    }
+
     @Override
-    public String process(String input, Context context) {
-        return String.format("%s!", input);
+    public synchronized int getBatchSize() {
+        return 0;
+    }
+
+    @Override
+    public boolean ackIndividual(int batchIndex) {
+        return true;
+    }
+
+    @Override
+    public boolean ackCumulative(int batchIndex) {
+        return true;
+    }
+
+    @Override
+    public int getOutstandingAcks() {
+        return 0;
     }
 }

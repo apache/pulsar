@@ -16,14 +16,32 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.functions.api.examples;
+package org.apache.pulsar.client.impl;
 
-import org.apache.pulsar.functions.api.Context;
-import org.apache.pulsar.functions.api.Function;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
-public class ExclamationFunction implements Function<String, String> {
-    @Override
-    public String process(String input, Context context) {
-        return String.format("%s!", input);
+import org.testng.annotations.Test;
+
+public class BatchMessageAckerDisabledTest {
+
+    @Test
+    public void testAckIndividual() {
+        for (int i = 0; i < 10; i++) {
+            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackIndividual(i));
+        }
     }
+
+    @Test
+    public void testAckCumulative() {
+        for (int i = 0; i < 10; i++) {
+            assertTrue(BatchMessageAckerDisabled.INSTANCE.ackCumulative(i));
+        }
+    }
+
+    @Test
+    public void testGetOutstandingAcks() {
+        assertEquals(0, BatchMessageAckerDisabled.INSTANCE.getOutstandingAcks());
+    }
+
 }

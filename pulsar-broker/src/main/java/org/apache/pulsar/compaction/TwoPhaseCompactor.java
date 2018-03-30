@@ -21,8 +21,11 @@ package org.apache.pulsar.compaction;
 import com.google.common.collect.ImmutableMap;
 import io.netty.buffer.ByteBuf;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -43,6 +46,7 @@ import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.RawReader;
 import org.apache.pulsar.client.api.RawMessage;
+import org.apache.pulsar.client.impl.RawBatchConverter;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -83,7 +87,8 @@ public class TwoPhaseCompactor extends Compactor {
                     if (exception != null) {
                         loopPromise.completeExceptionally(exception);
                     } else {
-                        log.info("Commencing phase one of compaction for {}, reading to {}", reader, lastMessageId);
+                        log.info("Commencing phase one of compaction for {}, reading to {}",
+                                 reader.getTopic(), lastMessageId);
                         phaseOneLoop(reader, Optional.empty(), lastMessageId, latestForKey, loopPromise);
                     }
                 });
@@ -108,8 +113,18 @@ public class TwoPhaseCompactor extends Compactor {
                             return;
                         }
                         MessageId id = m.getMessageId();
-                        String key = extractKey(m);
-                        latestForKey.put(key, id);
+                        if (RawBatchConverter.isBatch(m)) {
+                            try {
+                                RawBatchConverter.extractIdsAndKeys(m)
+                                    .forEach(e -> latestForKey.put(e.getRight(), e.getLeft()));
+                            } catch (IOException ioe) {
+                                log.info("Error decoding batch for message {}. Whole batch will be included in output",
+                                         id, ioe);
+                            }
+                        } else {
+                            String key = extractKey(m);
+                            latestForKey.put(key, id);
+                        }
 
                         if (id.compareTo(lastMessageId) == 0) {
                             loopPromise.complete(new PhaseOneResult(firstMessageId.orElse(id),
@@ -140,7 +155,7 @@ public class TwoPhaseCompactor extends Compactor {
 
         return createLedger(bk).thenCompose((ledger) -> {
                 log.info("Commencing phase two of compaction for {}, from {} to {}, compacting {} keys to ledger {}",
-                         reader, from, to, latestForKey.size(), ledger.getId());
+                         reader.getTopic(), from, to, latestForKey.size(), ledger.getId());
                 return phaseTwoSeekThenLoop(reader, from, to, latestForKey, bk, ledger);
             });
     }
@@ -179,41 +194,55 @@ public class TwoPhaseCompactor extends Compactor {
                               LedgerHandle lh, Semaphore outstanding, CompletableFuture<Void> promise) {
         reader.readNextAsync().whenCompleteAsync(
                 (m, exception) -> {
-                    try {
-                        if (exception != null) {
-                            promise.completeExceptionally(exception);
-                            return;
-                        } else if (promise.isDone()) {
-                            return;
-                        }
-                        MessageId id = m.getMessageId();
-                        String key = extractKey(m);
-
-                        if (latestForKey.get(key).equals(id)) {
-
-                            outstanding.acquire();
-                            CompletableFuture<Void> addFuture = addToCompactedLedger(lh, m)
-                                .whenComplete((res, exception2) -> {
-                                        outstanding.release();
-                                        if (exception2 != null) {
-                                            promise.completeExceptionally(exception2);
-                                        }
-                                    });
-                            if (to.equals(id)) {
-                                addFuture.whenComplete((res, exception2) -> {
-                                        if (exception2 == null) {
-                                            promise.complete(null);
-                                        }
-                                    });
-                            }
-                        }
-                        phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        promise.completeExceptionally(ie);
-                    } finally {
-                        m.close();
+                    if (exception != null) {
+                        promise.completeExceptionally(exception);
+                        return;
+                    } else if (promise.isDone()) {
+                        return;
                     }
+                    MessageId id = m.getMessageId();
+                    Optional<RawMessage> messageToAdd = Optional.empty();
+                    if (RawBatchConverter.isBatch(m)) {
+                        try {
+                            messageToAdd = RawBatchConverter.rebatchMessage(
+                                    m, (key, subid) -> latestForKey.get(key).equals(subid));
+                        } catch (IOException ioe) {
+                            log.info("Error decoding batch for message {}. Whole batch will be included in output",
+                                     id, ioe);
+                            messageToAdd = Optional.of(m);
+                        }
+                    } else {
+                        String key = extractKey(m);
+                        if (latestForKey.get(key).equals(id)) {
+                            messageToAdd = Optional.of(m);
+                        } else {
+                            m.close();
+                        }
+                    }
+
+                    messageToAdd.ifPresent((toAdd) -> {
+                            try {
+                                outstanding.acquire();
+                                CompletableFuture<Void> addFuture = addToCompactedLedger(lh, toAdd)
+                                    .whenComplete((res, exception2) -> {
+                                            outstanding.release();
+                                            if (exception2 != null) {
+                                                promise.completeExceptionally(exception2);
+                                            }
+                                        });
+                                if (to.equals(id)) {
+                                    addFuture.whenComplete((res, exception2) -> {
+                                            if (exception2 == null) {
+                                                promise.complete(null);
+                                            }
+                                        });
+                                }
+                            } catch (InterruptedException ie) {
+                                Thread.currentThread().interrupt();
+                                promise.completeExceptionally(ie);
+                            }
+                        });
+                    phaseTwoLoop(reader, to, latestForKey, lh, outstanding, promise);
                 }, scheduler);
     }
 

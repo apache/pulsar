@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.service;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
@@ -42,7 +43,6 @@ import org.apache.pulsar.client.api.MessageBuilder;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.Producer;
 import org.apache.pulsar.client.api.SubscriptionType;
-import org.apache.pulsar.client.impl.ConsumerImpl;
 import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -434,7 +434,7 @@ public class BatchMessageTest extends BrokerTestBase {
         Message<byte[]> lastunackedMsg = null;
         for (int i = 0; i < numMsgs; i++) {
             Message<byte[]> msg = consumer.receive(5, TimeUnit.SECONDS);
-            LOG.info("received message {}", String.valueOf(msg.getData()));
+            LOG.info("received message {}", new String(msg.getData(), UTF_8));
             assertNotNull(msg);
             if (i == 8) {
                 consumer.acknowledgeCumulative(msg);
@@ -514,7 +514,6 @@ public class BatchMessageTest extends BrokerTestBase {
         Thread.sleep(100);
         rolloverPerIntervalStats();
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
-        assertTrue(((ConsumerImpl<byte[]>) consumer).isBatchingAckTrackerEmpty());
         consumer.close();
         producer.close();
         noBatchProducer.close();
@@ -574,7 +573,6 @@ public class BatchMessageTest extends BrokerTestBase {
         }
         Thread.sleep(100);
         assertEquals(topic.getSubscription(subscriptionName).getNumberOfEntriesInBacklog(), 0);
-        assertTrue(((ConsumerImpl<byte[]>) consumer).isBatchingAckTrackerEmpty());
         consumer.close();
         producer.close();
         noBatchProducer.close();
