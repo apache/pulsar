@@ -418,8 +418,32 @@ Reader reader = pulsarClient.createReader(topic, id, new ReaderConfiguration());
 
 ## Schema registry
 
+Allows for type safety in messaging (across topics, producers/consumers, etc.)
+Coordination mechanism (rather than "out of band" coordination)
+With a schema registry, there's no way to know "what" messages are and how to process them
+Centralized storage of metadata
+
 System for storing and serving schema data
 Versioned history (all schemas have versioned; version must be specified when fetching)
-Supported schema formats: Thrift, Avro, JSON, Protobuf
-Each schema has an: ID, user, type, content (as a byte array), timestamp, key/value properties
-By default, schemas are stored in BookKeeper
+Supported schema formats:
+
+* [Thrift](https://thrift.apache.org/)
+* [Avro](https://avro.apache.org/)
+* [JSON](https://www.json.org/)
+* [Protobuf](https://developers.google.com/protocol-buffers/)
+
+Each schema has the following fields:
+
+* ID
+* Version
+* State (active vs. staged)
+* User
+* Type
+* Content (as a byte array)
+* Timestamp
+* Last user to modify
+* User-defined key/value properties
+
+By default, schemas are stored in BookKeeper (though other storage mechanisms are possible). Append-only, ordered list of entries.
+
+Uses Pulsar's [REST API](../../reference/RestApi)
