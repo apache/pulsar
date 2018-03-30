@@ -87,13 +87,6 @@ public class CmdFunctionsTest {
     private final String testJar = "src/test/resources/pulsar-functions-api-examples.jar";
     private final String testClassName = "org.apache.pulsar.functions.api.examples.ExclamationFunction";
 
-    public class DummyFunction implements Function<String, String> {
-        @Override
-        public String process(String input, Context context) throws Exception {
-            return null;
-        }
-    }
-
     private String generateCustomSerdeInputs(String topic, String serde) {
         Map<String, String> map = new HashMap<>();
         map.put(topic, serde);
@@ -116,7 +109,6 @@ public class CmdFunctionsTest {
         when(Reflections.classInJarImplementsIface(any(File.class), anyString(), eq(Function.class)))
             .thenReturn(true);
         when(Reflections.classImplementsIface(anyString(), any())).thenReturn(true);
-        when(Reflections.createInstance(eq(DummyFunction.class.getName()), any(File.class))).thenReturn(new DummyFunction());
         when(Reflections.createInstance(eq(DefaultSerDe.class.getName()), any(File.class))).thenReturn(new DefaultSerDe(String.class));
     }
 
@@ -249,7 +241,7 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("CmdFunctionsTest$DummyFunction", creater.getFunctionConfig().getName());
+        assertEquals("ExclamationFunction", creater.getFunctionConfig().getName());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
@@ -266,7 +258,7 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals(inputTopicName + "-" + "CmdFunctionsTest$DummyFunction" + "-output", creater.getFunctionConfig().getOutput());
+        assertEquals(inputTopicName + "-" + "ExclamationFunction" + "-output", creater.getFunctionConfig().getOutput());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
@@ -373,7 +365,7 @@ public class CmdFunctionsTest {
                 "--inputs", inputTopicName,
                 "--output", outputTopicName,
                 "--jar", "non-existent-jar.jar",
-                "--className", DummyFunction.class.getName()
+                "--className", "org.apache.pulsar.functions.api.examples.DoesNotExist"
         });
     }
 
