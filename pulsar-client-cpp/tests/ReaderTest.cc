@@ -257,7 +257,7 @@ TEST(ReaderTest, testReaderOnSpecificMessageWithBatches) {
     // Create another reader starting on msgid4
     auto msgId4 = MessageId::deserialize(lastMessageId);
     Reader reader2;
-    ASSERT_EQ(ResultOk, client.createReader(topicName, *msgId4, readerConf, reader2));
+    ASSERT_EQ(ResultOk, client.createReader(topicName, msgId4, readerConf, reader2));
 
     for (int i = 5; i < 11; i++) {
         Message msg;

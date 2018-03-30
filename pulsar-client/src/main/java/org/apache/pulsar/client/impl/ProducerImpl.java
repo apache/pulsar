@@ -83,6 +83,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
     private final BlockingQueue<OpSendMsg> pendingCallbacks;
     private final Semaphore semaphore;
     private volatile Timeout sendTimeout = null;
+    private volatile Timeout batchMessageAndSendTimeout = null;
     private long createProducerTimeout;
     private final int maxNumMessagesInBatch;
     private final BatchMessageContainer batchMessageContainer;
@@ -520,6 +521,12 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             sendTimeout = null;
         }
 
+        Timeout batchTimeout = batchMessageAndSendTimeout;
+        if (batchTimeout != null) {
+            batchTimeout.cancel();
+            batchMessageAndSendTimeout = null;
+        }
+
         if (keyGeneratorTask != null && !keyGeneratorTask.isCancelled()) {
             keyGeneratorTask.cancel(false);
         }
@@ -726,7 +733,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 headerFrame.skipBytes(cmdSize);
                 // verify if checksum present
                 if (hasChecksum(headerFrame)) {
-                    int checksum = readChecksum(headerFrame).intValue();
+                    int checksum = readChecksum(headerFrame);
                     // msg.readerIndex is already at header-payload index, Recompute checksum for headers-payload
                     int metadataChecksum = computeChecksum(headerFrame);
                     long computedChecksum = resumeChecksum(metadataChecksum, msg.getSecond());
@@ -1046,6 +1053,11 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
         long timeToWaitMs;
 
         synchronized (this) {
+            // If it's closing/closed we need to ignore this timeout and not schedule next timeout.
+            if (getState() == State.Closing || getState() == State.Closed) {
+                return;
+            }
+
             OpSendMsg firstMsg = pendingMessages.peek();
             if (firstMsg == null) {
                 // If there are no pending messages, reset the timeout to the configured value.
@@ -1071,9 +1083,9 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                     timeToWaitMs = diff;
                 }
             }
-        }
 
-        sendTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+            sendTimeout = client.timer().newTimeout(this, timeToWaitMs, TimeUnit.MILLISECONDS);
+        }
     }
 
     /**
@@ -1147,10 +1159,16 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
             }
             // semaphore acquired when message was enqueued to container
             synchronized (ProducerImpl.this) {
+                // If it's closing/closed we need to ignore the send batch timer and not schedule next timeout.
+                if (getState() == State.Closing || getState() == State.Closed) {
+                    return;
+                }
+
                 batchMessageAndSend();
+                // schedule the next batch message task
+                batchMessageAndSendTimeout = client.timer()
+                    .newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
             }
-            // schedule the next batch message task
-            client.timer().newTimeout(this, conf.getBatchingMaxPublishDelayMicros(), TimeUnit.MICROSECONDS);
         }
     };
 

@@ -18,6 +18,7 @@
  */
 package org.apache.pulsar.broker.lookup;
 
+import static com.google.common.base.Preconditions.checkNotNull;
 import static org.apache.pulsar.common.api.Commands.newLookupErrorResponse;
 import static org.apache.pulsar.common.api.Commands.newLookupResponse;
 
@@ -56,6 +57,7 @@ import org.apache.pulsar.common.util.Codec;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import dlshade.org.apache.commons.lang3.StringUtils;
 import io.netty.buffer.ByteBuf;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
@@ -123,9 +125,10 @@ public class TopicLookup extends PulsarWebResource {
                 try {
                     String redirectUrl = isRequestHttps() ? result.getLookupData().getHttpUrlTls()
                             : result.getLookupData().getHttpUrl();
+                    checkNotNull(redirectUrl, "Redirected cluster's service url is not configured");
                     redirect = new URI(String.format("%s%s%s?authoritative=%s", redirectUrl, "/lookup/v2/destination/",
                             topic.getLookupName(), newAuthoritative));
-                } catch (URISyntaxException e) {
+                } catch (URISyntaxException | NullPointerException e) {
                     log.error("Error in preparing redirect url for {}: {}", topic, e.getMessage(), e);
                     completeLookupResponseExceptionally(asyncResponse, e);
                     return;
@@ -239,6 +242,12 @@ public class TopicLookup extends PulsarWebResource {
                             }
                             // if peer-cluster-data is present it means namespace is owned by that peer-cluster and
                             // request should be redirect to the peer-cluster
+                            if (StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())
+                                    && StringUtils.isBlank(peerClusterData.getBrokerServiceUrl())) {
+                                validationFuture.complete(
+                                        newLookupErrorResponse(ServerError.MetadataError, "Redirected cluster's brokerService url is not configured", requestId));
+                                return;
+                            }
                             validationFuture.complete(newLookupResponse(peerClusterData.getBrokerServiceUrl(),
                                     peerClusterData.getBrokerServiceUrlTls(), true, LookupType.Redirect, requestId,
                                     false));
@@ -279,9 +288,14 @@ public class TopicLookup extends PulsarWebResource {
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
                                                 newAuthoritative, LookupType.Redirect, requestId, false));
                             } else {
+                                // When running in standalone mode we want to redirect the client through the service
+                                // url, so that the advertised address configuration is not relevant anymore.
+                                boolean redirectThroughServiceUrl = pulsarService.getConfiguration()
+                                        .isRunningStandalone();
+
                                 lookupfuture.complete(
                                         newLookupResponse(lookupData.getBrokerUrl(), lookupData.getBrokerUrlTls(),
-                                                true /* authoritative */, LookupType.Connect, requestId, false));
+                                                true /* authoritative */, LookupType.Connect, requestId, redirectThroughServiceUrl));
                             }
                         }).exceptionally(ex -> {
                             if (ex instanceof CompletionException && ex.getCause() instanceof IllegalStateException) {

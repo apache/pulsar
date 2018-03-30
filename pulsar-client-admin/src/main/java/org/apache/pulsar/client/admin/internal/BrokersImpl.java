@@ -37,7 +37,7 @@ public class BrokersImpl extends BaseResource implements Brokers {
 
     public BrokersImpl(WebTarget web, Authentication auth) {
         super(auth);
-        adminBrokers = web.path("/admin/brokers");
+        adminBrokers = web.path("/admin/v2/brokers");
     }
 
     @Override

@@ -176,7 +176,7 @@ public class Producer {
             int readerIndex = headersAndPayload.readerIndex();
 
             try {
-                int checksum = readChecksum(headersAndPayload).intValue();
+                int checksum = readChecksum(headersAndPayload);
                 long computedChecksum = computeChecksum(headersAndPayload);
                 if (checksum == computedChecksum) {
                     return true;

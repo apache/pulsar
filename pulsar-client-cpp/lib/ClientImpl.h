@@ -91,7 +91,7 @@ class ClientImpl : public boost::enable_shared_from_this<ClientImpl> {
                          SubscribeCallback callback);
 
     void handleReaderMetadataLookup(const Result result, const LookupDataResultPtr partitionMetadata,
-                                    TopicNamePtr topicName, BatchMessageId startMessageId,
+                                    TopicNamePtr topicName, MessageId startMessageId,
                                     ReaderConfiguration conf, ReaderCallback callback);
 
     void handleProducerCreated(Result result, ProducerImplBaseWeakPtr producerWeakPtr,

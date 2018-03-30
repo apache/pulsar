@@ -128,4 +128,15 @@ public class FunctionApiV2Resource extends FunctionApiResource {
     public Response getAssignments() {
         return functions.getAssignments();
     }
+
+    @POST
+    @Path("/{tenant}/{namespace}/{functionName}/trigger")
+    @Consumes(MediaType.MULTIPART_FORM_DATA)
+    public Response triggerFunction(final @PathParam("tenant") String tenant,
+                                    final @PathParam("namespace") String namespace,
+                                    final @PathParam("name") String functionName,
+                                    final @FormDataParam("data") String input,
+                                    final @FormDataParam("dataStream") InputStream uploadedInputStream) {
+        return functions.triggerFunction(tenant, namespace, functionName, input, uploadedInputStream);
+    }
 }

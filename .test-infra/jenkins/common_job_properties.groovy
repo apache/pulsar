@@ -43,7 +43,7 @@ class common_job_properties {
                                            String branch = 'master',
                                            String jdkVersion = 'JDK 1.8 (latest)',
                                            int timeout = 200,
-                                           String jenkinsExecutorLabel = 'ubuntu') {
+                                           String jenkinsExecutorLabel = 'Hadoop') {
     // GitHub project.
     context.properties {
       githubProjectUrl('https://github.com/apache/incubator-pulsar/')

@@ -85,14 +85,14 @@ long UnAckedMessageTrackerEnabled::size() {
 void UnAckedMessageTrackerEnabled::removeMessagesTill(const MessageId& msgId) {
     boost::unique_lock<boost::mutex> acquire(lock_);
     for (std::set<MessageId>::iterator it = oldSet_.begin(); it != oldSet_.end();) {
-        if (*it < msgId && it->partition_ == msgId.partition_) {
+        if (*it < msgId && it->partition() == msgId.partition()) {
             oldSet_.erase(it++);
         } else {
             it++;
         }
     }
     for (std::set<MessageId>::iterator it = currentSet_.begin(); it != currentSet_.end();) {
-        if (*it < msgId && it->partition_ == msgId.partition_) {
+        if (*it < msgId && it->partition() == msgId.partition()) {
             currentSet_.erase(it++);
         } else {
             it++;

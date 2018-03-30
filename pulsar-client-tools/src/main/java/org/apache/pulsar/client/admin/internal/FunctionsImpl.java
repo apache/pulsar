@@ -139,4 +139,24 @@ public class FunctionsImpl extends BaseResource implements Functions {
             throw getApiException(e);
         }
     }
+
+    @Override
+    public String triggerFunction(String tenant, String namespace, String functionName, String triggerValue, String triggerFile) throws PulsarAdminException {
+        try {
+            final FormDataMultiPart mp = new FormDataMultiPart();
+            if (triggerFile != null) {
+                mp.bodyPart(new FileDataBodyPart("dataStream",
+                        new File(triggerFile),
+                        MediaType.APPLICATION_OCTET_STREAM_TYPE));
+            }
+            if (triggerValue != null) {
+                mp.bodyPart(new FormDataBodyPart("data", triggerValue, MediaType.TEXT_PLAIN_TYPE));
+            }
+            String response = request(functions.path(tenant).path(namespace).path(functionName).path("trigger"))
+                    .post(Entity.entity(mp, MediaType.MULTIPART_FORM_DATA), String.class);
+            return response;
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
 }

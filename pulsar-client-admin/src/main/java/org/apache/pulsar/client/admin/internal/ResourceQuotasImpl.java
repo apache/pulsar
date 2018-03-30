@@ -32,15 +32,17 @@ import org.apache.pulsar.common.policies.data.ResourceQuota;
 public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     private final WebTarget adminQuotas;
+    private final WebTarget adminV2Quotas;
 
     public ResourceQuotasImpl(WebTarget web, Authentication auth) {
         super(auth);
         adminQuotas = web.path("/admin/resource-quotas");
+        adminV2Quotas = web.path("/admin/v2/resource-quotas");
     }
 
     public ResourceQuota getDefaultResourceQuota() throws PulsarAdminException {
         try {
-            return request(adminQuotas).get(ResourceQuota.class);
+            return request(adminV2Quotas).get(ResourceQuota.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -48,7 +50,7 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
 
     public void setDefaultResourceQuota(ResourceQuota quota) throws PulsarAdminException {
         try {
-            request(adminQuotas).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
+            request(adminV2Quotas).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -57,9 +59,8 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     public ResourceQuota getNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            return request(
-                    adminQuotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
-                    .get(ResourceQuota.class);
+            WebTarget path = namespacePath(ns, bundle);
+            return request(path).get(ResourceQuota.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -69,9 +70,8 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
             throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(
-                    adminQuotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
-                    .post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, bundle);
+            request(path).post(Entity.entity(quota, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -80,12 +80,18 @@ public class ResourceQuotasImpl extends BaseResource implements ResourceQuotas {
     public void resetNamespaceBundleResourceQuota(String namespace, String bundle) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            request(
-                    adminQuotas.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName()).path(bundle))
-                    .delete();
+            WebTarget path = namespacePath(ns, bundle);
+            request(path).delete();
         } catch (Exception e) {
             throw getApiException(e);
         }
+    }
+
+    private WebTarget namespacePath(NamespaceName namespace, String... parts) {
+        final WebTarget base = namespace.isV2() ? adminV2Quotas : adminQuotas;
+        WebTarget namespacePath = base.path(namespace.toString());
+        namespacePath = WebTargets.addParts(namespacePath, parts);
+        return namespacePath;
     }
 }
 
