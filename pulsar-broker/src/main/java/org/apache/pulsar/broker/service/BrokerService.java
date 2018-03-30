@@ -330,10 +330,10 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
         // Inactive subscriber checker
         if (pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() > 0) {
-            long subscriptionCheckerIntervalInSeconds =
-                    pulsar().getConfiguration().getSubscriptionExpirationTimeMinutes() / 3;
+            long subscriptionExpiryCheckIntervalInMinutes =
+                    pulsar().getConfiguration().getSubscriptionExpiryCheckIntervalInMinutes();
             inactivityMonitor.scheduleAtFixedRate(safeRun(this::checkInactiveSubscriptions),
-                    subscriptionCheckerIntervalInSeconds, subscriptionCheckerIntervalInSeconds, TimeUnit.SECONDS);
+                    subscriptionExpiryCheckIntervalInMinutes, subscriptionExpiryCheckIntervalInMinutes, TimeUnit.SECONDS);
         }
     }
 
