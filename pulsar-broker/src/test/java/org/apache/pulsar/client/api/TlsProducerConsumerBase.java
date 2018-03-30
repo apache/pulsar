@@ -99,7 +99,7 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
         clientConf.setAuthentication(AuthenticationTls.class.getName(), authParams);
         admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        admin.clusters().updateCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));

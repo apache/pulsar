@@ -498,7 +498,7 @@ public class ModularLoadManagerImplTest {
         final String broker1Address = pulsar1.getAdvertisedAddress() + "0";
         final String broker2Address = pulsar2.getAdvertisedAddress() + "1";
         final String sharedBroker = "broker3";
-        admin1.clusters().updateCluster(cluster, new ClusterData("http://" + pulsar1.getAdvertisedAddress()));
+        admin1.clusters().createCluster(cluster, new ClusterData("http://" + pulsar1.getAdvertisedAddress()));
         admin1.properties().createProperty(property,
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet(cluster)));
         admin1.namespaces().createNamespace(property + "/" + cluster + "/" + namespace);
