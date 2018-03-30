@@ -605,6 +605,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         setState(State.Closing);
 
+        acknowledgmentsGroupingTracker.close();
+
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
 

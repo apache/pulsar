@@ -202,7 +202,7 @@ public class AcknowledgmentsGroupingTracker implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         flush();
         if (scheduledTask != null) {
             scheduledTask.cancel(true);
