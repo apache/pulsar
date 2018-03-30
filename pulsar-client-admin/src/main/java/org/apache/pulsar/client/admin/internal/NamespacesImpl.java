@@ -153,7 +153,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "permissions");
-            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {});
+            return request(path).get(new GenericType<Map<String, Set<AuthAction>>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -187,7 +188,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "replication");
-            return request(path).get(new GenericType<List<String>>() {});
+            return request(path).get(new GenericType<List<String>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -209,7 +211,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "policies/MessageTtlInSecond");
-            return request(path).get(new GenericType<Integer>() {});
+            return request(path).get(new GenericType<Integer>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -243,7 +246,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "policies/AntiAffinityGroup");
-            return request(path).get(new GenericType<String>() {});
+            return request(path).get(new GenericType<String>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -254,7 +258,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             throws PulsarAdminException {
         try {
             WebTarget path = adminV2Namespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
-            return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {});
+            return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {
+            });
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -412,8 +417,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public void setDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "policies/ClusterDispatchRate");
-            request(path).put(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+            WebTarget path = namespacePath(ns, "dispatchRate");
+            request(path).post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
         } catch (Exception e) {
             throw getApiException(e);
         }
@@ -423,7 +428,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public DispatchRate getDispatchRate(String namespace) throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
-            WebTarget path = namespacePath(ns, "policies/ClusterDispatchRate");
+            WebTarget path = namespacePath(ns, "dispatchRate");
             return request(path).get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
@@ -500,7 +505,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode) throws PulsarAdminException {
+    public void setSubscriptionAuthMode(String namespace, SubscriptionAuthMode subscriptionAuthMode)
+            throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "policies/SubscriptionAuthMode");
@@ -577,7 +583,8 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     }
 
     @Override
-    public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription) throws PulsarAdminException {
+    public void setMaxConsumersPerSubscription(String namespace, int maxConsumersPerSubscription)
+            throws PulsarAdminException {
         try {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "policies/MaxConsumersPerSubscription");

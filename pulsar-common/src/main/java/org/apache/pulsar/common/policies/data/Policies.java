@@ -31,7 +31,6 @@ import com.google.common.reflect.TypeToken;
 public class Policies {
     public enum PolicyProperty {
         BacklogQuotaMap(new TypeToken<Map<BacklogQuota.BacklogQuotaType, BacklogQuota>>(){}.getType(), "backlog_quota_map", false),
-        ClusterDispatchRate(new TypeToken<Map<String, DispatchRate>>(){}.getType(), "clusterDispatchRate", true),
         DeduplicationEnabled(new TypeToken<Boolean>(){}.getType(), "deduplicationEnabled", false),
         MessageTtlInSeconds(new TypeToken<Integer>(){}.getType(), "message_ttl_in_seconds", false),
         RetentionPolicies(new TypeToken<RetentionPolicies>(){}.getType(), "retention_policies", false),
