@@ -1,9 +1,8 @@
 ---
 title: Pulsar Functions overview
 lead: A bird's-eye look at Pulsar's lightweight, developer-friendly compute platform
-new: true
+preview: true
 ---
-
 
 **Pulsar Functions** are lightweight compute processes that
 
@@ -34,27 +33,19 @@ The core goal behind Pulsar Functions is to enable you to easily create processi
 
 ## Inspirations
 
-Pulsar Functions was inspired by (and takes cues from) several paradigms:
+The Pulsar Functions feature was inspired by (and takes cues from) several systems and paradigms:
 
 * Stream processing engines such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-hero), and [Apache Flink](https://flink.apache.org)
-* "Serverles" cloud platforms like AWS Lambda, Google Cloud Functions, etc.
-* FaaS
-* Serverless/NoOps philosophy
+* "Serverles" and "Function as a Service" (FAS) cloud platforms like [Amazon Web Services Lambda](https://aws.amazon.com/lambda/), [Google Cloud Functions](https://cloud.google.com/functions/), and [Azure Cloud Functions](https://azure.microsoft.com/en-us/services/functions/)
 
-## Configuration
+Pulsar Functions could be described as
 
-Pulsar Functions can be configured in two ways:
-
-* Via [command-line arguments](#cli)
-* Via [YAML](http://yaml.org/) configuration files
-
-```yaml
-name: exclamation
-```
+* [Lambda](https://aws.amazon.com/lambda/)-style functions that are
+* specifically designed to work with Pulsar
 
 ## Command-line interface {#cli}
 
-Pulsar Functions are managed using the [`pulsar-functions`](../../reference/CliTools#pulsar-functions) CLI tool (in particular the [`functions`]() command). Here's an example command that would run a function in [local run mode](#local-run):
+Pulsar Functions are managed using the [`pulsar-admin`](../../reference/CliTools#pulsar-admin) CLI tool (in particular the [`functions`](../../reference/CliTools#pulsar-admin-functions) command). Here's an example command that would run a function in [local run mode](#local-run):
 
 ```bash
 $ bin/pulsar-functions localrun \
@@ -64,11 +55,42 @@ $ bin/pulsar-functions localrun \
   --className org.apache.pulsar.functions.api.examples.ExclamationFunction
 ```
 
+## Configuration
+
+Pulsar Functions can be configured in two ways:
+
+* Via [command-line arguments](#cli)
+* Via [YAML](http://yaml.org/) configuration files
+
+If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --functionConfigFile ./my-function.yaml
+```
+
+And here's an example `my-function.yaml` file:
+
+```yaml
+name: my-function
+tenant: sample
+namespace: ns1
+jar: ./target/my-functions.jar
+className: org.example.pulsar.functions.MyFunction
+inputs:
+- persistent://sample/standalone/ns1/test_src
+output: persistent://sample/standalone/ns1/test_result
+```
+
 ## Supported languages
 
 Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
 
 ### Language-native functions {#native}
+
+Both Java and Python support writing "native" functions, i.e. Pulsar Functions with no dependencies.
+
+The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context)
 
 ### The Pulsar Functions SDK {#sdk}
 
@@ -127,18 +149,7 @@ This command will upload `myfunc.py` to Pulsar, which will use the code to start
 * At least once
 * Effectively once
 
-### State storage
-
-Although you can certainly use Pulsar Functions to perform stateless computations, many use cases demand robust state storage
-
-
-You can certainly use Pulsar Functions to perform stateless operations, 
-
-By default, Pulsar Functions use [Apache BookKeeper](https://bookkeeper.apache.org) for state storage.
-
 ## Metrics
-
-
 
 Here's an example function that publishes a value of 1 to the `my-metric` metric.
 
@@ -151,10 +162,4 @@ public class MetricsFunction implements PulsarFunction<String, Void> {
     }
 }
 ```
-
-
-
-### Data types
-
-* Strongly typed
 

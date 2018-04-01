@@ -1,7 +1,7 @@
 ---
 title: Deploying and managing Pulsar Functions
 lead: Something or other
-new: true
+preview: true
 ---
 
 At the moment, there are two deployment modes available for Pulsar Functions:

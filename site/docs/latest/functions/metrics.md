@@ -1,6 +1,6 @@
 ---
 title: Metrics for Pulsar Functions
-new: true
+preview: true
 ---
 
 Pulsar Functions can publish arbitrary metrics to the metrics interface which can then be queried. This doc contains instructions for publishing metrics using the [Java](#java-sdk) and [Python](#python-sdk) Pulsar Functions SDKs.
