@@ -22,21 +22,22 @@ public class ExclamationFunction implements Function<String, String> {
 }
 ```
 
-Functions are executed each time a message is published to the input topic. If a function is listening on the topic `tweet-stream`, for example, then the function would be run each time a message.
-
-> Pulsar features automatic message deduplication
+Functions are executed each time a message is published to the input topic. If a function is listening on the topic `tweet-stream`, for example, then the function would be run each time a message is published to that topic.
 
 ## Goals
 
-Core goal: make Pulsar do real heavy lifting without needing to deploy a neighboring system (Storm, Heron, Flink, etc.). Ready-made compute infrastructure at your disposal.
+The core goal behind Pulsar Functions is to enable you to easily create processing logic of any level of complexity without needing to deploy a separate neighboring system (such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-heron), [Apache Flink](https://flink.apache.org/), etc.). Pulsar Functions is essentially ready-made compute infrastructure at your disposal as part of your Pulsar messaging system. This core goal is tied to a series of other goals:
 
-* Developer productivity (easy troubleshooting and deployment)
-  * "Serverless" philosophy
-* No need for a separate SPE
+* Developer productive ([language-native](#native) vs. [Pulsar Functions SDK](#sdk) functions)
+* easy troubleshooting
+* Operational simplicity (no need for an external system)
 
 ## Inspirations
 
-* AWS Lambda, Google Cloud Functions, etc.
+Pulsar Functions was inspired by (and takes cues from) several paradigms:
+
+* Stream processing engines such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-hero), and [Apache Flink](https://flink.apache.org)
+* "Serverles" cloud platforms like AWS Lambda, Google Cloud Functions, etc.
 * FaaS
 * Serverless/NoOps philosophy
 
@@ -66,6 +67,10 @@ $ bin/pulsar-functions localrun \
 ## Supported languages
 
 Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
+
+### Language-native functions {#native}
+
+### The Pulsar Functions SDK {#sdk}
 
 ## Deployment modes
 
