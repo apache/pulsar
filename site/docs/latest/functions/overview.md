@@ -165,15 +165,19 @@ $ bin/pulsar-admin functions create \
   --output persistent://sample/standalone/ns1/output-1
 ```
 
-This command will upload `myfunc.py` to Pulsar, which will use the code to start one [or more]()
+This command will upload `myfunc.py` to Pulsar, which will use the code to start one [or more](#parallelism) instances of the function.
 
 ### Parallelism
 
-{% include admonition.html type="info" %}
+By default, only one **instance** of a Pulsar Function runs when you create and run it in [cluster run mode](#cluster-run). You can also, however, run multiple instances in parallel.
 
 ### Logging
 
+
+
 ## Delivery semantics
+
+Pulsar Functions
 
 * At most once
 * At least once
