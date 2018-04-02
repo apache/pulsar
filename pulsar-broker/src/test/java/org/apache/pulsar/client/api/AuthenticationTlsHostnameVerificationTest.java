@@ -107,15 +107,9 @@ public class AuthenticationTlsHostnameVerificationTest extends ProducerConsumerB
         Authentication authTls = new AuthenticationTls();
         authTls.configure(authParams);
 
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setTlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH);
-        clientConf.setTlsAllowInsecureConnection(true);
-        clientConf.setAuthentication(authTls);
-        clientConf.setUseTls(true);
-        clientConf.setTlsHostnameVerificationEnable(hostnameVerificationEnabled);
-
-        admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(TLS_MIM_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true)
+                .authentication(authTls).build());
         String lookupUrl;
         lookupUrl = new URI("pulsar+ssl://" + brokerHostName + ":" + BROKER_PORT_TLS).toString();
         pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)

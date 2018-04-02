@@ -208,8 +208,8 @@ public class PulsarStandaloneStarter {
                 String.format("http://%s:%d", config.getAdvertisedAddress(), config.getWebServicePort()));
         final String brokerServiceUrl = String.format("pulsar://%s:%d", config.getAdvertisedAddress(),
                 config.getBrokerServicePort());
-        admin = new PulsarAdmin(webServiceUrl, config.getBrokerClientAuthenticationPlugin(),
-                config.getBrokerClientAuthenticationParameters());
+        admin = PulsarAdmin.builder().serviceHttpUrl(webServiceUrl.toString()).authentication(
+                config.getBrokerClientAuthenticationPlugin(), config.getBrokerClientAuthenticationParameters()).build();
         final String property = "sample";
         final String cluster = config.getClusterName();
         final String globalCluster = "global";
