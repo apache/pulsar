@@ -22,7 +22,7 @@ Description=Pulsar Broker
 After=network.target
 
 [Service]
-ExecStart=/opt/pulsar/bin/pulsar broker
+ExecStart=/opt/pulsar/bin/pulsar broker --run-bookie --run-bookie-autorecovery
 WorkingDirectory=/opt/pulsar
 RestartSec=1s
 Restart=on-failure

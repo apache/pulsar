@@ -362,7 +362,7 @@ public class FunctionApiV2ResourceTest {
 
         Response response = registerDefaultFunction();
         assertEquals(Status.BAD_REQUEST.getStatusCode(), response.getStatus());
-        assertEquals(new ErrorData("Function " + function + " already exist").reason, ((ErrorData) response.getEntity()).reason);
+        assertEquals(new ErrorData("Function " + function + " already exists").reason, ((ErrorData) response.getEntity()).reason);
     }
 
     @Test

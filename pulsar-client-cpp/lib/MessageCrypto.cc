@@ -122,7 +122,7 @@ void MessageCrypto::removeExpiredDataKey() {
     }
 }
 
-std::string MessageCrypto::stringToHex(const std::string& inputStr, size_t len) {
+std::string MessageCrypto::stringToHex(const char* inputStr, size_t len) {
     static const char* hexVals = "0123456789ABCDEF";
 
     std::string outHex;
@@ -130,11 +130,15 @@ std::string MessageCrypto::stringToHex(const std::string& inputStr, size_t len) 
     outHex.push_back('0');
     outHex.push_back('x');
     for (size_t i = 0; i < len; ++i) {
-        const unsigned char c = inputStr[i];
+        const unsigned char c = *(inputStr + i);
         outHex.push_back(hexVals[c >> 4]);
         outHex.push_back(hexVals[c & 15]);
     }
     return outHex;
+}
+
+std::string MessageCrypto::stringToHex(const std::string& inputStr, size_t len) {
+    return stringToHex(inputStr.c_str(), len);
 }
 
 Result MessageCrypto::addPublicKeyCipher(std::set<std::string>& keyNames,
@@ -143,6 +147,11 @@ Result MessageCrypto::addPublicKeyCipher(std::set<std::string>& keyNames,
 
     // Generate data key
     RAND_bytes(dataKey_.get(), dataKeyLen_);
+    if (LOG4CXX_UNLIKELY(logger()->isDebugEnabled())) {
+        std::string dataKeyStr(reinterpret_cast<char*>(dataKey_.get()), dataKeyLen_);
+        std::string strHex = stringToHex(dataKeyStr, dataKeyStr.size());
+        LOG_DEBUG(logCtx_ << "Generated Data key " << strHex);
+    }
 
     Result result = ResultOk;
     for (auto it = keyNames.begin(); it != keyNames.end(); it++) {
@@ -191,7 +200,9 @@ Result MessageCrypto::addPublicKeyCipher(const std::string& keyName, const Crypt
     eki->setKey(encryptedKeyStr);
     eki->setMetadata(keyInfo.getMetadata());
 
-    encryptedDataKeyMap_.insert(std::make_pair(keyName, eki));
+    // Add a new entry or replace existing entry, if one is present.
+    encryptedDataKeyMap_[keyName] = eki;
+
     if (LOG4CXX_UNLIKELY(logger()->isDebugEnabled())) {
         std::string strHex = stringToHex(encryptedKeyStr, encryptedKeyStr.size());
         LOG_DEBUG(logCtx_ << " Data key encrypted for key " << keyName
@@ -200,7 +211,7 @@ Result MessageCrypto::addPublicKeyCipher(const std::string& keyName, const Crypt
     return ResultOk;
 }
 
-bool MessageCrypto::removeKeyCipher(std::string& keyName) {
+bool MessageCrypto::removeKeyCipher(const std::string& keyName) {
     if (!keyName.size()) {
         return false;
     }

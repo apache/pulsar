@@ -887,7 +887,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ns1 = pulsar1.getBrokerService();
 
             url1 = new URL("http://127.0.0.1:" + webServicePort1);
-            admin1 = new PulsarAdmin(url1, (Authentication) null);
+            admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
 
             // Start region 2
 
@@ -913,7 +913,7 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ns2 = pulsar2.getBrokerService();
 
             url2 = new URL("http://127.0.0.1:" + webServicePort2);
-            admin2 = new PulsarAdmin(url2, (Authentication) null);
+            admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
 
             // Start region 3
 
@@ -938,14 +938,14 @@ public class NonPersistentTopicTest extends ProducerConsumerBase {
             ns3 = pulsar3.getBrokerService();
 
             url3 = new URL("http://127.0.0.1:" + webServicePort3);
-            admin3 = new PulsarAdmin(url3, (Authentication) null);
+            admin3 = PulsarAdmin.builder().serviceHttpUrl(url3.toString()).build();
 
             // Provision the global namespace
-            admin1.clusters().updateCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
+            admin1.clusters().createCluster("r1", new ClusterData(url1.toString(), null, pulsar1.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().updateCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
+            admin1.clusters().createCluster("r2", new ClusterData(url2.toString(), null, pulsar2.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
-            admin1.clusters().updateCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
+            admin1.clusters().createCluster("r3", new ClusterData(url3.toString(), null, pulsar3.getBrokerServiceUrl(),
                     pulsar1.getBrokerServiceUrlTls()));
 
             admin1.clusters().createCluster("global", new ClusterData("http://global:8080"));

@@ -68,7 +68,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
     @Test
     public void testServiceException() throws Exception {
         URL url = new URL("http://localhost:15000");
-        PulsarAdmin admin = new PulsarAdmin(url, (Authentication) null);
+        PulsarAdmin admin = PulsarAdmin.builder().serviceHttpUrl(url.toString()).build();
         BrokerStatsImpl client = (BrokerStatsImpl) spy(admin.brokerStats());
         try {
             client.getLoadReport();
@@ -81,7 +81,7 @@ public class PulsarBrokerStatsClientTest extends ProducerConsumerBase {
             // Ok
         }
         try {
-            client.getBrokerResourceAvailability("prop", "cluster", "ns");
+            client.getBrokerResourceAvailability("prop/cluster/ns");
         } catch (PulsarAdminException e) {
             // Ok
         }

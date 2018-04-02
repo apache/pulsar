@@ -489,15 +489,6 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on partitioned topics"));
     }
 
-    /**
-     * helper method that returns current state of data structure used to track acks for batch messages
-     *
-     * @return true if all batch messages have been acknowledged
-     */
-    public boolean isBatchingAckTrackerEmpty() {
-        return consumers.stream().allMatch(ConsumerImpl::isBatchingAckTrackerEmpty);
-    }
-
     List<ConsumerImpl<T>> getConsumers() {
         return consumers;
     }

@@ -24,28 +24,28 @@ import com.google.common.base.MoreObjects;
 
 public class DispatchRate {
 
-    public int dispatchThrottlingRatePerTopicInMsg = -1;
-    public long dispatchThrottlingRatePerTopicInByte = -1;
+    public int dispatchThrottlingRateInMsg = -1;
+    public long dispatchThrottlingRateInByte = -1;
     public int ratePeriodInSecond = 1; /* by default dispatch-rate will be calculate per 1 second */
 
     public DispatchRate() {
         super();
-        this.dispatchThrottlingRatePerTopicInMsg = -1;
-        this.dispatchThrottlingRatePerTopicInByte = -1;
+        this.dispatchThrottlingRateInMsg = -1;
+        this.dispatchThrottlingRateInByte = -1;
         this.ratePeriodInSecond = 1;
     }
 
-    public DispatchRate(int dispatchThrottlingRatePerTopicInMsg, long dispatchThrottlingRatePerTopicInByte,
+    public DispatchRate(int dispatchThrottlingRateInMsg, long dispatchThrottlingRateInByte,
             int ratePeriodInSecond) {
         super();
-        this.dispatchThrottlingRatePerTopicInMsg = dispatchThrottlingRatePerTopicInMsg;
-        this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
+        this.dispatchThrottlingRateInMsg = dispatchThrottlingRateInMsg;
+        this.dispatchThrottlingRateInByte = dispatchThrottlingRateInByte;
         this.ratePeriodInSecond = ratePeriodInSecond;
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(dispatchThrottlingRatePerTopicInMsg, dispatchThrottlingRatePerTopicInByte,
+        return Objects.hash(dispatchThrottlingRateInMsg, dispatchThrottlingRateInByte,
                 ratePeriodInSecond);
     }
 
@@ -53,8 +53,8 @@ public class DispatchRate {
     public boolean equals(Object obj) {
         if (obj instanceof DispatchRate) {
             DispatchRate rate = (DispatchRate) obj;
-            return Objects.equals(dispatchThrottlingRatePerTopicInMsg, rate.dispatchThrottlingRatePerTopicInMsg)
-                    && Objects.equals(dispatchThrottlingRatePerTopicInByte, rate.dispatchThrottlingRatePerTopicInByte)
+            return Objects.equals(dispatchThrottlingRateInMsg, rate.dispatchThrottlingRateInMsg)
+                    && Objects.equals(dispatchThrottlingRateInByte, rate.dispatchThrottlingRateInByte)
                     && Objects.equals(ratePeriodInSecond, rate.ratePeriodInSecond);
         }
         return false;
@@ -63,8 +63,8 @@ public class DispatchRate {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("dispatchThrottlingRatePerTopicInMsg", dispatchThrottlingRatePerTopicInMsg)
-                .add("dispatchThrottlingRatePerTopicInByte", dispatchThrottlingRatePerTopicInByte)
+                .add("dispatchThrottlingRateInMsg", dispatchThrottlingRateInMsg)
+                .add("dispatchThrottlingRateInByte", dispatchThrottlingRateInByte)
                 .add("ratePeriodInSecond", ratePeriodInSecond).toString();
     }
 
