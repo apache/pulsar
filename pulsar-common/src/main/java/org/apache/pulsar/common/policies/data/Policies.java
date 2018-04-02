@@ -33,6 +33,7 @@ public class Policies {
     public BundlesData bundles = defaultBundle();
     public Map<BacklogQuota.BacklogQuotaType, BacklogQuota> backlog_quota_map = Maps.newHashMap();
     public Map<String, DispatchRate> clusterDispatchRate = Maps.newHashMap();
+    public Map<String, DispatchRate> subscriptionDispatchRate = Maps.newHashMap();
     public PersistencePolicies persistence = null;
 
     // If set, it will override the broker settings for enabling deduplication

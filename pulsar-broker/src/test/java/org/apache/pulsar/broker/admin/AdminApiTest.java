@@ -140,10 +140,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setUseTls(true);
-        clientConf.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
-        adminTls = spy(new PulsarAdmin(brokerUrlTls, clientConf));
+        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+                .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         // create otherbroker to test redirect on calls that need
         // namespace ownership
@@ -193,21 +191,21 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
                 new ClusterData("http://broker.messaging.use.example.com" + ":" + BROKER_WEBSERVICE_PORT));
         // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
         // failure-domain znode of this default cluster
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "use", "usw"));
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
 
         assertEquals(admin.clusters().getCluster("use"),
                 new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
 
         admin.clusters().updateCluster("usw",
                 new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT));
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "use", "usw"));
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
                 new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT));
 
         admin.clusters().updateCluster("usw",
                 new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT,
                         "https://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT_TLS));
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "use", "usw"));
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use", "usw"));
         assertEquals(admin.clusters().getCluster("usw"),
                 new ClusterData("http://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT,
                         "https://new-broker.messaging.usw.example.com" + ":" + BROKER_WEBSERVICE_PORT_TLS));
@@ -215,11 +213,11 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
         admin.clusters().deleteCluster("usw");
         Thread.sleep(300);
 
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test", "use"));
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("use"));
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test"));
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList());
 
         // Check name validation
         try {
@@ -409,9 +407,7 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         admin.namespaces().deleteNamespace("prop-xyz/use/ns1");
         admin.clusters().deleteCluster("use");
-        // "test" cluster is part of config-default cluster and it's znode gets created when PulsarService creates
-        // failure-domain znode of this default cluster
-        assertEquals(admin.clusters().getClusters(), Lists.newArrayList("test"));
+        assertEquals(admin.clusters().getClusters(), Lists.newArrayList());
     }
 
     /**

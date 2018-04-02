@@ -1245,18 +1245,6 @@ public class ManagedCursorImpl implements ManagedCursor {
             throw new IllegalArgumentException("Mark deleting an already mark-deleted position");
         }
 
-        if (readPosition.compareTo(newMarkDeletePosition) <= 0) {
-            // If the position that is mark-deleted is past the read position, it
-            // means that the client has skipped some entries. We need to move
-            // read position forward
-            PositionImpl oldReadPosition = readPosition;
-            readPosition = ledger.getNextValidPosition(newMarkDeletePosition);
-
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] Moved read position from: {} to: {}", ledger.getName(), oldReadPosition, readPosition);
-            }
-        }
-
         PositionImpl oldMarkDeletePosition = markDeletePosition;
 
         if (!newMarkDeletePosition.equals(oldMarkDeletePosition)) {
@@ -1285,6 +1273,19 @@ public class ManagedCursorImpl implements ManagedCursor {
         // markDelete-position and clear out deletedMsgSet
         markDeletePosition = PositionImpl.get(newMarkDeletePosition);
         individualDeletedMessages.remove(Range.atMost(markDeletePosition));
+        
+        if (readPosition.compareTo(newMarkDeletePosition) <= 0) {
+            // If the position that is mark-deleted is past the read position, it
+            // means that the client has skipped some entries. We need to move
+            // read position forward
+            PositionImpl oldReadPosition = readPosition;
+            readPosition = ledger.getNextValidPosition(newMarkDeletePosition);
+
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Moved read position from: {} to: {}, and new mark-delete position {}", ledger.getName(),
+                        oldReadPosition, readPosition, markDeletePosition);
+            }
+        }
 
         return newMarkDeletePosition;
     }
