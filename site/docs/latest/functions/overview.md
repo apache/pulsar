@@ -36,7 +36,7 @@ The core goal behind Pulsar Functions is to enable you to easily create processi
 The Pulsar Functions feature was inspired by (and takes cues from) several systems and paradigms:
 
 * Stream processing engines such as [Apache Storm](http://storm.apache.org/), [Apache Heron](https://apache.github.io/incubator-hero), and [Apache Flink](https://flink.apache.org)
-* "Serverles" and "Function as a Service" (FAS) cloud platforms like [Amazon Web Services Lambda](https://aws.amazon.com/lambda/), [Google Cloud Functions](https://cloud.google.com/functions/), and [Azure Cloud Functions](https://azure.microsoft.com/en-us/services/functions/)
+* "Serverless" and "Function as a Service" (FaaS) cloud platforms like [Amazon Web Services Lambda](https://aws.amazon.com/lambda/), [Google Cloud Functions](https://cloud.google.com/functions/), and [Azure Cloud Functions](https://azure.microsoft.com/en-us/services/functions/)
 
 Pulsar Functions could be described as
 
