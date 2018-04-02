@@ -86,6 +86,14 @@ output: persistent://sample/standalone/ns1/test_result
 
 Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
 
+## Function context {#context}
+
+Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access to a context object that both provides:
+
+1. A wide variety of information about the function, including:
+  * The name of the function
+  * The {% popover tenant %} and {% popover namespace %} of the function
+
 ### Language-native functions {#native}
 
 Both Java and Python support writing "native" functions, i.e. Pulsar Functions with no dependencies.
@@ -93,6 +101,28 @@ Both Java and Python support writing "native" functions, i.e. Pulsar Functions w
 The benefit of native functions is that they don't have any dependencies beyond what's already available in Java/Python "out of the box." The downside is that they don't provide access to the function's [context](#context)
 
 ### The Pulsar Functions SDK {#sdk}
+
+If you'd like a Pulsar Function to have access to a [context object](#context), you can use the Pulsar Functions SDK, available for both [Java](../api#java-sdk) and [Pythnon](../api#python-sdk).
+
+Here's an example Java function that uses information about its context:
+
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+import org.slf4j.Logger;
+
+public class ContextAwareFunction implements Function<String, Void> {
+    @Override
+    public Void process(String input, Context, context) {
+        Logger LOG = context.getLogger();
+        String functionTenant = context.getTenant();
+        String functionNamespace = context.getNamespace();
+        String functionName = context.getName();
+        LOG.info("{}/{}/{}", functionTenant, functionNamespace, functionName);
+        return null;
+    }
+}
+```
 
 ## Deployment modes
 
@@ -162,4 +192,7 @@ public class MetricsFunction implements PulsarFunction<String, Void> {
     }
 }
 ```
+
+## Distributed counters {#counter}
+
 

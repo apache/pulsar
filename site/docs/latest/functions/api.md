@@ -201,11 +201,25 @@ public class ExclamationFunction implements Function<String, String> {
 
 In general, you should use native functions when you don't need access to the function's [context](#context). If you *do* need access to the function's context, then we recommend using the [Pulsar Functions Java SDK](#java-sdk).
 
+#### Java native examples
+
+There is one example Java native function in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples):
+
+* [`ExclamationFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/JavaNativeExclmationFunction.java)
+
 ### Java SDK functions {#java-sdk}
 
 To get started developing Pulsar Functions using the Java SDK, you'll need to add a dependency on the `pulsar-functions-api` artifact to your project. Instructions can be found [above](#java-dependencies).
 
 {% include admonition.html type='success' content='An easy way to get up and running with Pulsar Functions in Java is to clone the [`pulsar-functions-java-starter`](https://github.com/streamlio/pulsar-functions-java-starter) repo and follow the instructions there.' %}
+
+#### Java SDK examples
+
+There are several example Java SDK functions in [this folder](https://github.com/apache/incubator-pulsar/tree/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples):
+
+Function name | Description
+:-------------|:-----------
+[`ContextFunction`](https://github.com/apache/incubator-pulsar/blob/master/pulsar-functions/java-examples/src/main/java/org/apache/pulsar/functions/api/examples/ContextFunction.java) | Illustrate [context](#context)-specific functionality like [logging](#java-logging) and [metrics](#java-metrics)
 
 ### Java context object {#java-context}
 
@@ -243,7 +257,6 @@ import org.slf4j.Logger;
 import java.util.stream.Collectors;
 
 public class ContextFunction implements Function<String, Void> {
-    @Override
     public Void process(String input, Context context) {
         Logger LOG = context.getLogger();
         String inputTopics = context.getInputTopics().stream().collect(Collectors.joining(", "));
@@ -271,7 +284,6 @@ Pulsar Functions can publish results to an output {% popover topic %}, but this 
 import org.slf4j.Logger;
 
 public class LogFunction implements PulsarFunction<String, Void> {
-    @Override
     public String apply(String input, Context context) {
         Logger LOG = context.getLogger();
         LOG.info("The following message was received: {}", input);
@@ -415,20 +427,50 @@ import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 import org.slf4j.Logger;
 
+import java.util.Optional;
+
 public class UserConfigFunction implements Function<String, Void> {
     @Override
     public void apply(String input, Context context) {
         Logger LOG = context.getLogger();
-        String wotd = context.getUserConfigValue("word-of-the-day");
-        LOG.info("The word of the day is {}", wotd);
+        Optional<String> wotd = context.getUserConfigValue("word-of-the-day");
+        if (wotd.isPresent()) {
+            LOG.info("The word of the day is {}", wotd);
+        } else {
+            LOG.warn("No word of the day provided");
+        }
         return null;
     }
 }
 ```
 
-The `UserConfigFunction` function will log the string `"The word of the day is verdure"` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value.
+The `UserConfigFunction` function will log the string `"The word of the day is verdure"` every time the function is invoked (i.e. every time a message arrives). The `word-of-the-day` user config will be changed only when the function is updated with a new config value via the command line.
 
 {% include admonition.html type="info" content="For all key/value pairs passed to Java Pulsar Functions, both the key *and* the value are `String`s. If you'd like the value to be of a different type, you will need to deserialize from the `String` type." %}
+
+## Java metrics
+
+You can record metrics using the [`Context`](#java-context) object on a per-key basis. You can, for example, set a metric for the key `process-count` and a different metric for the key `elevens-count` every time the function processes a message. Here's an example:
+
+```java
+import org.apache.pulsar.functions.api.Context;
+import org.apache.pulsar.functions.api.Function;
+
+public class MetricRecorderFunction implements Function<Integer, Void> {
+    @Override
+    public void apply(Integer input, Context context) {
+        // Records the metric 1 every time a message arrives
+        context.recordMetric("hit-count", 1);
+        
+        // Records the metric only if the arriving number equals 11
+        if (input == 11) {
+            context.recordMetric("elevens-count", 1);
+        }
+    }
+}
+```
+
+{% include admonition.html type="info" content="For instructions on reading and using metrics, see the [Monitoring](../../deployment/Monitoring) guide." %}
 
 ## Pulsar Functions for Python {#python}
 
