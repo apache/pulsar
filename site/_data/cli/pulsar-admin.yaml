@@ -114,6 +114,193 @@ commands:
   - name: update-peer-clusters
     description: Update peer cluster names
     argument: peer-cluster-names
+- name: functions
+  description: A command-line interface for Pulsar Functions
+  subcommands:
+  - name: localrun
+    description: Run a Pulsar Function locally
+    options:
+    - flags: --brokerServiceUrl
+      description: The URL of the Pulsar broker
+    - flags: --className
+      description: The name of the function's class
+    - flags: --customSerdeInputs
+      description: A map of the input topic to SerDe name
+    - flags: --functionConfigFile
+      description: The path of the YAML config file used to configure the function
+    - flags: --inputs
+      description: The input topics for the function (as a comma-separated list if more than one topic is desired)
+    - flags: --logTopic
+      description: The topic to which logs from this function are published
+    - flags: --jar
+      description: A path to the JAR file for the function (if the function is written in Java)
+    - flags: --name
+      description: The name of the function
+      default: The value specified by `--className`
+    - flags: --namespace
+      description: The function's namespace
+    - flags: --output
+      description: The name of the topic to which the function publishes its output (if any)
+    - flags: --outputSerdeClassName
+      description: The SerDe class used for the function's output
+    - flags: --parallelism
+      description: The function's parallelism factor, i.e. the number of instances of the function to run
+      default: 1
+    - flags: --processingGuarantees
+      description: "The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`"
+      default: ATLEAST_ONCE
+    - flags: --py
+      description: The path of the Python file containing the function's processing logic (if the function is written in Python)
+    - flags: --stateStorageServiceUrl
+      description: The service URL for the function's state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)
+    - flags: --subscriptionType
+      description: The subscription type used by the function when consuming messages on the input topic(s). Can be either `SHARED` or `EXCLUSIVE`
+      default: SHARED
+    - flags: --tenant
+      description: The function's tenant
+    - flags: --userConfig
+      description: A user-supplied config value, set as a key/value pair. You can set multiple user config values.
+  - name: create
+    description: Creates a new Pulsar Function on the target infrastructure
+    options:
+    - flags: --className
+      description: The name of the function's class
+    - flags: --customSerdeInputs
+      description: A map of the input topic to SerDe name
+    - flags: --functionConfigFile
+      description: The path of the YAML config file used to configure the function
+    - flags: --inputs
+      description: The input topics for the function (as a comma-separated list if more than one topic is desired)
+    - flags: --jar
+      description: A path to the JAR file for the function (if the function is written in Java)
+    - flags: --name
+      description: The name of the function
+      default: The value specified by `--className`
+    - flags: --namespace
+      description: The function's namespace
+    - flags: --logTopic
+      description: The topic to which logs from this function are published
+    - flags: --output
+      description: The name of the topic to which the function publishes its output (if any)
+    - flags: --outputSerdeClassName
+      description: The SerDe class used for the function's output
+    - flags: --parallelism
+      description: The function's parallelism factor, i.e. the number of instances of the function to run
+      default: 1
+    - flags: --processingGuarantees
+      description: "The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`"
+      default: ATLEAST_ONCE
+    - flags: --py
+      description: The path of the Python file containing the function's processing logic (if the function is written in Python)
+    - flags: --subscriptionType
+      description: The subscription type used by the function when consuming messages on the input topic(s). Can be either `SHARED` or `EXCLUSIVE`
+      default: SHARED
+    - flags: --tenant
+      description: The function's tenant
+    - flags: --userConfig
+      description: A user-supplied config value, set as a key/value pair. You can set multiple user config values.
+  - name: delete
+    description: Deletes an existing Pulsar Function
+    options:
+    - flags: --name
+      description: The name of the function to delete
+    - flags: --namespace
+      description: The namespace of the function to delete
+    - flags: --tenant
+      description: The tenant of the function to delete
+  - name: update
+    description: Updates an existing Pulsar Function
+    options:
+    - flags: --className
+      description: The name of the function's class
+    - flags: --customSerdeInputs
+      description: A map of the input topic to SerDe name
+    - flags: --functionConfigFile
+      description: The path of the YAML config file used to configure the function
+    - flags: --inputs
+      description: The input topics for the function (as a comma-separated list if more than one topic is desired)
+    - flags: --jar
+      description: A path to the JAR file for the function (if the function is written in Java)
+    - flags: --name
+      description: The name of the function
+      default: The value specified by `--className`
+    - flags: --namespace
+      description: The function's namespace
+    - flags: --logTopic
+      description: The topic to which logs from this function are published
+    - flags: --output
+      description: The name of the topic to which the function publishes its output (if any)
+    - flags: --outputSerdeClassName
+      description: The SerDe class used for the function's output
+    - flags: --parallelism
+      description: The function's parallelism factor, i.e. the number of instances of the function to run
+      default: 1
+    - flags: --processingGuarantees
+      description: "The processing guarantees applied to the function. Can be one of: `ATLEAST_ONCE`, `ATMOST_ONCE`, or `EFFECTIVELY_ONCE`"
+      default: ATLEAST_ONCE
+    - flags: --py
+      description: The path of the Python file containing the function's processing logic (if the function is written in Python)
+    - flags: --subscriptionType
+      description: The subscription type used by the function when consuming messages on the input topic(s). Can be either `SHARED` or `EXCLUSIVE`
+      default: SHARED
+    - flags: --tenant
+      description: The function's tenant
+    - flags: --userConfig
+      description: A user-supplied config value, set as a key/value pair. You can set multiple user config values.
+  - name: get
+    description: Fetch information about an existing Pulsar Function
+    options:
+    - flags: --name
+      description: The name of the function about which you want to fetch information
+    - flags: --namespace
+      description: The namespace of the function about which you want to fetch information
+    - flags: --tenant
+      description: The tenant of the function about which you want to fetch information
+  - name: getstatus
+    description: Get the status of an existing Pulsar Function
+    options:
+    - flags: --name
+      description: The name of the function about which you want to fetch status information
+    - flags: --namespace
+      description: The namespace of the function about which you want to fetch status information
+    - flags: --tenant
+      description: The tenant of the function about which you want to fetch status information
+  - name: list
+    description: List all Pulsar Functions for a specific tenant and namespace
+    options:
+    - flags: --namespace
+      description: The namespace of the functions you want to list
+    - flags: --tenant
+      description: The tenant of the functions you want to list
+  - name: querystate
+    description: Retrieve the current state of a Pulsar Function by key
+    options:
+    - flags: -k, --key
+      description: The key for the state you want to fetch
+    - flags: --name
+      description: The name of the function whose state you want to query
+    - flags: --namespace
+      description: The namespace of the function whose state you want to query
+    - flags: --tenant
+      description: The tenant of the function whose state you want to query
+    - flags: -u, --storage-service-url
+      description: The service URL for the function's state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)
+    - flags: -w, --watch
+      description: If set, watching for state changes is enabled
+      default: "false"
+  - name: trigger
+    description: Triggers the specified Pulsar Function with a supplied value or file data
+    options:
+    - flags: --name
+      description: The name of the Pulsar Function to trigger
+    - flags: --namespace
+      description: The namespace of the Pulsar Function to trigger
+    - flags: --tenant
+      description: The tenant of the Pulsar Function to trigger
+    - flags: --triggerFile
+      description: The path to the file containing the data with which the Pulsar Function is to be triggered
+    - flags: --triggerValue
+      description: The value with which the Pulsar Function is to be triggered
 - name: namespaces
   description: Operations about namespaces
   subcommands:

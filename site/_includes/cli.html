@@ -61,7 +61,7 @@
             </td>
             <td>{{ option.description | markdownify }}</td>
             <td>
-              {% if option.default %}<code class="highlighter-rouge">{{ option.default }}</code>{% endif %}
+              {% if option.default %}{{ option.default | markdownify }}{% endif %}
             </td>
           </tr>
           {% endfor %} <!-- for option in options -->
@@ -128,7 +128,7 @@
                 </td>
                 <td>{{ option.description | markdownify }}</td>
                 <td>
-                  {% if option.default %}<code class="highlighter-rouge">{{ option.default }}</code>{% endif %}
+                  {% if option.default %}{{ option.default | markdownify }}{% endif %}
                 </td>
               </tr>
               {% endfor %} <!-- for option in options -->
@@ -181,7 +181,7 @@
                     </td>
                     <td>{{ option.description | markdownify }}</td>
                     <td>
-                      {% if option.default %}<code class="highlighter-rouge">{{ option.default }}</code>{% endif %}
+                      {% if option.default %}{{ option.default | markdownify }}{% endif %}
                     </td>
                   </tr>
                   {% endfor %} <!-- for option in options -->

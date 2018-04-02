@@ -65,7 +65,7 @@ import java.util.UUID;
 import org.apache.pulsar.functions.utils.Utils;
 
 @Slf4j
-@Parameters(commandDescription = "Operations about functions")
+@Parameters(commandDescription = "Operations for managing Pulsar Functions")
 public class CmdFunctions extends CmdBase {
 
     private final PulsarAdminWithFunctions fnAdmin;
@@ -100,10 +100,10 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class NamespaceCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "Tenant Name", required = true)
+        @Parameter(names = "--tenant", description = "Tenant name", required = true)
         protected String tenant;
 
-        @Parameter(names = "--namespace", description = "Namespace Name", required = true)
+        @Parameter(names = "--namespace", description = "Namespace name", required = true)
         protected String namespace;
     }
 
@@ -112,7 +112,7 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionCommand extends NamespaceCommand {
-        @Parameter(names = "--name", description = "Function Name", required = true)
+        @Parameter(names = "--name", description = "Function name", required = true)
         protected String functionName;
     }
 
@@ -121,43 +121,43 @@ public class CmdFunctions extends CmdBase {
      */
     @Getter
     abstract class FunctionConfigCommand extends BaseCommand {
-        @Parameter(names = "--tenant", description = "Tenant Name")
+        @Parameter(names = "--tenant", description = "Tenant name")
         protected String tenant;
-        @Parameter(names = "--namespace", description = "Namespace Name")
+        @Parameter(names = "--namespace", description = "Namespace name")
         protected String namespace;
-        @Parameter(names = "--name", description = "Function Name")
+        @Parameter(names = "--name", description = "Function name")
         protected String functionName;
-        @Parameter(names = "--className", description = "Function Class Name", required = true)
+        @Parameter(names = "--className", description = "Function class name", required = true)
         protected String className;
         @Parameter(
                 names = "--jar",
-                description = "Path to Jar",
+                description = "Path to the Java JAR file",
                 listConverter = StringConverter.class)
         protected String jarFile;
         @Parameter(
                 names = "--py",
-                description = "Path to Python",
+                description = "Path to the main Python file",
                 listConverter = StringConverter.class)
         protected String pyFile;
-        @Parameter(names = "--inputs", description = "Input Topic Name")
+        @Parameter(names = "--inputs", description = "Input topic name")
         protected String inputs;
-        @Parameter(names = "--output", description = "Output Topic Name")
+        @Parameter(names = "--output", description = "Output topic name")
         protected String output;
-        @Parameter(names = "--logTopic", description = "Log Topic")
+        @Parameter(names = "--logTopic", description = "Log topic")
         protected String logTopic;
-        @Parameter(names = "--customSerdeInputs", description = "Map of input topic to serde classname")
+        @Parameter(names = "--customSerdeInputs", description = "Map of input topic to SerDe class name")
         protected String customSerdeInputString;
         @Parameter(names = "--outputSerdeClassName", description = "Output SerDe")
         protected String outputSerdeClassName;
-        @Parameter(names = "--functionConfigFile", description = "Function Config")
+        @Parameter(names = "--functionConfigFile", description = "Path to a YAML config file for the function")
         protected String fnConfigFile;
-        @Parameter(names = "--processingGuarantees", description = "Processing Guarantees")
+        @Parameter(names = "--processingGuarantees", description = "Processing guarantees applied to the function")
         protected FunctionConfig.ProcessingGuarantees processingGuarantees;
-        @Parameter(names = "--subscriptionType", description = "The type of subscription")
+        @Parameter(names = "--subscriptionType", description = "The type of subscription used by the function as a consumer")
         protected FunctionConfig.SubscriptionType subscriptionType;
-        @Parameter(names = "--userConfig", description = "User Config")
+        @Parameter(names = "--userConfig", description = "User-defined config key/values")
         protected String userConfigString;
-        @Parameter(names = "--parallelism", description = "Function Parallelism")
+        @Parameter(names = "--parallelism", description = "The function's parallelism factor (i.e. the number of function instances to run)")
         protected String parallelism;
 
         protected FunctionConfig functionConfig;
@@ -256,7 +256,7 @@ public class CmdFunctions extends CmdBase {
                         functionConfigBuilder.getClassName(), jarFile));
             } else if (!Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), Function.class)
                     && !Reflections.classInJarImplementsIface(file, functionConfigBuilder.getClassName(), java.util.function.Function.class)) {
-                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither Function nor java.util.function.Function",
+                throw new IllegalArgumentException(String.format("Pulsar function class %s in jar %s implements neither org.apache.pulsar.functions.api.Function nor java.util.function.Function",
                         functionConfigBuilder.getClassName(), jarFile));
             }
 
@@ -444,10 +444,10 @@ public class CmdFunctions extends CmdBase {
     class LocalRunner extends FunctionConfigCommand {
 
         // TODO: this should become bookkeeper url and it should be fetched from pulsar client.
-        @Parameter(names = "--stateStorageServiceUrl", description = "state storage service url")
+        @Parameter(names = "--stateStorageServiceUrl", description = "State storage service URL")
         protected String stateStorageServiceUrl;
 
-        @Parameter(names = "--brokerServiceUrl", description = "The pulsar broker  url")
+        @Parameter(names = "--brokerServiceUrl", description = "The Pulsar broker URL")
         protected String brokerServiceUrl;
 
         @Override
@@ -618,16 +618,16 @@ public class CmdFunctions extends CmdBase {
         }
     }
 
-    @Parameters(commandDescription = "Trigger function")
+    @Parameters(commandDescription = "Triggers the specified Pulsar Function with a supplied value")
     class TriggerFunction extends FunctionCommand {
-        @Parameter(names = "--triggerValue", description = "The value the function needs to be triggered with")
+        @Parameter(names = "--triggerValue", description = "The value with which you want to trigger the function")
         protected String triggerValue;
-        @Parameter(names = "--triggerFile", description = "The fileName that contains data the function needs to be triggered with")
+        @Parameter(names = "--triggerFile", description = "The path to the file that contains the data with which you'd like to trigger the function")
         protected String triggerFile;
         @Override
         void runCmd() throws Exception {
             if (triggerFile == null && triggerValue == null) {
-                throw new RuntimeException("One of triggerValue/triggerFile has to be present");
+                throw new RuntimeException("Either a trigger value or a trigger filepath needs to be present");
             }
             String retval = fnAdmin.functions().triggerFunction(tenant, namespace, functionName, triggerValue, triggerFile);
             System.out.println(retval);

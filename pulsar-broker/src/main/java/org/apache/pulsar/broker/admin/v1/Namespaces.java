@@ -518,6 +518,30 @@ public class Namespaces extends NamespacesBase {
         return internalGetDispatchRate();
     }
 
+    @POST
+    @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Set Subscription dispatch-rate throttling for all topics of the namespace")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission") })
+    public void setSubscriptionDispatchRate(@PathParam("property") String property,
+                                            @PathParam("cluster") String cluster,
+                                            @PathParam("namespace") String namespace,
+                                            DispatchRate dispatchRate) {
+        validateNamespaceName(property, cluster, namespace);
+        internalSetSubscriptionDispatchRate(dispatchRate);
+    }
+
+    @GET
+    @Path("/{property}/{cluster}/{namespace}/subscriptionDispatchRate")
+    @ApiOperation(value = "Get Subscription dispatch-rate configured for the namespace, -1 represents not configured yet")
+    @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
+        @ApiResponse(code = 404, message = "Namespace does not exist") })
+    public DispatchRate getSubscriptionDispatchRate(@PathParam("property") String property,
+                                                    @PathParam("cluster") String cluster,
+                                                    @PathParam("namespace") String namespace) {
+        validateNamespaceName(property, cluster, namespace);
+        return internalGetSubscriptionDispatchRate();
+    }
+
     @GET
     @Path("/{property}/{cluster}/{namespace}/backlogQuotaMap")
     @ApiOperation(hidden = true, value = "Get backlog quota map on a namespace.")
