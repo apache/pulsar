@@ -19,7 +19,6 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -37,10 +36,12 @@ import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap.LongPair;
 import org.apache.pulsar.broker.PulsarServerException;
 import org.apache.pulsar.broker.authentication.AuthenticationDataSource;
+
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -68,6 +69,7 @@ public class Consumer {
     private final String appId;
     private AuthenticationDataSource authenticationData;
     private final String topicName;
+    private final InitialPosition subscriptionInitialPosition;
 
     private final long consumerId;
     private final int priorityLevel;
@@ -104,7 +106,7 @@ public class Consumer {
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
-                    Map<String, String> metadata, boolean readCompacted) throws BrokerServiceException {
+                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -114,6 +116,7 @@ public class Consumer {
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
+        this.subscriptionInitialPosition = subscriptionInitialPosition;
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
@@ -221,7 +224,7 @@ public class Consumer {
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
-                    readChecksum(metadataAndPayload);
+                    Commands.skipChecksumIfPresent(metadataAndPayload);
                 }
 
                 if (log.isDebugEnabled()) {

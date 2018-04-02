@@ -741,7 +741,7 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
                 headerFrame.skipBytes(cmdSize);
                 // verify if checksum present
                 if (hasChecksum(headerFrame)) {
-                    int checksum = readChecksum(headerFrame).intValue();
+                    int checksum = readChecksum(headerFrame);
                     // msg.readerIndex is already at header-payload index, Recompute checksum for headers-payload
                     int metadataChecksum = computeChecksum(headerFrame);
                     long computedChecksum = resumeChecksum(metadataChecksum, msg.getSecond());

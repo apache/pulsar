@@ -1,6 +1,7 @@
 ---
 title: Getting started with Pulsar Functions
 lead: Write and run your first Pulsar Function in just a few steps
+new: true
 ---
 
 This tutorial will walk you through running a {% popover standalone %} Pulsar {% popover cluster %} on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar {% popover cluster %}), while the second will run in cluster mode (inside your cluster).
@@ -16,9 +17,9 @@ In order to follow along with this tutorial, you'll need to have [Maven](https:/
 In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. Follow these steps to start up a standalone cluster:
 
 ```bash
-$ wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-$ tar xvf apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-$ cd apache-pulsar-2.0.0-incubating-functions-preview
+$ wget https://github.com/streamlio/incubator-pulsar/releases/download/v{{ site.preview_version }}/apache-pulsar-{{ site.preview_version }}-bin.tar.gz
+$ tar xvf apache-pulsar-{{ site.preview_version }}-bin.tar.gz
+$ cd apache-pulsar-{{ site.preview_version }}
 $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
@@ -52,6 +53,14 @@ $ bin/pulsar-admin functions localrun \
   --output persistent://sample/standalone/ns1/exclamation-output \
   --name exclamation
 ```
+
+{% include admonition.html title='Multiple input topics allowed' type='success' content="
+In the example above, a single topic was specified using the `--inputs` flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here's an example:
+
+```bash
+--inputs topic1,topic2
+```
+" %}
 
 We can use the [`pulsar-client`](../../reference/CliTools#pulsar-client) CLI tool to publish a message to the input topic:
 
@@ -212,13 +221,7 @@ $ touch reverse.py
 In that file, add the following:
 
 ```python
-from pulsarfunction import pulsar_function
-
-class Reverse(pulsar_function.PulsarFunction):
-  def __init__(self):
-    pass
-
-  def process(self, input):
+def process(input):
     return input[::-1]
 ```
 
@@ -227,15 +230,25 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --className reverse.Reverse \
-  --inputs persistent://sample/standalone/ns1/forwards \
-  --output persistent://sample/standalone/ns1/backwards \
+  --className reverse \
+  --inputs persistent://sample/standalone/ns1/backwards \
+  --output persistent://sample/standalone/ns1/forwards \
   --tenant sample \
   --namespace ns1 \
-  --name reverse 
+  --name reverse
 ```
 
-If you see `Created successfully`, the function is ready to accept incoming messages. Let's publish a string to the input topic:
+If you see `Created successfully`, the function is ready to accept incoming messages. Let's listen for incoming messages on the output topic using the [`pulsar-client consume`](../../CliTools#pulsar-client-consume) command:
+
+```bash
+$ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
+  --subscription-name my-subscription \
+  --num-messages 0
+```
+
+{% include admonition.html type="info" content="Setting the `--num-messages` flag to 0 means that the consumer will listen on the topic indefinitely." %}
+
+At the moment, no messages are arriving on the topic, so let's produce some, also using [`pulsar-client produce`](../../CliTools#pulsar-client-produce) command:
 
 ```bash
 $ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
@@ -243,19 +256,11 @@ $ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
   --messages "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
 
-Now, let's pull in a message from the output topic:
-
-```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
-  --subscription-name my-subscription \
-  --num-messages 1
-```
-
-You should see the reversed string in the log output:
+You should see the reversed string in the output:
 
 ```
 ----- got message -----
 This string was backwards but is now forwards
 ```
 
-Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, and successfully published to the function's input topic and consumed from its output topic.
+Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, successfully published to the function's input topic, and finally consumed from its output topic.

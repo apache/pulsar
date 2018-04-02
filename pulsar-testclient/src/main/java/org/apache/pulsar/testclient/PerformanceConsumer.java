@@ -202,8 +202,10 @@ public class PerformanceConsumer {
             }
 
             long latencyMillis = System.currentTimeMillis() - msg.getPublishTime();
-            recorder.recordValue(latencyMillis);
-            cumulativeRecorder.recordValue(latencyMillis);
+            if (latencyMillis >= 0) {
+                recorder.recordValue(latencyMillis);
+                cumulativeRecorder.recordValue(latencyMillis);
+            }
 
             consumer.acknowledgeAsync(msg);
         };
@@ -304,20 +306,14 @@ public class PerformanceConsumer {
             double rate = messagesReceived.sumThenReset() / elapsed;
             double throughput = bytesReceived.sumThenReset() / elapsed * 8 / 1024 / 1024;
 
-            log.info("Throughput received: {}  msg/s -- {} Mbit/s", dec.format(rate), dec.format(throughput));
-
             reportHistogram = recorder.getIntervalHistogram(reportHistogram);
 
             log.info(
                     "Throughput received: {}  msg/s -- {} Mbit/s --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - Max: {}",
-                    dec.format(rate), dec.format(throughput),
-                    dec.format(reportHistogram.getMean()),
-                    dec.format(reportHistogram.getValueAtPercentile(50)),
-                    dec.format(reportHistogram.getValueAtPercentile(95)),
-                    dec.format(reportHistogram.getValueAtPercentile(99)),
-                    dec.format(reportHistogram.getValueAtPercentile(99.9)),
-                    dec.format(reportHistogram.getValueAtPercentile(99.99)),
-                    dec.format(reportHistogram.getMaxValue()));
+                    dec.format(rate), dec.format(throughput), dec.format(reportHistogram.getMean()),
+                    (long) reportHistogram.getValueAtPercentile(50), (long) reportHistogram.getValueAtPercentile(95),
+                    (long) reportHistogram.getValueAtPercentile(99), (long) reportHistogram.getValueAtPercentile(99.9),
+                    (long) reportHistogram.getValueAtPercentile(99.99), (long) reportHistogram.getMaxValue());
 
             reportHistogram.reset();
             oldTime = now;
@@ -325,19 +321,16 @@ public class PerformanceConsumer {
 
         pulsarClient.close();
     }
+
     private static void printAggregatedStats() {
         Histogram reportHistogram = cumulativeRecorder.getIntervalHistogram();
 
         log.info(
                 "Aggregated latency stats --- Latency: mean: {} ms - med: {} - 95pct: {} - 99pct: {} - 99.9pct: {} - 99.99pct: {} - 99.999pct: {} - Max: {}",
-                dec.format(reportHistogram.getMean() / 1000.0),
-                dec.format(reportHistogram.getValueAtPercentile(50)),
-                dec.format(reportHistogram.getValueAtPercentile(95)),
-                dec.format(reportHistogram.getValueAtPercentile(99)),
-                dec.format(reportHistogram.getValueAtPercentile(99.9)),
-                dec.format(reportHistogram.getValueAtPercentile(99.99)),
-                dec.format(reportHistogram.getValueAtPercentile(99.999)),
-                dec.format(reportHistogram.getMaxValue()));
+                dec.format(reportHistogram.getMean()), (long) reportHistogram.getValueAtPercentile(50),
+                (long) reportHistogram.getValueAtPercentile(95), (long) reportHistogram.getValueAtPercentile(99),
+                (long) reportHistogram.getValueAtPercentile(99.9), (long) reportHistogram.getValueAtPercentile(99.99),
+                (long) reportHistogram.getValueAtPercentile(99.999), (long) reportHistogram.getMaxValue());
     }
 
     private static final Logger log = LoggerFactory.getLogger(PerformanceConsumer.class);

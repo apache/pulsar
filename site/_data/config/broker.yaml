@@ -18,6 +18,9 @@
 #
 
 configs:
+- name: functionsWorkerEnabled
+  description: Whether the Pulsar Functions worker service is enabled in the broker
+  default: 'false'
 - name: zookeeperServers
   default: ''
   description: Zookeeper quorum connection string

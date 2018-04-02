@@ -156,6 +156,14 @@ public class ManagedCursorContainerTest {
         }
 
         @Override
+        public void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException {
+        }
+
+        @Override
+        public void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx) {
+        }
+
+        @Override
         public void clearBacklog() throws InterruptedException, ManagedLedgerException {
         }
 

@@ -161,14 +161,14 @@ void ClientImpl::createReaderAsync(const std::string& topic, const MessageId& st
         }
     }
 
-    BatchMessageId msgId(startMessageId);
+    MessageId msgId(startMessageId);
     lookupServicePtr_->getPartitionMetadataAsync(topicName).addListener(
         boost::bind(&ClientImpl::handleReaderMetadataLookup, shared_from_this(), _1, _2, topicName, msgId,
                     conf, callback));
 }
 
 void ClientImpl::handleReaderMetadataLookup(const Result result, const LookupDataResultPtr partitionMetadata,
-                                            TopicNamePtr topicName, BatchMessageId startMessageId,
+                                            TopicNamePtr topicName, MessageId startMessageId,
                                             ReaderConfiguration conf, ReaderCallback callback) {
     if (result != ResultOk) {
         LOG_ERROR("Error Checking/Getting Partition Metadata while creating reader: " << result);

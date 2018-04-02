@@ -21,14 +21,12 @@ package org.apache.pulsar.functions.api.examples;
 import org.apache.pulsar.functions.api.Context;
 import org.apache.pulsar.functions.api.Function;
 
+import java.util.Arrays;
+
 public class CounterFunction implements Function<String, Void> {
     @Override
     public Void process(String input, Context context) throws Exception {
-        String[] parts = input.split("\\.");
-
-        for (String part : parts) {
-            context.incrCounter(part, 1);
-        }
+        Arrays.asList(input.split("\\.")).forEach(word -> context.incrCounter(word, 1));
 
         return null;
     }

@@ -68,6 +68,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
@@ -239,12 +240,19 @@ public class Commands {
         return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
     }
 
-    public static Long readChecksum(ByteBuf buffer) {
-        if(hasChecksum(buffer)) {
-            buffer.skipBytes(2); //skip magic bytes
-            return buffer.readUnsignedInt();
-        } else{
-            return null;
+    /**
+     * Read the checksum and advance the reader index in the buffer.
+     *
+     * Note: This method assume the checksum presence was already verified before.
+     */
+    public static int readChecksum(ByteBuf buffer) {
+        buffer.skipBytes(2); //skip magic bytes
+        return buffer.readInt();
+    }
+
+    public static void skipChecksumIfPresent(ByteBuf buffer) {
+        if (hasChecksum(buffer)) {
+            readChecksum(buffer);
         }
     }
 
@@ -252,7 +260,7 @@ public class Commands {
         try {
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
             // metadata
-            readChecksum(buffer);
+            skipChecksumIfPresent(buffer);
             int metadataSize = (int) buffer.readUnsignedInt();
 
             int writerIndex = buffer.writerIndex();
@@ -305,19 +313,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest, null);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted) {
-        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName, isDurable,
-            startMessageId, metadata, readCompacted, null);
-    }
-
-    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition, SchemaInfo schemaInfo) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -328,6 +329,7 @@ public class Commands {
         subscribeBuilder.setPriorityLevel(priorityLevel);
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
+        subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }

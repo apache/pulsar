@@ -789,7 +789,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
      *
      * @throws Exception
      */
-    @Test(timeOut = 5000)
+    @Test(timeOut = 15000)
     public void testCloseReplicatorStartProducer() throws Exception {
 
         TopicName dest = TopicName.get("persistent://pulsar/global/ns1/closeCursor");
@@ -861,7 +861,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         ByteBuf b = msg.getHeadersAndPayload();
 
         assertTrue(Commands.hasChecksum(b));
-        int parsedChecksum = Commands.readChecksum(b).intValue();
+        int parsedChecksum = Commands.readChecksum(b);
         int computedChecksum = Crc32cIntChecksum.computeChecksum(b);
 
         assertEquals(parsedChecksum, computedChecksum);
