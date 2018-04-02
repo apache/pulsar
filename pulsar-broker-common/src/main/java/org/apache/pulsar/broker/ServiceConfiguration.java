@@ -149,7 +149,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     // Default number of message dispatching throttling-limit for a subscription.
     // Using a value of 0, is disabling.
     @FieldContext(dynamic = true)
-    private int dispatchThrottlingRatePerSubscribeInMsg = 0;
+    private int dispatchThrottlingRatePerSubscriptionInMsg = 0;
     // Default number of message-bytes dispatching throttling-limit for a subscription.
     // Using a value of 0, is disabling.
     @FieldContext(dynamic = true)
@@ -713,12 +713,12 @@ public class ServiceConfiguration implements PulsarConfiguration {
         this.dispatchThrottlingRatePerTopicInByte = dispatchThrottlingRatePerTopicInByte;
     }
 
-    public int getDispatchThrottlingRatePerSubscribeInMsg() {
-        return dispatchThrottlingRatePerSubscribeInMsg;
+    public int getDispatchThrottlingRatePerSubscriptionInMsg() {
+        return dispatchThrottlingRatePerSubscriptionInMsg;
     }
 
-    public void setDispatchThrottlingRatePerSubscribeInMsg(int dispatchThrottlingRatePerSubscribeInMsg) {
-        this.dispatchThrottlingRatePerSubscribeInMsg = dispatchThrottlingRatePerSubscribeInMsg;
+    public void setDispatchThrottlingRatePerSubscriptionInMsg(int dispatchThrottlingRatePerSubscriptionInMsg) {
+        this.dispatchThrottlingRatePerSubscriptionInMsg = dispatchThrottlingRatePerSubscriptionInMsg;
     }
 
     public long getDispatchThrottlingRatePerSubscribeInByte() {
@@ -1527,7 +1527,7 @@ public class ServiceConfiguration implements PulsarConfiguration {
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
-    
+
     public boolean getTlsRequireTrustedClientCertOnConnect() {
         return tlsRequireTrustedClientCertOnConnect;
     }

@@ -1093,7 +1093,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             updateManagedLedgerConfig();
         });
         // add listener to update message-dispatch-rate in msg
-        registerConfigurationListener("dispatchThrottlingRatePerSubscribeInMsg", (dispatchRatePerTopicInMsg) -> {
+        registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInMsg", (dispatchRatePerTopicInMsg) -> {
             updateSubscriptionMessageDispatchRate();
         });
         // add listener to update message-dispatch-rate in byte
@@ -1126,7 +1126,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
     private void updateSubscriptionMessageDispatchRate() {
         this.pulsar().getExecutor().submit(() -> {
-            // update message-rate for each topic
+            // update message-rate for each topic subscription
             topics.forEach((name, topicFuture) -> {
                 if (topicFuture.isDone()) {
                     try {

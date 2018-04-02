@@ -52,7 +52,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     private final PersistentTopic topic;
     private final ManagedCursor cursor;
     private final String name;
-    private final DispatchRateLimiter dispatchRateLimiter;
+    private DispatchRateLimiter dispatchRateLimiter;
 
     private boolean havePendingRead = false;
 
@@ -71,7 +71,7 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
         this.cursor = cursor;
         this.readBatchSize = MaxReadBatchSize;
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
-        this.dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+        this.dispatchRateLimiter = null;
     }
 
     protected void scheduleReadOnActiveConsumer() {
@@ -203,7 +203,11 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     // acquire message-dispatch permits for already delivered messages
                     if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
                         topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
-                        dispatchRateLimiter.tryDispatchPermit(totalBytesSent, totalBytesSent);
+
+                        if (dispatchRateLimiter == null) {
+                            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                        }
+                        dispatchRateLimiter.tryDispatchPermit(totalMessagesSent, totalBytesSent);
                     }
                     // Schedule a new read batch operation only after the previous batch has been written to the socket
                     synchronized (PersistentDispatcherSingleActiveConsumer.this) {
@@ -339,6 +343,9 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
                     }
                 }
 
+                if (dispatchRateLimiter == null) {
+                    dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                }
                 if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
                     if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
@@ -433,6 +440,10 @@ public final class PersistentDispatcherSingleActiveConsumer extends AbstractDisp
     }
 
     public DispatchRateLimiter getDispatchRateLimiter() {
+        if ((serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) &&
+            (dispatchRateLimiter == null)) {
+            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+        }
         return dispatchRateLimiter;
     }
 

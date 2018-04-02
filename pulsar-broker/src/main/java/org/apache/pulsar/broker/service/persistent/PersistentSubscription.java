@@ -172,8 +172,6 @@ public class PersistentSubscription implements Subscription {
 
     @Override
     public void consumerFlow(Consumer consumer, int additionalNumberOfMessages) {
-        // TODO: add RateLimiter here?
-        
         dispatcher.consumerFlow(consumer, additionalNumberOfMessages);
     }
 

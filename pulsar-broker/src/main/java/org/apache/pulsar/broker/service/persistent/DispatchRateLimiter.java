@@ -111,12 +111,12 @@ public class DispatchRateLimiter {
                 dispatchRate = new DispatchRate(brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg(),
                     brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte(), 1);
             } else {
-                dispatchRate = new DispatchRate(brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg(),
+                dispatchRate = new DispatchRate(brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(),
                     brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte(), 1);
             }
         }
         updateDispatchRate(dispatchRate);
-        log.info("[{}] configured message-dispatch rate at broker {}", this.topicName, dispatchRate);
+        log.info("[{}] [{}] configured message-dispatch rate at broker {}", this.topicName, this.subscriptionName, dispatchRate);
     }
 
     /**
@@ -139,7 +139,7 @@ public class DispatchRateLimiter {
                 if (dispatchRate != null) {
                     int inMsg = (subscriptionName == null) ?
                         brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInMsg() :
-                        brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg();
+                        brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
                     long inByte = (subscriptionName == null) ?
                         brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerTopicInByte() :
                         brokerService.pulsar().getConfiguration().getDispatchThrottlingRatePerSubscribeInByte();
@@ -169,7 +169,7 @@ public class DispatchRateLimiter {
             policies = brokerService.pulsar().getConfigurationCache().policiesCache().getAsync(path)
                     .get(cacheTimeOutInSec, SECONDS);
         } catch (Exception e) {
-            log.warn("Failed to get message-rate for {}", this.topicName, e);
+            log.warn("Failed to get message-rate for {} subscription {}", this.topicName, this.subscriptionName, e);
         }
         // return policy-dispatch rate only if it's enabled in policies
         return policies.map(p -> {
@@ -191,7 +191,7 @@ public class DispatchRateLimiter {
      */
     public synchronized void updateDispatchRate(DispatchRate dispatchRate) {
         // synchronized to prevent race condition from concurrent zk-watch
-        log.info("[{}] setting message-dispatch-rate {}", topicName, dispatchRate);
+        log.info("[{}] [{}] setting message-dispatch-rate {}", topicName, subscriptionName, dispatchRate);
 
         long msgRate = dispatchRate.dispatchThrottlingRateInMsg;
         long byteRate = dispatchRate.dispatchThrottlingRateInByte;

@@ -86,7 +86,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     private static final AtomicIntegerFieldUpdater<PersistentDispatcherMultipleConsumers> BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER =
             AtomicIntegerFieldUpdater.newUpdater(PersistentDispatcherMultipleConsumers.class, "blockedDispatcherOnUnackedMsgs");
     private final ServiceConfiguration serviceConfig;
-    private final DispatchRateLimiter dispatchRateLimiter;
+    private DispatchRateLimiter dispatchRateLimiter;
 
     enum ReadType {
         Normal, Replay
@@ -101,7 +101,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         this.maxUnackedMessages = topic.getBrokerService().pulsar().getConfiguration()
                 .getMaxUnackedMessagesPerSubscription();
         this.serviceConfig = topic.getBrokerService().pulsar().getConfiguration();
-        this.dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+        this.dispatchRateLimiter = null;
     }
 
     @Override
@@ -253,6 +253,9 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
                     }
                 }
 
+                if (dispatchRateLimiter == null) {
+                    dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+                }
                 if (dispatchRateLimiter.isDispatchRateLimitingEnabled()) {
                     if (!dispatchRateLimiter.hasMessageDispatchPermit()) {
                         if (log.isDebugEnabled()) {
@@ -440,7 +443,11 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
         // acquire message-dispatch permits for already delivered messages
         if (serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) {
             topic.getDispatchRateLimiter().tryDispatchPermit(totalMessagesSent, totalBytesSent);
-            dispatchRateLimiter.tryDispatchPermit(totalBytesSent, totalBytesSent);
+
+            if (dispatchRateLimiter == null) {
+                dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+            }
+            dispatchRateLimiter.tryDispatchPermit(totalMessagesSent, totalBytesSent);
         }
 
         if (entriesToDispatch > 0) {
@@ -610,6 +617,10 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
     }
 
     public DispatchRateLimiter getDispatchRateLimiter() {
+        if ((serviceConfig.isDispatchThrottlingOnNonBacklogConsumerEnabled() || !cursor.isActive()) &&
+            (dispatchRateLimiter == null)) {
+            dispatchRateLimiter = new DispatchRateLimiter(topic, name);
+        }
         return dispatchRateLimiter;
     }
 

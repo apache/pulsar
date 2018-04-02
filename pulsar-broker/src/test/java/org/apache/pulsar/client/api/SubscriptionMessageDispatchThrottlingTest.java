@@ -63,6 +63,10 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         // create producer, topic and consumer
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
         PersistentTopic topic = (PersistentTopic) pulsar.getBrokerService().getTopic(topicName).get();
+
+        // enable throttling for nonBacklog consumers
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
+
         final AtomicInteger totalReceived = new AtomicInteger(0);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
@@ -99,9 +103,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Assert.assertTrue(isMessageRateUpdate);
         Assert.assertEquals(admin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
         int numMessages = 500;
         // Asynchronously produce messages
         for (int i = 0; i < numMessages; i++) {
@@ -121,7 +122,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *
      * <pre>
      *  1. dispatch-msg-rate = 10 msg/sec
-     *  2. send 20 msgs
+     *  2. send 30 msgs
      *  3. it should take up to 2 second to receive all messages
      * </pre>
      *
@@ -141,9 +142,11 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         DispatchRate dispatchRate = new DispatchRate(messageRate, -1, 1);
         admin.namespaces().createNamespace(namespace);
         admin.namespaces().setSubscriptionDispatchRate(namespace, dispatchRate);
-        final int numProducedMessages = 20;
+        final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
         final AtomicInteger totalReceived = new AtomicInteger(0);
+        // enable throttling for nonBacklog consumers
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
             .subscriptionType(subscription).messageListener((c1, msg) -> {
@@ -183,9 +186,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Assert.assertTrue(isMessageRateUpdate);
         Assert.assertEquals(admin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
         long start = System.currentTimeMillis();
         // Asynchronously produce messages
         for (int i = 0; i < numProducedMessages; i++) {
@@ -208,7 +208,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
      *
      * <pre>
      *  1. dispatch-byte-rate = 100 bytes/sec
-     *  2. send 20 msgs : each with 10 byte
+     *  2. send 30 msgs : each with 10 byte
      *  3. it should take up to 2 second to receive all messages
      * </pre>
      *
@@ -230,6 +230,8 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         final int numProducedMessages = 30;
         final CountDownLatch latch = new CountDownLatch(numProducedMessages);
         final AtomicInteger totalReceived = new AtomicInteger(0);
+        // enable throttling for nonBacklog consumers
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
             .receiverQueueSize(10)
@@ -270,9 +272,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Assert.assertTrue(isMessageRateUpdate);
         Assert.assertEquals(admin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
         long start = System.currentTimeMillis();
         // Asynchronously produce messages
         for (int i = 0; i < numProducedMessages; i++) {
@@ -311,6 +310,8 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         final int numProducedMessages = 500;
         final AtomicInteger totalReceived = new AtomicInteger(0);
+        // enable throttling for nonBacklog consumers
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName)
             .subscriptionName(subName).subscriptionType(SubscriptionType.Shared).messageListener((c1, msg) -> {
@@ -354,9 +355,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         Assert.assertTrue(isMessageRateUpdate);
         Assert.assertEquals(admin.namespaces().getSubscriptionDispatchRate(namespace), dispatchRate);
 
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
-
         // Asynchronously produce messages
         for (int i = 0; i < numProducedMessages; i++) {
             final String message = "my-message-" + i;
@@ -388,18 +386,20 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         final String subName = "my-subscriber-name";
 
         final int messageRate = 5;
+        // enable throttling for nonBacklog consumers
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
-        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg();
+        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
         // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscribeInMsg",
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
             Integer.toString(messageRate));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg() == initValue) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
-        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg(), initValue);
+        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(), initValue);
 
         admin.namespaces().createNamespace(namespace);
         // create producer and topic
@@ -416,8 +416,6 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
                 log.debug("Received message [{}] in the listener", receivedMessage);
                 totalReceived.incrementAndGet();
             }).subscribe();
-        // deactive cursors
-        deactiveCursors((ManagedLedgerImpl) topic.getManagedLedger());
 
         // Asynchronously produce messages
         for (int i = 0; i < numMessages; i++) {
@@ -433,7 +431,7 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
 
         consumer.close();
         producer.close();
-        pulsar.getConfiguration().setDispatchThrottlingRatePerSubscribeInMsg(initValue);
+        pulsar.getConfiguration().setDispatchThrottlingRatePerSubscriptionInMsg(initValue);
         log.info("-- Exiting {} test --", methodName);
     }
 
@@ -461,18 +459,20 @@ public class SubscriptionMessageDispatchThrottlingTest extends MessageDispatchTh
         final String subName2 = "my-subscriber-name2";
 
         final int clusterMessageRate = 100;
+        // enable throttling for nonBacklog consumers
+        conf.setDispatchThrottlingOnNonBacklogConsumerEnabled(true);
 
-        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg();
+        int initValue = pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg();
         // (1) Update message-dispatch-rate limit
-        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscribeInMsg",
+        admin.brokers().updateDynamicConfiguration("dispatchThrottlingRatePerSubscriptionInMsg",
             Integer.toString(clusterMessageRate));
         // sleep incrementally as zk-watch notification is async and may take some time
         for (int i = 0; i < 5; i++) {
-            if (pulsar.getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg() == initValue) {
+            if (pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg() == initValue) {
                 Thread.sleep(50 + (i * 10));
             }
         }
-        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerSubscribeInMsg(), initValue);
+        Assert.assertNotEquals(pulsar.getConfiguration().getDispatchThrottlingRatePerSubscriptionInMsg(), initValue);
 
         admin.namespaces().createNamespace(namespace);
 
