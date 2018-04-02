@@ -241,14 +241,4 @@ public class ConfigMapFunction implements Function<String, Void> {
 
 ## Metrics
 
-Here's an example function that publishes a value of 1 to the `my-metric` metric.
-
-```java
-public class MetricsFunction implements PulsarFunction<String, Void> {
-    @Override
-    public Void process(String input, Context context) {
-        context.recordMetric("my-metric", 1);
-        return null;
-    }
-}
-```
+Pulsar Functions that use the [Pulsar Functions SDK](#sdk) can publish metrics to Pulsar. For more information, see [Metrics for Pulsar Functions](../metrics).
