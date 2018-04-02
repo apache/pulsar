@@ -447,7 +447,7 @@ The requirements for writing Pulsar Functions in Python depend on your [deployme
 In order to develop Pulsar Functions in Python, you'll need to install the [`pulsar-client`](/api/python) Python library.
 
 ```bash
-$ pip install pulsar-client
+$ pip install pulsar-client=={{ site.python_latest }}
 ```
 
 In order to run Python Pulsar Functions in [local run](../deployment#local-run) mode, you'll also need to install the following libraries:
