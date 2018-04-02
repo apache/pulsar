@@ -70,6 +70,12 @@ public class ProxyConfiguration implements PulsarConfiguration {
     // make sure authentication is enabled for this to take effect
     private boolean forwardAuthorizationCredentials = false;
 
+    // Max concurrent inbound Connections
+    private int maxConcurrentInboundConnections = 10000;
+
+    // Max concurrent outbound Connections
+    private int maxConcurrentLookupRequests = 10000;
+
     // Authentication settings of the proxy itself. Used to connect to brokers
     private String brokerClientAuthenticationPlugin;
     private String brokerClientAuthenticationParameters;
@@ -335,7 +341,23 @@ public class ProxyConfiguration implements PulsarConfiguration {
     public void setTlsCiphers(Set<String> tlsCiphers) {
         this.tlsCiphers = tlsCiphers;
     }
-    
+
+    public int getMaxConcurrentInboundConnections() {
+        return maxConcurrentInboundConnections;
+    }
+
+    public void setMaxConcurrentInboundConnections(int maxConcurrentInboundConnections) {
+        this.maxConcurrentInboundConnections = maxConcurrentInboundConnections;
+    }
+
+    public int getMaxConcurrentLookupRequests() {
+        return maxConcurrentLookupRequests;
+    }
+
+    public void setMaxConcurrentLookupRequests(int maxConcurrentLookupRequests) {
+        this.maxConcurrentLookupRequests = maxConcurrentLookupRequests;
+    }
+
     public boolean getTlsRequireTrustedClientCertOnConnect() {
         return tlsRequireTrustedClientCertOnConnect;
     }

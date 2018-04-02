@@ -9,12 +9,20 @@ GEM
       eventmachine (>= 0.12.9)
       http_parser.rb (~> 0.6.0)
     eventmachine (1.2.5)
+<<<<<<< HEAD
     ffi (1.9.21)
+=======
+    ffi (1.9.23)
+>>>>>>> upstream/master
     forwardable-extended (2.6.0)
     http_parser.rb (0.6.0)
     i18n (0.9.5)
       concurrent-ruby (~> 1.0)
+<<<<<<< HEAD
     jekyll (3.7.2)
+=======
+    jekyll (3.7.3)
+>>>>>>> upstream/master
       addressable (~> 2.4)
       colorator (~> 1.0)
       em-websocket (~> 0.5)
@@ -41,7 +49,11 @@ GEM
     pathutil (0.16.1)
       forwardable-extended (~> 2.6)
     public_suffix (3.0.2)
+<<<<<<< HEAD
     rb-fsevent (0.10.2)
+=======
+    rb-fsevent (0.10.3)
+>>>>>>> upstream/master
     rb-inotify (0.9.10)
       ffi (>= 0.5.0, < 2)
     rouge (3.1.1)
@@ -57,10 +69,14 @@ PLATFORMS
   ruby
 
 DEPENDENCIES
+<<<<<<< HEAD
   jekyll (= 3.7.2)
+=======
+  jekyll (= 3.7.3)
+>>>>>>> upstream/master
 
 RUBY VERSION
-   ruby 2.3.1p112
+   ruby 2.4.1p111
 
 BUNDLED WITH
    1.16.1

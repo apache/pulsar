@@ -636,7 +636,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
     public void clusterFailureDomain() throws PulsarAdminException {
 
         final String cluster = pulsar.getConfiguration().getClusterName();
-        admin.clusters().updateCluster(cluster,
+        admin.clusters().createCluster(cluster,
                 new ClusterData(pulsar.getWebServiceAddress(), pulsar.getWebServiceAddressTls()));
         // create
         FailureDomain domain = new FailureDomain();

@@ -26,6 +26,9 @@ pulsar-broker/src/test/resources/log4j2.yaml
 # Mac
 .DS_Store
 
+# VisualStudioCode artifacts
+.vscode/
+
 # Maven
 log/
 target/

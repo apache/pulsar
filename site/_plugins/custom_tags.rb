@@ -37,6 +37,14 @@ module Jekyll
         @term = 'persistent'
       end
 
+      if @term == 'consume'
+        @term = 'consumer'
+      end
+
+      if ['produce', 'producing'].include? @term
+        @term = 'producer'
+      end
+
       if @term == 'multi-tenant'
         @term = 'multi-tenancy'
       end
