@@ -384,7 +384,7 @@ public class PulsarClientImpl implements PulsarClient {
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             if (metadata.partitions > 1) {
-                consumer = new TopicsConsumerImpl<>(PulsarClientImpl.this, conf,
+                consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
                     externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema);
             } else {
                 consumer = new ConsumerImpl<>(PulsarClientImpl.this, topic, conf, listenerThread, -1,
@@ -406,7 +406,7 @@ public class PulsarClientImpl implements PulsarClient {
     private <T> CompletableFuture<Consumer<T>> multiTopicSubscribeAsync(ConsumerConfigurationData<T> conf, Schema<T> schema) {
         CompletableFuture<Consumer<T>> consumerSubscribedFuture = new CompletableFuture<>();
 
-        ConsumerBase<T> consumer = new TopicsConsumerImpl<>(PulsarClientImpl.this, conf,
+        ConsumerBase<T> consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
                 externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema);
 
         synchronized (consumers) {
@@ -436,7 +436,7 @@ public class PulsarClientImpl implements PulsarClient {
 
                 List<String> topicsList = topicsPatternFilter(topics, conf.getTopicsPattern());
                 conf.getTopicNames().addAll(topicsList);
-                ConsumerBase<T> consumer = new PatternTopicsConsumerImpl<>(conf.getTopicsPattern(),
+                ConsumerBase<T> consumer = new PatternMultiTopicsConsumerImpl<>(conf.getTopicsPattern(),
                     PulsarClientImpl.this,
                     conf,
                     externalExecutorProvider.getExecutor(),

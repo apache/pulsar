@@ -56,7 +56,7 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
+public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
 
     // All topics should be in same namespace
     protected NamespaceName namespaceName;
@@ -83,8 +83,8 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
     private final UnAckedMessageTracker unAckedMessageTracker;
     private final ConsumerConfigurationData<T> internalConfig;
 
-    TopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, ExecutorService listenerExecutor,
-                       CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
+    MultiTopicsConsumerImpl(PulsarClientImpl client, ConsumerConfigurationData<T> conf, ExecutorService listenerExecutor,
+                            CompletableFuture<Consumer<T>> subscribeFuture, Schema<T> schema) {
         super(client, "TopicsConsumerFakeTopicName" + ConsumerName.generateRandomName(), conf,
                 Math.max(2, conf.getReceiverQueueSize()), listenerExecutor, subscribeFuture, schema);
 
@@ -109,7 +109,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         if (conf.getTopicNames().isEmpty()) {
             this.namespaceName = null;
             setState(State.Ready);
-            subscribeFuture().complete(TopicsConsumerImpl.this);
+            subscribeFuture().complete(MultiTopicsConsumerImpl.this);
             return;
         }
 
@@ -128,7 +128,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                     setState(State.Ready);
                     // We have successfully created N consumers, so we can start receiving messages now
                     startReceivingMessages(consumers.values().stream().collect(Collectors.toList()));
-                    subscribeFuture().complete(TopicsConsumerImpl.this);
+                    subscribeFuture().complete(MultiTopicsConsumerImpl.this);
                     log.info("[{}] [{}] Created topics consumer with {} sub-consumers",
                         topic, subscription, numberTopicPartitions.get());
                 } catch (PulsarClientException e) {
@@ -245,7 +245,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
             } else {
                 // Enqueue the message so that it can be retrieved when application calls receive()
                 // Waits for the queue to have space for the message
-                // This should never block cause TopicsConsumerImpl should always use GrowableArrayBlockingQueue
+                // This should never block cause MultiTopicsConsumerImpl should always use GrowableArrayBlockingQueue
                 incomingMessages.put(topicMessage);
             }
         } catch (InterruptedException e) {
@@ -271,7 +271,7 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
                         log.debug("[{}][{}] Calling message listener for message {}",
                             topic, subscription, message.getMessageId());
                     }
-                    listener.received(TopicsConsumerImpl.this, msg);
+                    listener.received(MultiTopicsConsumerImpl.this, msg);
                 } catch (Throwable t) {
                     log.error("[{}][{}] Message listener error in processing message: {}",
                         topic, subscription, message, t);
@@ -799,5 +799,5 @@ public class TopicsConsumerImpl<T> extends ConsumerBase<T> {
         return consumers.values().stream().collect(Collectors.toList());
     }
 
-    private static final Logger log = LoggerFactory.getLogger(TopicsConsumerImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(MultiTopicsConsumerImpl.class);
 }

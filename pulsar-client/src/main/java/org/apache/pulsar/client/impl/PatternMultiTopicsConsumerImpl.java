@@ -41,17 +41,17 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class PatternTopicsConsumerImpl<T> extends TopicsConsumerImpl<T> implements TimerTask {
+public class PatternMultiTopicsConsumerImpl<T> extends MultiTopicsConsumerImpl<T> implements TimerTask {
     private final Pattern topicsPattern;
     private final TopicsChangedListener topicsChangeListener;
     private volatile Timeout recheckPatternTimeout = null;
 
-    public PatternTopicsConsumerImpl(Pattern topicsPattern,
-                                     PulsarClientImpl client,
-                                     ConsumerConfigurationData<T> conf,
-                                     ExecutorService listenerExecutor,
-                                     CompletableFuture<Consumer<T>> subscribeFuture,
-                                     Schema<T> schema) {
+    public PatternMultiTopicsConsumerImpl(Pattern topicsPattern,
+                                          PulsarClientImpl client,
+                                          ConsumerConfigurationData<T> conf,
+                                          ExecutorService listenerExecutor,
+                                          CompletableFuture<Consumer<T>> subscribeFuture,
+                                          Schema<T> schema) {
         super(client, conf, listenerExecutor, subscribeFuture, schema);
         this.topicsPattern = topicsPattern;
 
@@ -86,7 +86,7 @@ public class PatternTopicsConsumerImpl<T> extends TopicsConsumerImpl<T> implemen
             }
 
             List<String> newTopics = PulsarClientImpl.topicsPatternFilter(topics, topicsPattern);
-            List<String> oldTopics = PatternTopicsConsumerImpl.this.getTopics();
+            List<String> oldTopics = PatternMultiTopicsConsumerImpl.this.getTopics();
 
             futures.add(topicsChangeListener.onTopicsAdded(topicsListsMinus(newTopics, oldTopics)));
             futures.add(topicsChangeListener.onTopicsRemoved(topicsListsMinus(oldTopics, newTopics)));
@@ -100,7 +100,7 @@ public class PatternTopicsConsumerImpl<T> extends TopicsConsumerImpl<T> implemen
         });
 
         // schedule the next re-check task
-        client.timer().newTimeout(PatternTopicsConsumerImpl.this,
+        client.timer().newTimeout(PatternMultiTopicsConsumerImpl.this,
             Math.min(1, conf.getPatternAutoDiscoveryPeriod()), TimeUnit.MINUTES);
     }
 
@@ -109,9 +109,9 @@ public class PatternTopicsConsumerImpl<T> extends TopicsConsumerImpl<T> implemen
     }
 
     interface TopicsChangedListener {
-        // unsubscribe and delete ConsumerImpl in the `consumers` map in `TopicsConsumerImpl` based on added topics.
+        // unsubscribe and delete ConsumerImpl in the `consumers` map in `MultiTopicsConsumerImpl` based on added topics.
         CompletableFuture<Void> onTopicsRemoved(Collection<String> removedTopics);
-        // subscribe and create a list of new ConsumerImpl, added them to the `consumers` map in `TopicsConsumerImpl`.
+        // subscribe and create a list of new ConsumerImpl, added them to the `consumers` map in `MultiTopicsConsumerImpl`.
         CompletableFuture<Void> onTopicsAdded(Collection<String> addedTopics);
     }
 
@@ -181,5 +181,5 @@ public class PatternTopicsConsumerImpl<T> extends TopicsConsumerImpl<T> implemen
         return recheckPatternTimeout;
     }
 
-    private static final Logger log = LoggerFactory.getLogger(PatternTopicsConsumerImpl.class);
+    private static final Logger log = LoggerFactory.getLogger(PatternMultiTopicsConsumerImpl.class);
 }
