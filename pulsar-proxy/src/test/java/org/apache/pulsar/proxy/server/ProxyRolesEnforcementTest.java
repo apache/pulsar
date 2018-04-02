@@ -42,6 +42,7 @@ import org.apache.pulsar.client.api.PulsarClient;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.common.policies.data.AuthAction;
 import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.apache.pulsar.proxy.server.ProxyRolesEnforcementTest.BasicAuthentication;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -246,10 +247,8 @@ public class ProxyRolesEnforcementTest extends ProducerConsumerBase {
 
     private void createAdminClient() throws PulsarClientException {
         String adminAuthParams = "authParam:admin";
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setAuthentication(BasicAuthentication.class.getName(), adminAuthParams);
-
-        admin = spy(new PulsarAdmin(brokerUrl, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {

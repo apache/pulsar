@@ -61,7 +61,6 @@ import org.apache.pulsar.broker.loadbalance.impl.SimpleLoadManagerImpl;
 import org.apache.pulsar.broker.loadbalance.impl.SimpleResourceUnit;
 import org.apache.pulsar.client.admin.BrokerStats;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.common.naming.NamespaceBundle;
 import org.apache.pulsar.common.naming.NamespaceName;
 import org.apache.pulsar.common.policies.data.AutoFailoverPolicyData;
@@ -143,7 +142,7 @@ public class SimpleLoadManagerImplTest {
         pulsar1.start();
 
         url1 = new URL("http://127.0.0.1" + ":" + PRIMARY_BROKER_WEBSERVICE_PORT);
-        admin1 = new PulsarAdmin(url1, (Authentication) null);
+        admin1 = PulsarAdmin.builder().serviceHttpUrl(url1.toString()).build();
         brokerStatsClient1 = admin1.brokerStats();
         primaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(),
                 PRIMARY_BROKER_WEBSERVICE_PORT);
@@ -160,7 +159,7 @@ public class SimpleLoadManagerImplTest {
         pulsar2.start();
 
         url2 = new URL("http://127.0.0.1" + ":" + SECONDARY_BROKER_WEBSERVICE_PORT);
-        admin2 = new PulsarAdmin(url2, (Authentication) null);
+        admin2 = PulsarAdmin.builder().serviceHttpUrl(url2.toString()).build();
         brokerStatsClient2 = admin2.brokerStats();
         secondaryHost = String.format("http://%s:%d", InetAddress.getLocalHost().getHostName(),
                 SECONDARY_BROKER_WEBSERVICE_PORT);

@@ -188,14 +188,8 @@ public class ProxyWithoutServiceDiscoveryTest extends ProducerConsumerBase {
     }
 
     protected final PulsarClient createPulsarClient(Authentication auth, String lookupUrl) throws Exception {
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        clientConf.setTlsAllowInsecureConnection(true);
-        clientConf.setAuthentication(auth);
-        clientConf.setUseTls(true);
-
-        admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString()).tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH)
+                .allowTlsInsecureConnection(true).authentication(auth).build());
         return PulsarClient.builder().serviceUrl(lookupUrl).statsInterval(0, TimeUnit.SECONDS)
                 .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
                 .enableTls(true).build();
