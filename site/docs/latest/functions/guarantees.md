@@ -1,7 +1,7 @@
 ---
 title: Processing guarantees
 lead: Apply at-most-once, at-least-once, or effectively-once delivery semantics to Pulsar Functions
-new: true
+preview: true
 ---
 
 Pulsar Functions provides three different messaging semantics that you can apply to any function:

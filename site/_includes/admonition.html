@@ -19,7 +19,7 @@
 
 -->
 <div class="admonition">
-  <div class="{{ include.type }}">
+  <div class="{% if include.type %}{{ include.type }}{% else %}info{% endif %}">
     {% if include.title %}<span class="admonition-title">{{ include.title | markdownify }}</span>{% endif %}
     {% if include.content %}{{ include.content | markdownify }}{% endif %}
   </div>
