@@ -241,7 +241,7 @@ public class CmdFunctionsTest {
         });
 
         CreateFunction creater = cmd.getCreater();
-        assertEquals("ExclamationFunction", creater.getFunctionConfig().getName());
+        assertEquals(testClassName, creater.getFunctionConfig().getName());
         verify(functions, times(1)).createFunction(any(FunctionConfig.class), anyString());
     }
 
