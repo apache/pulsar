@@ -162,7 +162,8 @@ extends Closeable</pre>
 <td class="colFirst"><code><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;</code></td>
 <td class="colLast"><code><span class="memberNameLink"><a href="../../../../../org/apache/pulsar/client/api/Reader.html#readNext-int-java.util.concurrent.TimeUnit-">readNext</a></span>(int&nbsp;timeout,
         TimeUnit&nbsp;unit)</code>
-<div class="block">Read the next message in the topic.</div>
+<div class="block">Read the next message in the topic waiting for a maximum of timeout
+ time units.</div>
 </td>
 </tr>
 <tr id="i7" class="rowColor">
@@ -230,10 +231,11 @@ extends Closeable</pre>
 <pre><a href="../../../../../org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a>&lt;<a href="../../../../../org/apache/pulsar/client/api/Reader.html" title="type parameter in Reader">T</a>&gt;&nbsp;readNext(int&nbsp;timeout,
                     TimeUnit&nbsp;unit)
              throws <a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></pre>
-<div class="block">Read the next message in the topic.</div>
+<div class="block">Read the next message in the topic waiting for a maximum of timeout
+ time units. Returns null if no message is recieved in that time.</div>
 <dl>
 <dt><span class="returnLabel">Returns:</span></dt>
-<dd>the next messasge</dd>
+<dd>the next message(Could be null if none received in time)</dd>
 <dt><span class="throwsLabel">Throws:</span></dt>
 <dd><code><a href="../../../../../org/apache/pulsar/client/api/PulsarClientException.html" title="class in org.apache.pulsar.client.api">PulsarClientException</a></code></dd>
 </dl>

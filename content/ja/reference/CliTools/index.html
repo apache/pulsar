@@ -43,13 +43,6 @@
     under the License.
 
 -->
-<script type="text/javascript">
-  var shiftWindow = function() { scrollBy(0, -108) };
-  window.addEventListener("hashchange", shiftWindow);
-  window.addEventListener("pageshow", shiftWindow);
-  function load() { if (window.location.hash) shiftWindow(); }
-</script>
-
 <title>Pulsarコマンドラインツール</title>
 
 <meta charset="utf-8">
@@ -174,6 +167,7 @@
         <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
@@ -852,6 +846,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -906,6 +902,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1272,6 +1270,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1324,6 +1324,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -1684,6 +1686,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -1736,6 +1740,8 @@
           
           
           <li><a href="/ja/reference/CliTools/">Pulsarコマンドラインツール</a></li>
+          
+          
           
           
           
@@ -2227,7 +2233,8 @@
                 <td><p>Force start a read-only bookie server</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
               
@@ -2242,7 +2249,8 @@
                 <td><p>Start auto-recovery service bookie server</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -2333,7 +2341,8 @@
                 <td><p>Run a BookKeeper bookie on the same host as the Pulsar broker</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
               
@@ -2351,7 +2360,8 @@
                 <td><p>Run a BookKeeper autorecovery daemon on the same host as the Pulsar broker</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -2819,7 +2829,8 @@
                 <td><p>Local bookies’ base data directory</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">data/standalone/bookeeper</code>
+                  <p>data/standalone/bookeeper</p>
+
                 </td>
               </tr>
               
@@ -2834,7 +2845,8 @@
                 <td><p>Local bookies’ base port</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">3181</code>
+                  <p>3181</p>
+
                 </td>
               </tr>
               
@@ -2867,7 +2879,8 @@
                 <td><p>Only start ZooKeeper and BookKeeper services, not the broker</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
               
@@ -2882,7 +2895,8 @@
                 <td><p>The number of local bookies</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -2927,7 +2941,8 @@
                 <td><p>Local ZooKeeper’s data directory</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">data/standalone/zookeeper</code>
+                  <p>data/standalone/zookeeper</p>
+
                 </td>
               </tr>
               
@@ -2942,7 +2957,8 @@
                 <td><p>Local ZooKeeper’s port</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">2181</code>
+                  <p>2181</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -3172,6 +3188,12 @@
       </li>
       
       <li>
+        <a href="#pulsar-admin-functions">
+          <code class="highlighter-rouge">functions</code>
+        </a>
+      </li>
+      
+      <li>
         <a href="#pulsar-admin-namespaces">
           <code class="highlighter-rouge">namespaces</code>
         </a>
@@ -3306,7 +3328,8 @@
                     <td><p>Indent JSON output</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -3349,7 +3372,8 @@
                     <td><p>Indent JSON output</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -3392,7 +3416,8 @@
                     <td><p>Indent JSON output</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -3435,7 +3460,8 @@
                     <td><p>Indent JSON output</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -3923,6 +3949,1410 @@
     </div>
     
     <div class="card cli-command">
+      <h3 class="cli-command-title" id="pulsar-admin-functions">
+        <code class="highlighter-rouge">functions</code>
+      </h3>
+      <div class="card-content">
+        <p>A command-line interface for Pulsar Functions</p>
+
+        <h5>Usage</h5>
+        <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions <span class="command">subcommand</span></code></pre></div>
+         <!-- if command.options -->
+         <!-- if command.example -->
+
+        
+        <h5>Subcommands</h5>
+        <ul>
+          
+          <li>
+            <a href="#pulsar-admin-functions-localrun">
+              <code class="highlighter-rouge">localrun</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-create">
+              <code class="highlighter-rouge">create</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-delete">
+              <code class="highlighter-rouge">delete</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-update">
+              <code class="highlighter-rouge">update</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-get">
+              <code class="highlighter-rouge">get</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-getstatus">
+              <code class="highlighter-rouge">getstatus</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-list">
+              <code class="highlighter-rouge">list</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-querystate">
+              <code class="highlighter-rouge">querystate</code>
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar-admin-functions-trigger">
+              <code class="highlighter-rouge">trigger</code>
+            </a>
+          </li>
+           <!-- for subcommand in subcommands -->
+        </ul>
+
+        
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-localrun"><code class="highlighter-rouge">localrun</code></h4>
+          <div class="card-content">
+            <p>Run a Pulsar Function locally</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions localrun <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--brokerServiceUrl</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The URL of the Pulsar broker</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function’s class</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--customSerdeInputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A map of the input topic to SerDe name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--functionConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path of the YAML config file used to configure the function</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--inputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The input topics for the function (as a comma-separated list if more than one topic is desired)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--logTopic</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The topic to which logs from this function are published</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A path to the JAR file for the function (if the function is written in Java)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function</p>
+</td>
+                    <td>
+                      <p>The value specified by <code class="highlighter-rouge">--className</code></p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--output</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the topic to which the function publishes its output (if any)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--outputSerdeClassName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The SerDe class used for the function’s output</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s parallelism factor, i.e. the number of instances of the function to run</p>
+</td>
+                    <td>
+                      <p>1</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The processing guarantees applied to the function. Can be one of: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, or <code class="highlighter-rouge">EFFECTIVELY_ONCE</code></p>
+</td>
+                    <td>
+                      <p>ATLEAST_ONCE</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--py</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path of the Python file containing the function’s processing logic (if the function is written in Python)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--stateStorageServiceUrl</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--subscriptionType</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The subscription type used by the function when consuming messages on the input topic(s). Can be either <code class="highlighter-rouge">SHARED</code> or <code class="highlighter-rouge">EXCLUSIVE</code></p>
+</td>
+                    <td>
+                      <p>SHARED</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--userConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A user-supplied config value, set as a key/value pair. You can set multiple user config values.</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-create"><code class="highlighter-rouge">create</code></h4>
+          <div class="card-content">
+            <p>Creates a new Pulsar Function on the target infrastructure</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions create <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function’s class</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--customSerdeInputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A map of the input topic to SerDe name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--functionConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path of the YAML config file used to configure the function</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--inputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The input topics for the function (as a comma-separated list if more than one topic is desired)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A path to the JAR file for the function (if the function is written in Java)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function</p>
+</td>
+                    <td>
+                      <p>The value specified by <code class="highlighter-rouge">--className</code></p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--logTopic</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The topic to which logs from this function are published</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--output</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the topic to which the function publishes its output (if any)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--outputSerdeClassName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The SerDe class used for the function’s output</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s parallelism factor, i.e. the number of instances of the function to run</p>
+</td>
+                    <td>
+                      <p>1</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The processing guarantees applied to the function. Can be one of: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, or <code class="highlighter-rouge">EFFECTIVELY_ONCE</code></p>
+</td>
+                    <td>
+                      <p>ATLEAST_ONCE</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--py</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path of the Python file containing the function’s processing logic (if the function is written in Python)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--subscriptionType</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The subscription type used by the function when consuming messages on the input topic(s). Can be either <code class="highlighter-rouge">SHARED</code> or <code class="highlighter-rouge">EXCLUSIVE</code></p>
+</td>
+                    <td>
+                      <p>SHARED</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--userConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A user-supplied config value, set as a key/value pair. You can set multiple user config values.</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-delete"><code class="highlighter-rouge">delete</code></h4>
+          <div class="card-content">
+            <p>Deletes an existing Pulsar Function</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions delete <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function to delete</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the function to delete</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the function to delete</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></h4>
+          <div class="card-content">
+            <p>Updates an existing Pulsar Function</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions update <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--className</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function’s class</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--customSerdeInputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A map of the input topic to SerDe name</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--functionConfigFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path of the YAML config file used to configure the function</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--inputs</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The input topics for the function (as a comma-separated list if more than one topic is desired)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--jar</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A path to the JAR file for the function (if the function is written in Java)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function</p>
+</td>
+                    <td>
+                      <p>The value specified by <code class="highlighter-rouge">--className</code></p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s namespace</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--logTopic</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The topic to which logs from this function are published</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--output</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the topic to which the function publishes its output (if any)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--outputSerdeClassName</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The SerDe class used for the function’s output</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--parallelism</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s parallelism factor, i.e. the number of instances of the function to run</p>
+</td>
+                    <td>
+                      <p>1</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--processingGuarantees</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The processing guarantees applied to the function. Can be one of: <code class="highlighter-rouge">ATLEAST_ONCE</code>, <code class="highlighter-rouge">ATMOST_ONCE</code>, or <code class="highlighter-rouge">EFFECTIVELY_ONCE</code></p>
+</td>
+                    <td>
+                      <p>ATLEAST_ONCE</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--py</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path of the Python file containing the function’s processing logic (if the function is written in Python)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--subscriptionType</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The subscription type used by the function when consuming messages on the input topic(s). Can be either <code class="highlighter-rouge">SHARED</code> or <code class="highlighter-rouge">EXCLUSIVE</code></p>
+</td>
+                    <td>
+                      <p>SHARED</p>
+
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The function’s tenant</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--userConfig</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>A user-supplied config value, set as a key/value pair. You can set multiple user config values.</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-get"><code class="highlighter-rouge">get</code></h4>
+          <div class="card-content">
+            <p>Fetch information about an existing Pulsar Function</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions get <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function about which you want to fetch information</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the function about which you want to fetch information</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the function about which you want to fetch information</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-getstatus"><code class="highlighter-rouge">getstatus</code></h4>
+          <div class="card-content">
+            <p>Get the status of an existing Pulsar Function</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions getstatus <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function about which you want to fetch status information</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the function about which you want to fetch status information</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the function about which you want to fetch status information</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-list"><code class="highlighter-rouge">list</code></h4>
+          <div class="card-content">
+            <p>List all Pulsar Functions for a specific tenant and namespace</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions list <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the functions you want to list</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the functions you want to list</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-querystate"><code class="highlighter-rouge">querystate</code></h4>
+          <div class="card-content">
+            <p>Retrieve the current state of a Pulsar Function by key</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions querystate <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-k</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--key</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The key for the state you want to fetch</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the function whose state you want to query</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the function whose state you want to query</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the function whose state you want to query</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-u</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--storage-service-url</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The service URL for the function’s state storage (if the function uses a storage system different from the Apache BookKeeper cluster used by Pulsar)</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">-w</code>
+                      , 
+                      
+                      <code class="highlighter-rouge">--watch</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>If set, watching for state changes is enabled</p>
+</td>
+                    <td>
+                      <p>false</p>
+
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+      
+        <div class="card cli-subcommand">
+          <h4 class="card-header-title" id="pulsar-admin-functions-trigger"><code class="highlighter-rouge">trigger</code></h4>
+          <div class="card-content">
+            <p>Triggers the specified Pulsar Function with a supplied value or file data</p>
+            <h5>Usage</h5>
+            <div class="language-shell highlighter-rouge"><pre class="highlight"><code><span class="gp">$</span> pulsar-admin functions trigger <span class="options">options</span></code></pre></div>
+            
+            <h5>Options</h5>
+            <table class="options-table">
+              <thead>
+                <tr>
+                  <th>Flag</th>
+                  <th>Description</th>
+                  <th>Default</th>
+                </tr>
+                <tbody>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--name</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The name of the Pulsar Function to trigger</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--namespace</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The namespace of the Pulsar Function to trigger</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--tenant</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The tenant of the Pulsar Function to trigger</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--triggerFile</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The path to the file containing the data with which the Pulsar Function is to be triggered</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                  
+                  <tr>
+                    <td nowrap="">
+                      
+                      
+                      <code class="highlighter-rouge">--triggerValue</code>
+                      
+                       <!-- for flag in option.flags -->
+                    </td>
+                    <td><p>The value with which the Pulsar Function is to be triggered</p>
+</td>
+                    <td>
+                      
+                    </td>
+                  </tr>
+                   <!-- for option in options -->
+                </tbody>
+              </thead>
+            </table>
+             <!-- if subcommand.options -->
+             <!-- if command.example -->
+          </div>
+        </div>
+       <!-- for subcommand in subcommands -->
+      
+      </div>
+    </div>
+    
+    <div class="card cli-command">
       <h3 class="cli-command-title" id="pulsar-admin-namespaces">
         <code class="highlighter-rouge">namespaces</code>
       </h3>
@@ -4154,7 +5584,8 @@
                     <td><p>The number of bundles to activate</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -4473,7 +5904,8 @@
                     <td><p>The number of acks (guaranteed copies) to wait for each entry</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -4491,7 +5923,8 @@
                     <td><p>The number of bookies to use for a topic</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -4509,7 +5942,8 @@
                     <td><p>How many writes to make of each entry</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -4581,7 +6015,8 @@
                     <td><p>Message TTL in seconds</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -4757,7 +6192,8 @@
                     <td><p>Whether to force a clear backlog without prompt</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                   
@@ -4923,7 +6359,8 @@
                     <td><p>Comma-separated <code class="highlighter-rouge">name=value</code> auto failover policy parameters</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">[]</code>
+                      <p>[]</p>
+
                     </td>
                   </tr>
                   
@@ -4938,7 +6375,8 @@
                     <td><p>Auto failover policy type name. Currently available options: <code class="highlighter-rouge">min_available</code>.</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">[]</code>
+                      <p>[]</p>
+
                     </td>
                   </tr>
                   
@@ -4953,7 +6391,8 @@
                     <td><p>Comma-separated namespaces regex list</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">[]</code>
+                      <p>[]</p>
+
                     </td>
                   </tr>
                   
@@ -4968,7 +6407,8 @@
                     <td><p>Comma-separated primary broker regex list</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">[]</code>
+                      <p>[]</p>
+
                     </td>
                   </tr>
                   
@@ -4983,7 +6423,8 @@
                     <td><p>Comma-separated secondary broker regex list</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">[]</code>
+                      <p>[]</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -5436,7 +6877,8 @@
                     <td><p>Get per-partition stats</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -5479,7 +6921,8 @@
                     <td><p>The number of messages to skip</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -5583,7 +7026,8 @@
                     <td><p>Expire messages older than the time (in seconds)</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -5644,7 +7088,8 @@
                     <td><p>Expire messages older than the time (in seconds)</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -5687,7 +7132,8 @@
                     <td><p>The number of partitions for the topic</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -5752,7 +7198,8 @@
                     <td><p>The number of messages</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">1</code>
+                      <p>1</p>
+
                     </td>
                   </tr>
                   
@@ -5939,7 +7386,8 @@
                     <td><p>The number of partitions for the topic</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                    <!-- for option in options -->
@@ -6390,7 +7838,8 @@
                     <td><p>The expected inbound bandwidth (in bytes/second)</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -6408,7 +7857,8 @@
                     <td><p>Expected outbound bandwidth (in bytes/second)</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -6444,7 +7894,8 @@
                     <td><p>Allow to be dynamically re-calculated (or not)</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">false</code>
+                      <p>false</p>
+
                     </td>
                   </tr>
                   
@@ -6462,7 +7913,8 @@
                     <td><p>Expectred memory usage (in megabytes)</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -6480,7 +7932,8 @@
                     <td><p>Expected incoming messages per second</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -6498,7 +7951,8 @@
                     <td><p>Expected outgoing messages per second</p>
 </td>
                     <td>
-                      <code class="highlighter-rouge">0</code>
+                      <p>0</p>
+
                     </td>
                   </tr>
                   
@@ -6695,7 +8149,8 @@
             <td><p>Broker URL to which to connect</p>
 </td>
             <td>
-              <code class="highlighter-rouge">pulsar://localhost:6650/</code>
+              <p>pulsar://localhost:6650/</p>
+
             </td>
           </tr>
            <!-- for option in options -->
@@ -6743,7 +8198,8 @@
                 <td><p>Comma-separated file paths to send; either <code class="highlighter-rouge">-m</code> or <code class="highlighter-rouge">-f</code> must be specified</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">[]</code>
+                  <p>[]</p>
+
                 </td>
               </tr>
               
@@ -6761,7 +8217,8 @@
                 <td><p>Comma-separated string of messages to send; either <code class="highlighter-rouge">-m</code> or <code class="highlighter-rouge">-f</code> must be specified</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">[]</code>
+                  <p>[]</p>
+
                 </td>
               </tr>
               
@@ -6779,7 +8236,8 @@
                 <td><p>The number of times to send the message(s); the count of <code class="highlighter-rouge">messages</code>/<code class="highlighter-rouge">files</code> * <code class="highlighter-rouge">num-produce</code> should be below 1000</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -6797,7 +8255,8 @@
                 <td><p>Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0.0</code>
+                  <p>0.0</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -6842,7 +8301,8 @@
                 <td><p>Display binary messages in hexadecimal format.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
               
@@ -6860,7 +8320,8 @@
                 <td><p>Number of messages to consume, 0 means to consume forever.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -6878,7 +8339,8 @@
                 <td><p>Rate (in messages per second) at which to produce; a value 0 means to produce messages as fast as possible</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0.0</code>
+                  <p>0.0</p>
+
                 </td>
               </tr>
               
@@ -6914,7 +8376,8 @@
                 <td><p>The type of the subscription. Possible values: <code class="highlighter-rouge">Exclusive</code>, <code class="highlighter-rouge">Shared</code>, <code class="highlighter-rouge">Failover</code>.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">exclusive</code>
+                  <p>exclusive</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -7034,7 +8497,8 @@
                 <td><p>Stop the service forcefully if not stopped by normal shutdown.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -7226,7 +8690,8 @@
                 <td><p>Batch messages in a window of the specified number of milliseconds</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -7277,7 +8742,8 @@
                 <td><p>Max number of TCP connections to a single broker</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -7295,7 +8761,8 @@
                 <td><p>Max number of outstanding messages</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1000</code>
+                  <p>1000</p>
+
                 </td>
               </tr>
               
@@ -7313,7 +8780,8 @@
                 <td><p>Number of messages to publish in total. If set to 0, it will keep publishing.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -7331,7 +8799,8 @@
                 <td><p>The number of producers (per topic)</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -7349,7 +8818,8 @@
                 <td><p>The number of topics</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -7385,7 +8855,8 @@
                 <td><p>Publish rate msg/s across topics</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">100</code>
+                  <p>100</p>
+
                 </td>
               </tr>
               
@@ -7421,7 +8892,8 @@
                 <td><p>Message size (in bytes)</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1024</code>
+                  <p>1024</p>
+
                 </td>
               </tr>
               
@@ -7439,7 +8911,8 @@
                 <td><p>Statistics interval seconds. If 0, statistics will be disabled.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -7457,7 +8930,8 @@
                 <td><p>Test duration in secs. If set to 0, it will keep publishing.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -7535,7 +9009,8 @@
                 <td><p>Batch messages in a window of the specified number of milliseconds</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -7586,7 +9061,8 @@
                 <td><p>Max number of TCP connections to a single broker</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -7604,7 +9080,8 @@
                 <td><p>Max number of outstanding messages</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1000</code>
+                  <p>1000</p>
+
                 </td>
               </tr>
               
@@ -7622,7 +9099,8 @@
                 <td><p>Number of messages to publish in total. If set to 0, it will keep publishing.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -7640,7 +9118,8 @@
                 <td><p>The number of producers (per topic)</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -7658,7 +9137,8 @@
                 <td><p>The number of topics</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1</code>
+                  <p>1</p>
+
                 </td>
               </tr>
               
@@ -7694,7 +9174,8 @@
                 <td><p>Publish rate msg/s across topics</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">100</code>
+                  <p>100</p>
+
                 </td>
               </tr>
               
@@ -7730,7 +9211,8 @@
                 <td><p>Message size (in bytes)</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">1024</code>
+                  <p>1024</p>
+
                 </td>
               </tr>
               
@@ -7748,7 +9230,8 @@
                 <td><p>Statistics interval seconds. If 0, statistics will be disabled.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -7766,7 +9249,8 @@
                 <td><p>Test duration in secs. If set to 0, it will keep publishing.</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -7872,7 +9356,8 @@
                 <td><p>The port that the clients are listening on</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">0</code>
+                  <p>0</p>
+
                 </td>
               </tr>
               
@@ -8145,7 +9630,8 @@
                 <td><p>Force start a read-only bookie server</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
               
@@ -8160,7 +9646,8 @@
                 <td><p>Start auto-recovery service bookie server</p>
 </td>
                 <td>
-                  <code class="highlighter-rouge">false</code>
+                  <p>false</p>
+
                 </td>
               </tr>
                <!-- for option in options -->
@@ -8395,5 +9882,13 @@
 </script>
 
     
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
   </body>
 </html>

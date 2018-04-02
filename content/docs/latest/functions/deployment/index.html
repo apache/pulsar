@@ -43,14 +43,7 @@
     under the License.
 
 -->
-<script type="text/javascript">
-  var shiftWindow = function() { scrollBy(0, -108) };
-  window.addEventListener("hashchange", shiftWindow);
-  window.addEventListener("pageshow", shiftWindow);
-  function load() { if (window.location.hash) shiftWindow(); }
-</script>
-
-<title>Deploying Pulsar Functions</title>
+<title>Deploying and managing Pulsar Functions</title>
 
 <meta charset="utf-8">
 
@@ -174,6 +167,7 @@
         <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
@@ -324,7 +318,7 @@
       <div class="card-header" role="tab" id="heading-pulsar-functions">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
-            Pulsar Functions
+            Pulsar Functions <span class="badge badge-warning">New</span>
           </a>
         </h5>
       </div>
@@ -336,6 +330,34 @@
           <li>
             <a href="../../functions/quickstart">
               Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
             </a>
           </li>
           
@@ -767,21 +789,344 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Deploying Pulsar Functions</h1>
-        
+        <h1 class="docs-title">Deploying and managing Pulsar Functions <span class="badge badge-warning">New</span></h1>
+        <span class="docs-lead">Something or other</span><br />
         <section class="tags">
           
         </section>
 
-        <hr class="hr">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="danger">
+    <span class="admonition-title"><p>Version 2.0</p>
+</span>
+    
+<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+
+  </div>
+</div>
+
+
+        <!-- <hr class="hr"> -->
       </section>
 
       <section class="content">
-        <p>At the moment, Pulsar Functions are deployed</p>
+        <p>At the moment, there are two deployment modes available for Pulsar Functions:</p>
 
-<h2 id="state-storage">State storage</h2>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Mode</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left">Local run mode</td>
+      <td style="text-align: left">The function runs in your local environment, for example on your laptop</td>
+    </tr>
+    <tr>
+      <td style="text-align: left">Cluster mode</td>
+      <td style="text-align: left">The function runs <em>inside of</em> your Pulsar cluster, on the same machines as your Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">brokers</span></td>
+    </tr>
+  </tbody>
+</table>
 
-<p>By default, Pulsar uses <a href="https://bookkeeper.apache.org">Apache BookKeeper</a>.</p>
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    <span class="admonition-title"><p>Contributing new deployment modes</p>
+</span>
+    <p>The Pulsar Functions feature was designed, however, with extensibility in mind. Other deployment options will be available in the future. If you’d like to add a new deployment option, we recommend getting in touch with the Pulsar developer community at <a href="mailto:dev@pulsar.incubator.apache.org">dev@pulsar.incubator.apache.org</a>.</p>
+
+  </div>
+</div>
+
+<h2 id="requirements">Requirements</h2>
+
+<p>In order to deploy and manage Pulsar Functions, you need to have a Pulsar <span class="popover-term" tabindex="0" title="What is a cluster?" data-placement="top" data-content="A set of Pulsar brokers and BookKeeper servers (aka bookies). Clusters can reside in different geographical regions and replicate messages to one another in a process called geo-replication." data-toggle="popover" data-trigger="focus">cluster</span> running. There are several options for this:</p>
+
+<ul>
+  <li>You can run a <a href="../../getting-started/LocalCluster">standalone cluster</a> locally on your own machine</li>
+  <li>You can deploy a Pulsar cluster on <a href="../../deployment/Kubernetes">Kubernetes</a>, <a href="../../deployment/aws-cluster">Amazon Web Services</a>, <a href="../../deployment/instance">bare metal</a>, <a href="../../deployment/dcos">DC/OS</a>, and more</li>
+</ul>
+
+<p>If you’re running a non-<span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> cluster, you’ll need to obtain the service URL for the cluster. How you obtain the service URL will depend on how you deployed your Pulsar cluster.</p>
+
+<h2 id="local-run">Local run mode</h2>
+
+<p>If you run a Pulsar Function in <strong>local run</strong> mode, it will run on the machine from which the command is run (this could be your laptop, an <a href="https://aws.amazon.com/ec2/">AWS EC2</a> instance, etc.). Here’s an example <a href="../../CliTools#pulsar-admin-functions-localrun"><code class="highlighter-rouge">localrun</code></a> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
+  <span class="nt">--py</span> myfunc.py <span class="se">\</span>
+  <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/input-1 <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/output-1
+</code></pre></div></div>
+
+<p>By default, the function will connect to a Pulsar cluster running on the same machine, via a local <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> service URL of <code class="highlighter-rouge">pulsar://localhost:6650</code>. If you’d like to use local run mode to run a function but connect it to a non-local Pulsar cluster, you can specify a different broker URL using the <code class="highlighter-rouge">--brokerServiceUrl</code> flag. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions localrun <span class="se">\</span>
+  <span class="nt">--brokerServiceUrl</span> pulsar://my-cluster-host:6650 <span class="se">\</span>
+  <span class="c"># Other function parameters</span>
+</code></pre></div></div>
+
+<h2 id="cluster-mode">Cluster mode</h2>
+
+<p>When you run a Pulsar Function in <strong>cluster mode</strong>, the function code will be uploaded to a Pulsar <span class="popover-term" tabindex="0" title="What is a broker?" data-placement="top" data-content="A stateless component of Pulsar clusters that runs two other components: an HTTP server exposing a REST interface for administration and topic lookup and a dispatcher that handles all message transers. Pulsar clusters typically consist of multiple brokers." data-toggle="popover" data-trigger="focus">broker</span> and run <em>alongside the broker</em> rather than in your <a href="#local-run">local environment</a>. You can run a function in cluster mode using the <a href="../../CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">create</code></a> command. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--py</span> myfunc.py <span class="se">\</span>
+  <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/input-1 <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/output-1
+</code></pre></div></div>
+
+<h3 id="updating">Updating cluster mode functions</h3>
+
+<p>You can use the <a href="../../CliTools#pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></a> command to update a Pulsar Function running in cluster mode. This command, for example, would update the function created in the section <a href="#cluster-mode">above</a>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
+  <span class="nt">--py</span> myfunc.py <span class="se">\</span>
+  <span class="nt">--className</span> myfunc.SomeFunction <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/new-input-topic <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/new-output-topic
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Something</p>
+
+  </div>
+</div>
+
+<h3 id="parallelism">Parallelism</h3>
+
+<p>Pulsar Functions run as processes called <strong>instances</strong>. When you run a Pulsar Function, it runs as a single instance by default (and in <a href="#local-run">local run mode</a> you can <em>only</em> run a single instance of a function).</p>
+
+<p>You can also specify the <em>parallelism</em> of a function, i.e. the number of instances to run, when you create the function. You can set the parallelism factor using the <code class="highlighter-rouge">--parallelism</code> flag of the <a href="../../references/CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">create</code></a> command. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--parallelism</span> 3 <span class="se">\</span>
+  <span class="c"># Other function info</span>
+</code></pre></div></div>
+
+<p>You can adjust the parallelism of an already created function using the <a href="../../reference/CliTools#pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></a> interface.</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
+  <span class="nt">--parallelism</span> 5 <span class="se">\</span>
+  <span class="c"># Other function</span>
+</code></pre></div></div>
+
+<p>If you’re specifying a function’s configuration via YAML, use the <code class="highlighter-rouge">parallelism</code> parameter. Here’s an example config file:</p>
+
+<div class="language-yaml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c1"># function-config.yaml</span>
+<span class="na">parallelism</span><span class="pi">:</span> <span class="s">3</span>
+<span class="na">inputs</span><span class="pi">:</span>
+<span class="pi">-</span> <span class="s">persistent://sample/standalone/ns1/input-1</span>
+<span class="na">output</span><span class="pi">:</span> <span class="s">persistent://sample/standalone/ns1/output-1</span>
+<span class="c1"># other parameters</span>
+</code></pre></div></div>
+
+<p>And here’s the corresponding update command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions update <span class="se">\</span>
+  <span class="nt">--functionConfigFile</span> <span class="k">function</span><span class="nt">-config</span>.yaml
+</code></pre></div></div>
+
+<h2 id="triggering-functions">Triggering functions</h2>
+
+<p>Whether a Pulsar Function is running in <a href="#local-run">local run</a> or <a href="#cluster-mode">cluster</a>, you can <strong>trigger</strong> the function at any time using the command line. Triggering a function means that you send a message with a specific value to the function.</p>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Triggering a function is ultimately no different from invoking a function by producing a message on one of the function’s input topics. The <a href="../../CliTools#pulsar-admin-functions-trigger"><code class="highlighter-rouge">pulsar-admin functions trigger</code></a> command is essentially a convenient mechanism for sending messages to functions without needing to use the <a href="../../CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> tool or a language-specific client library.</p>
+
+  </div>
+</div>
+
+<p>To show an example of function triggering, let’s start with a simple <a href="../api#python">Python function</a> that returns a simple string based on the input:</p>
+
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c"># myfunc.py</span>
+<span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s">"This function has been triggered with a value of {0}"</span><span class="o">.</span><span class="n">format</span><span class="p">(</span><span class="nb">input</span><span class="p">)</span>
+</code></pre></div></div>
+
+<p>Let’s run that function in <a href="../deployment#local-run">local run mode</a>:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> myfunc <span class="se">\</span>
+  <span class="nt">--py</span> myfunc.py <span class="se">\</span>
+  <span class="nt">--className</span> myfunc <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/in <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/out
+</code></pre></div></div>
+
+<p>Now let’s make a consumer listen on the output topic for messages coming from the <code class="highlighter-rouge">myfunc</code> function using the <a href="../../CliTools#pulsar-client-consume"><code class="highlighter-rouge">pulsar-client consume</code></a> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/out <span class="se">\</span>
+  <span class="nt">--subscription-name</span> my-subscription
+  <span class="nt">--num-messages</span> 0 <span class="c"># Listen indefinitely</span>
+</code></pre></div></div>
+
+<p>Now let’s trigger that function:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions trigger <span class="se">\</span>
+  <span class="nt">--tenant</span> sample <span class="se">\</span>
+  <span class="nt">--namespace</span> ns1 <span class="se">\</span>
+  <span class="nt">--name</span> myfunc <span class="se">\</span>
+  <span class="nt">--triggerValue</span> <span class="s2">"hello world"</span>
+</code></pre></div></div>
+
+<p>The consumer listening on the output topic should then produce this in its logs:</p>
+
+<div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>----- got message -----
+This function has been triggered with a value of hello world
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Topic info not required</p>
+</span>
+    <p>In the <code class="highlighter-rouge">trigger</code> command above, you may have noticed that you only need to specify basic information about the function (tenant, namespace, and name). To trigger the function, you didn’t need to know the function’s input topic(s).</p>
+
+  </div>
+</div>
+
+<!--
+## Subscription types
+
+Pulsar supports three different [subscription types](../../getting-started/ConceptsAndArchitecture#subscription-modes) (or subscription modes) for Pulsar clients:
+
+* With [exclusive](../../getting-started/ConceptsAndArchitecture#exclusive) subscriptions, only a single <span class="popover-term" tabindex="0" title="What is a consumer?" data-placement="top" data-content="A process that establishes a subscription to a Pulsar topic and processes messages published to that topic by producers." data-toggle="popover" data-trigger="focus">consumer</span> is allowed to attach to the subscription.
+* With [shared](../../getting-started/ConceptsAndArchitecture#shared) . Please note that strict message ordering is *not* guaranteed with shared subscriptions.
+* With [failover](../../getting-started/ConceptsAndArchitecture#failover) subscriptions
+
+Pulsar Functions can also be assigned a subscription type when you [create](#cluster-mode) them or run them [locally](#local-run). In cluster mode, the subscription can also be [updated](#updating) after the function has been created.
+-->
 
       </section>
     </article>
@@ -789,7 +1134,7 @@
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Deploying Pulsar Functions</h4>
+        <h4>Deploying and managing Pulsar Functions</h4>
       </div>
       
     </nav>
@@ -862,5 +1207,13 @@
 </script>
 
     
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
   </body>
 </html>

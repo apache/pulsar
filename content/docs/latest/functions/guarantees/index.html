@@ -43,13 +43,6 @@
     under the License.
 
 -->
-<script type="text/javascript">
-  var shiftWindow = function() { scrollBy(0, -108) };
-  window.addEventListener("hashchange", shiftWindow);
-  window.addEventListener("pageshow", shiftWindow);
-  function load() { if (window.location.hash) shiftWindow(); }
-</script>
-
 <title>Processing guarantees</title>
 
 <meta charset="utf-8">
@@ -174,6 +167,7 @@
         <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
@@ -324,7 +318,7 @@
       <div class="card-header" role="tab" id="heading-pulsar-functions">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
-            Pulsar Functions
+            Pulsar Functions <span class="badge badge-warning">New</span>
           </a>
         </h5>
       </div>
@@ -336,6 +330,34 @@
           <li>
             <a href="../../functions/quickstart">
               Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
             </a>
           </li>
           
@@ -767,31 +789,100 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Processing guarantees</h1>
+        <h1 class="docs-title">Processing guarantees <span class="badge badge-warning">New</span></h1>
         <span class="docs-lead">Apply at-most-once, at-least-once, or effectively-once delivery semantics to Pulsar Functions</span><br />
         <section class="tags">
           
         </section>
 
-        <hr class="hr">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="danger">
+    <span class="admonition-title"><p>Version 2.0</p>
+</span>
+    
+<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+
+  </div>
+</div>
+
+
+        <!-- <hr class="hr"> -->
       </section>
 
       <section class="content">
-        <p>Pulsar Functions provides three different messaging semantics that you can apply to any Function:</p>
+        <p>Pulsar Functions provides three different messaging semantics that you can apply to any function:</p>
 
-<ul>
-  <li><strong>At-most-once</strong> delivery</li>
-  <li><strong>At-least-once</strong> delivery</li>
-  <li><strong>Effectively-once</strong> delivery</li>
-</ul>
+<table>
+  <thead>
+    <tr>
+      <th style="text-align: left">Delivery semantics</th>
+      <th style="text-align: left">Description</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td style="text-align: left"><strong>At-most-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function will most likely be processed but also may not be (hence the “at most”)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><strong>At-least-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function could be processed more than once (hence the “at least”)</td>
+    </tr>
+    <tr>
+      <td style="text-align: left"><strong>Effectively-once</strong> delivery</td>
+      <td style="text-align: left">Each message that is sent to the function will have one output associated with it. The function may be invoked more than once, perhaps due to some kind of system failure, but the function will produce one effect for each incoming message.</td>
+    </tr>
+  </tbody>
+</table>
 
-<h2 id="how-it-works">How it works</h2>
+<h2 id="applying-processing-guarantees-to-a-function">Applying processing guarantees to a function</h2>
 
-<p>You can set the processing guarantees for a Pulsar Function when you create the Function. This <a href="../../reference/CliTools#pulsar-functions-create"><code class="highlighter-rouge">pulsar-function create</code></a> command, for example, would apply effectively-once guarantees to the Function:</p>
+<p>You can set the processing guarantees for a Pulsar Function when you create the Function. This <a href="../../reference/CliTools#pulsar-admin-functions-create"><code class="highlighter-rouge">pulsar-function create</code></a> command, for example, would apply effectively-once guarantees to the Function:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-functions <span class="se">\</span>
-  <span class="c"># TODO</span>
-  <span class="nt">--processingGuarantees</span> EFFECTIVELY_ONCE
+  <span class="nt">--processingGuarantees</span> EFFECTIVELY_ONCE <span class="se">\</span>
+  <span class="c"># Other function configs</span>
 </code></pre></div></div>
 
 <p>The available options are:</p>
@@ -825,10 +916,14 @@
 <div class="admonition">
   <div class="info">
     
-    <p>By default, Pulsar Functions provide at-most-once delivery guarantees. If you create a function without supplying a value for the <code class="highlighter-rouge">--processingGuarantees</code>flag, then the Function will provide only at-most-once guarantees.</p>
+    <p>By default, Pulsar Functions provide at-most-once delivery guarantees. So if you create a function without supplying a value for the <code class="highlighter-rouge">--processingGuarantees</code> flag, then the function will provide at-most-once guarantees.</p>
 
   </div>
 </div>
+
+<h2 id="updating-the-processing-guarantees-of-a-function">Updating the processing guarantees of a function</h2>
+
+<p>You can change the processing guarantees applied to a function once it’s already been created using the <a href="../../reference/CliTools#pulsar-admin-functions-update"><code class="highlighter-rouge">update</code></a> command.</p>
 
       </section>
     </article>
@@ -909,5 +1004,13 @@
 </script>
 
     
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
   </body>
 </html>

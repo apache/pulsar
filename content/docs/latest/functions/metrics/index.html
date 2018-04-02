@@ -43,7 +43,7 @@
     under the License.
 
 -->
-<title>Spark Streaming Pulsar receiver</title>
+<title>Metrics for Pulsar Functions</title>
 
 <meta charset="utf-8">
 
@@ -789,641 +789,9 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Spark Streaming Pulsar receiver</h1>
+        <h1 class="docs-title">Metrics for Pulsar Functions <span class="badge badge-warning">New</span></h1>
         
         <section class="tags">
-          
-          <!-- <span class="badge badge-pill badge-primary">spark</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-spark">spark</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-spark">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>spark</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">streaming</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-streaming">streaming</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-streaming">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>streaming</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
-          
-          <!-- <span class="badge badge-pill badge-primary">java</span> -->
-          <button type="button" class="btn btn-primary" data-toggle="modal" data-target="#modal-java">java</button>
-          <!--
-
-    Licensed to the Apache Software Foundation (ASF) under one
-    or more contributor license agreements.  See the NOTICE file
-    distributed with this work for additional information
-    regarding copyright ownership.  The ASF licenses this file
-    to you under the Apache License, Version 2.0 (the
-    "License"); you may not use this file except in compliance
-    with the License.  You may obtain a copy of the License at
-
-      http://www.apache.org/licenses/LICENSE-2.0
-
-    Unless required by applicable law or agreed to in writing,
-    software distributed under the License is distributed on an
-    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-    KIND, either express or implied.  See the License for the
-    specific language governing permissions and limitations
-    under the License.
-
--->
-<div class="modal fade" id="modal-java">
-  <div class="modal-dialog" role="document">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Pages with the <strong>java</strong> tag</h5>
-      </div>
-      <div class="modal-body">
-        <ul>
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin/Authz/">Authentication and authorization in Pulsar</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/clients/Java/">The Pulsar Java client</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarSpark/">Spark Streaming Pulsar receiver</a></li>
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/adaptors/PulsarStorm/">Pulsar adaptor for Apache Storm</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          <li><a href="/docs/latest/admin-api/overview/">The Pulsar admin interface</a></li>
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-          
-        </ul>
-      </div>
-    </div>
-  </div>
-</div>
-
           
         </section>
 
@@ -1483,7 +851,9 @@
       </section>
 
       <section class="content">
-        <!--
+        <p>Pulsar Functions can publish arbitrary metrics to the metrics interface which can then be queried. This doc contains instructions for publishing metrics using the <a href="#java-sdk">Java</a> and <a href="#python-sdk">Python</a> Pulsar Functions SDKs.</p>
+
+<!--
 
     Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
@@ -1503,62 +873,45 @@
     under the License.
 
 -->
+<div class="admonition">
+  <div class="warning">
+    <span class="admonition-title"><p>Metrics and stats not available through language-native interfaces</p>
+</span>
+    <p>If a Pulsar Function uses the language-native interface for <a href="../api#java-native">Java</a> or <a href="#python-native">Python</a>, that function will not be able to publish metrics and stats to Pulsar.</p>
 
-<p>The Spark Streaming receiver for Pulsar is a custom receiver that enables Apache <a href="https://spark.apache.org/streaming/">Spark Streaming</a> to receive data from Pulsar.</p>
+  </div>
+</div>
 
-<p>An application can receive data in <a href="https://spark.apache.org/docs/latest/programming-guide.html#resilient-distributed-datasets-rdds">Resilient Distributed Dataset</a> (RDD) format via the Spark Streaming Pulsar receiver and can process it in a variety of ways.</p>
+<h2 id="accessing-metrics">Accessing metrics</h2>
 
-<h2 id="prerequisites">Prerequisites</h2>
+<p>For a guide to accessing metrics created by Pulsar Functions, see the guide to <a href="../../deployment/Monitoring">Monitoring</a> in Pulsar.</p>
 
-<p>To use the receiver, include a dependency for the <code class="highlighter-rouge">pulsar-spark</code> library in your Java configuration.</p>
+<h2 id="java-sdk">Java SDK</h2>
 
-<h3 id="maven">Maven</h3>
+<p>If you’re creating a Pulsar Function using the <a href="../api#java-sdk">Java SDK</a>, the <a target="_blank" href="/api/client/org/apache/pulsar/functions/api/Context.html"><code class="highlighter-rouge">Context</code></a> object has a <code class="highlighter-rouge">recordMetric</code> method that you can use to register both a name for the metric and a value. Here’s the signature for that method:</p>
 
-<p>If you’re using Maven, add this to your <code class="highlighter-rouge">pom.xml</code>:</p>
-
-<div class="language-xml highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="c">&lt;!-- in your &lt;properties&gt; block --&gt;</span>
-<span class="nt">&lt;pulsar.version&gt;</span>1.22.0-incubating<span class="nt">&lt;/pulsar.version&gt;</span>
-
-<span class="c">&lt;!-- in your &lt;dependencies&gt; block --&gt;</span>
-<span class="nt">&lt;dependency&gt;</span>
-  <span class="nt">&lt;groupId&gt;</span>org.apache.pulsar<span class="nt">&lt;/groupId&gt;</span>
-  <span class="nt">&lt;artifactId&gt;</span>pulsar-spark<span class="nt">&lt;/artifactId&gt;</span>
-  <span class="nt">&lt;version&gt;</span>${pulsar.version}<span class="nt">&lt;/version&gt;</span>
-<span class="nt">&lt;/dependency&gt;</span>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">void</span> <span class="nf">recordMetric</span><span class="o">(</span><span class="n">String</span> <span class="n">metricName</span><span class="o">,</span> <span class="kt">double</span> <span class="n">value</span><span class="o">);</span>
 </code></pre></div></div>
 
-<h3 id="gradle">Gradle</h3>
+<p>Here’s an example function:</p>
 
-<p>If you’re using Gradle, add this to your <code class="highlighter-rouge">build.gradle</code> file:</p>
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Context</span><span class="o">;</span>
+<span class="kn">import</span> <span class="nn">org.apache.pulsar.functions.api.Function</span><span class="o">;</span>
 
-<div class="language-groovy highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kt">def</span> <span class="n">pulsarVersion</span> <span class="o">=</span> <span class="s2">"1.22.0-incubating"</span>
-
-<span class="n">dependencies</span> <span class="o">{</span>
-    <span class="n">compile</span> <span class="nl">group:</span> <span class="s1">'org.apache.pulsar'</span><span class="o">,</span> <span class="nl">name:</span> <span class="s1">'pulsar-spark'</span><span class="o">,</span> <span class="nl">version:</span> <span class="n">pulsarVersion</span>
+<span class="kd">public</span> <span class="kd">class</span> <span class="nc">MetricRecordingFunction</span> <span class="kd">implements</span> <span class="n">Function</span><span class="o">&lt;</span><span class="n">String</span><span class="o">,</span> <span class="n">Void</span><span class="o">&gt;</span> <span class="o">{</span>
+    <span class="nd">@Override</span>
+    <span class="kd">public</span> <span class="kt">void</span> <span class="nf">apply</span><span class="o">(</span><span class="n">String</span> <span class="n">input</span><span class="o">,</span> <span class="n">Context</span> <span class="n">context</span><span class="o">)</span> <span class="o">{</span>
+        <span class="n">context</span><span class="o">.</span><span class="na">recordMetric</span><span class="o">(</span><span class="s">"number-of-characters"</span><span class="o">,</span> <span class="n">input</span><span class="o">.</span><span class="na">length</span><span class="o">());</span>
+        <span class="k">return</span> <span class="kc">null</span><span class="o">;</span>
+    <span class="o">}</span>
 <span class="o">}</span>
 </code></pre></div></div>
 
-<h2 id="usage">Usage</h2>
+<p>This function counts the length of each incoming message (of type <code class="highlighter-rouge">String</code>) and then registers that under the <code class="highlighter-rouge">number-of-characters</code> metric.</p>
 
-<p>Pass an instance of <code class="highlighter-rouge">SparkStreamingPulsarReceiver</code> to the <code class="highlighter-rouge">receiverStream</code> method in <code class="highlighter-rouge">JavaStreamingContext</code>:</p>
+<h2 id="python-sdk">Python SDK</h2>
 
-<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="n">SparkConf</span> <span class="n">conf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">SparkConf</span><span class="o">().</span><span class="na">setMaster</span><span class="o">(</span><span class="s">"local[*]"</span><span class="o">).</span><span class="na">setAppName</span><span class="o">(</span><span class="s">"pulsar-spark"</span><span class="o">);</span>
-<span class="n">JavaStreamingContext</span> <span class="n">jssc</span> <span class="o">=</span> <span class="k">new</span> <span class="n">JavaStreamingContext</span><span class="o">(</span><span class="n">conf</span><span class="o">,</span> <span class="n">Durations</span><span class="o">.</span><span class="na">seconds</span><span class="o">(</span><span class="mi">5</span><span class="o">));</span>
-
-<span class="n">ClientConfiguration</span> <span class="n">clientConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ClientConfiguration</span><span class="o">();</span>
-<span class="n">ConsumerConfiguration</span> <span class="n">consConf</span> <span class="o">=</span> <span class="k">new</span> <span class="n">ConsumerConfiguration</span><span class="o">();</span>
-<span class="n">String</span> <span class="n">url</span> <span class="o">=</span> <span class="s">"pulsar://localhost:6650/"</span><span class="o">;</span>
-<span class="n">String</span> <span class="n">topic</span> <span class="o">=</span> <span class="s">"persistent://sample/standalone/ns1/topic1"</span><span class="o">;</span>
-<span class="n">String</span> <span class="n">subs</span> <span class="o">=</span> <span class="s">"sub1"</span><span class="o">;</span>
-
-<span class="n">JavaReceiverInputDStream</span><span class="o">&lt;</span><span class="kt">byte</span><span class="o">[]&gt;</span> <span class="n">msgs</span> <span class="o">=</span> <span class="n">jssc</span>
-        <span class="o">.</span><span class="na">receiverStream</span><span class="o">(</span><span class="k">new</span> <span class="n">SparkStreamingPulsarReceiver</span><span class="o">(</span><span class="n">clientConf</span><span class="o">,</span> <span class="n">consConf</span><span class="o">,</span> <span class="n">url</span><span class="o">,</span> <span class="n">topic</span><span class="o">,</span> <span class="n">subs</span><span class="o">));</span>
-</code></pre></div></div>
-
-<h2 id="example">Example</h2>
-
-<p>You can find a complete example <a href="https://github.com/apache/incubator-pulsar/tree/master/pulsar-spark/src/test/java/org/apache/pulsar/spark/example/SparkStreamingPulsarReceiverExample.java">here</a>.
-In this example, the number of messages which contain the string “Pulsar” in received messages is counted.</p>
+<p>Documentation for the <a href="../api#python-sdk">Python SDK</a> is coming soon.</p>
 
       </section>
     </article>
@@ -1566,7 +919,7 @@ In this example, the number of messages which contain the string “Pulsar” in
     <nav class="toc-bar hidden-md-down col-lg-2">
       
       <div id="toc">
-        <h4>Spark Streaming Pulsar receiver</h4>
+        <h4>Metrics for Pulsar Functions</h4>
       </div>
       
     </nav>

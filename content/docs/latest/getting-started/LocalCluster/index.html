@@ -43,13 +43,6 @@
     under the License.
 
 -->
-<script type="text/javascript">
-  var shiftWindow = function() { scrollBy(0, -108) };
-  window.addEventListener("hashchange", shiftWindow);
-  window.addEventListener("pageshow", shiftWindow);
-  function load() { if (window.location.hash) shiftWindow(); }
-</script>
-
 <title>Setting up a local standalone cluster</title>
 
 <meta charset="utf-8">
@@ -174,6 +167,7 @@
         <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
@@ -324,7 +318,7 @@
       <div class="card-header" role="tab" id="heading-pulsar-functions">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
-            Pulsar Functions
+            Pulsar Functions <span class="badge badge-warning">New</span>
           </a>
         </h5>
       </div>
@@ -336,6 +330,34 @@
           <li>
             <a href="../../functions/quickstart">
               Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
             </a>
           </li>
           
@@ -935,6 +957,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/docker/">Start a standalone cluster with Docker</a></li>
           
           
@@ -1143,6 +1167,8 @@
           
           
           
+          
+          
           <li><a href="/docs/latest/getting-started/docker/">Start a standalone cluster with Docker</a></li>
           
           
@@ -1189,7 +1215,59 @@
           
         </section>
 
-        <hr class="hr">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="danger">
+    <span class="admonition-title"><p>Version 2.0</p>
+</span>
+    
+<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+
+  </div>
+</div>
+
+
+        <!-- <hr class="hr"> -->
       </section>
 
       <section class="content">
@@ -1559,5 +1637,13 @@
 </script>
 
     
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
   </body>
 </html>

@@ -43,13 +43,6 @@
     under the License.
 
 -->
-<script type="text/javascript">
-  var shiftWindow = function() { scrollBy(0, -108) };
-  window.addEventListener("hashchange", shiftWindow);
-  window.addEventListener("pageshow", shiftWindow);
-  function load() { if (window.location.hash) shiftWindow(); }
-</script>
-
 <title>Getting started with Pulsar Functions</title>
 
 <meta charset="utf-8">
@@ -174,6 +167,7 @@
         <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
@@ -324,7 +318,7 @@
       <div class="card-header" role="tab" id="heading-pulsar-functions">
         <h5>
           <a data-toggle="collapse" data-parent="#sidebar-accordion" href="#collapse-pulsar-functions" aria-controls="collapse-pulsar-functions">
-            Pulsar Functions
+            Pulsar Functions <span class="badge badge-warning">New</span>
           </a>
         </h5>
       </div>
@@ -336,6 +330,34 @@
           <li>
             <a href="../../functions/quickstart">
               Getting started with Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/api">
+              The Pulsar Functions API
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/deployment">
+              Deploying Pulsar Functions
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/guarantees">
+              Processing guarantees
+            </a>
+          </li>
+          
+          
+          <li>
+            <a href="../../functions/metrics">
+              Metrics for Pulsar Functions
             </a>
           </li>
           
@@ -767,13 +789,65 @@
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">Getting started with Pulsar Functions</h1>
+        <h1 class="docs-title">Getting started with Pulsar Functions <span class="badge badge-warning">New</span></h1>
         <span class="docs-lead">Write and run your first Pulsar Function in just a few steps</span><br />
         <section class="tags">
           
         </section>
 
-        <hr class="hr">
+        <!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="danger">
+    <span class="admonition-title"><p>Version 2.0</p>
+</span>
+    
+<p>The documentation that you’re reading is for the upcoming 2.0 release of Apache Pulsar. If you’re looking for the documentation for version 1.22.0-incubating, click <a href="/docs/v1.22.0-incubating/getting-started/LocalCluster">here</a>.</p>
+
+  </div>
+</div>
+
+
+        <!-- <hr class="hr"> -->
       </section>
 
       <section class="content">
@@ -815,9 +889,9 @@
 
 <p>In order to run our Pulsar Functions, we’ll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in <span class="popover-term" tabindex="0" title="What is a standalone Pulsar broker?" data-placement="top" data-content="A lightweight Pulsar broker in which all components run in a single Java Virtual Machine (JVM) process. Standalone clusters can be run on a single machine and are useful for development purposes." data-toggle="popover" data-trigger="focus">standalone</span> mode. Follow these steps to start up a standalone cluster:</p>
 
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-<span class="nv">$ </span><span class="nb">tar </span>xvf apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-2.0.0-incubating-functions-preview
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>wget https://github.com/streamlio/incubator-pulsar/releases/download/v2.0.0-streamlio-6/apache-pulsar-2.0.0-streamlio-6-bin.tar.gz
+<span class="nv">$ </span><span class="nb">tar </span>xvf apache-pulsar-2.0.0-streamlio-6-bin.tar.gz
+<span class="nv">$ </span><span class="nb">cd </span>apache-pulsar-2.0.0-streamlio-6
 <span class="nv">$ </span>bin/pulsar standalone <span class="se">\</span>
   <span class="nt">--advertised-address</span> 127.0.0.1
 </code></pre></div></div>
@@ -849,6 +923,39 @@
   <span class="nt">--output</span> persistent://sample/standalone/ns1/exclamation-output <span class="se">\</span>
   <span class="nt">--name</span> exclamation
 </code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="success">
+    <span class="admonition-title"><p>Multiple input topics allowed</p>
+</span>
+    
+<p>In the example above, a single topic was specified using the <code class="highlighter-rouge">--inputs</code> flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here’s an example:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nt">--inputs</span> topic1,topic2
+</code></pre></div></div>
+
+  </div>
+</div>
 
 <p>We can use the <a href="../../reference/CliTools#pulsar-client"><code class="highlighter-rouge">pulsar-client</code></a> CLI tool to publish a message to the input topic:</p>
 
@@ -997,13 +1104,7 @@ Hello world!
 
 <p>In that file, add the following:</p>
 
-<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="kn">from</span> <span class="nn">pulsarfunction</span> <span class="kn">import</span> <span class="n">pulsar_function</span>
-
-<span class="k">class</span> <span class="nc">Reverse</span><span class="p">(</span><span class="n">pulsar_function</span><span class="o">.</span><span class="n">PulsarFunction</span><span class="p">):</span>
-  <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-    <span class="k">pass</span>
-
-  <span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="nb">input</span><span class="p">):</span>
+<div class="language-python highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="k">def</span> <span class="nf">process</span><span class="p">(</span><span class="nb">input</span><span class="p">):</span>
     <span class="k">return</span> <span class="nb">input</span><span class="p">[::</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
 </code></pre></div></div>
 
@@ -1011,35 +1112,63 @@ Hello world!
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-admin functions create <span class="se">\</span>
   <span class="nt">--py</span> reverse.py <span class="se">\</span>
-  <span class="nt">--className</span> reverse.Reverse <span class="se">\</span>
-  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/forwards <span class="se">\</span>
-  <span class="nt">--output</span> persistent://sample/standalone/ns1/backwards <span class="se">\</span>
+  <span class="nt">--className</span> reverse <span class="se">\</span>
+  <span class="nt">--inputs</span> persistent://sample/standalone/ns1/backwards <span class="se">\</span>
+  <span class="nt">--output</span> persistent://sample/standalone/ns1/forwards <span class="se">\</span>
   <span class="nt">--tenant</span> sample <span class="se">\</span>
   <span class="nt">--namespace</span> ns1 <span class="se">\</span>
-  <span class="nt">--name</span> reverse 
+  <span class="nt">--name</span> reverse
 </code></pre></div></div>
 
-<p>If you see <code class="highlighter-rouge">Created successfully</code>, the function is ready to accept incoming messages. Let’s publish a string to the input topic:</p>
+<p>If you see <code class="highlighter-rouge">Created successfully</code>, the function is ready to accept incoming messages. Let’s listen for incoming messages on the output topic using the <a href="../../CliTools#pulsar-client-consume"><code class="highlighter-rouge">pulsar-client consume</code></a> command:</p>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/backwards <span class="se">\</span>
+  <span class="nt">--subscription-name</span> my-subscription <span class="se">\</span>
+  <span class="nt">--num-messages</span> 0
+</code></pre></div></div>
+
+<!--
+
+    Licensed to the Apache Software Foundation (ASF) under one
+    or more contributor license agreements.  See the NOTICE file
+    distributed with this work for additional information
+    regarding copyright ownership.  The ASF licenses this file
+    to you under the Apache License, Version 2.0 (the
+    "License"); you may not use this file except in compliance
+    with the License.  You may obtain a copy of the License at
+
+      http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing,
+    software distributed under the License is distributed on an
+    "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+    KIND, either express or implied.  See the License for the
+    specific language governing permissions and limitations
+    under the License.
+
+-->
+<div class="admonition">
+  <div class="info">
+    
+    <p>Setting the <code class="highlighter-rouge">--num-messages</code> flag to 0 means that the consumer will listen on the topic indefinitely.</p>
+
+  </div>
+</div>
+
+<p>At the moment, no messages are arriving on the topic, so let’s produce some, also using <a href="../../CliTools#pulsar-client-produce"><code class="highlighter-rouge">pulsar-client produce</code></a> command:</p>
 
 <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client produce persistent://sample/standalone/ns1/forwards <span class="se">\</span>
   <span class="nt">--num-produce</span> 1 <span class="se">\</span>
   <span class="nt">--messages</span> <span class="s2">"sdrawrof won si tub sdrawkcab saw gnirts sihT"</span>
 </code></pre></div></div>
 
-<p>Now, let’s pull in a message from the output topic:</p>
-
-<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code><span class="nv">$ </span>bin/pulsar-client consume persistent://sample/standalone/ns1/backwards <span class="se">\</span>
-  <span class="nt">--subscription-name</span> my-subscription <span class="se">\</span>
-  <span class="nt">--num-messages</span> 1
-</code></pre></div></div>
-
-<p>You should see the reversed string in the log output:</p>
+<p>You should see the reversed string in the output:</p>
 
 <div class="highlighter-rouge"><div class="highlight"><pre class="highlight"><code>----- got message -----
 This string was backwards but is now forwards
 </code></pre></div></div>
 
-<p>Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, and successfully published to the function’s input topic and consumed from its output topic.</p>
+<p>Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, successfully published to the function’s input topic, and finally consumed from its output topic.</p>
 
       </section>
     </article>
@@ -1120,5 +1249,13 @@ This string was backwards but is now forwards
 </script>
 
     
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
   </body>
 </html>

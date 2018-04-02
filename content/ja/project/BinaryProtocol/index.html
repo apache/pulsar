@@ -43,13 +43,6 @@
     under the License.
 
 -->
-<script type="text/javascript">
-  var shiftWindow = function() { scrollBy(0, -108) };
-  window.addEventListener("hashchange", shiftWindow);
-  window.addEventListener("pageshow", shiftWindow);
-  function load() { if (window.location.hash) shiftWindow(); }
-</script>
-
 <title>Pulsarのバイナリプロトコルの仕様</title>
 
 <meta charset="utf-8">
@@ -174,6 +167,7 @@
         <div class="dropdown-menu dropdown-left" aria-labelledby="versionsDropdown">
           <h3 class="dropdown-header">Get in touch</h3>
           <a class="dropdown-item" href="/contact">Contact</a>
+          <a class="dropdown-item" href="/events/current-event">Events</a>
           <a class="dropdown-item" href="https://twitter.com/Apache_Pulsar">Twitter</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/wiki">Wiki</a>
           <a class="dropdown-item" href="https://github.com/apache/incubator-pulsar/issues">Issue tracking</a>
@@ -838,6 +832,8 @@
           
           
           
+          
+          
         </ul>
       </div>
     </div>
@@ -886,6 +882,8 @@
           
           
           <li><a href="/ja/project/BinaryProtocol/">Pulsarのバイナリプロトコルの仕様</a></li>
+          
+          
           
           
           
@@ -2015,6 +2013,12 @@
           <li>
             <a href="#pulsar.proto.CommandPartitionedTopicMetadataResponse.LookupType">
               LookupType
+            </a>
+          </li>
+          
+          <li>
+            <a href="#pulsar.proto.CommandSubscribe.InitialPosition">
+              InitialPosition
             </a>
           </li>
           
@@ -4440,6 +4444,17 @@ will send messages from that point</td>
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">initialPosition</td>
+              
+              <td class="wrap"><a href="#pulsar.proto.CommandSubscribe.InitialPosition">InitialPosition</a></td>
+              
+              <td>optional</td>
+              <td></td>
+              <td>Signal wthether the subscription will initialize on latest
+or not -- earliest</td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -5086,6 +5101,16 @@ if this field is omitted, `publish_time` can be used for the purpose of `event_t
               <td></td>
               <td></td>
             </tr>
+            
+            <tr>
+              <td class="wrap">compacted_out</td>
+              
+              <td class="wrap">bool</td>
+              
+              <td>optional</td>
+              <td></td>
+              <td></td>
+            </tr>
              <!-- for field in fields -->
           </tbody>
         </table>
@@ -5558,6 +5583,43 @@ before being passed on to the application.</p>
             
             <tr>
               <td>Failed</td>
+              <td>1</td>
+              <td>
+</td>
+            </tr>
+             <!-- for value in values -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+    
+    <div class="card-block">
+      <div class="card-title">
+        <h5 class="enum-name" id="pulsar.proto.CommandSubscribe.InitialPosition">InitialPosition</h5>
+        <p class="lead">
+</p>
+      </div>
+      <div class="card">
+        <h5>Enum values</h5>
+        <table class="protobuf-table">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Number</th>
+              <th>Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            
+            <tr>
+              <td>Latest</td>
+              <td>0</td>
+              <td>
+</td>
+            </tr>
+            
+            <tr>
+              <td>Earliest</td>
               <td>1</td>
               <td>
 </td>
@@ -6073,5 +6135,13 @@ incrementally added to the protocol</p>
 </script>
 
     
+
+    <script type="text/javascript">
+      var navbarOffset = -1 * (document.getElementsByClassName("navbar")[0].offsetHeight);
+      var shiftWindow = function() { scrollBy(0, navbarOffset) };
+      window.addEventListener("hashchange", shiftWindow);
+      window.addEventListener("pageshow", shiftWindow);
+      function load() { if (window.location.hash) shiftWindow(); }
+    </script>
   </body>
 </html>

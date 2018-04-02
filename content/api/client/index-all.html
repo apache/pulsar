@@ -832,6 +832,10 @@
 <dd>
 <div class="block">Get a subscription for the consumer</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#getSubscriptionInitialPosition--">getSubscriptionInitialPosition()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#getSubscriptionRolePrefix--">getSubscriptionRolePrefix()</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -879,6 +883,8 @@
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerStats.html#getTotalSendFailed--">getTotalSendFailed()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerStats.html" title="interface in org.apache.pulsar.client.api">ProducerStats</a></dt>
 <dd>&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Message.html#getValue--">getValue()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Message.html" title="interface in org.apache.pulsar.client.api">Message</a></dt>
+<dd>&nbsp;</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html#getValue--">getValue()</a></span> - Method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html" title="enum in org.apache.pulsar.client.api">SubscriptionInitialPosition</a></dt>
 <dd>&nbsp;</dd>
 </dl>
 <a name="I:H">
@@ -1308,7 +1314,8 @@
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Reader.html#readNext-int-java.util.concurrent.TimeUnit-">readNext(int, TimeUnit)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></dt>
 <dd>
-<div class="block">Read the next message in the topic.</div>
+<div class="block">Read the next message in the topic waiting for a maximum of timeout
+ time units.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/Reader.html#readNextAsync--">readNextAsync()</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/Reader.html" title="interface in org.apache.pulsar.client.api">Reader</a></dt>
 <dd>&nbsp;</dd>
@@ -1658,6 +1665,10 @@
 <div class="block">Set the interval between each stat info <i>(default: 60 seconds)</i> Stats will be activated with positive
  statsIntervalSeconds It should be set to at least 1 second</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerConfiguration.html#setSubscriptionInitialPosition-org.apache.pulsar.client.api.SubscriptionInitialPosition-">setSubscriptionInitialPosition(SubscriptionInitialPosition)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerConfiguration.html" title="class in org.apache.pulsar.client.api">ConsumerConfiguration</a></dt>
+<dd>
+<div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
+&nbsp;</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ReaderConfiguration.html#setSubscriptionRolePrefix-java.lang.String-">setSubscriptionRolePrefix(String)</a></span> - Method in class org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ReaderConfiguration.html" title="class in org.apache.pulsar.client.api">ReaderConfiguration</a></dt>
 <dd>
 <div class="block"><span class="deprecatedLabel">Deprecated.</span></div>
@@ -1745,6 +1756,14 @@
 <div class="block"><span class="deprecatedLabel">Deprecated.</span>
 <div class="block"><span class="deprecationComment">Use <a href="org/apache/pulsar/client/api/PulsarClient.html#newConsumer--"><code>PulsarClient.newConsumer()</code></a> to build a new consumer</span></div>
 </div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionInitialPosition-org.apache.pulsar.client.api.SubscriptionInitialPosition-">subscriptionInitialPosition(SubscriptionInitialPosition)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
+<dd>
+<div class="block">Set subscriptionInitialPosition for the consumer</div>
+</dd>
+<dt><a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html" title="enum in org.apache.pulsar.client.api"><span class="typeNameLink">SubscriptionInitialPosition</span></a> - Enum in <a href="org/apache/pulsar/client/api/package-summary.html">org.apache.pulsar.client.api</a></dt>
+<dd>
+<div class="block">intial position at which the cursor will be set when subscribe</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ConsumerBuilder.html#subscriptionName-java.lang.String-">subscriptionName(String)</a></span> - Method in interface org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ConsumerBuilder.html" title="interface in org.apache.pulsar.client.api">ConsumerBuilder</a></dt>
 <dd>
@@ -1868,6 +1887,10 @@
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
 </dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html" title="enum in org.apache.pulsar.client.api">SubscriptionInitialPosition</a></dt>
+<dd>
+<div class="block">Returns the enum constant of this type with the specified name.</div>
+</dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/SubscriptionType.html#valueOf-java.lang.String-">valueOf(String)</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/SubscriptionType.html" title="enum in org.apache.pulsar.client.api">SubscriptionType</a></dt>
 <dd>
 <div class="block">Returns the enum constant of this type with the specified name.</div>
@@ -1905,6 +1928,11 @@ the order they are declared.</div>
 the order they are declared.</div>
 </dd>
 <dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/ProducerCryptoFailureAction.html" title="enum in org.apache.pulsar.client.api">ProducerCryptoFailureAction</a></dt>
+<dd>
+<div class="block">Returns an array containing the constants of this enum type, in
+the order they are declared.</div>
+</dd>
+<dt><span class="memberNameLink"><a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html#values--">values()</a></span> - Static method in enum org.apache.pulsar.client.api.<a href="org/apache/pulsar/client/api/SubscriptionInitialPosition.html" title="enum in org.apache.pulsar.client.api">SubscriptionInitialPosition</a></dt>
 <dd>
 <div class="block">Returns an array containing the constants of this enum type, in
 the order they are declared.</div>
