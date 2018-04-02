@@ -72,7 +72,9 @@ import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceExcept
 import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.broker.service.nonpersistent.NonPersistentTopic;
+import org.apache.pulsar.broker.service.persistent.DispatchRateLimiter;
 import org.apache.pulsar.broker.service.persistent.PersistentDispatcherMultipleConsumers;
+import org.apache.pulsar.broker.service.persistent.PersistentDispatcherSingleActiveConsumer;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.broker.stats.ClusterReplicationMetrics;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -1090,6 +1092,14 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         registerConfigurationListener("autoSkipNonRecoverableData", (skipNonRecoverableLedger) -> {
             updateManagedLedgerConfig();
         });
+        // add listener to update message-dispatch-rate in msg
+        registerConfigurationListener("dispatchThrottlingRatePerSubscriptionInMsg", (dispatchRatePerTopicInMsg) -> {
+            updateSubscriptionMessageDispatchRate();
+        });
+        // add listener to update message-dispatch-rate in byte
+        registerConfigurationListener("dispatchThrottlingRatePerSubscribeInByte", (dispatchRatePerTopicInByte) -> {
+            updateSubscriptionMessageDispatchRate();
+        });
         // add more listeners here
     }
 
@@ -1108,6 +1118,31 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         }
                     } catch (Exception e) {
                         log.warn("[{}] failed to update message-dispatch rate {}", topicName, e.getMessage());
+                    }
+                }
+            });
+        });
+    }
+
+    private void updateSubscriptionMessageDispatchRate() {
+        this.pulsar().getExecutor().submit(() -> {
+            // update message-rate for each topic subscription
+            topics.forEach((name, topicFuture) -> {
+                if (topicFuture.isDone()) {
+                    try {
+                        topicFuture.get().getSubscriptions().forEach((subName, persistentSubscription) -> {
+                            if (persistentSubscription
+                                .getDispatcher() instanceof PersistentDispatcherMultipleConsumers) {
+                                ((PersistentDispatcherMultipleConsumers) persistentSubscription
+                                    .getDispatcher()).getDispatchRateLimiter().updateDispatchRate();
+                            } else if (persistentSubscription
+                                .getDispatcher() instanceof PersistentDispatcherSingleActiveConsumer) {
+                                ((PersistentDispatcherSingleActiveConsumer) persistentSubscription
+                                    .getDispatcher()).getDispatchRateLimiter().updateDispatchRate();
+                            }
+                        });
+                    } catch (Exception e) {
+                        log.warn("Failed to get topic from future while update subscription dispatch rate ", e);
                     }
                 }
             });
