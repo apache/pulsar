@@ -188,7 +188,7 @@ $ bin/pulsar-admin functions create \
 
 ### Logging
 
-Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can produce logs. Those logs are then published on the Pulsar topic that you specify. The function created using this command, for example, would produce all logs on the `persistent://sample/standalone/ns1/my-func-1-log` topic:
+Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can send logs to a log topic that you specify as part of the function's configuration. The function created using the command below, for example, would produce all logs on the `persistent://sample/standalone/ns1/my-func-1-log` topic:
 
 ```bash
 $ bin/pulsar-admin functions create \
