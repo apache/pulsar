@@ -94,14 +94,9 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
     }
 
     protected final void internalSetup(Authentication auth) throws Exception {
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setStatsInterval(0, TimeUnit.SECONDS);
-        clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        clientConf.setTlsAllowInsecureConnection(true);
-        clientConf.setAuthentication(auth);
-        clientConf.setUseTls(true);
-
-        admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(true).authentication(auth)
+                .build());
         String lookupUrl;
         // For http basic authentication test
         if (methodName.equals("testBasicCryptSyncProducerAndConsumer")) {
@@ -227,9 +222,7 @@ public class AuthenticatedProducerConsumerTest extends ProducerConsumerBase {
 
         // make a PulsarAdmin instance as "anonymousUser" for http request
         admin.close();
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setOperationTimeout(1, TimeUnit.SECONDS);
-        admin = spy(new PulsarAdmin(brokerUrl, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
         admin.namespaces().createNamespace("my-property/use/my-ns");
         admin.persistentTopics().grantPermission("persistent://my-property/use/my-ns/my-topic", "anonymousUser",
                 EnumSet.allOf(AuthAction.class));

@@ -38,6 +38,7 @@ import org.apache.pulsar.client.admin.internal.NamespacesImpl;
 import org.apache.pulsar.client.admin.internal.NonPersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PersistentTopicsImpl;
 import org.apache.pulsar.client.admin.internal.PropertiesImpl;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
 import org.apache.pulsar.client.admin.internal.ResourceQuotasImpl;
 import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.AuthenticationDataProvider;
@@ -72,12 +73,10 @@ public class PulsarAdmin implements Closeable {
     private final ResourceQuotas resourceQuotas;
 
     private final Client client;
-    private final URL serviceUrl;
+    private final String serviceUrl;
     private final Lookup lookups;
     protected final WebTarget root;
     protected final Authentication auth;
-
-
 
     static {
         /**
@@ -98,30 +97,13 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * Construct a new Pulsar Admin client object.
-     * <p>
-     * This client object can be used to perform many subsquent API calls
-     *
-     * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
-     * @param pulsarConfig
-     *            the ClientConfiguration object to be used to talk with Pulsar
+     * Creates a builder to construct an instance of {@link PulsarAdmin}.
      */
-    public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
-        this(serviceUrl, pulsarConfig.getConfigurationData());
+    public static PulsarAdminBuilder builder() {
+        return new PulsarAdminBuilderImpl();
     }
 
-    /**
-     * Construct a new Pulsar Admin client object.
-     * <p>
-     * This client object can be used to perform many subsquent API calls
-     *
-     * @param serviceUrl
-     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
-     * @param pulsarConfig
-     *            the ClientConfiguration object to be used to talk with Pulsar
-     */
-    public PulsarAdmin(URL serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
+    public PulsarAdmin(String serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
         this.auth = pulsarConfig != null ? pulsarConfig.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
@@ -138,7 +120,9 @@ public class PulsarAdmin implements Closeable {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        if (pulsarConfig != null && pulsarConfig.isUseTls()) {
+        boolean useTls = pulsarConfig.getServiceUrl().startsWith("https://");
+
+        if (pulsarConfig != null && useTls) {
             try {
                 SSLContext sslCtx = null;
 
@@ -181,7 +165,23 @@ public class PulsarAdmin implements Closeable {
         this.persistentTopics = new PersistentTopicsImpl(root, auth);
         this.nonPersistentTopics = new NonPersistentTopicsImpl(root, auth);
         this.resourceQuotas = new ResourceQuotasImpl(root, auth);
-        this.lookups = new LookupImpl(root, auth, pulsarConfig.isUseTls());
+        this.lookups = new LookupImpl(root, auth, useTls);
+    }
+
+    /**
+     * Construct a new Pulsar Admin client object.
+     * <p>
+     * This client object can be used to perform many subsquent API calls
+     *
+     * @param serviceUrl
+     *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
+     * @param pulsarConfig
+     *            the ClientConfiguration object to be used to talk with Pulsar
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
+     */
+    @Deprecated
+    public PulsarAdmin(URL serviceUrl, ClientConfiguration pulsarConfig) throws PulsarClientException {
+        this(serviceUrl.toString(), pulsarConfig.getConfigurationData());
     }
 
     /**
@@ -193,8 +193,9 @@ public class PulsarAdmin implements Closeable {
      *            the Pulsar service URL (eg. "http://my-broker.example.com:8080")
      * @param auth
      *            the Authentication object to be used to talk with Pulsar
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
-    @SuppressWarnings("deprecation")
+    @Deprecated
     public PulsarAdmin(URL serviceUrl, Authentication auth) throws PulsarClientException {
         this(serviceUrl, new ClientConfiguration() {
             private static final long serialVersionUID = 1L;
@@ -215,8 +216,11 @@ public class PulsarAdmin implements Closeable {
      *            name of the Authentication-Plugin you want to use
      * @param authParamsString
      *            string which represents parameters for the Authentication-Plugin, e.g., "key1:val1,key2:val2"
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
-    public PulsarAdmin(URL serviceUrl, String authPluginClassName, String authParamsString) throws PulsarClientException {
+    @Deprecated
+    public PulsarAdmin(URL serviceUrl, String authPluginClassName, String authParamsString)
+            throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParamsString));
     }
 
@@ -231,8 +235,11 @@ public class PulsarAdmin implements Closeable {
      *            name of the Authentication-Plugin you want to use
      * @param authParams
      *            map which represents parameters for the Authentication-Plugin
+     * @deprecated Since 2.0. Use {@link #builder()} to construct a new {@link PulsarAdmin} instance.
      */
-    public PulsarAdmin(URL serviceUrl, String authPluginClassName, Map<String, String> authParams) throws PulsarClientException {
+    @Deprecated
+    public PulsarAdmin(URL serviceUrl, String authPluginClassName, Map<String, String> authParams)
+            throws PulsarClientException {
         this(serviceUrl, AuthenticationFactory.create(authPluginClassName, authParams));
     }
 
@@ -300,9 +307,9 @@ public class PulsarAdmin implements Closeable {
     }
 
     /**
-     * @return the service URL that is being used
+     * @return the service HTTP URL that is being used
      */
-    public URL getServiceUrl() {
+    public String getServiceUrl() {
         return serviceUrl;
     }
 
