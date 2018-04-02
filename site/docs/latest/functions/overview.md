@@ -172,19 +172,72 @@ This command will upload `myfunc.py` to Pulsar, which will use the code to start
 
 ### Parallelism
 
-By default, only one **instance** of a Pulsar Function runs when you create and run it in [cluster run mode](#cluster-run). You can also, however, run multiple instances in parallel.
+By default, only one **instance** of a Pulsar Function runs when you create and run it in [cluster run mode](#cluster-run). You can also, however, run multiple instances in parallel. You can specify the number of instances when you create the function, or update an existing single-instance function with a new parallelism factor.
+
+This command, for example, would create and run a function with a parallelism of 5 (i.e. 5 instances):
+
+```bash
+$ bin/pulsar-admin functions create \
+  --name parallel-fun \
+  --tenant sample \
+  --namespace ns1 \
+  --py func.py \
+  --className func.ParallelFunction \
+  --parallelism 5
+```
 
 ### Logging
 
+Pulsar Functions created using the [Pulsar Functions SDK(#sdk) can produce logs. Those logs are then published on the Pulsar topic that you specify. The function created using this command, for example, would produce all logs on the `persistent://sample/standalone/ns1/my-func-1-log` topic:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --name my-func-1 \
+  --logTopic persistent://sample/standalone/ns1/my-func-1-log \
+  # Other configs
+```
+
+Here's an example [Java function](../api#java-logging) that logs at different log levels based on the function's input:
+
+```java
+public class LoggerFunction implements Function<String, Void> {
+    @Override
+    public Void process(String input, Context context) {
+        Logger LOG = context.getLogger();
+        if (input.length() <= 100) {
+            LOG.info("This string has a length of {}", input);
+        } else {
+            LOG.warn("This string is getting too long! It has {} characters", input);
+        }
+    }
+}
+```
+
 ### User configuration {#user-config}
 
-## Delivery semantics
+Pulsar Functions can be passed arbitrary key-values via the command line (both keys and values must be strings). This set of key-values is called the functions **user configuration**. User configurations must consist of JSON strings.
 
-Pulsar Functions
+Here's an example of passing a user configuration to a function:
 
-* At most once
-* At least once
-* Effectively once
+```bash
+$ bin/pulsar-admin functions create \
+  --userConfig '{"key-1":"value-1","key-2","value-2"}' \
+  # Other configs
+```
+
+Here's an example of a function that accesses that config map:
+
+```java
+public class ConfigMapFunction implements Function<String, Void> {
+    @Override
+    public Void process(String input, Context context) {
+        String val1 = context.getUserConfigValue("key1").get();
+        String val2 = context.getUserConfigValue("key2").get();
+        context.getLogger().info("The user-supplied values are {} and {}", val1, val2);
+        return null;
+    }
+}
+```
 
 ## Metrics
 
@@ -199,7 +252,3 @@ public class MetricsFunction implements PulsarFunction<String, Void> {
     }
 }
 ```
-
-## Distributed counters {#counter}
-
-
