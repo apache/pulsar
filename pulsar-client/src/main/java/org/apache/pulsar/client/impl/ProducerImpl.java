@@ -845,10 +845,10 @@ public class ProducerImpl<T> extends ProducerBase<T> implements TimerTask, Conne
 
         cnx.sendRequestWithId(
                 Commands.newProducer(topic, producerId, requestId, producerName, conf.isEncryptionEnabled(), metadata),
-                requestId).thenAccept(triple -> {
-                    String producerName = triple.getLeft();
-                    long lastSequenceId = triple.getMiddle();
-                    schemaVersion = Optional.ofNullable(triple.getRight());
+                requestId).thenAccept(response -> {
+                    String producerName = response.getProducerName();
+                    long lastSequenceId = response.getLastSequenceId();
+                    schemaVersion = Optional.ofNullable(response.getSchemaVersion());
 
                     // We are now reconnected to broker and clear to send messages. Re-send all pending messages and
                     // set the cnx pointer so that new messages will be sent immediately
