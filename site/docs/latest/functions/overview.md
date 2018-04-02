@@ -59,7 +59,7 @@ $ bin/pulsar-functions localrun \
 
 Pulsar Functions can be configured in two ways:
 
-* Via [command-line arguments](#cli)
+* Via [command-line arguments](#cli) passed to the [`pulsar-admin functions`](../../reference/CliTools#pulsar-admin-functions) interface
 * Via [YAML](http://yaml.org/) configuration files
 
 If you're supplying a YAML configuration, you must specify a path to the file on the command line. Here's an example:
@@ -82,6 +82,8 @@ inputs:
 output: persistent://sample/standalone/ns1/test_result
 ```
 
+You can also mix and match configuration methods by specifying some function attributes via the CLI and others via YAML configuration.
+
 ## Supported languages
 
 Pulsar Functions can currently be written in [Java](../../functions/api#java) and [Python](../../functions/api#python). Support for additional languages is coming soon.
@@ -93,6 +95,7 @@ Each Pulsar Function created using the [Pulsar Functions SDK](#sdk) has access t
 1. A wide variety of information about the function, including:
   * The name of the function
   * The {% popover tenant %} and {% popover namespace %} of the function
+  * [User-supplied configuration]() values
 
 ### Language-native functions {#native}
 
@@ -173,7 +176,7 @@ By default, only one **instance** of a Pulsar Function runs when you create and 
 
 ### Logging
 
-
+### User configuration {#user-config}
 
 ## Delivery semantics
 
