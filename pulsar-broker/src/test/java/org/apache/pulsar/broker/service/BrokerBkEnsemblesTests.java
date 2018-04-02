@@ -39,7 +39,6 @@ import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.service.persistent.PersistentTopic;
 import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.client.api.Authentication;
 import org.apache.pulsar.client.api.Consumer;
 import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.Producer;
@@ -97,7 +96,7 @@ public class BrokerBkEnsemblesTests {
             pulsar.start();
 
             adminUrl = new URL("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT);
-            admin = new PulsarAdmin(adminUrl, (Authentication) null);
+            admin = PulsarAdmin.builder().serviceHttpUrl(adminUrl.toString()).build();
 
             admin.clusters().createCluster("usc", new ClusterData(adminUrl.toString()));
             admin.properties().createProperty("prop",

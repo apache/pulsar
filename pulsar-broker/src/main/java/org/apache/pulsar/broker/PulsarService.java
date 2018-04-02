@@ -635,9 +635,11 @@ public class PulsarService implements AutoCloseable {
         if (this.adminClient == null) {
             try {
                 String adminApiUrl = webAddress(config);
-                this.adminClient = new PulsarAdmin(new URL(adminApiUrl),
-                        this.getConfiguration().getBrokerClientAuthenticationPlugin(),
-                        this.getConfiguration().getBrokerClientAuthenticationParameters());
+                this.adminClient = PulsarAdmin.builder().serviceHttpUrl(adminApiUrl) //
+                        .authentication( //
+                                this.getConfiguration().getBrokerClientAuthenticationPlugin(), //
+                                this.getConfiguration().getBrokerClientAuthenticationParameters()) //
+                        .build();
                 LOG.info("Admin api url: " + adminApiUrl);
             } catch (Exception e) {
                 throw new PulsarServerException(e);

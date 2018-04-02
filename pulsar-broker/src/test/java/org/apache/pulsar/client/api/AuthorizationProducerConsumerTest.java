@@ -102,10 +102,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthorizationProvider(TestAuthorizationProvider.class.getName());
         setup();
 
-        ClientConfiguration adminConf = new ClientConfiguration();
         Authentication adminAuthentication = new ClientAuthentication("superUser");
-        adminConf.setAuthentication(adminAuthentication);
-        admin = spy(new PulsarAdmin(brokerUrl, adminConf));
+        admin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
         String lookupUrl;
         lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
@@ -155,10 +154,9 @@ public class AuthorizationProducerConsumerTest extends ProducerConsumerBase {
         conf.setAuthorizationProvider(TestAuthorizationProviderWithSubscriptionPrefix.class.getName());
         setup();
 
-        ClientConfiguration adminConf = new ClientConfiguration();
         Authentication adminAuthentication = new ClientAuthentication("superUser");
-        adminConf.setAuthentication(adminAuthentication);
-        admin = spy(new PulsarAdmin(brokerUrl, adminConf));
+        admin = spy(
+                PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).authentication(adminAuthentication).build());
 
         String lookupUrl;
         lookupUrl = new URI("pulsar://localhost:" + BROKER_PORT).toString();
