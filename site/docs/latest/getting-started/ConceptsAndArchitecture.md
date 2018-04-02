@@ -447,3 +447,32 @@ Each schema has the following fields:
 By default, schemas are stored in BookKeeper (though other storage mechanisms are possible). Append-only, ordered list of entries.
 
 Uses Pulsar's [REST API](../../reference/RestApi)
+
+Custom implementation:
+
+`SchemaStorageFactory` + `SchemaStorage`
+
+```java
+public interface SchemaStorageFactory {
+    @NotNull
+    SchemaStorage create(PulsarService pulsar) throws Exception;
+}
+```
+
+```java
+public interface SchemaStorage {
+
+    CompletableFuture<SchemaVersion> put(String key, byte[] value, byte[] hash);
+
+    CompletableFuture<StoredSchema> get(String key, SchemaVersion version);
+
+    CompletableFuture<SchemaVersion> delete(String key);
+
+    SchemaVersion versionFromBytes(byte[] version);
+
+    void start() throws Exception;
+
+    void close() throws Exception;
+
+}
+```
