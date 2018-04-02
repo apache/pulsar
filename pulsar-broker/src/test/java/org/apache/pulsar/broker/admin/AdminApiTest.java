@@ -140,10 +140,8 @@ public class AdminApiTest extends MockedPulsarServiceBaseTest {
 
         bundleFactory = new NamespaceBundleFactory(pulsar, Hashing.crc32());
 
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setUseTls(true);
-        clientConf.setTlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH);
-        adminTls = spy(new PulsarAdmin(brokerUrlTls, clientConf));
+        adminTls = spy(PulsarAdmin.builder().tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
+                .serviceHttpUrl(brokerUrlTls.toString()).build());
 
         // create otherbroker to test redirect on calls that need
         // namespace ownership
