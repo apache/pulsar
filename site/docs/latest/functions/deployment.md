@@ -1,6 +1,6 @@
 ---
 title: Deploying and managing Pulsar Functions
-lead: Something or other
+lead: A guide to Pulsar Functions from an operational perspective
 new: true
 ---
 
