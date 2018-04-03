@@ -19,47 +19,22 @@
 package org.apache.pulsar.broker.service.persistent;
 
 import static com.google.common.base.Preconditions.checkArgument;
+
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 
-import org.apache.bookkeeper.mledger.AsyncCallbacks;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ClearBacklogCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.DeleteCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.MarkDeleteCallback;
-import org.apache.bookkeeper.mledger.AsyncCallbacks.ReadEntryCallback;
-import org.apache.bookkeeper.mledger.Entry;
 import org.apache.bookkeeper.mledger.ManagedCursor;
-import org.apache.bookkeeper.mledger.ManagedCursor.IndividualDeletedEntries;
 import org.apache.bookkeeper.mledger.ManagedLedgerException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.ConcurrentFindCursorPositionException;
-import org.apache.bookkeeper.mledger.ManagedLedgerException.InvalidCursorPositionException;
 import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
-import org.apache.pulsar.broker.service.BrokerServiceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.PersistenceException;
-import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionBusyException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionFencedException;
-import org.apache.pulsar.broker.service.BrokerServiceException.SubscriptionInvalidCursorPosition;
 import org.apache.pulsar.broker.service.Consumer;
-import org.apache.pulsar.broker.service.Dispatcher;
-import org.apache.pulsar.broker.service.Subscription;
-import org.apache.pulsar.broker.service.Topic;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
-import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
-import org.apache.pulsar.common.naming.TopicName;
-import org.apache.pulsar.common.policies.data.ConsumerStats;
-import org.apache.pulsar.common.policies.data.SubscriptionStats;
 import org.apache.pulsar.compaction.CompactedTopic;
 import org.apache.pulsar.compaction.Compactor;
-import org.apache.pulsar.utils.CopyOnWriteArrayList;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.MoreObjects;
 
 public class CompactorSubscription extends PersistentSubscription {
     private CompactedTopic compactedTopic;
@@ -79,10 +54,13 @@ public class CompactorSubscription extends PersistentSubscription {
     }
 
     @Override
-    public void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties) {
+    public void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties) {
         checkArgument(ackType == AckType.Cumulative);
+        checkArgument(positions.size() == 1);
         checkArgument(properties.containsKey(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY));
         long compactedLedgerId = properties.get(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY);
+
+        Position position = positions.get(0);
 
         if (log.isDebugEnabled()) {
             log.debug("[{}][{}] Cumulative ack on compactor subscription {}", topicName, subName, position);

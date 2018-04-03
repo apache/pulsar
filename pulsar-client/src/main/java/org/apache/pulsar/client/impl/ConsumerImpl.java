@@ -25,6 +25,11 @@ import static java.lang.String.format;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.common.collect.Iterables;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Timeout;
+
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,8 +56,8 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
-import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.api.SubscriptionInitialPosition;
+import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.PulsarDecoder;
@@ -70,17 +75,10 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Iterables;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Timeout;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
-
 public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandler.Connection {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
-    private final long consumerId;
+    final long consumerId;
 
     // Number of messages that have delivered to the application. Every once in a while, this number will be sent to the
     // broker to notify that we are ready to get (and store in the incoming messages queue) more messages
@@ -106,6 +104,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final ReadWriteLock zeroQueueLock;
 
     private final UnAckedMessageTracker unAckedMessageTracker;
+    private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
 
     protected final ConsumerStatsRecorder stats;
     private final int priorityLevel;
@@ -152,6 +151,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.priorityLevel = conf.getPriorityLevel();
         this.readCompacted = conf.isReadCompacted();
         this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
+        this.acknowledgmentsGroupingTracker = new AcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -415,43 +415,23 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
-        final ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(),
-                                            ackType, null, properties);
 
-        // There's no actual response from ack messages
-        final CompletableFuture<Void> ackFuture = new CompletableFuture<Void>();
 
-        if (isConnected()) {
-            cnx().ctx().writeAndFlush(cmd).addListener(new GenericFutureListener<Future<Void>>() {
-                @Override
-                public void operationComplete(Future<Void> future) throws Exception {
-                    if (future.isSuccess()) {
-                        if (ackType == AckType.Individual) {
-                            unAckedMessageTracker.remove(msgId);
-                            // increment counter by 1 for non-batch msg
-                            if (!(messageId instanceof BatchMessageIdImpl)) {
-                                stats.incrementNumAcksSent(1);
-                            }
-                        } else if (ackType == AckType.Cumulative) {
-                            stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] [{}] Successfully acknowledged message - {}, acktype {}", subscription,
-                                    topic, consumerName, messageId, ackType);
-                        }
-                        ackFuture.complete(null);
-                    } else {
-                        stats.incrementNumAcksFailed();
-                        ackFuture.completeExceptionally(new PulsarClientException(future.cause()));
-                    }
-                }
-            });
-        } else {
-            stats.incrementNumAcksFailed();
-            ackFuture.completeExceptionally(new PulsarClientException("Not connected to broker. State: " + getState()));
+        if (ackType == AckType.Individual) {
+            unAckedMessageTracker.remove(msgId);
+            // increment counter by 1 for non-batch msg
+            if (!(messageId instanceof BatchMessageIdImpl)) {
+                stats.incrementNumAcksSent(1);
+            }
+        } else if (ackType == AckType.Cumulative) {
+            stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        return ackFuture;
+        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties);
+
+        // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
+        // the messages will be re-delivered
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -625,6 +605,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
         setState(State.Closing);
 
+        acknowledgmentsGroupingTracker.close();
+
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
 
@@ -688,6 +670,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageId.getEntryId());
         }
 
+        MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
+        if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
+                        topic, subscription, msgId);
+            }
+            return;
+        }
+
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
 
@@ -719,8 +710,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final int numMessages = msgMetadata.getNumMessagesInBatch();
 
         if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-            final MessageImpl<T> message = new MessageImpl<>(messageId, msgMetadata, uncompressedPayload,
-                    getPartitionIndex(), cnx, schema);
+            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload, cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 

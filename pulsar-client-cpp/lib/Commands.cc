@@ -245,7 +245,7 @@ SharedBuffer Commands::newAck(uint64_t consumerId, const MessageIdData& messageI
     if (CommandAck_AckType_IsValid(validationError)) {
         ack->set_validation_error((CommandAck_ValidationError)validationError);
     }
-    *(ack->mutable_message_id()) = messageId;
+    *(ack->add_message_id()) = messageId;
     return writeMessageWithSize(cmd);
 }
 
