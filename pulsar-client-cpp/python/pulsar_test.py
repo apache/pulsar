@@ -87,7 +87,10 @@ class PulsarTest(TestCase):
         producer.send_async('hello', send_callback)
         producer.send_async('hello', send_callback)
 
-        time.sleep(0.1)
+        i = 0
+        while len(sent_messages) < 3 and i < 100:
+            time.sleep(0.1)
+            i += 1
         self.assertEqual(len(sent_messages), 3)
         client.close()
 
