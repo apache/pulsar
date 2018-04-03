@@ -384,8 +384,8 @@ public class PulsarClientImpl implements PulsarClient {
             // gets the next single threaded executor from the list of executors
             ExecutorService listenerThread = externalExecutorProvider.getExecutor();
             if (metadata.partitions > 1) {
-                consumer = new MultiTopicsConsumerImpl<>(PulsarClientImpl.this, conf,
-                    externalExecutorProvider.getExecutor(), consumerSubscribedFuture, schema);
+                consumer = MultiTopicsConsumerImpl.createPartitionedConsumer(PulsarClientImpl.this, conf,
+                    listenerThread, consumerSubscribedFuture, metadata.partitions, schema);
             } else {
                 consumer = new ConsumerImpl<>(PulsarClientImpl.this, topic, conf, listenerThread, -1,
                         consumerSubscribedFuture, schema);
