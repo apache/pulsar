@@ -424,6 +424,10 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setSubscriptionName(conf.getSubscriptionName());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        internalConsumerConfig.setAcknowledgementsGroupTimeMicros(conf.getAcknowledgementsGroupTimeMicros());
+        internalConsumerConfig.setPriorityLevel(conf.getPriorityLevel());
+        internalConsumerConfig.setProperties(conf.getProperties());
+        internalConsumerConfig.setReadCompacted(conf.isReadCompacted());
         if (null != conf.getConsumerEventListener()) {
             internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
         }
@@ -487,15 +491,6 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
     @Override
     public CompletableFuture<Void> seekAsync(MessageId messageId) {
         return FutureUtil.failedFuture(new PulsarClientException("Seek operation not supported on partitioned topics"));
-    }
-
-    /**
-     * helper method that returns current state of data structure used to track acks for batch messages
-     *
-     * @return true if all batch messages have been acknowledged
-     */
-    public boolean isBatchingAckTrackerEmpty() {
-        return consumers.stream().allMatch(ConsumerImpl::isBatchingAckTrackerEmpty);
     }
 
     List<ConsumerImpl<T>> getConsumers() {

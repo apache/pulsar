@@ -27,8 +27,7 @@ pip install pulsar-client
 
 INPUT=$ROOT_DIR/pulsar-client-cpp/python/pulsar.py
 DESTINATION=$ROOT_DIR/site/api/python
-
-pdoc $INPUT \
+PYTHONPATH=$ROOT_DIR/pulsar-client-cpp/python pdoc $INPUT \
   --html \
   --html-dir $DESTINATION
 mv $DESTINATION/pulsar.m.html $DESTINATION/index.html

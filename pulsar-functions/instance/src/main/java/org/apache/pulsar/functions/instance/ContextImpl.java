@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -174,12 +175,13 @@ class ContextImpl implements Context {
     }
 
     @Override
-    public String getUserConfigValue(String key) {
-        if (config.getFunctionConfig().containsUserConfig(key)) {
-            return config.getFunctionConfig().getUserConfigOrDefault(key, null);
-        } else {
-            return null;
-        }
+    public Optional<String> getUserConfigValue(String key) {
+        return Optional.ofNullable(config.getFunctionConfig().getUserConfigOrDefault(key, null));
+    }
+
+    @Override
+    public String getUserConfigValueOrDefault(String key, String defaultValue) {
+        return getUserConfigValue(key).orElse(defaultValue);
     }
 
     @Override

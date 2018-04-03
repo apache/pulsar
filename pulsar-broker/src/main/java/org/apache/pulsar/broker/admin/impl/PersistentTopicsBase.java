@@ -72,6 +72,7 @@ import org.apache.pulsar.client.impl.MessageIdImpl;
 import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi.KeyValue;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.compression.CompressionCodec;
 import org.apache.pulsar.common.compression.CompressionCodecProvider;
 import org.apache.pulsar.common.naming.TopicDomain;
@@ -463,7 +464,9 @@ public class PersistentTopicsBase extends AdminResource {
     protected void internalDeleteTopic(boolean authoritative) {
         validateAdminOperationOnTopic(authoritative);
         Topic topic = getTopicReference(topicName);
-        if (topicName.isGlobal()) {
+
+        // v2 topics have a global name so check if the topic is replicated.
+        if (topic.isReplicated()) {
             // Delete is disallowed on global topic
             log.error("[{}] Delete topic is forbidden on global namespace {}", clientAppId(), topicName);
             throw new RestException(Status.FORBIDDEN, "Delete forbidden on global namespace");
@@ -818,7 +821,7 @@ public class PersistentTopicsBase extends AdminResource {
                 }
 
                 PersistentSubscription subscription = (PersistentSubscription) topic
-                        .createSubscription(subscriptionName).get();
+                        .createSubscription(subscriptionName, InitialPosition.Latest).get();
                 subscription.resetCursor(PositionImpl.get(messageId.getLedgerId(), messageId.getEntryId())).get();
                 log.info("[{}][{}] Successfully created subscription {} at message id {}", clientAppId(),
                         topicName, subscriptionName, messageId);

@@ -27,6 +27,8 @@ import java.io.Serializable;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
 import lombok.Data;
 
 import java.util.regex.Pattern;
@@ -35,6 +37,7 @@ import org.apache.pulsar.client.api.ConsumerEventListener;
 import org.apache.pulsar.client.api.CryptoKeyReader;
 import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.SubscriptionType;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 
 @Data
 public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
@@ -56,6 +59,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
 
     private int receiverQueueSize = 1000;
 
+    private long acknowledgementsGroupTimeMicros = TimeUnit.MILLISECONDS.toMicros(100);
+
     private int maxTotalReceiverQueueSizeAcrossPartitions = 50000;
 
     private String consumerName = null;
@@ -72,6 +77,8 @@ public class ConsumerConfigurationData<T> implements Serializable, Cloneable {
     private SortedMap<String, String> properties = new TreeMap<>();
 
     private boolean readCompacted = false;
+
+    private SubscriptionInitialPosition subscriptionInitialPosition = SubscriptionInitialPosition.Latest;
 
     private int patternAutoDiscoveryPeriod = 1;
 

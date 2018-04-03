@@ -19,8 +19,16 @@
 package org.apache.pulsar.broker.service;
 
 import static com.google.common.base.Preconditions.checkArgument;
-import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.common.base.MoreObjects;
+import com.google.common.collect.Lists;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.ChannelFutureListener;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
@@ -31,6 +39,7 @@ import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.stream.Collectors;
 
 import org.apache.bookkeeper.mledger.Entry;
+import org.apache.bookkeeper.mledger.Position;
 import org.apache.bookkeeper.mledger.impl.PositionImpl;
 import org.apache.bookkeeper.mledger.util.Rate;
 import org.apache.bookkeeper.util.collections.ConcurrentLongLongPairHashMap;
@@ -41,6 +50,7 @@ import org.apache.pulsar.common.api.Commands;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
@@ -49,14 +59,6 @@ import org.apache.pulsar.common.policies.data.ConsumerStats;
 import org.apache.pulsar.common.util.DateFormatter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.base.MoreObjects;
-import com.google.common.collect.Lists;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.channel.ChannelFutureListener;
-import io.netty.channel.ChannelHandlerContext;
-import io.netty.channel.ChannelPromise;
 
 /**
  * A Consumer is a consumer currently connected and associated with a Subscription
@@ -68,6 +70,7 @@ public class Consumer {
     private final String appId;
     private AuthenticationDataSource authenticationData;
     private final String topicName;
+    private final InitialPosition subscriptionInitialPosition;
 
     private final long consumerId;
     private final int priorityLevel;
@@ -104,7 +107,7 @@ public class Consumer {
     public Consumer(Subscription subscription, SubType subType, String topicName, long consumerId,
                     int priorityLevel, String consumerName,
                     int maxUnackedMessages, ServerCnx cnx, String appId,
-                    Map<String, String> metadata, boolean readCompacted) throws BrokerServiceException {
+                    Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) throws BrokerServiceException {
 
         this.subscription = subscription;
         this.subType = subType;
@@ -114,6 +117,7 @@ public class Consumer {
         this.readCompacted = readCompacted;
         this.consumerName = consumerName;
         this.maxUnackedMessages = maxUnackedMessages;
+        this.subscriptionInitialPosition = subscriptionInitialPosition;
         this.cnx = cnx;
         this.msgOut = new Rate();
         this.msgRedeliver = new Rate();
@@ -221,7 +225,7 @@ public class Consumer {
                 metadataAndPayload.retain();
                 // skip checksum by incrementing reader-index if consumer-client doesn't support checksum verification
                 if (cnx.getRemoteEndpointProtocolVersion() < ProtocolVersion.v11.getNumber()) {
-                    readChecksum(metadataAndPayload);
+                    Commands.skipChecksumIfPresent(metadataAndPayload);
                 }
 
                 if (log.isDebugEnabled()) {
@@ -285,7 +289,7 @@ public class Consumer {
                 iter.remove();
                 PositionImpl pos = (PositionImpl) entry.getPosition();
                 entry.release();
-                subscription.acknowledgeMessage(pos, AckType.Individual, Collections.emptyMap());
+                subscription.acknowledgeMessage(Collections.singletonList(pos), AckType.Individual, Collections.emptyMap());
                 continue;
             }
             if (pendingAcks != null) {
@@ -360,31 +364,46 @@ public class Consumer {
     }
 
     void messageAcked(CommandAck ack) {
-        MessageIdData msgId = ack.getMessageId();
-        PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
-
-        if (ack.hasValidationError()) {
-            log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription, consumerId,
-                    position, ack.getValidationError());
-        }
-
         Map<String,Long> properties = Collections.emptyMap();
         if (ack.getPropertiesCount() > 0) {
             properties = ack.getPropertiesList().stream()
                 .collect(Collectors.toMap((e) -> e.getKey(),
                                           (e) -> e.getValue()));
         }
-        if (subType == SubType.Shared) {
-            // On shared subscriptions, cumulative ack is not supported
-            checkArgument(ack.getAckType() == AckType.Individual);
 
-            // Only ack a single message
-            removePendingAcks(position);
-            subscription.acknowledgeMessage(position, AckType.Individual, properties);
+        if (ack.getAckType() == AckType.Cumulative) {
+            if (ack.getMessageIdCount() != 1) {
+                log.warn("[{}] [{}] Received multi-message ack at {} - Reason: {}", subscription, consumerId);
+                return;
+            }
+
+            if (subType == SubType.Shared) {
+                log.warn("[{}] [{}] Received cumulative ack on shared subscription, ignoring", subscription, consumerId);
+                return;
+            }
+
+            MessageIdData msgId = ack.getMessageId(0);
+            PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+            subscription.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative, properties);
         } else {
-            subscription.acknowledgeMessage(position, ack.getAckType(), properties);
-        }
+            // Individual ack
+            List<Position> positionsAcked = new ArrayList<>();
+            for (int i = 0; i < ack.getMessageIdCount(); i++) {
+                MessageIdData msgId = ack.getMessageId(i);
+                PositionImpl position = PositionImpl.get(msgId.getLedgerId(), msgId.getEntryId());
+                positionsAcked.add(position);
 
+                if (subType == SubType.Shared) {
+                    removePendingAcks(position);
+                }
+
+                if (ack.hasValidationError()) {
+                    log.error("[{}] [{}] Received ack for corrupted message at {} - Reason: {}", subscription,
+                            consumerId, position, ack.getValidationError());
+                }
+            }
+            subscription.acknowledgeMessage(positionsAcked, AckType.Individual, properties);
+        }
     }
 
     void flowPermits(int additionalNumberOfMessages) {

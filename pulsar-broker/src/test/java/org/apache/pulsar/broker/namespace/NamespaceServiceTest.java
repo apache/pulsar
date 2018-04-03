@@ -196,13 +196,9 @@ public class NamespaceServiceTest extends BrokerTestBase {
             fail("split bundle faild", e);
         }
 
-        try {
-            // old bundle should be removed from status-map
-            list = this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace, originalBundle.toString());
-            fail();
-        } catch (NullPointerException ne) {
-            // OK
-        }
+        // old bundle should be removed from status-map
+        list = this.pulsar.getBrokerService().getAllTopicsFromNamespaceBundle(nspace, originalBundle.toString());
+        assertTrue(list.isEmpty());
 
         // status-map should be updated with new split bundles
         NamespaceBundle splitBundle = pulsar.getNamespaceService().getBundle(topicName);

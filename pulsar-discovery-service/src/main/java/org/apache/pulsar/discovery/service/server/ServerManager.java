@@ -72,19 +72,19 @@ public class ServerManager {
         connectors.add(connector);
 
         if (config.isTlsEnabled()) {
-            SslContextFactory sslCtxFactory = new SslContextFactory();
             try {
-                SSLContext sslCtx = SecurityUtility.createSslContext(config.isTlsAllowInsecureConnection(), config.getTlsTrustCertsFilePath(), config.getTlsCertificateFilePath(),
-                        config.getTlsKeyFilePath());
-                sslCtxFactory.setSslContext(sslCtx);
+                SslContextFactory sslCtxFactory = SecurityUtility.createSslContextFactory(
+                        config.isTlsAllowInsecureConnection(),
+                        config.getTlsTrustCertsFilePath(),
+                        config.getTlsCertificateFilePath(),
+                        config.getTlsKeyFilePath(), 
+                        config.getTlsRequireTrustedClientCertOnConnect());
+                ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
+                tlsConnector.setPort(config.getWebServicePortTls());
+                connectors.add(tlsConnector);
             } catch (GeneralSecurityException e) {
                 throw new RestException(e);
-            }
-
-            sslCtxFactory.setWantClientAuth(true);
-            ServerConnector tlsConnector = new ServerConnector(server, 1, 1, sslCtxFactory);
-            tlsConnector.setPort(config.getWebServicePortTls());
-            connectors.add(tlsConnector);
+            }            
         }
 
         // Limit number of concurrent HTTP connections to avoid getting out of file descriptors

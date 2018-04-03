@@ -25,19 +25,20 @@ import static java.lang.String.format;
 import static org.apache.pulsar.common.api.Commands.hasChecksum;
 import static org.apache.pulsar.common.api.Commands.readChecksum;
 
+import com.google.common.collect.Iterables;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.util.Timeout;
+
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.BitSet;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentNavigableMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ScheduledExecutorService;
@@ -55,6 +56,7 @@ import org.apache.pulsar.client.api.Message;
 import org.apache.pulsar.client.api.MessageId;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.api.Commands;
@@ -62,6 +64,7 @@ import org.apache.pulsar.common.api.PulsarDecoder;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CompressionType;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
@@ -72,17 +75,10 @@ import org.apache.pulsar.common.util.FutureUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.Iterables;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.util.Timeout;
-import io.netty.util.concurrent.Future;
-import io.netty.util.concurrent.GenericFutureListener;
-
 public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandler.Connection {
     private static final int MAX_REDELIVER_UNACKNOWLEDGED = 1000;
 
-    private final long consumerId;
+    final long consumerId;
 
     // Number of messages that have delivered to the application. Every once in a while, this number will be sent to the
     // broker to notify that we are ready to get (and store in the incoming messages queue) more messages
@@ -108,7 +104,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private final ReadWriteLock zeroQueueLock;
 
     private final UnAckedMessageTracker unAckedMessageTracker;
-    private final ConcurrentNavigableMap<MessageIdImpl, BitSet> batchMessageAckTracker;
+    private final AcknowledgmentsGroupingTracker acknowledgmentsGroupingTracker;
 
     protected final ConsumerStatsRecorder stats;
     private final int priorityLevel;
@@ -123,6 +119,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
 
     private final boolean readCompacted;
 
+    private final SubscriptionInitialPosition subscriptionInitialPosition;
     private final ConnectionHandler connectionHandler;
 
     enum SubscriptionMode {
@@ -152,8 +149,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         this.receiverQueueRefillThreshold = conf.getReceiverQueueSize() / 2;
         this.codecProvider = new CompressionCodecProvider();
         this.priorityLevel = conf.getPriorityLevel();
-        this.batchMessageAckTracker = new ConcurrentSkipListMap<>();
         this.readCompacted = conf.isReadCompacted();
+        this.subscriptionInitialPosition = conf.getSubscriptionInitialPosition();
+        this.acknowledgmentsGroupingTracker = new AcknowledgmentsGroupingTracker(this, conf, client.eventLoopGroup());
 
         if (client.getConfiguration().getStatsIntervalSeconds() > 0) {
             stats = new ConsumerStatsRecorderImpl(client, conf, this);
@@ -215,7 +213,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             cnx.sendRequestWithId(unsubscribe, requestId).thenRun(() -> {
                 cnx.removeConsumer(consumerId);
                 log.info("[{}][{}] Successfully unsubscribed from topic", topic, subscription);
-                batchMessageAckTracker.clear();
                 unAckedMessageTracker.close();
                 unsubscribeFuture.complete(null);
                 setState(State.Closed);
@@ -351,75 +348,26 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
     }
 
-    // we may not be able to ack message being acked by client. However messages in prior
-    // batch may be ackable
-    private void ackMessagesInEarlierBatch(BatchMessageIdImpl batchMessageId, MessageIdImpl message,
-                                           Map<String,Long> properties) {
-        // get entry before this message and ack that message on broker
-        MessageIdImpl lowerKey = batchMessageAckTracker.lowerKey(message);
-        if (lowerKey != null) {
-            NavigableMap<MessageIdImpl, BitSet> entriesUpto = batchMessageAckTracker.headMap(lowerKey, true);
-            for (Object key : entriesUpto.keySet()) {
-                entriesUpto.remove(key);
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] ack prior message {} to broker on cumulative ack for message {}", subscription,
-                        consumerId, lowerKey, batchMessageId);
-            }
-            sendAcknowledge(lowerKey, AckType.Cumulative, properties);
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] no messages prior to message {}", subscription, consumerId, batchMessageId);
-            }
-        }
-    }
-
     boolean markAckForBatchMessage(BatchMessageIdImpl batchMessageId, AckType ackType,
                                    Map<String,Long> properties) {
-        // we keep track of entire batch and so need MessageIdImpl and cannot use BatchMessageIdImpl
-        MessageIdImpl message = new MessageIdImpl(batchMessageId.getLedgerId(), batchMessageId.getEntryId(),
-                batchMessageId.getPartitionIndex());
-        BitSet bitSet = batchMessageAckTracker.get(message);
-        if (bitSet == null) {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] message not found {} for ack {}", subscription, consumerId, batchMessageId,
-                        ackType);
-            }
-            return true;
+        boolean isAllMsgsAcked;
+        if (ackType == AckType.Individual) {
+            isAllMsgsAcked = batchMessageId.ackIndividual();
+        } else {
+            isAllMsgsAcked = batchMessageId.ackCumulative();
         }
-        int batchIndex = batchMessageId.getBatchIndex();
-        // bitset is not thread-safe and requires external synchronization
-        int batchSize = 0;
-        // only used for debug-logging
         int outstandingAcks = 0;
-        boolean isAllMsgsAcked = false;
-        lock.writeLock().lock();
-        try {
-            batchSize = bitSet.length();
-            if (ackType == AckType.Individual) {
-                bitSet.clear(batchIndex);
-            } else {
-                // +1 since to argument is exclusive
-                bitSet.clear(0, batchIndex + 1);
-            }
-            isAllMsgsAcked = bitSet.isEmpty();
-            if (log.isDebugEnabled()) {
-                outstandingAcks = bitSet.cardinality();
-            }
-        } finally {
-            lock.writeLock().unlock();
+        if (log.isDebugEnabled()) {
+            outstandingAcks = batchMessageId.getOutstandingAcksInSameBatch();
         }
 
+        int batchSize = batchMessageId.getBatchSize();
         // all messages in this batch have been acked
         if (isAllMsgsAcked) {
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] can ack message to broker {}, acktype {}, cardinality {}, length {}", subscription,
                         consumerName, batchMessageId, ackType, outstandingAcks, batchSize);
             }
-            if (ackType == AckType.Cumulative) {
-                batchMessageAckTracker.keySet().removeIf(m -> (m.compareTo(message) <= 0));
-            }
-            batchMessageAckTracker.remove(message);
             // increment Acknowledge-msg counter with number of messages in batch only if AckType is Individual.
             // CumulativeAckType is handled while sending ack to broker
             if (ackType == AckType.Individual) {
@@ -427,9 +375,10 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
             return true;
         } else {
-            // we cannot ack this message to broker. but prior message may be ackable
-            if (ackType == AckType.Cumulative) {
-                ackMessagesInEarlierBatch(batchMessageId, message, properties);
+            if (AckType.Cumulative == ackType
+                && !batchMessageId.getAcker().isPrevBatchCumulativelyAcked()) {
+                sendAcknowledge(batchMessageId.prevBatchMessageId(), AckType.Cumulative, properties);
+                batchMessageId.getAcker().setPrevBatchCumulativelyAcked(true);
             }
             if (log.isDebugEnabled()) {
                 log.debug("[{}] [{}] cannot ack message to broker {}, acktype {}, pending acks - {}", subscription,
@@ -437,38 +386,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             }
         }
         return false;
-    }
-
-    // if we are consuming a mix of batch and non-batch messages then cumulative ack on non-batch messages
-    // should clean up the ack tracker as well
-    private void updateBatchAckTracker(MessageIdImpl message, AckType ackType) {
-        if (batchMessageAckTracker.isEmpty()) {
-            return;
-        }
-        MessageIdImpl lowerKey = batchMessageAckTracker.lowerKey(message);
-        if (lowerKey != null) {
-            NavigableMap<MessageIdImpl, BitSet> entriesUpto = batchMessageAckTracker.headMap(lowerKey, true);
-            for (Object key : entriesUpto.keySet()) {
-                entriesUpto.remove(key);
-            }
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] updated batch ack tracker up to message {} on cumulative ack for message {}",
-                        subscription, consumerId, lowerKey, message);
-            }
-        } else {
-            if (log.isDebugEnabled()) {
-                log.debug("[{}] [{}] no messages to clean up prior to message {}", subscription, consumerId, message);
-            }
-        }
-    }
-
-    /**
-     * helper method that returns current state of data structure used to track acks for batch messages
-     *
-     * @return true if all batch messages have been acknowledged
-     */
-    public boolean isBatchingAckTrackerEmpty() {
-        return batchMessageAckTracker.isEmpty();
     }
 
     @Override
@@ -492,54 +409,29 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 return CompletableFuture.completedFuture(null);
             }
         }
-        // if we got a cumulative ack on non batch message, check if any earlier batch messages need to be removed
-        // from batch message tracker
-        if (ackType == AckType.Cumulative && !(messageId instanceof BatchMessageIdImpl)) {
-            updateBatchAckTracker((MessageIdImpl) messageId, ackType);
-        }
         return sendAcknowledge(messageId, ackType, properties);
     }
 
     private CompletableFuture<Void> sendAcknowledge(MessageId messageId, AckType ackType,
                                                     Map<String,Long> properties) {
         MessageIdImpl msgId = (MessageIdImpl) messageId;
-        final ByteBuf cmd = Commands.newAck(consumerId, msgId.getLedgerId(), msgId.getEntryId(),
-                                            ackType, null, properties);
 
-        // There's no actual response from ack messages
-        final CompletableFuture<Void> ackFuture = new CompletableFuture<Void>();
 
-        if (isConnected()) {
-            cnx().ctx().writeAndFlush(cmd).addListener(new GenericFutureListener<Future<Void>>() {
-                @Override
-                public void operationComplete(Future<Void> future) throws Exception {
-                    if (future.isSuccess()) {
-                        if (ackType == AckType.Individual) {
-                            unAckedMessageTracker.remove(msgId);
-                            // increment counter by 1 for non-batch msg
-                            if (!(messageId instanceof BatchMessageIdImpl)) {
-                                stats.incrementNumAcksSent(1);
-                            }
-                        } else if (ackType == AckType.Cumulative) {
-                            stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
-                        }
-                        if (log.isDebugEnabled()) {
-                            log.debug("[{}] [{}] [{}] Successfully acknowledged message - {}, acktype {}", subscription,
-                                    topic, consumerName, messageId, ackType);
-                        }
-                        ackFuture.complete(null);
-                    } else {
-                        stats.incrementNumAcksFailed();
-                        ackFuture.completeExceptionally(new PulsarClientException(future.cause()));
-                    }
-                }
-            });
-        } else {
-            stats.incrementNumAcksFailed();
-            ackFuture.completeExceptionally(new PulsarClientException("Not connected to broker. State: " + getState()));
+        if (ackType == AckType.Individual) {
+            unAckedMessageTracker.remove(msgId);
+            // increment counter by 1 for non-batch msg
+            if (!(messageId instanceof BatchMessageIdImpl)) {
+                stats.incrementNumAcksSent(1);
+            }
+        } else if (ackType == AckType.Cumulative) {
+            stats.incrementNumAcksSent(unAckedMessageTracker.removeMessagesTill(msgId));
         }
 
-        return ackFuture;
+        acknowledgmentsGroupingTracker.addAcknowledgment(msgId, ackType, properties);
+
+        // Consumer acknowledgment operation immediately succeeds. In any case, if we're not able to send ack to broker,
+        // the messages will be re-delivered
+        return CompletableFuture.completedFuture(null);
     }
 
     @Override
@@ -556,7 +448,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             currentSize = incomingMessages.size();
             startMessageId = clearReceiverQueue();
             unAckedMessageTracker.clear();
-            batchMessageAckTracker.clear();
         }
 
         boolean isDurable = subscriptionMode == SubscriptionMode.Durable;
@@ -578,7 +469,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         }
 
         ByteBuf request = Commands.newSubscribe(topic, subscription, consumerId, requestId, getSubType(), priorityLevel,
-                consumerName, isDurable, startMessageIdData, metadata, readCompacted, schema.getSchemaInfo());
+                consumerName, isDurable, startMessageIdData, metadata, readCompacted, InitialPosition.valueOf(subscriptionInitialPosition.getValue()));
         if (startMessageIdData != null) {
             startMessageIdData.recycle();
         }
@@ -698,7 +589,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     @Override
     public CompletableFuture<Void> closeAsync() {
         if (getState() == State.Closing || getState() == State.Closed) {
-            batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
             return CompletableFuture.completedFuture(null);
         }
@@ -706,7 +596,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         if (!isConnected()) {
             log.info("[{}] [{}] Closed Consumer (not connected)", topic, subscription);
             setState(State.Closed);
-            batchMessageAckTracker.clear();
             unAckedMessageTracker.close();
             client.cleanupConsumer(this);
             return CompletableFuture.completedFuture(null);
@@ -715,6 +604,8 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         stats.getStatTimeout().ifPresent(Timeout::cancel);
 
         setState(State.Closing);
+
+        acknowledgmentsGroupingTracker.close();
 
         long requestId = client.newRequestId();
         ByteBuf cmd = Commands.newCloseConsumer(consumerId, requestId);
@@ -726,7 +617,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             if (exception == null || !cnx.ctx().channel().isActive()) {
                 log.info("[{}] [{}] Closed consumer", topic, subscription);
                 setState(State.Closed);
-                batchMessageAckTracker.clear();
                 unAckedMessageTracker.close();
                 closeFuture.complete(null);
                 client.cleanupConsumer(this);
@@ -780,6 +670,15 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                     messageId.getEntryId());
         }
 
+        MessageIdImpl msgId = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(), getPartitionIndex());
+        if (acknowledgmentsGroupingTracker.isDuplicate(msgId)) {
+            if (log.isDebugEnabled()) {
+                log.debug("[{}][{}] Ignoring message as it was already being acked earlier by same consumer {}/{}",
+                        topic, subscription, msgId);
+            }
+            return;
+        }
+
         MessageMetadata msgMetadata = null;
         ByteBuf payload = headersAndPayload;
 
@@ -811,8 +710,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         final int numMessages = msgMetadata.getNumMessagesInBatch();
 
         if (numMessages == 1 && !msgMetadata.hasNumMessagesInBatch()) {
-            final MessageImpl<T> message = new MessageImpl<>(messageId, msgMetadata, uncompressedPayload,
-                    getPartitionIndex(), cnx, schema);
+            final MessageImpl<T> message = new MessageImpl<>(msgId, msgMetadata, uncompressedPayload, cnx, schema);
             uncompressedPayload.release();
             msgMetadata.recycle();
 
@@ -921,15 +819,9 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
         int batchSize = msgMetadata.getNumMessagesInBatch();
 
         // create ack tracker for entry aka batch
-        BitSet bitSet = new BitSet(batchSize);
         MessageIdImpl batchMessage = new MessageIdImpl(messageId.getLedgerId(), messageId.getEntryId(),
                 getPartitionIndex());
-        bitSet.set(0, batchSize);
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] [{}] added bit set for message {}, cardinality {}, length {}", subscription, consumerName,
-                    batchMessage, bitSet.cardinality(), bitSet.length());
-        }
-        batchMessageAckTracker.put(batchMessage, bitSet);
+        BatchMessageAcker acker = BatchMessageAcker.newAcker(batchSize);
         unAckedMessageTracker.add(batchMessage);
 
         int skippedMessages = 0;
@@ -967,7 +859,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 }
 
                 BatchMessageIdImpl batchMessageIdImpl = new BatchMessageIdImpl(messageId.getLedgerId(),
-                        messageId.getEntryId(), getPartitionIndex(), i);
+                        messageId.getEntryId(), getPartitionIndex(), i, acker);
                 final MessageImpl<T> message = new MessageImpl<>(batchMessageIdImpl, msgMetadata,
                         singleMessageMetadataBuilder.build(), singleMessagePayload, cnx, schema);
                 lock.readLock().lock();
@@ -984,9 +876,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 singleMessageMetadataBuilder.recycle();
             }
         } catch (IOException e) {
-            //
             log.warn("[{}] [{}] unable to obtain message in batch", subscription, consumerName);
-            batchMessageAckTracker.remove(batchMessage);
             discardCorruptedMessage(messageId, cnx, ValidationError.BatchDeSerializeError);
         }
         if (log.isDebugEnabled()) {
@@ -1126,7 +1016,7 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
     private boolean verifyChecksum(ByteBuf headersAndPayload, MessageIdData messageId) {
 
         if (hasChecksum(headersAndPayload)) {
-            int checksum = readChecksum(headersAndPayload).intValue();
+            int checksum = readChecksum(headersAndPayload);
             int computedChecksum = computeChecksum(headersAndPayload);
             if (checksum != computedChecksum) {
                 log.error(
@@ -1188,7 +1078,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
                 currentSize = incomingMessages.size();
                 incomingMessages.clear();
                 unAckedMessageTracker.clear();
-                batchMessageAckTracker.clear();
             }
             cnx.ctx().writeAndFlush(Commands.newRedeliverUnacknowledgedMessages(consumerId), cnx.ctx().voidPromise());
             if (currentSize > 0) {
@@ -1228,7 +1117,6 @@ public class ConsumerImpl<T> extends ConsumerBase<T> implements ConnectionHandle
             batches.forEach(ids -> {
                 List<MessageIdData> messageIdDatas = ids.stream().map(messageId -> {
                     // attempt to remove message from batchMessageAckTracker
-                    batchMessageAckTracker.remove(messageId);
                     builder.setPartition(messageId.getPartitionIndex());
                     builder.setLedgerId(messageId.getLedgerId());
                     builder.setEntryId(messageId.getEntryId());

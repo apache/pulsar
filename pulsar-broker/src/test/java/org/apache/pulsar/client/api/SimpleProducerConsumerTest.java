@@ -941,7 +941,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic1").subscriptionName("my-subscriber-name")
-                .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared);
+                .receiverQueueSize(1).subscriptionType(SubscriptionType.Shared)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> consumer1 = consumerBuilder.subscribe();
         Consumer<byte[]> consumer2 = consumerBuilder.subscribe();
 
@@ -1125,7 +1126,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             pulsar.getConfiguration().setMaxUnackedMessagesPerConsumer(unAckedMessagesBufferSize);
             Consumer<byte[]> consumer = pulsarClient.newConsumer()
                     .topic("persistent://my-property/use/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared).subscribe();
+                    .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Shared)
+                    .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/use/my-ns/unacked-topic").create();
@@ -1289,7 +1291,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
             ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                     .topic("persistent://my-property/use/my-ns/unacked-topic").subscriptionName("subscriber-1")
                     .receiverQueueSize(receiverQueueSize).ackTimeout(1, TimeUnit.SECONDS)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
                     .topic("persistent://my-property/use/my-ns/unacked-topic").create();
@@ -1861,7 +1863,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/my-topic2").subscriptionName("my-subscriber-name")
-                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize);
+                .subscriptionType(SubscriptionType.Shared).receiverQueueSize(queueSize)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
         Consumer<byte[]> c1 = consumerBuilder.subscribe();
         Consumer<byte[]> c2 = consumerBuilder.subscribe();
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/my-topic2")
@@ -1961,7 +1964,8 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Only subscribe consumer
         ConsumerImpl<byte[]> consumer = (ConsumerImpl<byte[]>) pulsarClient.newConsumer()
                 .topic("persistent://my-property/use/my-ns/unacked-topic").subscriptionName("subscriber-1")
-                .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Failover).subscribe();
+                .receiverQueueSize(receiverQueueSize).subscriptionType(SubscriptionType.Failover)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/unacked-topic")
                 .create();
@@ -2255,8 +2259,9 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
 
         Message<byte[]> msg = null;
         Set<String> messageSet = Sets.newHashSet();
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
-                .subscriptionName("my-subscriber-name").subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer()
+                .topic("persistent://my-property/use/myenc-ns/myenc-topic1").subscriptionName("my-subscriber-name")
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // 1. Invalid key name
         try {
@@ -2286,7 +2291,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.CONSUME)
-                .subscribe();
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         int msgNum = 0;
         try {
@@ -2307,7 +2312,7 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         // Set keyreader
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.FAIL)
-                .cryptoKeyReader(new EncKeyReader()).subscribe();
+                .cryptoKeyReader(new EncKeyReader()).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         for (int i = msgNum; i < totalMsg - 1; i++) {
             msg = consumer.receive(5, TimeUnit.SECONDS);
@@ -2324,11 +2329,54 @@ public class SimpleProducerConsumerTest extends ProducerConsumerBase {
         consumer.close();
         consumer = pulsarClient.newConsumer().topic("persistent://my-property/use/myenc-ns/myenc-topic1")
                 .subscriptionName("my-subscriber-name").cryptoFailureAction(ConsumerCryptoFailureAction.DISCARD)
-                .subscribe();
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         // Receive should proceed and discard encrypted messages
         msg = consumer.receive(5, TimeUnit.SECONDS);
         Assert.assertNull(msg, "Message received even aftet ConsumerCryptoFailureAction.DISCARD is set.");
+
+        log.info("-- Exiting {} test --", methodName);
+    }
+
+    @Test
+    public void testConsumerSubscriptionInitialize() throws Exception {
+        log.info("-- Starting {} test --", methodName);
+        String topicName = "persistent://my-property/use/my-ns/test-subscription-initialize-topic";
+
+        Producer<byte[]> producer = pulsarClient.newProducer()
+            .topic(topicName)
+            .create();
+
+        // 1, produce 5 messages
+        for (int i = 0; i < 5; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // 2, create consumer
+        Consumer<byte[]> defaultConsumer = pulsarClient.newConsumer().topic(topicName)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-default").subscribe();
+        Consumer<byte[]> latestConsumer = pulsarClient.newConsumer().topic(topicName)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-latest")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Latest).subscribe();
+        Consumer<byte[]> earliestConsumer = pulsarClient.newConsumer().topic(topicName)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscriptionName("test-subscription-earliest")
+                .subscriptionInitialPosition(SubscriptionInitialPosition.Earliest).subscribe();
+
+        // 3, produce 5 messages more
+        for (int i = 5; i < 10; i++) {
+            final String message = "my-message-" + i;
+            producer.send(message.getBytes());
+        }
+
+        // 4, verify consumer get right message.
+        assertEquals(defaultConsumer.receive().getData(), "my-message-5".getBytes());
+        assertEquals(latestConsumer.receive().getData(), "my-message-5".getBytes());
+        assertEquals(earliestConsumer.receive().getData(), "my-message-0".getBytes());
+
+        defaultConsumer.close();
+        latestConsumer.close();
+        earliestConsumer.close();
 
         log.info("-- Exiting {} test --", methodName);
     }

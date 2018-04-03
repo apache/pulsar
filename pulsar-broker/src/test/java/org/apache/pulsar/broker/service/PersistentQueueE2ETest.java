@@ -500,7 +500,8 @@ public class PersistentQueueE2ETest extends BrokerTestBase {
         Producer<byte[]> producer = pulsarClient.newProducer().topic(topicName).create();
 
         ConsumerBuilder<byte[]> consumerBuilder = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .receiverQueueSize(10).subscriptionType(SubscriptionType.Shared);
+                .receiverQueueSize(10).subscriptionType(SubscriptionType.Shared)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS);
         ConsumerImpl<byte[]> consumer1 = (ConsumerImpl<byte[]>) consumerBuilder.subscribe();
 
         for (int i = 0; i < numMsgs; i++) {

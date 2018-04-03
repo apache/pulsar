@@ -6673,6 +6673,10 @@ public final class PulsarApi {
     // optional .pulsar.proto.Schema schema = 12;
     boolean hasSchema();
     org.apache.pulsar.common.api.proto.PulsarApi.Schema getSchema();
+    
+    // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
+    boolean hasInitialPosition();
+    org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition();
   }
   public static final class CommandSubscribe extends
       com.google.protobuf.GeneratedMessageLite
@@ -6752,6 +6756,47 @@ public final class PulsarApi {
       }
       
       // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandSubscribe.SubType)
+    }
+    
+    public enum InitialPosition
+        implements com.google.protobuf.Internal.EnumLite {
+      Latest(0, 0),
+      Earliest(1, 1),
+      ;
+      
+      public static final int Latest_VALUE = 0;
+      public static final int Earliest_VALUE = 1;
+      
+      
+      public final int getNumber() { return value; }
+      
+      public static InitialPosition valueOf(int value) {
+        switch (value) {
+          case 0: return Latest;
+          case 1: return Earliest;
+          default: return null;
+        }
+      }
+      
+      public static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
+          internalGetValueMap() {
+        return internalValueMap;
+      }
+      private static com.google.protobuf.Internal.EnumLiteMap<InitialPosition>
+          internalValueMap =
+            new com.google.protobuf.Internal.EnumLiteMap<InitialPosition>() {
+              public InitialPosition findValueByNumber(int number) {
+                return InitialPosition.valueOf(number);
+              }
+            };
+      
+      private final int value;
+      
+      private InitialPosition(int index, int value) {
+        this.value = value;
+      }
+      
+      // @@protoc_insertion_point(enum_scope:pulsar.proto.CommandSubscribe.InitialPosition)
     }
     
     private int bitField0_;
@@ -6952,6 +6997,16 @@ public final class PulsarApi {
       return schema_;
     }
     
+    // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
+    public static final int INITIALPOSITION_FIELD_NUMBER = 13;
+    private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition initialPosition_;
+    public boolean hasInitialPosition() {
+      return ((bitField0_ & 0x00000800) == 0x00000800);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition() {
+      return initialPosition_;
+    }
+    
     private void initFields() {
       topic_ = "";
       subscription_ = "";
@@ -6965,6 +7020,7 @@ public final class PulsarApi {
       metadata_ = java.util.Collections.emptyList();
       readCompacted_ = false;
       schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
+      initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
     }
     private byte memoizedIsInitialized = -1;
     public final boolean isInitialized() {
@@ -7057,6 +7113,9 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
         output.writeMessage(12, schema_);
       }
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        output.writeEnum(13, initialPosition_.getNumber());
+      }
     }
     
     private int memoizedSerializedSize = -1;
@@ -7112,6 +7171,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000400) == 0x00000400)) {
         size += com.google.protobuf.CodedOutputStream
           .computeMessageSize(12, schema_);
+      }
+      if (((bitField0_ & 0x00000800) == 0x00000800)) {
+        size += com.google.protobuf.CodedOutputStream
+          .computeEnumSize(13, initialPosition_.getNumber());
       }
       memoizedSerializedSize = size;
       return size;
@@ -7250,6 +7313,8 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000400);
         schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
         bitField0_ = (bitField0_ & ~0x00000800);
+        initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        bitField0_ = (bitField0_ & ~0x00001000);
         return this;
       }
       
@@ -7332,6 +7397,10 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000400;
         }
         result.schema_ = schema_;
+        if (((from_bitField0_ & 0x00001000) == 0x00001000)) {
+          to_bitField0_ |= 0x00000800;
+        }
+        result.initialPosition_ = initialPosition_;
         result.bitField0_ = to_bitField0_;
         return result;
       }
@@ -7380,6 +7449,9 @@ public final class PulsarApi {
         }
         if (other.hasSchema()) {
           mergeSchema(other.getSchema());
+        }
+        if (other.hasInitialPosition()) {
+          setInitialPosition(other.getInitialPosition());
         }
         return this;
       }
@@ -7521,6 +7593,15 @@ public final class PulsarApi {
               input.readMessage(subBuilder, extensionRegistry);
               setSchema(subBuilder.buildPartial());
               subBuilder.recycle();
+              break;
+            }
+            case 104: {
+              int rawValue = input.readEnum();
+              org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition value = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.valueOf(rawValue);
+              if (value != null) {
+                bitField0_ |= 0x00001000;
+                initialPosition_ = value;
+              }
               break;
             }
           }
@@ -7938,6 +8019,30 @@ public final class PulsarApi {
         schema_ = org.apache.pulsar.common.api.proto.PulsarApi.Schema.getDefaultInstance();
         
         bitField0_ = (bitField0_ & ~0x00000800);
+        return this;
+      }
+      
+      // optional .pulsar.proto.CommandSubscribe.InitialPosition initialPosition = 13 [default = Latest];
+      private org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+      public boolean hasInitialPosition() {
+        return ((bitField0_ & 0x00001000) == 0x00001000);
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition getInitialPosition() {
+        return initialPosition_;
+      }
+      public Builder setInitialPosition(org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        bitField0_ |= 0x00001000;
+        initialPosition_ = value;
+        
+        return this;
+      }
+      public Builder clearInitialPosition() {
+        bitField0_ = (bitField0_ & ~0x00001000);
+        initialPosition_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition.Latest;
+        
         return this;
       }
       
@@ -13841,9 +13946,11 @@ public final class PulsarApi {
     boolean hasAckType();
     org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType getAckType();
     
-    // required .pulsar.proto.MessageIdData message_id = 3;
-    boolean hasMessageId();
-    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId();
+    // repeated .pulsar.proto.MessageIdData message_id = 3;
+    java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> 
+        getMessageIdList();
+    org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index);
+    int getMessageIdCount();
     
     // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
     boolean hasValidationError();
@@ -14003,21 +14110,32 @@ public final class PulsarApi {
       return ackType_;
     }
     
-    // required .pulsar.proto.MessageIdData message_id = 3;
+    // repeated .pulsar.proto.MessageIdData message_id = 3;
     public static final int MESSAGE_ID_FIELD_NUMBER = 3;
-    private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_;
-    public boolean hasMessageId() {
-      return ((bitField0_ & 0x00000004) == 0x00000004);
-    }
-    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId() {
+    private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageId_;
+    public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdList() {
       return messageId_;
+    }
+    public java.util.List<? extends org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder> 
+        getMessageIdOrBuilderList() {
+      return messageId_;
+    }
+    public int getMessageIdCount() {
+      return messageId_.size();
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index) {
+      return messageId_.get(index);
+    }
+    public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdDataOrBuilder getMessageIdOrBuilder(
+        int index) {
+      return messageId_.get(index);
     }
     
     // optional .pulsar.proto.CommandAck.ValidationError validation_error = 4;
     public static final int VALIDATION_ERROR_FIELD_NUMBER = 4;
     private org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError validationError_;
     public boolean hasValidationError() {
-      return ((bitField0_ & 0x00000008) == 0x00000008);
+      return ((bitField0_ & 0x00000004) == 0x00000004);
     }
     public org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError getValidationError() {
       return validationError_;
@@ -14047,7 +14165,7 @@ public final class PulsarApi {
     private void initFields() {
       consumerId_ = 0L;
       ackType_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType.Individual;
-      messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+      messageId_ = java.util.Collections.emptyList();
       validationError_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.UncompressedSizeCorruption;
       properties_ = java.util.Collections.emptyList();
     }
@@ -14064,13 +14182,11 @@ public final class PulsarApi {
         memoizedIsInitialized = 0;
         return false;
       }
-      if (!hasMessageId()) {
-        memoizedIsInitialized = 0;
-        return false;
-      }
-      if (!getMessageId().isInitialized()) {
-        memoizedIsInitialized = 0;
-        return false;
+      for (int i = 0; i < getMessageIdCount(); i++) {
+        if (!getMessageId(i).isInitialized()) {
+          memoizedIsInitialized = 0;
+          return false;
+        }
       }
       for (int i = 0; i < getPropertiesCount(); i++) {
         if (!getProperties(i).isInitialized()) {
@@ -14096,10 +14212,10 @@ public final class PulsarApi {
       if (((bitField0_ & 0x00000002) == 0x00000002)) {
         output.writeEnum(2, ackType_.getNumber());
       }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
-        output.writeMessage(3, messageId_);
+      for (int i = 0; i < messageId_.size(); i++) {
+        output.writeMessage(3, messageId_.get(i));
       }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
         output.writeEnum(4, validationError_.getNumber());
       }
       for (int i = 0; i < properties_.size(); i++) {
@@ -14121,11 +14237,11 @@ public final class PulsarApi {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(2, ackType_.getNumber());
       }
-      if (((bitField0_ & 0x00000004) == 0x00000004)) {
+      for (int i = 0; i < messageId_.size(); i++) {
         size += com.google.protobuf.CodedOutputStream
-          .computeMessageSize(3, messageId_);
+          .computeMessageSize(3, messageId_.get(i));
       }
-      if (((bitField0_ & 0x00000008) == 0x00000008)) {
+      if (((bitField0_ & 0x00000004) == 0x00000004)) {
         size += com.google.protobuf.CodedOutputStream
           .computeEnumSize(4, validationError_.getNumber());
       }
@@ -14250,7 +14366,7 @@ public final class PulsarApi {
         bitField0_ = (bitField0_ & ~0x00000001);
         ackType_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.AckType.Individual;
         bitField0_ = (bitField0_ & ~0x00000002);
-        messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
+        messageId_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000004);
         validationError_ = org.apache.pulsar.common.api.proto.PulsarApi.CommandAck.ValidationError.UncompressedSizeCorruption;
         bitField0_ = (bitField0_ & ~0x00000008);
@@ -14297,12 +14413,13 @@ public final class PulsarApi {
           to_bitField0_ |= 0x00000002;
         }
         result.ackType_ = ackType_;
-        if (((from_bitField0_ & 0x00000004) == 0x00000004)) {
-          to_bitField0_ |= 0x00000004;
+        if (((bitField0_ & 0x00000004) == 0x00000004)) {
+          messageId_ = java.util.Collections.unmodifiableList(messageId_);
+          bitField0_ = (bitField0_ & ~0x00000004);
         }
         result.messageId_ = messageId_;
         if (((from_bitField0_ & 0x00000008) == 0x00000008)) {
-          to_bitField0_ |= 0x00000008;
+          to_bitField0_ |= 0x00000004;
         }
         result.validationError_ = validationError_;
         if (((bitField0_ & 0x00000010) == 0x00000010)) {
@@ -14322,8 +14439,15 @@ public final class PulsarApi {
         if (other.hasAckType()) {
           setAckType(other.getAckType());
         }
-        if (other.hasMessageId()) {
-          mergeMessageId(other.getMessageId());
+        if (!other.messageId_.isEmpty()) {
+          if (messageId_.isEmpty()) {
+            messageId_ = other.messageId_;
+            bitField0_ = (bitField0_ & ~0x00000004);
+          } else {
+            ensureMessageIdIsMutable();
+            messageId_.addAll(other.messageId_);
+          }
+          
         }
         if (other.hasValidationError()) {
           setValidationError(other.getValidationError());
@@ -14350,13 +14474,11 @@ public final class PulsarApi {
           
           return false;
         }
-        if (!hasMessageId()) {
-          
-          return false;
-        }
-        if (!getMessageId().isInitialized()) {
-          
-          return false;
+        for (int i = 0; i < getMessageIdCount(); i++) {
+          if (!getMessageId(i).isInitialized()) {
+            
+            return false;
+          }
         }
         for (int i = 0; i < getPropertiesCount(); i++) {
           if (!getProperties(i).isInitialized()) {
@@ -14405,12 +14527,8 @@ public final class PulsarApi {
             }
             case 26: {
               org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder subBuilder = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder();
-              if (hasMessageId()) {
-                subBuilder.mergeFrom(getMessageId());
-              }
               input.readMessage(subBuilder, extensionRegistry);
-              setMessageId(subBuilder.buildPartial());
-              subBuilder.recycle();
+              addMessageId(subBuilder.buildPartial());
               break;
             }
             case 32: {
@@ -14479,46 +14597,92 @@ public final class PulsarApi {
         return this;
       }
       
-      // required .pulsar.proto.MessageIdData message_id = 3;
-      private org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-      public boolean hasMessageId() {
-        return ((bitField0_ & 0x00000004) == 0x00000004);
+      // repeated .pulsar.proto.MessageIdData message_id = 3;
+      private java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> messageId_ =
+        java.util.Collections.emptyList();
+      private void ensureMessageIdIsMutable() {
+        if (!((bitField0_ & 0x00000004) == 0x00000004)) {
+          messageId_ = new java.util.ArrayList<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData>(messageId_);
+          bitField0_ |= 0x00000004;
+         }
       }
-      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId() {
-        return messageId_;
+      
+      public java.util.List<org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> getMessageIdList() {
+        return java.util.Collections.unmodifiableList(messageId_);
       }
-      public Builder setMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+      public int getMessageIdCount() {
+        return messageId_.size();
+      }
+      public org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData getMessageId(int index) {
+        return messageId_.get(index);
+      }
+      public Builder setMessageId(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
         if (value == null) {
           throw new NullPointerException();
         }
-        messageId_ = value;
+        ensureMessageIdIsMutable();
+        messageId_.set(index, value);
         
-        bitField0_ |= 0x00000004;
         return this;
       }
       public Builder setMessageId(
-          org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
-        messageId_ = builderForValue.build();
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        ensureMessageIdIsMutable();
+        messageId_.set(index, builderForValue.build());
         
-        bitField0_ |= 0x00000004;
         return this;
       }
-      public Builder mergeMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
-        if (((bitField0_ & 0x00000004) == 0x00000004) &&
-            messageId_ != org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance()) {
-          messageId_ =
-            org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.newBuilder(messageId_).mergeFrom(value).buildPartial();
-        } else {
-          messageId_ = value;
+      public Builder addMessageId(org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
         }
+        ensureMessageIdIsMutable();
+        messageId_.add(value);
         
-        bitField0_ |= 0x00000004;
+        return this;
+      }
+      public Builder addMessageId(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData value) {
+        if (value == null) {
+          throw new NullPointerException();
+        }
+        ensureMessageIdIsMutable();
+        messageId_.add(index, value);
+        
+        return this;
+      }
+      public Builder addMessageId(
+          org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        ensureMessageIdIsMutable();
+        messageId_.add(builderForValue.build());
+        
+        return this;
+      }
+      public Builder addMessageId(
+          int index, org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.Builder builderForValue) {
+        ensureMessageIdIsMutable();
+        messageId_.add(index, builderForValue.build());
+        
+        return this;
+      }
+      public Builder addAllMessageId(
+          java.lang.Iterable<? extends org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData> values) {
+        ensureMessageIdIsMutable();
+        super.addAll(values, messageId_);
+        
         return this;
       }
       public Builder clearMessageId() {
-        messageId_ = org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData.getDefaultInstance();
-        
+        messageId_ = java.util.Collections.emptyList();
         bitField0_ = (bitField0_ & ~0x00000004);
+        
+        return this;
+      }
+      public Builder removeMessageId(int index) {
+        ensureMessageIdIsMutable();
+        messageId_.remove(index);
+        
         return this;
       }
       

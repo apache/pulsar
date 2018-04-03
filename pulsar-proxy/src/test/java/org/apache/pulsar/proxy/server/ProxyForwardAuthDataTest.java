@@ -135,10 +135,8 @@ public class ProxyForwardAuthDataTest extends ProducerConsumerBase {
 
     private void createAdminClient() throws PulsarClientException {
         String adminAuthParams = "authParam:admin";
-        org.apache.pulsar.client.api.ClientConfiguration clientConf = new org.apache.pulsar.client.api.ClientConfiguration();
-        clientConf.setAuthentication(BasicAuthentication.class.getName(), adminAuthParams);
-
-        admin = spy(new PulsarAdmin(brokerUrl, clientConf));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString())
+                .authentication(BasicAuthentication.class.getName(), adminAuthParams).build());
     }
 
     private PulsarClient createPulsarClient(String proxyServiceUrl, String authParams) throws PulsarClientException {

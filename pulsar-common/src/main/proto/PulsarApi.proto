@@ -215,6 +215,13 @@ message CommandSubscribe {
     optional bool read_compacted = 11;
 
 	optional Schema schema = 12;
+	enum InitialPosition {
+		Latest   = 0;
+		Earliest = 1;
+	}
+	// Signal wthether the subscription will initialize on latest
+	// or not -- earliest
+	optional InitialPosition initialPosition = 13 [default = Latest];
 }
 
 message CommandPartitionedTopicMetadata {
@@ -329,7 +336,9 @@ message CommandAck {
 
 	required uint64 consumer_id       = 1;
 	required AckType ack_type         = 2;
-	required MessageIdData message_id = 3;
+
+	// In case of individual acks, the client can pass a list of message ids
+	repeated MessageIdData message_id = 3;
 
 	// Acks can contain a flag to indicate the consumer
 	// received an invalid message that got discarded
@@ -343,7 +352,7 @@ message CommandAck {
 	}
 
 	optional ValidationError validation_error = 4;
-        repeated KeyLongValue properties = 5;
+	repeated KeyLongValue properties = 5;
 }
 
 // changes on active consumer

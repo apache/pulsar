@@ -597,7 +597,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
         final int totalProducedMsgs = 500;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subscriberName)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+                .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
 
         Producer<byte[]> producer = pulsarClient.newProducer().topic("persistent://my-property/use/my-ns/unacked-topic")
                 .create();
@@ -701,15 +701,15 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
 
             ConsumerImpl<byte[]> consumer1Sub1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             // create subscription-2 and 3
             ConsumerImpl<byte[]> consumer1Sub2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName2).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             consumer1Sub2.close();
             ConsumerImpl<byte[]> consumer1Sub3 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName3).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             consumer1Sub3.close();
 
             Producer<byte[]> producer = pulsarClient.newProducer()
@@ -749,7 +749,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             // (1.b) consumer2 with same sub should not receive any more messages as subscription is blocked
             ConsumerImpl<byte[]> consumer2Sub1 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName1).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumer2Msgs = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer2Sub1.receive(100, TimeUnit.MILLISECONDS);
@@ -774,7 +774,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
              **/
             ConsumerImpl<byte[]> consumerSub2 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName2).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             Set<MessageId> messages2 = Sets.newHashSet();
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumerSub2.receive(100, TimeUnit.MILLISECONDS);
@@ -791,7 +791,7 @@ public class DispatcherBlockConsumerTest extends ProducerConsumerBase {
             /** (3) if Subscription3 is acking then it shouldn't be blocked **/
             consumer1Sub3 = (ConsumerImpl<byte[]>) pulsarClient.newConsumer().topic(topicName)
                     .subscriptionName(subscriberName3).receiverQueueSize(receiverQueueSize)
-                    .subscriptionType(SubscriptionType.Shared).subscribe();
+                    .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
             int consumedMsgsSub3 = 0;
             for (int j = 0; j < totalProducedMsgs; j++) {
                 msg = consumer1Sub3.receive(100, TimeUnit.MILLISECONDS);

@@ -41,6 +41,10 @@
 .admonition {
   margin: 1rem 0;
 
+  p + .highlighter-rouge {
+    margin-top: .75rem;
+  }
+
   p {
     margin: 0;
 

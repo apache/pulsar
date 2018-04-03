@@ -26,7 +26,7 @@ import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
-
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 /**
  * Class specifying the configuration of a consumer. In Exclusive subscription, only a single consumer is allowed to
  * attach to the subscription. Other consumers will get an error message. In Shared subscription, multiple consumers
@@ -45,6 +45,13 @@ public class ConsumerConfiguration implements Serializable {
     private static final long serialVersionUID = 1L;
 
     private final ConsumerConfigurationData<byte[]> conf = new ConsumerConfigurationData<>();
+
+    private boolean initializeSubscriptionOnLatest = true;
+
+    public ConsumerConfiguration() {
+        // Disable acknowledgment grouping when using v1 API
+        conf.setAcknowledgementsGroupTimeMicros(0);
+    }
 
     /**
      * @return the configured timeout in milliseconds for unacked messages.
@@ -338,5 +345,22 @@ public class ConsumerConfiguration implements Serializable {
 
     public ConsumerConfigurationData<byte[]> getConfigurationData() {
         return conf;
+    }
+
+     /**
+     * @param subscriptionInitialPosition the initial position at which to set
+     * set cursor  when subscribing to the topic first time
+     * Default is {@value InitialPosition.Latest}
+     */
+    public ConsumerConfiguration setSubscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition) {
+        conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
+        return this;
+    }
+
+    /**
+     * @return the configured {@link subscriptionInitailPosition} for the consumer
+     */
+    public SubscriptionInitialPosition getSubscriptionInitialPosition(){
+        return conf.getSubscriptionInitialPosition();
     }
 }

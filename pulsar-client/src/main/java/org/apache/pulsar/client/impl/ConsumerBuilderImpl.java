@@ -37,6 +37,7 @@ import org.apache.pulsar.client.api.MessageListener;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.api.PulsarClientException.InvalidConfigurationException;
 import org.apache.pulsar.client.api.Schema;
+import org.apache.pulsar.client.api.SubscriptionInitialPosition;
 import org.apache.pulsar.client.api.SubscriptionType;
 import org.apache.pulsar.client.impl.conf.ConsumerConfigurationData;
 import org.apache.pulsar.common.util.FutureUtil;
@@ -182,6 +183,13 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
     }
 
     @Override
+    public ConsumerBuilder<T> acknowledmentGroupTime(long delay, TimeUnit unit) {
+        checkArgument(delay >= 0);
+        conf.setAcknowledgementsGroupTimeMicros(unit.toMicros(delay));
+        return this;
+    }
+
+    @Override
     public ConsumerBuilder<T> consumerName(String consumerName) {
         conf.setConsumerName(consumerName);
         return this;
@@ -222,4 +230,10 @@ public class ConsumerBuilderImpl<T> implements ConsumerBuilder<T> {
         conf.setPatternAutoDiscoveryPeriod(periodInMinutes);
         return this;
     }
+
+	@Override
+	public ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition) {
+        conf.setSubscriptionInitialPosition(subscriptionInitialPosition);
+		return this;
+	}
 }

@@ -200,6 +200,20 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
     ConsumerBuilder<T> receiverQueueSize(int receiverQueueSize);
 
     /**
+     * Group the consumer acknowledgments for the specified time.
+     * <p>
+     * By default, the consumer will use a 100 ms grouping time to send out the acknowledgments to the broker.
+     * <p>
+     * Setting a group time of 0, will send out the acknowledgments immediately.
+     *
+     * @param delay
+     *            the max amount of time an acknowledgemnt can be delayed
+     * @param unit
+     *            the time unit for the delay
+     */
+    ConsumerBuilder<T> acknowledmentGroupTime(long delay, TimeUnit unit);
+
+    /**
      * Set the max total receiver queue size across partitons.
      * <p>
      * This setting will be used to reduce the receiver queue size for individual partitions
@@ -292,4 +306,8 @@ public interface ConsumerBuilder<T> extends Serializable, Cloneable {
      */
     ConsumerBuilder<T> properties(Map<String, String> properties);
 
+    /**
+     * Set subscriptionInitialPosition for the consumer
+    */
+    ConsumerBuilder<T> subscriptionInitialPosition(SubscriptionInitialPosition subscriptionInitialPosition);
 }

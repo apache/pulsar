@@ -32,13 +32,8 @@ import static org.testng.Assert.assertNotSame;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import java.lang.reflect.Field;
 import java.net.URI;
-import java.time.Clock;
-import java.time.Instant;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -46,20 +41,21 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CountDownLatch;
+
 import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.StreamingOutput;
 import javax.ws.rs.core.UriInfo;
+
 import org.apache.bookkeeper.conf.ClientConfiguration;
 import org.apache.bookkeeper.mledger.proto.PendingBookieOpsStats;
 import org.apache.bookkeeper.util.ZkUtils;
 import org.apache.pulsar.broker.admin.v1.BrokerStats;
 import org.apache.pulsar.broker.admin.v1.Brokers;
 import org.apache.pulsar.broker.admin.v1.Clusters;
+import org.apache.pulsar.broker.admin.v1.Properties;
 import org.apache.pulsar.broker.admin.v1.Namespaces;
 import org.apache.pulsar.broker.admin.v1.PersistentTopics;
-import org.apache.pulsar.broker.admin.v1.Properties;
 import org.apache.pulsar.broker.admin.v1.ResourceQuotas;
-import org.apache.pulsar.broker.admin.v2.SchemasResource;
 import org.apache.pulsar.broker.auth.MockedPulsarServiceBaseTest;
 import org.apache.pulsar.broker.cache.ConfigurationCacheService;
 import org.apache.pulsar.broker.web.PulsarWebResource;
@@ -87,10 +83,13 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 @Test
 public class AdminTest extends MockedPulsarServiceBaseTest {
-    private final String configClusterName = "use";
     private ConfigurationCacheService configurationCache;
+
     private Clusters clusters;
     private Properties properties;
     private Namespaces namespaces;
@@ -98,13 +97,9 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
     private Brokers brokers;
     private ResourceQuotas resourceQuotas;
     private BrokerStats brokerStats;
-    private SchemasResource schemasResource;
+
     private Field uriField;
-    private UriInfo uriInfo;
-    private Clock mockClock = Clock.fixed(
-        Instant.ofEpochSecond(365248800),
-        ZoneId.of("-05:00")
-    );
+    private final String configClusterName = "use";
 
     public AdminTest() {
         super();
@@ -189,14 +184,6 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         doReturn(mockZookKeeper).when(brokerStats).localZk();
         doReturn(configurationCache.propertiesCache()).when(brokerStats).propertiesCache();
         doReturn(configurationCache.policiesCache()).when(brokerStats).policiesCache();
-
-        schemasResource = spy(new SchemasResource(mockClock));
-        schemasResource.setServletContext(new MockServletContext());
-        schemasResource.setPulsar(pulsar);
-        doReturn(mockZookKeeper).when(schemasResource).globalZk();
-        doReturn(mockZookKeeper).when(schemasResource).localZk();
-        doReturn(configurationCache.propertiesCache()).when(schemasResource).propertiesCache();
-        doReturn(configurationCache.policiesCache()).when(schemasResource).policiesCache();
     }
 
     @Override
@@ -217,10 +204,10 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void clusters() throws Exception {
-        assertEquals(clusters.getClusters(), Lists.newArrayList(configClusterName));
+        assertEquals(clusters.getClusters(), Lists.newArrayList());
         verify(clusters, never()).validateSuperUserAccess();
 
-        clusters.updateCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
+        clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com"));
         verify(clusters, times(1)).validateSuperUserAccess();
         // ensure to read from ZooKeeper directly
         clusters.clustersListCache().clear();
@@ -478,7 +465,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(properties.getProperties(), Lists.newArrayList());
 
         // Create a namespace to test deleting a non-empty property
-        clusters.updateCluster("use", new ClusterData());
+        clusters.createCluster("use", new ClusterData());
         newPropertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "other-role"), Sets.newHashSet("use"));
         properties.createProperty("my-property", newPropertyAdmin);
 
@@ -505,11 +492,11 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
 
     @Test
     void brokers() throws Exception {
-        clusters.updateCluster("use", new ClusterData("http://broker.messaging.use.example.com",
-            "https://broker.messaging.use.example.com:4443"));
+        clusters.createCluster("use", new ClusterData("http://broker.messaging.use.example.com",
+                "https://broker.messaging.use.example.com:4443"));
 
         URI requestUri = new URI(
-            "http://broker.messaging.use.example.com" + ":" + BROKER_WEBSERVICE_PORT + "/admin/brokers/use");
+                "http://broker.messaging.use.example.com" + ":" + BROKER_WEBSERVICE_PORT + "/admin/brokers/use");
         UriInfo mockUri = mock(UriInfo.class);
         doReturn(requestUri).when(mockUri).getRequestUri();
         Field uriField = PulsarWebResource.class.getDeclaredField("uri");
@@ -562,8 +549,8 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         PropertyAdmin admin = new PropertyAdmin();
         admin.getAllowedClusters().add(cluster);
         mockZookKeeper.create(PulsarWebResource.path(POLICIES, property),
-            ObjectMapperFactory.getThreadLocal().writeValueAsBytes(admin), Ids.OPEN_ACL_UNSAFE,
-            CreateMode.PERSISTENT);
+                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(admin), Ids.OPEN_ACL_UNSAFE,
+                CreateMode.PERSISTENT);
 
         // customized bandwidth for this namespace
         double customizeBandwidth = 3000;
@@ -573,7 +560,7 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         // set and get Resource Quota
         resourceQuotas.setNamespaceBundleResourceQuota(property, cluster, namespace, bundleRange, quota);
         ResourceQuota bundleQuota = resourceQuotas.getNamespaceBundleResourceQuota(property, cluster, namespace,
-            bundleRange);
+                bundleRange);
         assertEquals(quota, bundleQuota);
 
         // remove quota which sets to default quota
@@ -663,4 +650,5 @@ public class AdminTest extends MockedPulsarServiceBaseTest {
         assertEquals(exception.getMessage(), message);
 
     }
+
 }

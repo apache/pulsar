@@ -1,6 +1,7 @@
 ---
 title: Getting started with Pulsar Functions
 lead: Write and run your first Pulsar Function in just a few steps
+preview: true
 ---
 
 This tutorial will walk you through running a {% popover standalone %} Pulsar {% popover cluster %} on your machine and then running your first Pulsar Functions using that cluster. The first function will run in local run mode (outside your Pulsar {% popover cluster %}), while the second will run in cluster mode (inside your cluster).
@@ -16,16 +17,16 @@ In order to follow along with this tutorial, you'll need to have [Maven](https:/
 In order to run our Pulsar Functions, we'll need to run a Pulsar cluster locally first. The easiest way to do that is to run Pulsar in {% popover standalone %} mode. Follow these steps to start up a standalone cluster:
 
 ```bash
-$ wget https://github.com/streamlio/incubator-pulsar/releases/download/2.0.0-incubating-functions-preview/apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-$ tar xvf apache-pulsar-2.0.0-incubating-functions-preview-bin.tar.gz
-$ cd apache-pulsar-2.0.0-incubating-functions-preview
+$ wget https://repository.apache.org/content/repositories/snapshots/org/apache/pulsar/distribution/2.0.0-incubating-SNAPSHOT/distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz
+$ tar xvf distribution-2.0.0-incubating-{{ site.preview_version_id }}-bin.tar.gz
+$ cd apache-pulsar-2.0.0-incubating-SNAPSHOT
 $ bin/pulsar standalone \
   --advertised-address 127.0.0.1
 ```
 
 When running Pulsar in standalone mode, the `sample` {% popover tenant %} and `ns1` {% popover namespace %} will be created automatically for you. That tenant and namespace will be used throughout this tutorial.
 
-## Run a Pulsar Function in local run mode
+## Run a Pulsar Function in local run mode {#local-run-mode}
 
 Let's start with a simple function that takes a string as input from a Pulsar topic, adds an exclamation point to the end of the string, and then publishes that new string to another Pulsar topic. Here's the code for the function:
 
@@ -53,26 +54,30 @@ $ bin/pulsar-admin functions localrun \
   --name exclamation
 ```
 
-We can use the [`pulsar-client`](../../reference/CliTools#pulsar-client) CLI tool to publish a message to the input topic:
+{% include admonition.html title='Multiple input topics allowed' type='success' content="
+In the example above, a single topic was specified using the `--inputs` flag. You can also specify multiple input topics as a comma-separated list using the same flag. Here's an example:
+
+```bash
+--inputs topic1,topic2
+```
+" %}
+
+We can open up another shell and use the [`pulsar-client`](../../reference/CliTools#pulsar-client) tool to listen for messages on the output topic:
+
+```bash
+$ bin/pulsar-client consume persistent://sample/standalone/ns1/exclamation-output \
+  --subscription-name my-subscription \
+  --num-messages 0
+```
+
+{% include admonition.html type="info" content="Setting the `--num-messages` flag to 0 means that the consumer will listen on the topic indefinitely (rather than only accepting a certain number of messages)." %}
+
+With a listener up and running, we can open up another shell and produce a message on the input topic that we specified:
 
 ```bash
 $ bin/pulsar-client produce persistent://sample/standalone/ns1/exclamation-input \
   --num-produce 1 \
   --messages "Hello world"
-```
-
-Here's what happens next:
-
-* The `Hello world` message that we published to the input {% popover topic %} (`persistent://sample/standalone/ns1/exclamation-input`) will be passed to the exclamation function that we're now running on our laptop
-* The exclamation function will process the message (providing a result of `Hello world!`) and publish the result to the output topic (`persistent://sample/standalone/ns1/exclamation-output`).
-* Pulsar will durably store the message data published to the output topic in [Apache BookKeeper](https://bookkeeper.apache.org) until a {% popover consumer %} consumes and {% popover acknowledges %} the message
-
-To consume the message, we can use the same [`pulsar-client`](../../reference/CliTools#pulsar-client) tool that we used to publish the original message:
-
-```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/exclamation-output \
-  --subscription-name my-subscription \
-  --num-messages 1
 ```
 
 In the output, you should see the following:
@@ -84,11 +89,17 @@ Hello world!
 
 Success! As you can see, the message has been successfully processed by the exclamation function. To shut down the function, simply hit **Ctrl+C**.
 
-## Run a Pulsar Function in cluster mode
+Here's what happened:
 
-[Local run mode](#run-a-pulsar-function-in-local-run-mode) is useful for development and experimentation, but if you wanted to use Pulsar Functions in a real Pulsar deployment, you'd want to run them in **cluster mode**. In cluster mode, Pulsar Functions run *inside* your Pulsar cluster and are managed using the same `pulsar-admin functions` interface that we've been using thus far.
+* The `Hello world` message that we published to the input {% popover topic %} (`persistent://sample/standalone/ns1/exclamation-input`) was passed to the exclamation function that we ran on our machine
+* The exclamation function processed the message (providing a result of `Hello world!`) and published the result to the output topic (`persistent://sample/standalone/ns1/exclamation-output`).
+* If our exclamation function *hadn't* been running, Pulsar would have durably stored the message data published to the input topic in [Apache BookKeeper](https://bookkeeper.apache.org) until a {% popover consumer %} consumed and {% popover acknowledged %} the message
 
-This command would deploy the same exclamation function we ran locally above in our Pulsar cluster:
+## Run a Pulsar Function in cluster mode {#cluster-mode}
+
+[Local run mode](#local-run-mode) is useful for development and experimentation, but if you want to use Pulsar Functions in a real Pulsar deployment, you'll want to run them in **cluster mode**. In this mode, Pulsar Functions run *inside* your Pulsar cluster and are managed using the same [`pulsar-admin functions`](../../reference/CliTools#pulsar-admin-functions) interface that we've been using thus far.
+
+This command, for example, would deploy the same exclamation function we ran locally above *in our Pulsar cluster* (rather than outside it):
 
 ```bash
 $ bin/pulsar-admin functions create \
@@ -212,13 +223,7 @@ $ touch reverse.py
 In that file, add the following:
 
 ```python
-from pulsarfunction import pulsar_function
-
-class Reverse(pulsar_function.PulsarFunction):
-  def __init__(self):
-    pass
-
-  def process(self, input):
+def process(input):
     return input[::-1]
 ```
 
@@ -227,35 +232,31 @@ Here, the `process` method defines the processing logic of the Pulsar Function. 
 ```bash
 $ bin/pulsar-admin functions create \
   --py reverse.py \
-  --className reverse.Reverse \
-  --inputs persistent://sample/standalone/ns1/forwards \
-  --output persistent://sample/standalone/ns1/backwards \
+  --className reverse \
+  --inputs persistent://sample/standalone/ns1/backwards \
+  --output persistent://sample/standalone/ns1/forwards \
   --tenant sample \
   --namespace ns1 \
-  --name reverse 
+  --name reverse
 ```
 
-If you see `Created successfully`, the function is ready to accept incoming messages. Let's publish a string to the input topic:
+If you see `Created successfully`, the function is ready to accept incoming messages. Because the function is running in cluster mode, we can **trigger** the function using the [`trigger`](../../reference/CliTools#pulsar-admin-functions-trigger) command. This command will send a message that we specify to the function and also give us the function's output. Here's an example:
 
 ```bash
-$ bin/pulsar-client produce persistent://sample/standalone/ns1/forwards \
-  --num-produce 1 \
-  --messages "sdrawrof won si tub sdrawkcab saw gnirts sihT"
+$ bin/pulsar-admin functions trigger \
+  --name reverse \
+  --tenant sample \
+  --namespace ns1 \
+  --triggerValue "sdrawrof won si tub sdrawkcab saw gnirts sihT"
 ```
 
-Now, let's pull in a message from the output topic:
-
-```bash
-$ bin/pulsar-client consume persistent://sample/standalone/ns1/backwards \
-  --subscription-name my-subscription \
-  --num-messages 1
-```
-
-You should see the reversed string in the log output:
+You should get this output:
 
 ```
------ got message -----
 This string was backwards but is now forwards
 ```
 
-Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster, and successfully published to the function's input topic and consumed from its output topic.
+Once again, success! We created a brand new Pulsar Function, deployed it in our Pulsar standalone cluster in [cluster mode](#cluster-mode) and successfully triggered the function. If you're ready for more, check out one of these docs:
+
+* [The Pulsar Functions API](../api)
+* [Deploying Pulsar Functions](../deployment)

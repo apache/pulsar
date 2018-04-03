@@ -18,7 +18,6 @@
  */
 package org.apache.pulsar.common.api;
 
-import static com.google.protobuf.ByteString.copyFrom;
 import static com.google.protobuf.ByteString.copyFromUtf8;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.computeChecksum;
 import static com.scurrilous.circe.checksum.Crc32cIntChecksum.resumeChecksum;
@@ -32,7 +31,6 @@ import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 import org.apache.pulsar.common.api.proto.PulsarApi;
 import org.apache.pulsar.common.api.proto.PulsarApi.AuthMethod;
 import org.apache.pulsar.common.api.proto.PulsarApi.BaseCommand;
@@ -68,6 +66,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.CommandSend;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendError;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSendReceipt;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe;
+import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.SubType;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSuccess;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandUnsubscribe;
@@ -75,9 +74,8 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageIdData;
 import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
-import org.apache.pulsar.common.schema.SchemaInfo;
-import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.collections.Pair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -239,12 +237,19 @@ public class Commands {
         return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
     }
 
-    public static Long readChecksum(ByteBuf buffer) {
-        if(hasChecksum(buffer)) {
-            buffer.skipBytes(2); //skip magic bytes
-            return buffer.readUnsignedInt();
-        } else{
-            return null;
+    /**
+     * Read the checksum and advance the reader index in the buffer.
+     *
+     * Note: This method assume the checksum presence was already verified before.
+     */
+    public static int readChecksum(ByteBuf buffer) {
+        buffer.skipBytes(2); //skip magic bytes
+        return buffer.readInt();
+    }
+
+    public static void skipChecksumIfPresent(ByteBuf buffer) {
+        if (hasChecksum(buffer)) {
+            readChecksum(buffer);
         }
     }
 
@@ -252,7 +257,7 @@ public class Commands {
         try {
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
             // metadata
-            readChecksum(buffer);
+            skipChecksumIfPresent(buffer);
             int metadataSize = (int) buffer.readUnsignedInt();
 
             int writerIndex = buffer.writerIndex();
@@ -305,19 +310,12 @@ public class Commands {
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName) {
         return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName,
-                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false);
+                true /* isDurable */, null /* startMessageId */, Collections.emptyMap(), false, InitialPosition.Earliest);
     }
 
     public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
             SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted) {
-        return newSubscribe(topic, subscription, consumerId, requestId, subType, priorityLevel, consumerName, isDurable,
-            startMessageId, metadata, readCompacted, null);
-    }
-
-    public static ByteBuf newSubscribe(String topic, String subscription, long consumerId, long requestId,
-            SubType subType, int priorityLevel, String consumerName, boolean isDurable, MessageIdData startMessageId,
-            Map<String, String> metadata, boolean readCompacted, SchemaInfo schemaInfo) {
+            Map<String, String> metadata, boolean readCompacted, InitialPosition subscriptionInitialPosition) {
         CommandSubscribe.Builder subscribeBuilder = CommandSubscribe.newBuilder();
         subscribeBuilder.setTopic(topic);
         subscribeBuilder.setSubscription(subscription);
@@ -328,14 +326,11 @@ public class Commands {
         subscribeBuilder.setPriorityLevel(priorityLevel);
         subscribeBuilder.setDurable(isDurable);
         subscribeBuilder.setReadCompacted(readCompacted);
+        subscribeBuilder.setInitialPosition(subscriptionInitialPosition);
         if (startMessageId != null) {
             subscribeBuilder.setStartMessageId(startMessageId);
         }
         subscribeBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
-
-        if (null != schemaInfo) {
-            subscribeBuilder.setSchema(getSchema(schemaInfo));
-        }
 
         CommandSubscribe subscribe = subscribeBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.SUBSCRIBE).setSubscribe(subscribe));
@@ -430,41 +425,6 @@ public class Commands {
 
     public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
                 boolean encrypted, Map<String, String> metadata) {
-        return newProducer(topic, producerId, requestId, producerName, encrypted, metadata, null);
-    }
-
-    private static PulsarApi.Schema.Type getSchemaType(SchemaType type) {
-        switch (type) {
-            case PROTOBUF:
-                return PulsarApi.Schema.Type.Protobuf;
-            case THRIFT:
-                return PulsarApi.Schema.Type.Thrift;
-            case AVRO:
-                return PulsarApi.Schema.Type.Avro;
-            case JSON:
-                return PulsarApi.Schema.Type.Json;
-            default:
-                return null;
-        }
-    }
-
-    private static PulsarApi.Schema getSchema(SchemaInfo schemaInfo) {
-        return PulsarApi.Schema.newBuilder()
-            .setName(schemaInfo.getName())
-            .setSchemaData(copyFrom(schemaInfo.getSchema()))
-            .setType(getSchemaType(schemaInfo.getType()))
-            .addAllProperties(
-                schemaInfo.getProperties().entrySet().stream().map(entry ->
-                    PulsarApi.KeyValue.newBuilder()
-                        .setKey(entry.getKey())
-                        .setValue(entry.getValue())
-                        .build()
-                ).collect(Collectors.toList())
-            ).build();
-    }
-
-    public static ByteBuf newProducer(String topic, long producerId, long requestId, String producerName,
-                boolean encrypted, Map<String, String> metadata, SchemaInfo schemaInfo) {
         CommandProducer.Builder producerBuilder = CommandProducer.newBuilder();
         producerBuilder.setTopic(topic);
         producerBuilder.setProducerId(producerId);
@@ -475,10 +435,6 @@ public class Commands {
         producerBuilder.setEncrypted(encrypted);
 
         producerBuilder.addAllMetadata(CommandUtils.toKeyValueList(metadata));
-
-        if (null != schemaInfo) {
-            producerBuilder.setSchema(getSchema(schemaInfo));
-        }
 
         CommandProducer producer = producerBuilder.build();
         ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.PRODUCER).setProducer(producer));
@@ -564,6 +520,37 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newMultiMessageAck(long consumerId, List<Pair<Long, Long>> entries) {
+        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
+        ackBuilder.setConsumerId(consumerId);
+        ackBuilder.setAckType(AckType.Individual);
+
+        int entriesCount = entries.size();
+        for (int i = 0; i < entriesCount; i++) {
+            long ledgerId = entries.get(i).getFirst();
+            long entryId = entries.get(i).getSecond();
+
+            MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
+            messageIdDataBuilder.setLedgerId(ledgerId);
+            messageIdDataBuilder.setEntryId(entryId);
+            MessageIdData messageIdData = messageIdDataBuilder.build();
+            ackBuilder.addMessageId(messageIdData);
+
+            messageIdDataBuilder.recycle();
+        }
+
+        CommandAck ack = ackBuilder.build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
+
+        for (int i = 0; i < entriesCount; i++) {
+            ack.getMessageId(i).recycle();
+        }
+        ack.recycle();
+        ackBuilder.recycle();
+        return res;
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
                                  ValidationError validationError, Map<String,Long> properties) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -573,7 +560,7 @@ public class Commands {
         messageIdDataBuilder.setLedgerId(ledgerId);
         messageIdDataBuilder.setEntryId(entryId);
         MessageIdData messageIdData = messageIdDataBuilder.build();
-        ackBuilder.setMessageId(messageIdData);
+        ackBuilder.addMessageId(messageIdData);
         if (validationError != null) {
             ackBuilder.setValidationError(validationError);
         }
@@ -1043,6 +1030,10 @@ public class Commands {
     }
 
     public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
+    }
+
+    public static boolean peerSupportsMultiMessageAcknowledgment(int peerVersion) {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 

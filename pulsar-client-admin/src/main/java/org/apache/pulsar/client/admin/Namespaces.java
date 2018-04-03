@@ -826,6 +826,28 @@ public interface Namespaces {
     DispatchRate getDispatchRate(String namespace) throws PulsarAdminException;
 
     /**
+     * Set subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @param dispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException;
+
+    /** Get subscription-message-dispatch-rate (subscriptions under this namespace can dispatch this many messages per second)
+     *
+     * @param namespace
+     * @returns DispatchRate
+     *            number of messages per second
+     * @throws PulsarAdminException
+     *             Unexpected error
+     */
+    DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException;
+
+
+    /**
      * Clear backlog for all topics on a namespace
      *
      * @param namespace
