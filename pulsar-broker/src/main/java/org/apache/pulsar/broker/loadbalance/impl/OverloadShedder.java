@@ -23,8 +23,6 @@ import com.google.common.collect.Multimap;
 
 import java.util.Map;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
@@ -34,7 +32,8 @@ import org.apache.pulsar.broker.TimeAverageMessageData;
 import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
-
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Load shedding strategy which will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose
@@ -44,8 +43,9 @@ import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
  * LoadBalancerSheddingGracePeriodMinutes. The unloaded bundle will be the most expensive bundle in terms of message
  * rate that has not been recently unloaded.
  */
-@Slf4j
 public class OverloadShedder implements LoadSheddingStrategy {
+
+    private static final Logger log = LoggerFactory.getLogger(OverloadShedder.class);
 
     private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
 
