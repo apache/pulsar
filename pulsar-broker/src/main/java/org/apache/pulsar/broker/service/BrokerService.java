@@ -476,7 +476,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         replicationFuture.exceptionally((ex) -> {
             log.warn("Replication check failed. Removing topic from topics list {}, {}", topic, ex);
             nonPersistentTopic.stopReplProducers().whenComplete((v, exception) -> {
-                pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                 topicFuture.completeExceptionally(ex);
             });
 
@@ -579,7 +579,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // namespace is being unloaded
             String msg = String.format("Namespace is being unloaded, cannot add topic %s", topic);
             log.warn(msg);
-            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
             return;
         }
@@ -618,7 +618,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                                 });
                             } catch (NamingException e) {
                                 log.warn("Failed to create topic {}-{}", topic, e.getMessage());
-                                pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+                                pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                                 topicFuture.completeExceptionally(e);
                             }
                         }
@@ -626,7 +626,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
                             log.warn("Failed to create topic {}", topic, exception);
-                            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+                            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
                             topicFuture.completeExceptionally(new PersistenceException(exception));
                         }
                     }, null);
@@ -635,7 +635,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             log.warn("[{}] Failed to get topic configuration: {}", topic, exception.getMessage(), exception);
             // remove topic from topics-map in different thread to avoid possible deadlock if
             // createPersistentTopic-thread only tries to handle this future-result
-            pulsar.getExecutor().submit(() -> topics.remove(topic, topicFuture));
+            pulsar.getExecutor().execute(() -> topics.remove(topic, topicFuture));
             topicFuture.completeExceptionally(exception);
             return null;
         });
@@ -644,7 +644,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     public CompletableFuture<ManagedLedgerConfig> getManagedLedgerConfig(TopicName topicName) {
         CompletableFuture<ManagedLedgerConfig> future = new CompletableFuture<>();
         // Execute in background thread, since getting the policies might block if the z-node wasn't already cached
-        pulsar.getOrderedExecutor().submitOrdered(topicName, safeRun(() -> {
+        pulsar.getOrderedExecutor().executeOrdered(topicName, safeRun(() -> {
             NamespaceName namespace = topicName.getNamespaceObject();
             ServiceConfiguration serviceConfig = pulsar.getConfiguration();
 
@@ -1104,7 +1104,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void updateTopicMessageDispatchRate() {
-        this.pulsar().getExecutor().submit(() -> {
+        this.pulsar().getExecutor().execute(() -> {
             // update message-rate for each topic
             topics.forEach((name, topicFuture) -> {
                 if (topicFuture.isDone()) {
@@ -1150,7 +1150,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
     }
 
     private void updateManagedLedgerConfig() {
-        this.pulsar().getExecutor().submit(() -> {
+        this.pulsar().getExecutor().execute(() -> {
             // update managed-ledger config of each topic
             topics.forEach((name, topicFuture) -> {
                 if (topicFuture.isDone()) {
@@ -1403,7 +1403,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
             // block dispatcher with higher unack-msg when it reaches broker-unack msg limit
             log.info("[{}] Starting blocking dispatchers with unacked msgs {} due to reached max broker limit {}",
                     maxUnackedMessages, maxUnackedMsgsPerDispatcher);
-            executor().submit(() -> blockDispatchersWithLargeUnAckMessages());
+            executor().execute(() -> blockDispatchersWithLargeUnAckMessages());
         } else if (blockedDispatcherOnHighUnackedMsgs.get() && unAckedMessages < maxUnackedMessages / 2) {
             // unblock broker-dispatching if received enough acked messages back
             if (blockedDispatcherOnHighUnackedMsgs.compareAndSet(true, false)) {
@@ -1457,7 +1457,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
         try {
             dispatcherList.forEach(dispatcher -> {
                 dispatcher.unBlockDispatcherOnUnackedMsgs();
-                executor().submit(() -> dispatcher.readMoreEntries());
+                executor().execute(() -> dispatcher.readMoreEntries());
                 log.info("[{}] Dispatcher is unblocked", dispatcher.getName());
                 blockedDispatchers.remove(dispatcher);
             });
