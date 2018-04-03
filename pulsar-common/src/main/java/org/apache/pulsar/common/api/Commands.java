@@ -79,6 +79,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaInfo;
 import org.apache.pulsar.common.schema.SchemaType;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.collections.Pair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -566,6 +567,37 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newMultiMessageAck(long consumerId, List<Pair<Long, Long>> entries) {
+        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
+        ackBuilder.setConsumerId(consumerId);
+        ackBuilder.setAckType(AckType.Individual);
+
+        int entriesCount = entries.size();
+        for (int i = 0; i < entriesCount; i++) {
+            long ledgerId = entries.get(i).getFirst();
+            long entryId = entries.get(i).getSecond();
+
+            MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
+            messageIdDataBuilder.setLedgerId(ledgerId);
+            messageIdDataBuilder.setEntryId(entryId);
+            MessageIdData messageIdData = messageIdDataBuilder.build();
+            ackBuilder.addMessageId(messageIdData);
+
+            messageIdDataBuilder.recycle();
+        }
+
+        CommandAck ack = ackBuilder.build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
+
+        for (int i = 0; i < entriesCount; i++) {
+            ack.getMessageId(i).recycle();
+        }
+        ack.recycle();
+        ackBuilder.recycle();
+        return res;
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
                                  ValidationError validationError, Map<String,Long> properties) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -575,7 +607,7 @@ public class Commands {
         messageIdDataBuilder.setLedgerId(ledgerId);
         messageIdDataBuilder.setEntryId(entryId);
         MessageIdData messageIdData = messageIdDataBuilder.build();
-        ackBuilder.setMessageId(messageIdData);
+        ackBuilder.addMessageId(messageIdData);
         if (validationError != null) {
             ackBuilder.setValidationError(validationError);
         }
@@ -1045,6 +1077,10 @@ public class Commands {
     }
 
     public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
+    }
+
+    public static boolean peerSupportsMultiMessageAcknowledgment(int peerVersion) {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 

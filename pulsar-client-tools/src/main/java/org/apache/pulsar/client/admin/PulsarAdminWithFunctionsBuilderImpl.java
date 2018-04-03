@@ -16,21 +16,14 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-package org.apache.pulsar.common.schema;
+package org.apache.pulsar.client.admin;
 
-import java.util.HashMap;
-import java.util.Map;
-import lombok.Builder;
-import lombok.Data;
+import org.apache.pulsar.client.admin.internal.PulsarAdminBuilderImpl;
+import org.apache.pulsar.client.api.PulsarClientException;
 
-@Builder
-@Data
-public class SchemaData {
-    private final SchemaType type;
-    private final boolean isDeleted;
-    private final long timestamp;
-    private final String user;
-    private final byte[] data;
-    @Builder.Default
-    private Map<String, String> props = new HashMap<>();
+public class PulsarAdminWithFunctionsBuilderImpl extends PulsarAdminBuilderImpl {
+    @Override
+    public PulsarAdmin build() throws PulsarClientException {
+        return new PulsarAdminWithFunctions(conf.getServiceUrl(), conf);
+    }
 }
