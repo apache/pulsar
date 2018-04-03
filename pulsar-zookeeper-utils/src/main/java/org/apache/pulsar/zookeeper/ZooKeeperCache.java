@@ -81,6 +81,7 @@ public abstract class ZooKeeperCache implements Watcher {
     protected final Cache<String, Set<String>> childrenCache;
     protected final Cache<String, Boolean> existsCache;
     private final OrderedExecutor executor;
+    private final OrderedExecutor backgroundExecutor = OrderedExecutor.newBuilder().name("zk-cache-background").numThreads(2).build();
     private boolean shouldShutdownExecutor;
     public static final int cacheTimeOutInSec = 30;
 
@@ -174,7 +175,7 @@ public abstract class ZooKeeperCache implements Watcher {
     }
 
     public void asyncInvalidate(String path) {
-        executor.executeOrdered(path, () -> invalidate(path));
+        backgroundExecutor.execute(() -> invalidate(path));
     }
 
     public void invalidate(final String path) {
@@ -315,20 +316,20 @@ public abstract class ZooKeeperCache implements Watcher {
             // Broker doesn't restart on global-zk session lost: so handling unexpected exception
             try {
                 this.zkSession.get().getData(path, watcher, (rc, path1, ctx, content, stat) -> {
-                    Executor exec = this.executor != null ? this.executor : executor;
                     if (rc == Code.OK.intValue()) {
                         try {
                             T obj = deserializer.deserialize(path, content);
                             // avoid using the zk-client thread to process the result
-                            exec.execute(() -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
+                            backgroundExecutor.execute(
+                                    () -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
                         } catch (Exception e) {
-                            exec.execute(() -> zkFuture.completeExceptionally(e));
+                            backgroundExecutor.execute(() -> zkFuture.completeExceptionally(e));
                         }
                     } else if (rc == Code.NONODE.intValue()) {
                         // Return null values for missing z-nodes, as this is not "exceptional" condition
-                        exec.execute(() -> zkFuture.complete(null));
+                        backgroundExecutor.execute(() -> zkFuture.complete(null));
                     } else {
-                        exec.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
+                        backgroundExecutor.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                     }
                 }, null);
             } catch (Exception e) {
@@ -424,5 +425,7 @@ public abstract class ZooKeeperCache implements Watcher {
         if (shouldShutdownExecutor) {
             this.executor.shutdown();
         }
+
+        this.backgroundExecutor.shutdown();
     }
 }
