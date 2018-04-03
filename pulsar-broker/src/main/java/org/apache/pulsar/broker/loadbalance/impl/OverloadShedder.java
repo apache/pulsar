@@ -26,6 +26,7 @@ import java.util.Map;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.mutable.MutableBoolean;
 import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
@@ -34,7 +35,6 @@ import org.apache.pulsar.broker.loadbalance.LoadData;
 import org.apache.pulsar.broker.loadbalance.LoadSheddingStrategy;
 import org.apache.pulsar.policies.data.loadbalancer.LocalBrokerData;
 
-import dlshade.org.apache.commons.lang3.mutable.MutableBoolean;
 
 /**
  * Load shedding strategy which will attempt to shed exactly one bundle on brokers which are overloaded, that is, whose
