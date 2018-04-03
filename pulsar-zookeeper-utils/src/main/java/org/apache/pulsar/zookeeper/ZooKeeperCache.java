@@ -320,16 +320,16 @@ public abstract class ZooKeeperCache implements Watcher {
                         try {
                             T obj = deserializer.deserialize(path, content);
                             // avoid using the zk-client thread to process the result
-                            backgroundExecutor.execute(
+                            executor.execute(
                                     () -> zkFuture.complete(new SimpleImmutableEntry<Object, Stat>(obj, stat)));
                         } catch (Exception e) {
-                            backgroundExecutor.execute(() -> zkFuture.completeExceptionally(e));
+                            executor.execute(() -> zkFuture.completeExceptionally(e));
                         }
                     } else if (rc == Code.NONODE.intValue()) {
                         // Return null values for missing z-nodes, as this is not "exceptional" condition
-                        backgroundExecutor.execute(() -> zkFuture.complete(null));
+                        executor.execute(() -> zkFuture.complete(null));
                     } else {
-                        backgroundExecutor.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
+                        executor.execute(() -> zkFuture.completeExceptionally(KeeperException.create(rc)));
                     }
                 }, null);
             } catch (Exception e) {
