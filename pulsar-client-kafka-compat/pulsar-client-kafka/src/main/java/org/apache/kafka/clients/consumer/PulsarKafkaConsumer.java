@@ -539,6 +539,7 @@ public class PulsarKafkaConsumer<K, V> implements Consumer<K, V>, MessageListene
             if (isAutoCommit) {
                 commitAsync();
             }
+
             client.closeAsync().get(timeout, unit);
         } catch (InterruptedException | ExecutionException | TimeoutException e) {
             throw new RuntimeException(e);

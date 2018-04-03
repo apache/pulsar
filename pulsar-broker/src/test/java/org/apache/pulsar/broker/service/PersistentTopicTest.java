@@ -1243,8 +1243,8 @@ public class PersistentTopicTest {
                                                                cursorMock);
         PositionImpl position = new PositionImpl(1, 1);
         long ledgerId = 0xc0bfefeL;
-        sub.acknowledgeMessage(position, AckType.Cumulative,
-                               ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
+        sub.acknowledgeMessage(Collections.singletonList(position), AckType.Cumulative,
+                ImmutableMap.of(Compactor.COMPACTED_TOPIC_LEDGER_PROPERTY, ledgerId));
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
 

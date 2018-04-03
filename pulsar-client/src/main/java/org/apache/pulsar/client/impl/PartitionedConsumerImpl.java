@@ -424,6 +424,10 @@ public class PartitionedConsumerImpl<T> extends ConsumerBase<T> {
         internalConsumerConfig.setSubscriptionName(conf.getSubscriptionName());
         internalConsumerConfig.setSubscriptionType(conf.getSubscriptionType());
         internalConsumerConfig.setConsumerName(consumerName);
+        internalConsumerConfig.setAcknowledgementsGroupTimeMicros(conf.getAcknowledgementsGroupTimeMicros());
+        internalConsumerConfig.setPriorityLevel(conf.getPriorityLevel());
+        internalConsumerConfig.setProperties(conf.getProperties());
+        internalConsumerConfig.setReadCompacted(conf.isReadCompacted());
         if (null != conf.getConsumerEventListener()) {
             internalConsumerConfig.setConsumerEventListener(conf.getConsumerEventListener());
         }

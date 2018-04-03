@@ -140,7 +140,8 @@ public class BrokerServiceTest extends BrokerTestBase {
         PersistentTopicStats stats;
         SubscriptionStats subStats;
 
-        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName).subscribe();
+        Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
+                .acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);
@@ -217,7 +218,7 @@ public class BrokerServiceTest extends BrokerTestBase {
         SubscriptionStats subStats;
 
         Consumer<byte[]> consumer = pulsarClient.newConsumer().topic(topicName).subscriptionName(subName)
-                .subscriptionType(SubscriptionType.Shared).subscribe();
+                .subscriptionType(SubscriptionType.Shared).acknowledmentGroupTime(0, TimeUnit.SECONDS).subscribe();
         Thread.sleep(ASYNC_EVENT_COMPLETION_WAIT);
 
         PersistentTopic topicRef = (PersistentTopic) pulsar.getBrokerService().getTopicReference(topicName);

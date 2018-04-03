@@ -40,7 +40,7 @@ public interface Subscription {
 
     void consumerFlow(Consumer consumer, int additionalNumberOfMessages);
 
-    void acknowledgeMessage(PositionImpl position, AckType ackType, Map<String,Long> properties);
+    void acknowledgeMessage(List<Position> positions, AckType ackType, Map<String,Long> properties);
 
     String getTopicName();
 
