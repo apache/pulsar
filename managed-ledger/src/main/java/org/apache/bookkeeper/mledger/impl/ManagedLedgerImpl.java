@@ -22,18 +22,26 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static java.lang.Math.min;
 import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 
+import com.google.common.collect.BoundType;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Queues;
+import com.google.common.collect.Range;
+import com.google.common.util.concurrent.RateLimiter;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
+
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.Queue;
 import java.util.Random;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLongFieldUpdater;
@@ -45,6 +53,7 @@ import org.apache.bookkeeper.client.AsyncCallback.OpenCallback;
 import org.apache.bookkeeper.client.BKException;
 import org.apache.bookkeeper.client.BookKeeper;
 import org.apache.bookkeeper.client.LedgerHandle;
+import org.apache.bookkeeper.common.util.OrderedExecutor;
 import org.apache.bookkeeper.common.util.OrderedScheduler;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.AddEntryCallback;
 import org.apache.bookkeeper.mledger.AsyncCallbacks.CloseCallback;
@@ -77,22 +86,12 @@ import org.apache.bookkeeper.mledger.util.CallbackMutex;
 import org.apache.bookkeeper.mledger.util.Futures;
 import org.apache.bookkeeper.mledger.util.Pair;
 import org.apache.pulsar.common.api.Commands;
-import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.CommandSubscribe.InitialPosition;
+import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.util.collections.ConcurrentLongHashMap;
 import org.apache.pulsar.common.util.collections.GrowableArrayBlockingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.google.common.collect.BoundType;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Queues;
-import com.google.common.collect.Range;
-import com.google.common.util.concurrent.RateLimiter;
-
-import io.netty.buffer.ByteBuf;
-import io.netty.buffer.Unpooled;
 
 public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     private final static long MegaByte = 1024 * 1024;
@@ -190,8 +189,8 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             AtomicReferenceFieldUpdater.newUpdater(ManagedLedgerImpl.class, State.class, "state");
     private volatile State state = null;
 
-    private final ScheduledExecutorService scheduledExecutor;
-    private final OrderedScheduler executor;
+    private final OrderedScheduler scheduledExecutor;
+    private final OrderedExecutor executor;
     final ManagedLedgerFactoryImpl factory;
     protected final ManagedLedgerMBeanImpl mbean;
 
@@ -204,7 +203,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
     // //////////////////////////////////////////////////////////////////////
 
     public ManagedLedgerImpl(ManagedLedgerFactoryImpl factory, BookKeeper bookKeeper, MetaStore store,
-            ManagedLedgerConfig config, ScheduledExecutorService scheduledExecutor, OrderedScheduler orderedExecutor,
+            ManagedLedgerConfig config, OrderedScheduler scheduledExecutor, OrderedExecutor orderedExecutor,
             final String name) {
         this.factory = factory;
         this.bookKeeper = bookKeeper;
@@ -250,7 +249,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 if (ledgers.size() > 0) {
                     final long id = ledgers.lastKey();
                     OpenCallback opencb = (rc, lh, ctx1) -> {
-                        executor.submitOrdered(name, safeRun(() -> {
+                        executor.executeOrdered(name, safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (log.isDebugEnabled()) {
                                 log.debug("[{}] Opened ledger {}: ", name, id, BKException.getMessage(rc));
@@ -338,7 +337,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         mbean.startDataLedgerCreateOp();
         bookKeeper.asyncCreateLedger(config.getEnsembleSize(), config.getWriteQuorumSize(), config.getAckQuorumSize(),
                 config.getDigestType(), config.getPassword(), (rc, lh, ctx) -> {
-                    executor.submitOrdered(name, safeRun(() -> {
+                    executor.executeOrdered(name, safeRun(() -> {
                         mbean.endDataLedgerCreateOp();
                         if (rc != BKException.Code.OK) {
                             callback.initializeFailed(createManagedLedgerException(rc));
@@ -1319,7 +1318,7 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
             mbean.startDataLedgerOpenOp();
             bookKeeper.asyncOpenLedger(ledgerId, config.getDigestType(), config.getPassword(),
                     (int rc, LedgerHandle lh, Object ctx) -> {
-                        executor.submit(safeRun(() -> {
+                        executor.executeOrdered(name, safeRun(() -> {
                             mbean.endDataLedgerOpenOp();
                             if (rc != BKException.Code.OK) {
                                 // Remove the ledger future from cache to give chance to reopen it later
@@ -1484,12 +1483,12 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
                 break;
             }
 
-            executor.submit(safeRun(() -> waitingCursor.notifyEntriesAvailable()));
+            executor.execute(safeRun(() -> waitingCursor.notifyEntriesAvailable()));
         }
     }
 
     private void trimConsumedLedgersInBackground() {
-        executor.submitOrdered(name, safeRun(() -> {
+        executor.executeOrdered(name, safeRun(() -> {
             internalTrimConsumedLedgers();
         }));
     }
@@ -2113,11 +2112,11 @@ public class ManagedLedgerImpl implements ManagedLedger, CreateCallback {
         return ledgers;
     }
 
-    ScheduledExecutorService getScheduledExecutor() {
+    OrderedScheduler getScheduledExecutor() {
         return scheduledExecutor;
     }
 
-    OrderedScheduler getExecutor() {
+    OrderedExecutor getExecutor() {
         return executor;
     }
 
