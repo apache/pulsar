@@ -636,14 +636,21 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
         checkArgument(conf.getTopicNames().size() == 1, "Should have only 1 topic for partitioned consumer");
 
         // get topic name, then remove it from conf, so constructor will create a consumer with no topic.
-        String topicName = conf.getSingleTopic();
-        conf.getTopicNames().remove(topicName);
+        ConsumerConfigurationData cloneConf = conf.clone();
+        String topicName = cloneConf.getSingleTopic();
+        cloneConf.getTopicNames().remove(topicName);
 
         CompletableFuture<Consumer> future = new CompletableFuture<>();
-        MultiTopicsConsumerImpl consumer = new MultiTopicsConsumerImpl(client, conf, listenerExecutor, future, schema);
+        MultiTopicsConsumerImpl consumer = new MultiTopicsConsumerImpl(client, cloneConf, listenerExecutor, future, schema);
 
         future.thenCompose(c -> ((MultiTopicsConsumerImpl)c).subscribeAsync(topicName, numPartitions))
-            .thenAccept(r -> subscribeFuture.complete(consumer));
+            .thenRun(()-> subscribeFuture.complete(consumer))
+            .exceptionally(e -> {
+                log.warn("Failed subscription for createPartitionedConsumer: {} {}, e:{}",
+                    topicName, numPartitions,  e);
+                subscribeFuture.completeExceptionally(((Throwable)e).getCause());
+                return null;
+            });;
         return consumer;
     }
 
