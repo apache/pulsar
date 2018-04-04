@@ -152,7 +152,7 @@ public class MessageDeduplication {
 
                 if (managedCursor.hasMoreEntries()) {
                     // Read next batch of entries
-                    pulsar.getExecutor().submit(() -> replayCursor(future));
+                    pulsar.getExecutor().execute(() -> replayCursor(future));
                 } else {
                     // Done replaying
                     future.complete(null);

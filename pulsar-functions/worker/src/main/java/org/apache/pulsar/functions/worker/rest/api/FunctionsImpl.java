@@ -107,7 +107,7 @@ public class FunctionsImpl {
             log.error("Function {}/{}/{} already exists", tenant, namespace, functionName);
             return Response.status(Status.BAD_REQUEST)
                     .type(MediaType.APPLICATION_JSON)
-                    .entity(new ErrorData(String.format("Function %s already exist", functionName))).build();
+                    .entity(new ErrorData(String.format("Function %s already exists", functionName))).build();
         }
 
         // function state

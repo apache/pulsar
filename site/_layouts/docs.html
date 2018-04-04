@@ -32,7 +32,11 @@ layout: default
 
     <article class="col-xs-12 col-sm-12 col-md-12 col-lg-7">
       <section class="docs-header">
-        <h1 class="docs-title">{{ page.title }}</h1>
+        <h1 class="docs-title">
+          {{ page.title }}
+          {% if page.new %} <span class="badge badge-warning">New</span>{% endif %}
+          {% if page.preview %} <span class="badge badge-warning">Preview</span>{% endif %}
+        </h1>
         {% if page.lead %}<span class="docs-lead">{{ page.lead }}</span><br />{% endif %}
         <section class="tags">
           {% for tag in page.tags %}
@@ -42,7 +46,9 @@ layout: default
           {% endfor %}
         </section>
 
-        <hr class="hr">
+        {% include version-warning.html %}
+
+        <!-- <hr class="hr"> -->
       </section>
 
       <section class="content">

@@ -48,9 +48,12 @@ layout: default
       {% for feature in site.data.features %}
       <div class="col-sm-4 card">
           <div class="card-block">
-            <a href="/docs/latest/{{ feature.endpoint }}" >
-                  <h3 class="card-title">{{ feature.title }}</h3>
-            </a>
+            <h3 class="card-title">
+              <a href="/docs/latest/{{ feature.endpoint }}">
+                {{ feature.title }}
+              </a>
+              {% if feature.new %} <span class="badge badge-warning">New</span>{% endif %}
+            </h3>
           <p>{{ feature.content | markdownify }}</p>
         </div>
       </div>

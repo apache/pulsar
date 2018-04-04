@@ -20,22 +20,24 @@ package org.apache.pulsar.client.api;
 
 import static org.mockito.Mockito.spy;
 
-import java.net.URI;
-
-import org.apache.pulsar.client.admin.PulsarAdmin;
-import org.apache.pulsar.common.policies.data.ClusterData;
-import org.apache.pulsar.common.policies.data.PropertyAdmin;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
+
+import org.apache.pulsar.client.admin.PulsarAdmin;
+import org.apache.pulsar.client.impl.auth.AuthenticationTls;
+import org.apache.pulsar.common.policies.data.ClusterData;
+import org.apache.pulsar.common.policies.data.PropertyAdmin;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+
 public class TlsProducerConsumerBase extends ProducerConsumerBase {
     protected final String TLS_TRUST_CERT_FILE_PATH = "./src/test/resources/authentication/tls/cacert.pem";
+    protected final String TLS_CLIENT_CERT_FILE_PATH = "./src/test/resources/authentication/tls/client-cert.pem";
+    protected final String TLS_CLIENT_KEY_FILE_PATH = "./src/test/resources/authentication/tls/client-key.pem";
     protected final String TLS_SERVER_CERT_FILE_PATH = "./src/test/resources/authentication/tls/broker-cert.pem";
     protected final String TLS_SERVER_KEY_FILE_PATH = "./src/test/resources/authentication/tls/broker-key.pem";
     private final String clusterName = "use";
@@ -43,7 +45,6 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
     @BeforeMethod
     @Override
     protected void setup() throws Exception {
-
         // TLS configuration for Broker
         internalSetUpForBroker();
 
@@ -61,21 +62,34 @@ public class TlsProducerConsumerBase extends ProducerConsumerBase {
         conf.setTlsEnabled(true);
         conf.setTlsCertificateFilePath(TLS_SERVER_CERT_FILE_PATH);
         conf.setTlsKeyFilePath(TLS_SERVER_KEY_FILE_PATH);
+        conf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
         conf.setClusterName(clusterName);
+        conf.setTlsRequireTrustedClientCertOnConnect(true);
+        Set<String> tlsProtocols = Sets.newConcurrentHashSet();
+        tlsProtocols.add("TLSv1.2");
+        conf.setTlsProtocols(tlsProtocols);
     }
 
-    protected void internalSetUpForClient() throws Exception {
-        String lookupUrl = new URI("pulsar+ssl://localhost:" + BROKER_PORT_TLS).toString();
-        pulsarClient = PulsarClient.builder().serviceUrl(lookupUrl).tlsTrustCertsFilePath(TLS_SERVER_CERT_FILE_PATH)
-                .enableTls(true).build();
+    protected void internalSetUpForClient(boolean addCertificates, String lookupUrl) throws Exception {
+        ClientBuilder clientBuilder = PulsarClient.builder().serviceUrl(lookupUrl)
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).enableTls(true).allowTlsInsecureConnection(false);
+        if (addCertificates) {
+            Map<String, String> authParams = new HashMap<>();
+            authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+            authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+            clientBuilder.authentication(AuthenticationTls.class.getName(), authParams);
+        }
+        pulsarClient = clientBuilder.build();
     }
 
     protected void internalSetUpForNamespace() throws Exception {
-        ClientConfiguration clientConf = new ClientConfiguration();
-        clientConf.setTlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH);
-        clientConf.setUseTls(true);
-        admin = spy(new PulsarAdmin(brokerUrlTls, clientConf));
-        admin.clusters().updateCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
+        Map<String, String> authParams = new HashMap<>();
+        authParams.put("tlsCertFile", TLS_CLIENT_CERT_FILE_PATH);
+        authParams.put("tlsKeyFile", TLS_CLIENT_KEY_FILE_PATH);
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrlTls.toString())
+                .tlsTrustCertsFilePath(TLS_TRUST_CERT_FILE_PATH).allowTlsInsecureConnection(false)
+                .authentication(AuthenticationTls.class.getName(), authParams).build());
+        admin.clusters().createCluster(clusterName, new ClusterData(brokerUrl.toString(), brokerUrlTls.toString(),
                 "pulsar://localhost:" + BROKER_PORT, "pulsar+ssl://localhost:" + BROKER_PORT_TLS));
         admin.properties().createProperty("my-property",
                 new PropertyAdmin(Lists.newArrayList("appid1", "appid2"), Sets.newHashSet("use")));

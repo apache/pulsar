@@ -132,7 +132,7 @@ public abstract class MockedPulsarServiceBaseTest {
         brokerUrl = new URL("http://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT);
         brokerUrlTls = new URL("https://" + pulsar.getAdvertisedAddress() + ":" + BROKER_WEBSERVICE_PORT_TLS);
 
-        admin = spy(new PulsarAdmin(brokerUrl, (Authentication) null));
+        admin = spy(PulsarAdmin.builder().serviceHttpUrl(brokerUrl.toString()).build());
     }
 
     protected final void internalCleanup() throws Exception {

@@ -75,6 +75,7 @@ import org.apache.pulsar.common.api.proto.PulsarApi.MessageMetadata;
 import org.apache.pulsar.common.api.proto.PulsarApi.ProtocolVersion;
 import org.apache.pulsar.common.api.proto.PulsarApi.ServerError;
 import org.apache.pulsar.common.schema.SchemaVersion;
+import org.apache.pulsar.common.util.collections.Pair;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedInputStream;
 import org.apache.pulsar.common.util.protobuf.ByteBufCodedOutputStream;
 
@@ -236,12 +237,19 @@ public class Commands {
         return buffer.getShort(buffer.readerIndex()) == magicCrc32c;
     }
 
-    public static Long readChecksum(ByteBuf buffer) {
-        if(hasChecksum(buffer)) {
-            buffer.skipBytes(2); //skip magic bytes
-            return buffer.readUnsignedInt();
-        } else{
-            return null;
+    /**
+     * Read the checksum and advance the reader index in the buffer.
+     *
+     * Note: This method assume the checksum presence was already verified before.
+     */
+    public static int readChecksum(ByteBuf buffer) {
+        buffer.skipBytes(2); //skip magic bytes
+        return buffer.readInt();
+    }
+
+    public static void skipChecksumIfPresent(ByteBuf buffer) {
+        if (hasChecksum(buffer)) {
+            readChecksum(buffer);
         }
     }
 
@@ -249,7 +257,7 @@ public class Commands {
         try {
             // initially reader-index may point to start_of_checksum : increment reader-index to start_of_metadata to parse
             // metadata
-            readChecksum(buffer);
+            skipChecksumIfPresent(buffer);
             int metadataSize = (int) buffer.readUnsignedInt();
 
             int writerIndex = buffer.writerIndex();
@@ -512,6 +520,37 @@ public class Commands {
         return res;
     }
 
+    public static ByteBuf newMultiMessageAck(long consumerId, List<Pair<Long, Long>> entries) {
+        CommandAck.Builder ackBuilder = CommandAck.newBuilder();
+        ackBuilder.setConsumerId(consumerId);
+        ackBuilder.setAckType(AckType.Individual);
+
+        int entriesCount = entries.size();
+        for (int i = 0; i < entriesCount; i++) {
+            long ledgerId = entries.get(i).getFirst();
+            long entryId = entries.get(i).getSecond();
+
+            MessageIdData.Builder messageIdDataBuilder = MessageIdData.newBuilder();
+            messageIdDataBuilder.setLedgerId(ledgerId);
+            messageIdDataBuilder.setEntryId(entryId);
+            MessageIdData messageIdData = messageIdDataBuilder.build();
+            ackBuilder.addMessageId(messageIdData);
+
+            messageIdDataBuilder.recycle();
+        }
+
+        CommandAck ack = ackBuilder.build();
+
+        ByteBuf res = serializeWithSize(BaseCommand.newBuilder().setType(Type.ACK).setAck(ack));
+
+        for (int i = 0; i < entriesCount; i++) {
+            ack.getMessageId(i).recycle();
+        }
+        ack.recycle();
+        ackBuilder.recycle();
+        return res;
+    }
+
     public static ByteBuf newAck(long consumerId, long ledgerId, long entryId, AckType ackType,
                                  ValidationError validationError, Map<String,Long> properties) {
         CommandAck.Builder ackBuilder = CommandAck.newBuilder();
@@ -521,7 +560,7 @@ public class Commands {
         messageIdDataBuilder.setLedgerId(ledgerId);
         messageIdDataBuilder.setEntryId(entryId);
         MessageIdData messageIdData = messageIdDataBuilder.build();
-        ackBuilder.setMessageId(messageIdData);
+        ackBuilder.addMessageId(messageIdData);
         if (validationError != null) {
             ackBuilder.setValidationError(validationError);
         }
@@ -991,6 +1030,10 @@ public class Commands {
     }
 
     public static boolean peerSupportsActiveConsumerListener(int peerVersion) {
+        return peerVersion >= ProtocolVersion.v12.getNumber();
+    }
+
+    public static boolean peerSupportsMultiMessageAcknowledgment(int peerVersion) {
         return peerVersion >= ProtocolVersion.v12.getNumber();
     }
 

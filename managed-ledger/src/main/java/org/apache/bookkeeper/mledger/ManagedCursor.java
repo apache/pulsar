@@ -265,6 +265,43 @@ public interface ManagedCursor {
      */
     void asyncDelete(Position position, DeleteCallback callback, Object ctx);
 
+
+    /**
+     * Delete a group of entries.
+     *
+     * <p/>
+     * Mark multiple single messages for deletion. When all the previous messages are all deleted, then markDelete()
+     * will be called internally to advance the persistent acknowledged position.
+     *
+     * <p/>
+     * The deletion of the message is not persisted into the durable storage and cannot be recovered upon the reopening
+     * of the ManagedLedger
+     *
+     * @param positions
+     *            positions of the messages to be deleted
+     */
+    void delete(Iterable<Position> positions) throws InterruptedException, ManagedLedgerException;
+
+    /**
+     * Delete a group of messages asynchronously
+     *
+     * <p/>
+     * Mark a group of messages for deletion. When all the previous messages are all deleted, then markDelete() will be
+     * called internally to advance the persistent acknowledged position.
+     *
+     * <p/>
+     * The deletion of the messages is not persisted into the durable storage and cannot be recovered upon the reopening
+     * of the ManagedLedger
+     *
+     * @param positions
+     *            the positions of the messages to be deleted
+     * @param callback
+     *            callback object
+     * @param ctx
+     *            opaque context
+     */
+    void asyncDelete(Iterable<Position> position, DeleteCallback callback, Object ctx);
+
     /**
      * Get the read position. This points to the next message to be read from the cursor.
      *

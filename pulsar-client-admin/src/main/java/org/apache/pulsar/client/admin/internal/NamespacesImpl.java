@@ -252,7 +252,7 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
     public List<String> getAntiAffinityNamespaces(String property, String cluster, String namespaceAntiAffinityGroup)
             throws PulsarAdminException {
         try {
-            WebTarget path = adminV2Namespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
+            WebTarget path = adminNamespaces.path(cluster).path("antiAffinity").path(namespaceAntiAffinityGroup);
             return request(path.queryParam("property", property)).get(new GenericType<List<String>>() {});
         } catch (Exception e) {
             throw getApiException(e);
@@ -424,6 +424,29 @@ public class NamespacesImpl extends BaseResource implements Namespaces {
             NamespaceName ns = NamespaceName.get(namespace);
             WebTarget path = namespacePath(ns, "dispatchRate");
             return request(path).get(DispatchRate.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public void setSubscriptionDispatchRate(String namespace, DispatchRate dispatchRate) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                .path("subscriptionDispatchRate"))
+                .post(Entity.entity(dispatchRate, MediaType.APPLICATION_JSON), ErrorData.class);
+        } catch (Exception e) {
+            throw getApiException(e);
+        }
+    }
+
+    @Override
+    public DispatchRate getSubscriptionDispatchRate(String namespace) throws PulsarAdminException {
+        try {
+            NamespaceName ns = NamespaceName.get(namespace);
+            return request(adminNamespaces.path(ns.getProperty()).path(ns.getCluster()).path(ns.getLocalName())
+                .path("subscriptionDispatchRate")).get(DispatchRate.class);
         } catch (Exception e) {
             throw getApiException(e);
         }

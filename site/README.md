@@ -39,7 +39,7 @@ This website is built using a wide range of tools. The most important among them
 
 > **Note**: at the moment, running the site locally *may* work on Linux but the site setup has been built with MacOS in mind. We will provide better cross-platform support in the near future.
 
-To build and run the site locally, you need to have Ruby 2.3.1 installed and set as the Ruby version here in the `site` directory. You can install and set the Ruby version using [rvm](https://rvm.io):
+To build and run the site locally, you need to have Ruby 2.4.1 installed and set as the Ruby version here in the `site` directory. You can install and set the Ruby version using [rvm](https://rvm.io):
 
 ```bash
 $ cd site

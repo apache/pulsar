@@ -42,6 +42,7 @@ import javax.ws.rs.core.Response.Status;
 import javax.ws.rs.core.UriBuilder;
 import javax.ws.rs.core.UriInfo;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.broker.PulsarService;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.admin.AdminResource;
@@ -264,7 +265,8 @@ public abstract class PulsarWebResource {
 
     private URI getRedirectionUrl(ClusterData differentClusterData) throws MalformedURLException {
         URL webUrl = null;
-        if (pulsar.getConfiguration().isTlsEnabled() && !differentClusterData.getServiceUrlTls().isEmpty()) {
+        if (isRequestHttps() && pulsar.getConfiguration().isTlsEnabled()
+                && StringUtils.isNotBlank(differentClusterData.getServiceUrlTls())) {
             webUrl = new URL(differentClusterData.getServiceUrlTls());
         } else {
             webUrl = new URL(differentClusterData.getServiceUrl());

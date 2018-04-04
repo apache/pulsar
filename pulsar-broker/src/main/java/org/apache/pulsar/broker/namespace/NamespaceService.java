@@ -22,7 +22,6 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 import static java.lang.String.format;
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.apache.bookkeeper.mledger.util.SafeRun.safeRun;
 import static org.apache.pulsar.broker.cache.LocalZooKeeperCacheService.LOCAL_POLICIES_ROOT;
 import static org.apache.pulsar.broker.web.PulsarWebResource.joinPath;
 import static org.apache.pulsar.common.naming.NamespaceBundleFactory.getBundlesData;
@@ -37,11 +36,11 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
-
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -52,6 +51,7 @@ import org.apache.pulsar.broker.admin.AdminResource;
 import org.apache.pulsar.broker.loadbalance.LoadManager;
 import org.apache.pulsar.broker.loadbalance.ResourceUnit;
 import org.apache.pulsar.broker.lookup.LookupResult;
+import org.apache.pulsar.broker.service.BrokerServiceException.ServerMetadataException;
 import org.apache.pulsar.broker.service.BrokerServiceException.ServiceUnitNotReadyException;
 import org.apache.pulsar.client.admin.PulsarAdmin;
 import org.apache.pulsar.common.lookup.data.LookupData;
@@ -72,6 +72,7 @@ import org.apache.pulsar.common.util.ObjectMapperFactory;
 import org.apache.pulsar.policies.data.loadbalancer.ServiceLookupData;
 import org.apache.zookeeper.AsyncCallback.StatCallback;
 import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.Code;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,6 +111,8 @@ public class NamespaceService {
     private int uncountedNamespaces;
 
     private final String host;
+
+    private static final int BUNDLE_SPLIT_RETRY_LIMIT = 7;
 
     public static final String SLA_NAMESPACE_PROPERTY = "sla-monitor";
     public static final Pattern HEARTBEAT_NAMESPACE_PATTERN = Pattern.compile("pulsar/[^/]+/([^:]+:\\d+)");
@@ -546,87 +549,141 @@ public class NamespaceService {
 
     /**
      * 1. split the given bundle into two bundles 2. assign ownership of both the bundles to current broker 3. update
-     * policies with newly created bundles into LocalZK 4. disable original bundle and refresh the cache
+     * policies with newly created bundles into LocalZK 4. disable original bundle and refresh the cache.
+     *
+     * It will call splitAndOwnBundleOnceAndRetry to do the real retry work, which will retry "retryTimes".
      *
      * @param bundle
      * @return
      * @throws Exception
      */
-    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, final boolean unload) throws Exception {
+    public CompletableFuture<Void> splitAndOwnBundle(NamespaceBundle bundle, boolean unload)
+        throws Exception {
 
         final CompletableFuture<Void> unloadFuture = new CompletableFuture<>();
+        final AtomicInteger counter = new AtomicInteger(BUNDLE_SPLIT_RETRY_LIMIT);
+
+        splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture);
+
+        return unloadFuture;
+    }
+
+    void splitAndOwnBundleOnceAndRetry(NamespaceBundle bundle,
+                                       boolean unload,
+                                       AtomicInteger counter,
+                                       CompletableFuture<Void> unloadFuture) {
+        CompletableFuture<NamespaceBundles> updateFuture = new CompletableFuture<>();
 
         final Pair<NamespaceBundles, List<NamespaceBundle>> splittedBundles = bundleFactory.splitBundles(bundle,
-                2 /* by default split into 2 */);
+            2 /* by default split into 2 */);
+
+        // Split and updateNamespaceBundles. Update may fail because of concurrent write to Zookeeper.
         if (splittedBundles != null) {
             checkNotNull(splittedBundles.getLeft());
             checkNotNull(splittedBundles.getRight());
             checkArgument(splittedBundles.getRight().size() == 2, "bundle has to be split in two bundles");
             NamespaceName nsname = bundle.getNamespaceObject();
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("[{}] splitAndOwnBundleOnce: {}, counter: {},  2 bundles: {}, {}",
+                    nsname.toString(), bundle.getBundleRange(), counter.get(),
+                    splittedBundles != null ? splittedBundles.getRight().get(0).getBundleRange() : "null splittedBundles",
+                    splittedBundles != null ? splittedBundles.getRight().get(1).getBundleRange() : "null splittedBundles");
+            }
             try {
                 // take ownership of newly split bundles
                 for (NamespaceBundle sBundle : splittedBundles.getRight()) {
                     checkNotNull(ownershipCache.tryAcquiringOwnership(sBundle));
                 }
                 updateNamespaceBundles(nsname, splittedBundles.getLeft(),
-                        (rc, path, zkCtx, stat) -> pulsar.getOrderedExecutor().submit(safeRun(() -> {
-                            if (rc == KeeperException.Code.OK.intValue()) {
-                                try {
-                                    // disable old bundle in memory
-                                    getOwnershipCache().updateBundleState(bundle, false);
-                                    // invalidate cache as zookeeper has new split
-                                    // namespace bundle
-                                    bundleFactory.invalidateBundleCache(nsname);
-                                    // update bundled_topic cache for load-report-generation
-                                    pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
-                                    loadManager.get().setLoadReportForceUpdateFlag();
-                                    unloadFuture.complete(null);
-                                } catch (Exception e) {
-                                    String msg1 = format(
-                                            "failed to disable bundle %s under namespace [%s] with error %s",
-                                            nsname.toString(), bundle.toString(), e.getMessage());
-                                    LOG.warn(msg1, e);
-                                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
-                                }
-                            } else {
-                                String msg2 = format("failed to update namespace [%s] policies due to %s",
-                                        nsname.toString(),
-                                        KeeperException.create(KeeperException.Code.get(rc)).getMessage());
-                                LOG.warn(msg2);
-                                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
-                            }
-                        })));
-            } catch (Exception e) {
-                String msg = format("failed to aquire ownership of split bundle for namespace [%s], %s",
-                        nsname.toString(), e.getMessage());
-                LOG.warn(msg, e);
-                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
-            }
+                    (rc, path, zkCtx, stat) ->  {
+                        if (rc == Code.OK.intValue()) {
+                            // invalidate cache as zookeeper has new split
+                            // namespace bundle
+                            bundleFactory.invalidateBundleCache(bundle.getNamespaceObject());
 
+                            updateFuture.complete(splittedBundles.getLeft());
+                        } else if (rc == Code.BADVERSION.intValue()) {
+                            KeeperException keeperException = KeeperException.create(KeeperException.Code.get(rc));
+                            String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s " +
+                                    "due to %s, counter: %d",
+                                nsname.toString(), bundle.getBundleRange(),
+                                keeperException.getMessage(), counter.get());
+                            LOG.warn(msg);
+                            updateFuture.completeExceptionally(new ServerMetadataException(keeperException));
+                        } else {
+                            String msg = format("failed to update namespace policies [%s], NamespaceBundle: %s due to %s",
+                                nsname.toString(), bundle.getBundleRange(),
+                                KeeperException.create(KeeperException.Code.get(rc)).getMessage());
+                            LOG.warn(msg);
+                            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+                        }
+                    });
+            } catch (Exception e) {
+                String msg = format("failed to acquire ownership of split bundle for namespace [%s], %s",
+                    nsname.toString(), e.getMessage());
+                LOG.warn(msg, e);
+                updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            }
         } else {
             String msg = format("bundle %s not found under namespace", bundle.toString());
-            unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
+            LOG.warn(msg);
+            updateFuture.completeExceptionally(new ServiceUnitNotReadyException(msg));
         }
 
-        return unloadFuture.thenApply(res -> {
-            if (!unload) {
-                return null;
-            }
-            // unload new split bundles
-            splittedBundles.getRight().forEach(splitBundle -> {
-                try {
-                    unloadNamespaceBundle(splitBundle);
-                } catch (Exception e) {
-                    LOG.warn("Failed to unload split bundle {}", splitBundle, e);
-                    throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
+        // If success updateNamespaceBundles, then do invalidateBundleCache and unload.
+        // Else retry splitAndOwnBundleOnceAndRetry.
+        updateFuture.whenCompleteAsync((r, t)-> {
+            if (t != null) {
+                // retry several times on BadVersion
+                if ((t instanceof ServerMetadataException) && (counter.decrementAndGet() >= 0)) {
+                    pulsar.getOrderedExecutor()
+                            .execute(() -> splitAndOwnBundleOnceAndRetry(bundle, unload, counter, unloadFuture));
+                } else {
+                    // Retry enough, or meet other exception
+                    String msg2 = format(" %s not success update nsBundles, counter %d, reason %s",
+                        bundle.toString(), counter.get(), t.getMessage());
+                    LOG.warn(msg2);
+                    unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg2));
                 }
-            });
-            return null;
-        });
+                return;
+            }
+
+            // success updateNamespaceBundles
+            try {
+                // disable old bundle in memory
+                getOwnershipCache().updateBundleState(bundle, false);
+
+                // update bundled_topic cache for load-report-generation
+                pulsar.getBrokerService().refreshTopicToStatsMaps(bundle);
+                loadManager.get().setLoadReportForceUpdateFlag();
+
+                if (unload) {
+                    // unload new split bundles
+                    r.getBundles().forEach(splitBundle -> {
+                        try {
+                            unloadNamespaceBundle(splitBundle);
+                        } catch (Exception e) {
+                            LOG.warn("Failed to unload split bundle {}", splitBundle, e);
+                            throw new RuntimeException("Failed to unload split bundle " + splitBundle, e);
+                        }
+                    });
+                }
+
+                unloadFuture.complete(null);
+            } catch (Exception e) {
+                String msg1 = format(
+                    "failed to disable bundle %s under namespace [%s] with error %s",
+                    bundle.getNamespaceObject().toString(), bundle.toString(), e.getMessage());
+                LOG.warn(msg1, e);
+                unloadFuture.completeExceptionally(new ServiceUnitNotReadyException(msg1));
+            }
+            return;
+        }, pulsar.getOrderedExecutor());
     }
 
     /**
-     * update new bundle-range to LocalZk (create a new node if not present)
+     * Update new bundle-range to LocalZk (create a new node if not present).
+     * Update may fail because of concurrent write to Zookeeper.
      *
      * @param nsname
      * @param nsBundles
@@ -643,12 +700,16 @@ public class NamespaceService {
         if (!policies.isPresent()) {
             // if policies is not present into localZk then create new policies
             this.pulsar.getLocalZkCacheService().createPolicies(path, false).get(cacheTimeOutInSec, SECONDS);
-            policies = this.pulsar.getLocalZkCacheService().policiesCache().get(path);
         }
 
-        policies.get().bundles = getBundlesData(nsBundles);
-        this.pulsar.getLocalZkCache().getZooKeeper().setData(path,
-                ObjectMapperFactory.getThreadLocal().writeValueAsBytes(policies.get()), -1, callback, null);
+        long version = nsBundles.getVersion();
+        LocalPolicies local = new LocalPolicies();
+        local.bundles = getBundlesData(nsBundles);
+        byte[] data = ObjectMapperFactory.getThreadLocal().writeValueAsBytes(local);
+
+        this.pulsar.getLocalZkCache().getZooKeeper()
+            .setData(path, data, Math.toIntExact(version), callback, null);
+
         // invalidate namespace's local-policies
         this.pulsar.getLocalZkCacheService().policiesCache().invalidate(path);
     }

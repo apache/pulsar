@@ -69,15 +69,14 @@ public class EntryCacheImpl implements EntryCache {
         return ml.getName();
     }
 
-    public final static PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(
-            true, // preferDirect
+    public final static PooledByteBufAllocator ALLOCATOR = new PooledByteBufAllocator(true, // preferDirect
             0, // nHeapArenas,
-            1, // nDirectArena
-            8192, // pageSize
-            11, // maxOrder
-            64, // tinyCacheSize
-            32, // smallCacheSize
-            8, // normalCacheSize,
+            PooledByteBufAllocator.defaultNumDirectArena(), // nDirectArena
+            PooledByteBufAllocator.defaultPageSize(), // pageSize
+            PooledByteBufAllocator.defaultMaxOrder(), // maxOrder
+            PooledByteBufAllocator.defaultTinyCacheSize(), // tinyCacheSize
+            PooledByteBufAllocator.defaultSmallCacheSize(), // smallCacheSize
+            PooledByteBufAllocator.defaultNormalCacheSize(), // normalCacheSize,
             true // Use cache for all threads
     );
 
@@ -189,7 +188,7 @@ public class EntryCacheImpl implements EntryCache {
                     manager.mlFactoryMBean.recordCacheMiss(1, returnEntry.getLength());
                     ml.mbean.addReadEntriesSample(1, returnEntry.getLength());
 
-                    ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                    ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                         callback.readEntryComplete(returnEntry, obj);
                     }));
                 } else {
@@ -255,7 +254,7 @@ public class EntryCacheImpl implements EntryCache {
 
                 checkNotNull(ml.getName());
                 checkNotNull(ml.getExecutor());
-                ml.getExecutor().submitOrdered(ml.getName(), safeRun(() -> {
+                ml.getExecutor().executeOrdered(ml.getName(), safeRun(() -> {
                     // We got the entries, we need to transform them to a List<> type
                     long totalSize = 0;
                     final List<EntryImpl> entriesToReturn = Lists.newArrayListWithExpectedSize(entriesToRead);
