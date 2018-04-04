@@ -41,7 +41,7 @@ The Pulsar Functions feature was inspired by (and takes cues from) several syste
 Pulsar Functions could be described as
 
 * [Lambda](https://aws.amazon.com/lambda/)-style functions that are
-* specifically designed to work with Pulsar
+* specifically designed to use Pulsar as a message bus
 
 ## Command-line interface {#cli}
 
@@ -237,6 +237,25 @@ public class ConfigMapFunction implements Function<String, Void> {
         return null;
     }
 }
+```
+
+## Processing guarantees {#guarantees}
+
+The Pulsar Functions feature provides three different messaging semantics that you can apply to any function:
+
+Delivery semantics | Description
+:------------------|:-------
+**At-most-once** delivery | Each message that is sent to the function will most likely be processed but also may not be (hence the "at most")
+**At-least-once** delivery | Each message that is sent to the function could be processed more than once (hence the "at least")
+**Effectively-once** delivery | Each message that is sent to the function will have one output associated with it
+
+This command, for example, would run a function in [cluster mode](#cluster-mode) with effectively-once guarantees applied:
+
+```bash
+$ bin/pulsar-admin functions create \
+  --name my-effectively-once-function \
+  --processingGuarantees EFFECTIVELY_ONCE \
+  # Other function configs
 ```
 
 ## Metrics
