@@ -22,7 +22,6 @@ import org.apache.pulsar.client.admin.internal.FunctionsImpl;
 import org.apache.pulsar.client.api.PulsarClientException;
 import org.apache.pulsar.client.impl.conf.ClientConfigurationData;
 
-
 /**
  * Pulsar client admin client with functions support.
  */
@@ -31,7 +30,8 @@ public class PulsarAdminWithFunctions extends PulsarAdmin {
     private final Functions functions;
     private final ClientConfigurationData clientConf;
 
-    public PulsarAdminWithFunctions(String serviceUrl, ClientConfigurationData pulsarConfig) throws PulsarClientException {
+    public PulsarAdminWithFunctions(String serviceUrl, ClientConfigurationData pulsarConfig)
+            throws PulsarClientException {
         super(serviceUrl, pulsarConfig);
         this.functions = new FunctionsImpl(root, auth);
         this.clientConf = pulsarConfig;

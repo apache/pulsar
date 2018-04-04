@@ -71,7 +71,7 @@ public class PulsarAdmin implements Closeable {
     private final PersistentTopics persistentTopics;
     private final NonPersistentTopics nonPersistentTopics;
     private final ResourceQuotas resourceQuotas;
-	private final ClientConfigurationData clientConfigData;
+    private final ClientConfigurationData clientConfigData;
     private final Client client;
     private final String serviceUrl;
     private final Lookup lookups;
@@ -104,7 +104,7 @@ public class PulsarAdmin implements Closeable {
     }
 
     public PulsarAdmin(String serviceUrl, ClientConfigurationData clientConfigData) throws PulsarClientException {
-    	this.clientConfigData = clientConfigData;
+        this.clientConfigData = clientConfigData;
         this.auth = clientConfigData != null ? clientConfigData.getAuthentication() : new AuthenticationDisabled();
         LOG.debug("created: serviceUrl={}, authMethodName={}", serviceUrl,
                 auth != null ? auth.getAuthMethodName() : null);
@@ -313,13 +313,13 @@ public class PulsarAdmin implements Closeable {
     public String getServiceUrl() {
         return serviceUrl;
     }
-    
+
     /**
      * @return the client Configuration Data that is being used
      */
     public ClientConfigurationData getClientConfigData() {
-		return clientConfigData;
-	}
+        return clientConfigData;
+    }
 
     /**
      * Close the Pulsar admin client to release all the resources
