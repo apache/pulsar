@@ -184,7 +184,7 @@ public class Namespaces extends NamespacesBase {
     @ApiResponses(value = { @ApiResponse(code = 403, message = "Don't have admin permission"),
             @ApiResponse(code = 404, message = "Property or cluster or namespace doesn't exist"),
             @ApiResponse(code = 412, message = "Namespace is not global") })
-    public List<String> getNamespaceReplicationClusters(@PathParam("property") String property,
+    public Set<String> getNamespaceReplicationClusters(@PathParam("property") String property,
             @PathParam("namespace") String namespace) {
         validateAdminAccessOnProperty(property);
         validateNamespaceName(property, namespace);
