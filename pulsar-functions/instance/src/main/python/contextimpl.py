@@ -93,7 +93,7 @@ class ContextImpl(pulsar.Context):
     else:
       return None
   
-  def get_all_user_configs(self):
+  def get_user_config_map(self):
     return self.instance_config.function_config.userConfig
 
   def record_metric(self, metric_name, metric_value):

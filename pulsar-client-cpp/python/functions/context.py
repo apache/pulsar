@@ -85,7 +85,7 @@ class Context(object):
     pass
   
   @abstractmethod
-  def get_all_user_configs(self):
+  def get_user_config_map(self):
     """Returns the entire user-defined config as a dict (the dict will be empty if no user-defined config is supplied)"""
     pass
 
