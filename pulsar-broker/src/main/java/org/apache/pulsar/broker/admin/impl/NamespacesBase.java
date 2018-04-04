@@ -388,7 +388,7 @@ public abstract class NamespacesBase extends AdminResource {
             // Force to read the data s.t. the watch to the cache content is setup.
             policiesNode = policiesCache().getWithStat(path(POLICIES, namespaceName.toString())).orElseThrow(
                     () -> new RestException(Status.NOT_FOUND, "Namespace " + namespaceName + " does not exist"));
-            policiesNode.getKey().replication_clusters = clusterIds;
+            policiesNode.getKey().replication_clusters = Lists.newArrayList(replicationClusterSet);
 
             // Write back the new policies into zookeeper
             globalZk().setData(path(POLICIES, namespaceName.toString()),

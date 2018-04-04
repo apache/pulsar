@@ -88,7 +88,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
 
         // Setup namespaces
         admin.clusters().createCluster("use", new ClusterData("http://127.0.0.1" + ":" + BROKER_WEBSERVICE_PORT));
-        PropertyAdmin propertyAdmin = new PropertyAdmin(Lists.newArrayList("role1", "role2"), Sets.newHashSet("use"));
+        PropertyAdmin propertyAdmin = new PropertyAdmin(Sets.newHashSet("role1", "role2"), Sets.newHashSet("use"));
         admin.properties().createProperty("prop-xyz", propertyAdmin);
         admin.namespaces().createNamespace("prop-xyz/use/ns1");
     }
@@ -599,7 +599,7 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
         final String property = "peer-prop";
         Set<String> allowedClusters = Sets.newHashSet("us-west1", "us-west2", "us-west3", "us-west4", "us-east1",
                 "us-east2");
-        PropertyAdmin propConfig = new PropertyAdmin(Lists.newArrayList("test"), allowedClusters);
+        PropertyAdmin propConfig = new PropertyAdmin(Sets.newHashSet("test"), allowedClusters);
         admin.properties().createProperty(property, propConfig);
 
         final String namespace = property + "/global/conflictPeer";
@@ -611,11 +611,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
                 Lists.newArrayList("us-west2", "us-west3"));
 
         // (1) no conflicting peer
-        List<String> clusterIds = Lists.newArrayList("us-east1", "us-east2");
+        Set<String> clusterIds = Sets.newHashSet("us-east1", "us-east2");
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
         // (2) conflicting peer
-        clusterIds = Lists.newArrayList("us-west2", "us-west3", "us-west1");
+        clusterIds = Sets.newHashSet("us-west2", "us-west3", "us-west1");
         try {
             admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
             fail("Peer-cluster can't coexist in replication cluster list");
@@ -623,11 +623,11 @@ public class AdminApiTest2 extends MockedPulsarServiceBaseTest {
             // Ok
         }
 
-        clusterIds = Lists.newArrayList("us-west2", "us-west3");
+        clusterIds = Sets.newHashSet("us-west2", "us-west3");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
 
-        clusterIds = Lists.newArrayList("us-west1", "us-west4");
+        clusterIds = Sets.newHashSet("us-west1", "us-west4");
         // no peer coexist in replication clusters
         admin.namespaces().setNamespaceReplicationClusters(namespace, clusterIds);
     }

@@ -39,7 +39,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
+import dlshade.com.google.common.collect.Sets;
 
 public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
     private static final Logger log = LoggerFactory.getLogger(MessageDispatchThrottlingTest.class);
@@ -653,7 +653,7 @@ public class MessageDispatchThrottlingTest extends ProducerConsumerBase {
 
         admin.clusters().createCluster("global", new ClusterData("http://global:8080"));
         admin.namespaces().createNamespace(namespace);
-        admin.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("use"));
+        admin.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("use"));
         admin.namespaces().setDispatchRate(namespace, dispatchRate);
 
         // create producer and topic

@@ -79,6 +79,7 @@ import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.collections.Lists;
 
+import com.google.common.collect.Sets;
 import com.scurrilous.circe.checksum.Crc32cIntChecksum;
 
 import io.netty.buffer.ByteBuf;
@@ -166,7 +167,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 1: Update the global namespace replication configuration to only contains the local cluster itself
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Lists.newArrayList("r1"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1"));
 
         // Wait for config changes to be updated.
         Thread.sleep(1000L);
@@ -180,7 +181,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         Assert.assertNotNull(replicationClients3.get("r2"));
 
         // Case 2: Update the configuration back
-        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Lists.newArrayList("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1", "r2", "r3"));
 
         // Wait for config changes to be updated.
         Thread.sleep(1000L);
@@ -204,7 +205,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         final String namespace = "pulsar/global/concurrent";
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2"));
         final TopicName topicName = TopicName.get(String.format("persistent://" + namespace + "/topic-%d", 0));
         PulsarClient client1 = PulsarClient.builder().serviceUrl(url1.toString()).statsInterval(0, TimeUnit.SECONDS)
                 .build();
@@ -223,7 +224,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
                 .get(pulsar1.getBrokerService());
         replicationClients.put("r3", pulsarClient);
 
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
         ExecutorService executor = Executors.newFixedThreadPool(5);
         for (int i = 0; i < 5; i++) {
             executor.submit(() -> {
@@ -265,7 +266,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
 
         // Make sure the namespace config update failed
         try {
-            admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Lists.newArrayList("r1"));
+            admin1.namespaces().setNamespaceReplicationClusters("pulsar/global/ns", Sets.newHashSet("r1"));
             fail("Should have raised exception");
         } catch (PreconditionFailedException pfe) {
             // OK
@@ -887,7 +888,7 @@ public class ReplicatorTest extends ReplicatorTestBase {
         BrokerService brokerService = pulsar1.getBrokerService();
 
         admin1.namespaces().createNamespace(namespace);
-        admin1.namespaces().setNamespaceReplicationClusters(namespace, Lists.newArrayList("r1", "r2", "r3"));
+        admin1.namespaces().setNamespaceReplicationClusters(namespace, Sets.newHashSet("r1", "r2", "r3"));
 
         if (isPartitionedTopic) {
             admin1.persistentTopics().createPartitionedTopic(persistentTopicName, 5);
