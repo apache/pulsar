@@ -18,10 +18,14 @@
  */
 package org.apache.pulsar.broker.loadbalance.impl;
 
-import java.util.HashMap;
+import com.google.common.collect.ArrayListMultimap;
+import com.google.common.collect.Multimap;
+
 import java.util.Map;
 
-import org.apache.pulsar.broker.BrokerData;
+import org.apache.bookkeeper.mledger.util.Pair;
+import org.apache.commons.lang3.mutable.MutableBoolean;
+import org.apache.commons.lang3.mutable.MutableDouble;
 import org.apache.pulsar.broker.BundleData;
 import org.apache.pulsar.broker.ServiceConfiguration;
 import org.apache.pulsar.broker.TimeAverageMessageData;
@@ -40,21 +44,15 @@ import org.slf4j.LoggerFactory;
  * rate that has not been recently unloaded.
  */
 public class OverloadShedder implements LoadSheddingStrategy {
+
     private static final Logger log = LoggerFactory.getLogger(OverloadShedder.class);
-    private Map<String, String> selectedBundlesCache;
+
+    private final Multimap<String, String> selectedBundlesCache = ArrayListMultimap.create();
+
+    private final static double ADDITIONAL_THRESHOLD_PERCENT_MARGIN = 0.05;
 
     /**
-     * Create an OverloadShedder with the service configuration.
-     *
-     * @param conf
-     *            Service configuration to create from.
-     */
-    public OverloadShedder(final ServiceConfiguration conf) {
-        selectedBundlesCache = new HashMap<>();
-    }
-
-    /**
-     * Attempt to shed one bundle off every broker which is overloaded.
+     * Attempt to shed some bundles off every broker which is overloaded.
      *
      * @param loadData
      *            The load data to used to make the unloading decision.
@@ -62,51 +60,73 @@ public class OverloadShedder implements LoadSheddingStrategy {
      *            The service configuration.
      * @return A map from bundles to unload to the brokers on which they are loaded.
      */
-    public Map<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
+    public Multimap<String, String> findBundlesForUnloading(final LoadData loadData, final ServiceConfiguration conf) {
         selectedBundlesCache.clear();
         final double overloadThreshold = conf.getLoadBalancerBrokerOverloadedThresholdPercentage() / 100.0;
         final Map<String, Long> recentlyUnloadedBundles = loadData.getRecentlyUnloadedBundles();
-        for (final Map.Entry<String, BrokerData> entry : loadData.getBrokerData().entrySet()) {
-            final String broker = entry.getKey();
-            final BrokerData brokerData = entry.getValue();
-            final LocalBrokerData localData = brokerData.getLocalData();
-            final double maxUsage = localData.getMaxResourceUsage();
-            if (maxUsage >= overloadThreshold) {
-                log.info("Attempting to shed load on {}, which has max resource usage {}%", broker, maxUsage);
-                double maxMessageRate = Double.NEGATIVE_INFINITY;
-                String mostTaxingBundle = null;
-                if (localData.getBundles().size() > 1) {
-                    for (final String bundle : localData.getBundles()) {
-                        final BundleData bundleData = loadData.getBundleData().get(bundle);
-                        if (bundleData == null) {
-                            continue;
-                        }
 
-                        // Consider short-term message rate to address system resource burden
-                        final TimeAverageMessageData shortTermData = bundleData.getShortTermData();
-                        final double messageRate = shortTermData.getMsgRateIn() + shortTermData.getMsgRateOut();
-                        // The burden of checking the timestamp is for the load manager, not the strategy.
-                        if (messageRate > maxMessageRate && !recentlyUnloadedBundles.containsKey(bundle)) {
-                            maxMessageRate = messageRate;
-                            mostTaxingBundle = bundle;
-                        }
-                    }
-                    if (mostTaxingBundle != null) {
-                        selectedBundlesCache.put(broker, mostTaxingBundle);
-                    } else {
-                        log.warn("Load shedding could not be performed on broker {} because all bundles assigned to it "
-                                + "have recently been unloaded");
-                    }
-                } else if (localData.getBundles().size() == 1) {
-                    log.warn(
-                            "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
-                                    + "No Load Shedding will be done on this broker",
-                            localData.getBundles().iterator().next(), broker);
-                } else {
-                    log.warn("Broker {} is overloaded despite having no bundles", broker);
+        // Check every broker and select
+        loadData.getBrokerData().forEach((broker, brokerData) -> {
+
+            final LocalBrokerData localData = brokerData.getLocalData();
+            final double currentUsage = localData.getMaxResourceUsage();
+            if (currentUsage < overloadThreshold) {
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] Broker is not overloaded, ignoring at this point", broker);
                 }
+                return;
             }
-        }
+
+            // We want to offload enough traffic such that this broker will go below the overload threshold
+            // Also, add a small margin so that this broker won't be very close to the threshold edge.
+            double percentOfTrafficToOffload = currentUsage - overloadThreshold + ADDITIONAL_THRESHOLD_PERCENT_MARGIN;
+            double brokerCurrentThroughput = localData.getMsgThroughputIn() + localData.getMsgThroughputOut();
+
+            double minimumThroughputToOffload = brokerCurrentThroughput * percentOfTrafficToOffload;
+
+            log.info(
+                    "Attempting to shed load on {}, which has max resource usage above threshold {}% > {}% -- Offloading at least {} MByte/s of traffic",
+                    broker, currentUsage, overloadThreshold, minimumThroughputToOffload / 1024 / 1024);
+
+            MutableDouble trafficMarkedToOffload = new MutableDouble(0);
+            MutableBoolean atLeastOneBundleSelected = new MutableBoolean(false);
+
+            if (localData.getBundles().size() > 1) {
+                // Sort bundles by throughput, then pick the biggest N which combined make up for at least the minimum throughput to offload
+
+                loadData.getBundleData().entrySet().stream().map((e) -> {
+                    // Map to throughput value
+                    // Consider short-term byte rate to address system resource burden
+                    String bundle = e.getKey();
+                    BundleData bundleData = e.getValue();
+                    TimeAverageMessageData shortTermData = bundleData.getShortTermData();
+                    double throughput = shortTermData.getMsgThroughputIn() + shortTermData.getMsgThroughputOut();
+                    return Pair.create(bundle, throughput);
+                }).filter(e -> {
+                    // Only consider bundles that were not already unloaded recently
+                    return !recentlyUnloadedBundles.containsKey(e.first);
+                }).sorted((e1, e2) -> {
+                    // Sort by throughput in reverse order
+                    return Double.compare(e2.second, e1.second);
+                }).forEach(e -> {
+                    if (trafficMarkedToOffload.doubleValue() < minimumThroughputToOffload
+                            || atLeastOneBundleSelected.isFalse()) {
+                       selectedBundlesCache.put(broker, e.first);
+                       trafficMarkedToOffload.add(e.second);
+                       atLeastOneBundleSelected.setTrue();
+                   }
+                });
+            } else if (localData.getBundles().size() == 1) {
+                log.warn(
+                        "HIGH USAGE WARNING : Sole namespace bundle {} is overloading broker {}. "
+                                + "No Load Shedding will be done on this broker",
+                        localData.getBundles().iterator().next(), broker);
+            } else {
+                log.warn("Broker {} is overloaded despite having no bundles", broker);
+            }
+
+        });
+
         return selectedBundlesCache;
     }
 }
