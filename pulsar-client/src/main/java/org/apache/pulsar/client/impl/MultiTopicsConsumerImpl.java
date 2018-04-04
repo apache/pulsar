@@ -767,12 +767,12 @@ public class MultiTopicsConsumerImpl<T> extends ConsumerBase<T> {
             consumers.values().stream().filter(consumer1 -> {
                 String consumerTopicName = consumer1.getTopic();
                 if (TopicName.get(consumerTopicName).getPartitionedTopicName().equals(topicName)) {
+                    toCloseNum.incrementAndGet();
                     return true;
                 } else {
                     return false;
                 }
-            }).forEach(consumer2 -> {
-                toCloseNum.incrementAndGet();
+            }).collect(Collectors.toList()).forEach(consumer2 -> {
                 consumer2.closeAsync().whenComplete((r, ex) -> {
                     consumer2.subscribeFuture().completeExceptionally(error);
                     allTopicPartitionsNumber.decrementAndGet();
