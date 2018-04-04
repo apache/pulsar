@@ -90,7 +90,7 @@ public class SchemasResource extends AdminResource {
                                 .type(schema.schema.getType())
                                 .timestamp(schema.schema.getTimestamp())
                                 .data(new String(schema.schema.getData()))
-                                .properties(schema.schema.props)
+                                .properties(schema.schema.getProps())
                                 .build()
                             )
                             .build()
@@ -131,7 +131,7 @@ public class SchemasResource extends AdminResource {
                                     .type(schema.schema.getType())
                                     .timestamp(schema.schema.getTimestamp())
                                     .data(new String(schema.schema.getData()))
-                                    .properties(schema.schema.props)
+                                    .properties(schema.schema.getProps())
                                     .build()
                                 ).build()
                         );
