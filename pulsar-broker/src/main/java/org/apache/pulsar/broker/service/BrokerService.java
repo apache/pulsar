@@ -635,7 +635,7 @@ public class BrokerService implements Closeable, ZooKeeperCacheListener<Policies
 
                         @Override
                         public void openLedgerFailed(ManagedLedgerException exception, Object ctx) {
-                            if (createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
+                            if (!createIfMissing && exception instanceof ManagedLedgerNotFoundException) {
                                 // We were just trying to load a topic and the topic doesn't exist
                                 topicFuture.complete(null);
                             } else {

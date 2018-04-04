@@ -28,6 +28,7 @@ import static org.testng.Assert.fail;
 import java.lang.reflect.Field;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
@@ -1270,5 +1271,28 @@ public class PersistentTopicE2ETest extends BrokerTestBase {
         Producer<byte[]> p2 = producerBuilder.create();
 
         p2.close();
+    }
+
+    @Test
+    public void testGetOrCreateTopic() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testGetOrCreateTopic";
+
+        admin.lookups().lookupTopic(topicName);
+        Topic topic = pulsar.getBrokerService().getOrCreateTopic(topicName).get();
+        assertNotNull(topic);
+
+        Optional<Topic> t = pulsar.getBrokerService().getTopicReference(topicName);
+        assertTrue(t.isPresent());
+    }
+
+    @Test
+    public void testGetTopicIfExists() throws Exception {
+        String topicName = "persistent://prop/use/ns-abc/testGetTopicIfExists";
+        admin.lookups().lookupTopic(topicName);
+        Optional<Topic> topic = pulsar.getBrokerService().getTopicIfExists(topicName).join();
+        assertFalse(topic.isPresent());
+
+        Optional<Topic> t = pulsar.getBrokerService().getTopicReference(topicName);
+        assertFalse(t.isPresent());
     }
 }

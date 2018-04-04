@@ -719,7 +719,7 @@ public class PersistentTopicTest {
         String role = "appid1";
         // 1. delete inactive topic
         topic.delete().get();
-        assertNull(brokerService.getTopicReference(successTopicName));
+        assertFalse(brokerService.getTopicReference(successTopicName).isPresent());
 
         // 2. delete topic with producer
         topic = (PersistentTopic) brokerService.getOrCreateTopic(successTopicName).get();
@@ -1264,23 +1264,4 @@ public class PersistentTopicTest {
         new CompactorSubscription(topic, compactedTopic, Compactor.COMPACTION_SUBSCRIPTION, cursorMock);
         verify(compactedTopic, Mockito.times(1)).newCompactedLedger(position, ledgerId);
     }
-
-    @Test
-    public void testGetOrCreateTopic() throws Exception {
-        Topic topic = brokerService.getOrCreateTopic(successTopicName).get();
-        assertNotNull(topic);
-
-        Optional<Topic> t = brokerService.getTopicReference(successTopicName);
-        assertTrue(t.isPresent());
-    }
-
-    @Test
-    public void testGetTopicIfExists() throws Exception {
-        Optional<Topic> topic = brokerService.getTopicIfExists(successTopicName).join();
-        assertFalse(topic.isPresent());
-
-        Optional<Topic> t = brokerService.getTopicReference(successTopicName);
-        assertFalse(t.isPresent());
-    }
-
 }
