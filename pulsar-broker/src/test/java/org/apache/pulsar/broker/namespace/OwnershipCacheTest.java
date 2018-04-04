@@ -33,10 +33,10 @@ import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
+import com.google.common.hash.Hashing;
+
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.bookkeeper.common.util.OrderedScheduler;
@@ -58,8 +58,6 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import com.google.common.hash.Hashing;
-
 public class OwnershipCacheTest {
 
     private PulsarService pulsar;
@@ -71,7 +69,6 @@ public class OwnershipCacheTest {
     private NamespaceService nsService;
     private BrokerService brokerService;
     private OrderedScheduler executor;
-    private ScheduledExecutorService scheduledExecutor;
 
     @BeforeMethod
     public void setup() throws Exception {
@@ -80,8 +77,7 @@ public class OwnershipCacheTest {
         pulsar = mock(PulsarService.class);
         config = mock(ServiceConfiguration.class);
         executor = OrderedScheduler.newSchedulerBuilder().numThreads(1).name("test").build();
-        scheduledExecutor = Executors.newScheduledThreadPool(2);
-        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor, scheduledExecutor);
+        zkCache = new LocalZooKeeperCache(MockZooKeeper.newInstance(), executor);
         localCache = spy(new LocalZooKeeperCacheService(zkCache, null));
         ZooKeeperDataCache<LocalPolicies> poilciesCache = mock(ZooKeeperDataCache.class);
         when(pulsar.getLocalZkCacheService()).thenReturn(localCache);
@@ -106,7 +102,6 @@ public class OwnershipCacheTest {
     @AfterMethod
     public void teardown() throws Exception {
         executor.shutdown();
-        scheduledExecutor.shutdown();
     }
 
     @Test

@@ -589,7 +589,7 @@ public class PersistentDispatcherMultipleConsumers  extends AbstractDispatcherMu
             // unblock dispatcher if it acks back enough messages
             if (BLOCKED_DISPATCHER_ON_UNACKMSG_UPDATER.compareAndSet(this, TRUE, FALSE)) {
                 log.info("[{}] Dispatcher is unblocked", name);
-                topic.getBrokerService().executor().submit(() -> readMoreEntries());
+                topic.getBrokerService().executor().execute(() -> readMoreEntries());
             }
         }
         // increment broker-level count
