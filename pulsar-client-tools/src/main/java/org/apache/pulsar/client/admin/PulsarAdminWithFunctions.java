@@ -37,10 +37,6 @@ public class PulsarAdminWithFunctions extends PulsarAdmin {
         this.clientConf = pulsarConfig;
     }
 
-    public ClientConfigurationData getClientConf() {
-        return clientConf;
-    }
-
     /**
      * @return the function management object
      */

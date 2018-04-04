@@ -637,7 +637,11 @@ public class CmdFunctions extends CmdBase {
 
     public CmdFunctions(PulsarAdmin admin) throws PulsarClientException {
         super("functions", admin);
-        this.fnAdmin = new PulsarAdminWithFunctions(admin.getServiceUrl(), admin.getClientConfigData());
+        if (admin instanceof PulsarAdminWithFunctions) {
+            this.fnAdmin = (PulsarAdminWithFunctions) admin;
+        } else {
+            this.fnAdmin = new PulsarAdminWithFunctions(admin.getServiceUrl(), admin.getClientConfigData());
+        }
         localRunner = new LocalRunner();
         creater = new CreateFunction();
         deleter = new DeleteFunction();

@@ -29,6 +29,7 @@ import javax.ws.rs.client.Client;
 import javax.ws.rs.client.ClientBuilder;
 import javax.ws.rs.client.WebTarget;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.pulsar.client.admin.internal.BrokerStatsImpl;
 import org.apache.pulsar.client.admin.internal.BrokersImpl;
 import org.apache.pulsar.client.admin.internal.ClustersImpl;
@@ -121,9 +122,11 @@ public class PulsarAdmin implements Closeable {
         ClientBuilder clientBuilder = ClientBuilder.newBuilder().withConfig(httpConfig)
                 .register(JacksonConfigurator.class).register(JacksonFeature.class);
 
-        boolean useTls = clientConfigData.getServiceUrl().startsWith("https://");
+        boolean useTls = false;
 
-        if (clientConfigData != null && useTls) {
+        if (clientConfigData != null && StringUtils.isNotBlank(clientConfigData.getServiceUrl())
+                && clientConfigData.getServiceUrl().startsWith("https://")) {
+            useTls = true;
             try {
                 SSLContext sslCtx = null;
 
